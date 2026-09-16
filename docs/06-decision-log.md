@@ -82,3 +82,32 @@ Append-only.
 
 ### Pending (Phase 4)
 Stack, database and hosting choices, the food database source and its licensing (it now also needs barcode lookup), the photo/text estimation provider, and which Health Auto Export tier is needed and what it costs.
+
+## 2026-09-16 — Visual direction: Instrument
+
+**Decision.** Instrument — dense mono-figure grid on a cool near-black ground, JetBrains Mono for
+figures, IBM Plex Sans for labels, single cyan accent (#3FB6D4) with a muted green (#57C99A) for
+completed state. The live session screen borrows Heavy's scale for the active set row only: the
+working weight is set at 56px and the completion control is full-width.
+
+**Why.** Four of the six v1 screens are irreducibly dense — the e1RM chart with four independently
+toggleable overlays (S20), the weekly prep plan and grocery list (S17), the meal plan with per-food
+grams against five macro targets (S16), and the maintenance check (S18a). Instrument is the only one
+of the three directions whose grammar carries into all four unchanged.
+
+**Rejected — Heavy** (brutalist, one exercise fills the screen, 96px numerals). It wins the mid-set
+moment outright and nothing else comes close there, but it has no answer for the four dense screens:
+adopting it means building a second, denser vocabulary for two thirds of the app, and extracting two
+design systems in Phase 3. The narrow win it does have is recoverable inside Instrument by scaling
+the active row, which is what was done.
+
+**Rejected — Quiet** (warm editorial dark, Newsreader headings, amber accent). Best-looking of the
+three and it does not win a single screen: worse than Instrument at arm's length in a gym, and no
+better on the nutrition screens, which are tables of numbers underneath the serif.
+
+**Known risk.** If the real failure mode turns out to be not logging at all because the app reads as
+a spreadsheet, Quiet was the better bet — adherence beats density. Revisit after M1 is in daily use.
+
+**Carried into the build, unresolved.** The carb-shift recommendation (S16, last bullet) needs an
+evidence tag and none of the three directions drew one; settle the evidence-tag treatment when
+building screen 3, since S23 needs the same component.
