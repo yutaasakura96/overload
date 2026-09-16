@@ -1,0 +1,465 @@
+# 05 — Design System
+
+**Direction:** Instrument (picked 2026-09-16 — see `docs/06-decision-log.md`).
+**Extracted from:** the six `.dc.html` artboards in `design/`, 2026-09-16.
+
+Every value here was lifted from the artboard source. Nothing is rounded to a 4/8px grid and nothing
+is invented. Where a value appears once, or where two artboards disagree, that is recorded rather
+than smoothed over — see *Deviations found in extraction* at the end.
+
+The "THE SYSTEM" sticky note on page 1 of the canvas was the starting point. It is not accurate: it
+lists four text tones where the files use six, omits two colours, and gives one colour
+(`#12161A`) more prominence than its single use supports. This document supersedes it.
+
+---
+
+## 1. Colour
+
+### 1.1 Surfaces
+
+| Token | Hex | Where it is used |
+| --- | --- | --- |
+| `surface/ground` | `#0B0D0F` | Body background of all six screens. |
+| `surface/raised` | `#12161A` | Rest bar only (screen 1). The system's only raised surface. |
+| `surface/active` | `#0F171B` | Active set card (1), active meal card (3), maintenance check (6). |
+| `surface/accent` | `#10262E` | Fill behind every accent control: COMPLETE SET, SKIP, active span, active tab, EATEN AS PLANNED, CONFIRM ALL, APPLY TO TARGETS. |
+| `surface/done` | `#15241E` | Completed set check cell (1), completed prep row check cell (5). |
+| `surface/flag` | `#15110A` | Warning panel (4). |
+
+### 1.2 Lines
+
+| Token | Hex | Where it is used |
+| --- | --- | --- |
+| `line/row` | `#14191E` | Divider between rows inside a table (set rows on 1, prep rows on 5). Deliberately weaker than the hairline. |
+| `line/hairline` | `#1A2026` | App-bar underline, resting card borders, section dividers, chart gridlines, meter tracks, timeline rail. The default border. |
+| `line/border` | `#232B32` | Rest-bar top edge (1), chart baseline (2, 6), unconfirmed meal cards (4), inert prep check cells (5). |
+| `line/field` | `#2A3440` | Secondary control borders (+30s, WARM, ADJUST, REPL, pending chip), inert overlay swatches, unfilled timeline dots, weigh-in scatter dots. |
+| `line/accent` | `#234A57` | Border of active panels and the suggested-weight chip. |
+| `line/done` | `#2E4A40` | Border of done fills. |
+| `line/flag` | `#4A3A1C` | Border of flag fills and the evidence tag. |
+
+### 1.3 Text
+
+Six tones, not four. The ladder is used consistently for rank, so it is worth keeping all six.
+
+| Token | Hex | Contrast on ground | Where it is used |
+| --- | --- | --- | --- |
+| `text/primary` | `#E6EDF3` | 16.48:1 | Every figure that is the answer to the screen's question, and every app-bar title. |
+| `text/secondary` | `#A8B4C0` | 9.23:1 | Named things next to a figure: meal names, food names, exercise names in a list, secondary button labels. |
+| `text/tertiary` | `#8A96A3` | 6.46:1 | Supporting figures (set number, RIR, per-food grams), the WARM and ADJUST/REPL control labels, the back chevron. |
+| `text/quaternary` | `#5A6673` | 3.32:1 | Metadata under a title, the "last time" reference value, food-list strings inside a collapsed card, unit suffixes. |
+| `text/micro` | `#4A5560` | 2.56:1 | 9px small-caps column heads and field labels, inline qualifiers (`cooked`), and **unfilled figure placeholders** — the REPS `10` and RIR `—` in the active set are 56px in this tone until entered. |
+| `text/faintest` | `#3C464F` | 2.02:1 | Chart axis labels, macro-target denominators (`/180`), em-dash empty values, footer metadata. |
+
+### 1.4 Accents
+
+| Token | Hex | Contrast on ground | Where it is used |
+| --- | --- | --- | --- |
+| `accent` | `#3FB6D4` | 8.21:1 | The one accent. Active state, primary action, the e1RM and trend line, the "now" marker on the timeline. |
+| `accent/hover` | `#6FCDE3` | — | Declared as `a:hover` in every artboard's `<style>`. Never used in a body element. |
+| `done` | `#57C99A` | 9.48:1 | Completed, confirmed, on-target. Check marks, macro meter fills, the synced dot, positive deltas. |
+| `flag` | `#E0A83C` | 9.12:1 | Needs attention, not an error. Pending count, weight-trend overlay line, unconfirmed count, `CARBS ↑`. |
+| `flag/dim` | `#8A7340` | 4.27:1 | One use: the `MODERATE` qualifier in the evidence tag (3). |
+
+There is no error/destructive colour anywhere in the six screens. One will be needed before build —
+see §7.
+
+### 1.5 Contrast — measured, not assumed
+
+Ratios computed against `surface/ground` (WCAG 2.1 relative luminance). AA normal text needs 4.5:1;
+large text (≥24px, or ≥18.66px bold) and UI component boundaries need 3.0:1.
+
+| Tone | Ratio | Verdict at the sizes actually used |
+| --- | --- | --- |
+| `text/primary` `#E6EDF3` | 16.48 | Passes everywhere. |
+| `text/secondary` `#A8B4C0` | 9.23 | Passes everywhere. |
+| `text/tertiary` `#8A96A3` | 6.46 | Passes everywhere. |
+| `accent` `#3FB6D4` | 8.21 | Passes everywhere. |
+| `done` `#57C99A` | 9.48 | Passes everywhere. |
+| `flag` `#E0A83C` | 9.12 | Passes everywhere. |
+| `flag/dim` `#8A7340` | 4.27 | **Fails AA** at its 8px use. Also 4.13 on `surface/flag`. |
+| `text/quaternary` `#5A6673` | 3.32 | **Fails AA** — used at 10–11px for real content (warm-up summary values, food lists, "last time"). |
+| `text/micro` `#4A5560` | 2.56 | **Fails AA and AA-large.** Used for all column heads and the 56px placeholder. |
+| `text/faintest` `#3C464F` | 2.02 | **Fails AA and AA-large.** Used for chart axis labels and macro denominators. |
+| `line/field` `#2A3440` | 1.54 | **Fails the 3.0 UI-component threshold.** It is the visible boundary of every secondary button. |
+
+This is the direct cost of Instrument's density and it is not a rendering accident — the ladder is
+built out of it. It is recorded here as a measured fact, not fixed, because raising these tones
+changes the direction. See §7 for what has to be decided.
+
+---
+
+## 2. Typography
+
+### 2.1 Families
+
+| Role | Family | Loaded weights |
+| --- | --- | --- |
+| Figures, units, timestamps, chart labels, anything monospaced | `JetBrains Mono` | 400, 500, 700 |
+| Labels, names, prose, button text | `IBM Plex Sans` | 400, 500, 600 |
+
+Fallback stack on the artboard root: `'IBM Plex Sans', system-ui, sans-serif`. Mono elements declare
+`'JetBrains Mono', monospace` individually.
+
+The split is strict: if it is a number the user compares against another number, it is mono. If it
+names something, it is sans.
+
+### 2.2 Size scale
+
+Every size present in the six screens, with its use.
+
+| px | Family | Where |
+| --- | --- | --- |
+| 8 | Sans | Evidence-tag qualifier (`MODERATE`). One instance, screen 3. |
+| 9 | Sans | All small-caps column heads and field labels. |
+| 9 | Mono | Chart axis labels (SVG), macro denominators, yield percentages. |
+| 10 | Sans | Button labels on 44px controls, inline explanatory text, section headings. |
+| 10 | Mono | Timestamps, metadata, food-list strings, unit suffixes. |
+| 11 | Sans | App-bar titles, card titles, control labels, overlay chip labels. |
+| 11 | Mono | "Last time" values, meter values, chip figures, span labels. |
+| 12 | Sans | Up-next names, grocery item names, "Implied maintenance". |
+| 12 | Mono | `+30s`, grocery quantities, per-food grams in a list. |
+| 13 | Sans | `CONFIRM ALL AS PLANNED`, prep food names. |
+| 13 | Mono | Set number, RIR, the `+11.3` delta, the `−0.42` rate. |
+| 14 | Sans | `COMPLETE SET`. |
+| 14 | Mono | `kg` unit beside a 42px figure. |
+| 15 | Sans | Exercise name (1), "meals unconfirmed" (4). |
+| 15 | Mono | Prep raw/cooked gram figures (5). |
+| 17 | Mono | **Working-set kg and reps (1). The app's standard figure size.** |
+| 19 | Mono | If-confirmed kcal and protein (4). |
+| 20 | Mono | Top set, volume load (2). |
+| 22 | Mono | Avg intake, trend change (6). |
+| 24 | Mono | Implied maintenance (6). |
+| 26 | Mono | Day kcal total (3). |
+| 30 | Mono | Rest timer (1). |
+| 38 | Mono | Unconfirmed meal count (4). |
+| 42 | Mono | e1RM headline (2), weight trend headline (6). |
+| 56 | Mono | **Active set only (1). The named exception — §2.5.** |
+
+### 2.3 Weight
+
+| Weight | Use |
+| --- | --- |
+| 400 | Default for sans labels and prose. |
+| 500 | Every mono figure at 13px and above. No mono figure is 400 or 700 except the one noted below. |
+| 600 | App-bar titles, exercise name, primary button labels, active tab label. |
+| 700 | One instance: the active span selector `12W` (2). |
+
+### 2.4 Tracking
+
+| Tracking | Applied to |
+| --- | --- |
+| `-0.03em` | 42px and 56px figures. |
+| `-0.02em` | 38px figure. |
+| `-0.01em` | 26px and 30px figures. |
+| `0.02em`–`0.04em` | Mono metadata on screen 1 (elapsed time, rep range). |
+| `0.06em` | Exercise name, overlay chip labels, warm-up summary label. |
+| `0.08em` | Small-caps labels and 44px button labels. |
+| `0.1em` | 9px column heads and micro labels; larger button labels. |
+| `0.12em` | Section headings and app-bar titles. |
+| `0.14em` | One instance: `PUSH A` on the meal timeline (3). |
+
+Figures above 26px are tightened. Labels below 12px are opened. Nothing between 12 and 26px carries
+tracking.
+
+### 2.5 Line height
+
+| Value | Applied to |
+| --- | --- |
+| `0.86` | 56px active-set figures. |
+| `0.9` | 38px and 42px headline figures. |
+| `1` | 30px rest timer. |
+| `1.55` | Wrapping prose at 10–11px. |
+| `1.6` | Mono food-list strings at 10px. |
+
+### 2.6 The 56px exception — named, single, not a second scale
+
+**Rule.** The app's figure size is 17–18px. One element breaks it: the weight, reps and RIR of the
+*currently active working set* on screen 1, at 56px / weight 500 / `-0.03em` / line-height 0.86.
+
+**Why.** This is a deliberate borrow from the rejected Heavy direction, covering the one moment
+Instrument is weakest at: mid-set, arm's length, bad gym light, one hand free. The decision log
+records this as the recoverable part of Heavy's narrow win. The 42px headlines on screens 2 and 6
+are a separate, smaller step and are read seated, not mid-set.
+
+**Constraints on its use.**
+- It applies to exactly one row at a time — the active set, inside `surface/active`.
+- The moment the set is completed it drops to the 17px table row. There is no 56px history.
+- No other screen may introduce it. A new screen that wants a bigger figure uses 42px.
+- Its unfilled state is the same 56px in `text/micro` `#4A5560`, not a smaller placeholder.
+
+If a second 56px use is ever proposed, it is a request to change the type scale and belongs in the
+decision log, not in a component.
+
+---
+
+## 3. Geometry
+
+| Property | Value |
+| --- | --- |
+| Artboard | 390 × 844 (iPhone 14/15 logical) |
+| Side gutter | 16px, both edges, on every screen |
+| Content width | 358px — SVG charts are authored at exactly 358 wide, confirming the gutter is the rule and not a coincidence |
+| Corner radius | **2px everywhere.** No other radius exists except `50%` for status and timeline dots |
+| Border width | 1px, with one exception: the active set card's 2px left edge in `accent` |
+| Rest progress bar | 2px tall |
+
+### 3.1 Grids
+
+| Screen | Columns | Gap | Computed 1fr |
+| --- | --- | --- | --- |
+| 1 — set table | `24px 58px 1fr 50px 38px 46px` | 6px | 112px (the KG column) |
+| 1 — active set | `1fr 88px 62px` | 8px | 162px (KG), inside a 328px card interior |
+| 2 — span selector | `repeat(5, 1fr)` | 5px | 66.8px |
+| 2 — secondary stats, overlays | `repeat(2, 1fr)` | 8px / 7px | 175px / 175.5px |
+| 3 — macro meters | `repeat(4, 1fr)` | 10px | 74.5px |
+| 3 — timeline | `42px 1fr` | 10px | 306px |
+| 4 — if-confirmed | `repeat(2, 1fr)` | 12px | 173px |
+| 5 — tabs | `repeat(2, 1fr)` | 5px | 176.5px |
+| 5 — prep table | `1fr 74px 74px 44px` | 8px | 142px (the COOK column) |
+| 6 — maintenance figures | `1fr 1fr` | 14px | 157px inside the card |
+
+### 3.2 Touch targets
+
+The rule is 44px minimum. It holds across the six screens with one exception.
+
+| Height | Controls |
+| --- | --- |
+| 44 | Set check cell (46 × 44), prep check cell (44 × 44), span selector, tabs, `EATEN AS PLANNED`, `ADJUST` (62 wide), `REPL` (78 wide) |
+| 46 | Overlay chips, `+30s` (min-width 62), `SKIP` (min-width 72), `LEAVE DAY INCOMPLETE` |
+| 52 | `APPLY TO TARGETS` |
+| 60 | `CONFIRM ALL AS PLANNED` |
+| 64 | `COMPLETE SET`, `WARM` (52 wide) |
+| **30** | **Back chevron (2) — violates the rule. Must be 44 × 44 in build.** |
+
+Two further elements read as tappable but have no target: the `+ 4 more` grocery link (5, 11px text
+only) and the chart data points (2, r=2.5–3.5). Both need 44px targets or an explicit decision that
+they are not interactive.
+
+### 3.3 Spacing
+
+The vertical rhythm is bespoke — it is not a 4px or 8px grid, and the extraction confirms this
+rather than contradicting it.
+
+- **App bar padding:** `18px 16px 13px 16px` on screens 3–6, `18px 16px 14px 16px` on 1 and 2.
+- **Section top padding:** 14, 16, 18, 20 or 22px depending on the weight of the break.
+- **Card interior padding:** 10–14px. Resting cards `10px 11px`; active cards `11px 12px` to `14px`.
+- **Table row padding:** `9px 16px` (1), `11px 16px` (5).
+- **Flush-bottom elements** are absolutely positioned at `bottom: 18px` (footnote rules on 2 and 6),
+  `bottom: 20px` (actions on 4) or `bottom: 0` (rest bar on 1).
+- **Gaps in use:** 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 18px.
+
+Treat the recurring values — 16px gutter, 9px and 11px row padding, 6–9px intra-component gap,
+18–22px section break — as the system. Treat the rest as per-screen tuning.
+
+---
+
+## 4. Components
+
+### 4.1 App bar
+Flex row, `18px 16px 13–14px 16px`, bottom border `line/hairline`. Left: title, 11px sans / 600 /
+`0.12em` / `text/primary`, uppercase. Right: one of — a mono metadata string at 10px
+`text/quaternary`, an accent string at 10px (`TRAINING 18:30`), a status chip, or a status dot plus
+string. Screen 2 replaces the title block with a back chevron plus a 12px / `0.1em` title.
+
+### 4.2 Status chip
+`7px 9px` padding, 1px `line/field`, radius 2. A 6px `50%` dot in the state colour, 7px gap, then a
+10px mono label at `0.08em` in `text/secondary`. Used for the offline pending count. The synced
+indicator on screen 6 is the same idea without the border: a 5px `done` dot plus a 10px mono string.
+
+### 4.3 Section label
+9px sans, `0.12em`, `text/micro`, uppercase. Sits 8–10px above its content. This is the only
+sectioning device — there are no rules, no card headers and no larger headings anywhere in the app.
+
+### 4.4 Data table
+Column heads at 9px / `0.1em` / `text/micro`, then a 1px `line/hairline` inset to the gutters, then
+rows separated by `line/row` `#14191E`. Rows are `9px 16px` (set table) or `11px 16px` (prep table).
+Numeric columns are right-aligned in the prep table and left-aligned in the set table.
+
+### 4.5 Active card
+1px `line/accent` border, `surface/active` fill, radius 2. On screen 1 only it also carries a 2px
+`accent` left edge. Interior padding 11–14px, internal gap 9–13px. Opens with a label row: an accent
+10px `0.12em` title on the left, contextual reference on the right.
+
+### 4.6 Buttons
+
+| Variant | Border | Fill | Label |
+| --- | --- | --- | --- |
+| Primary | 1px `accent` | `surface/accent` | `accent`, 600, `0.1em`, 12–14px, often with a 20–22px check icon and an 11px gap |
+| Secondary | 1px `line/field` | none | `text/tertiary`, 10px, `0.08em` |
+| Tertiary | 1px `line/hairline` | none | `text/quaternary`, 11px, `0.08em` |
+
+Primary scales with importance: 44px inline, 52px in a card, 60px as a screen's terminal action,
+64px mid-set.
+
+### 4.7 Check cell
+A square-ish control that carries done state instead of a label.
+- **Inert:** 1px `line/border` `#232B32`, no fill, 15px check stroked `#3C464F`.
+- **Done:** 1px `line/done`, `surface/done` fill, 15–17px check stroked `done` `#57C99A`.
+
+Check icon geometry is fixed across the app: `viewBox="0 0 24 24"`, path `M4 12.5 9.5 18 20 6.5`,
+`stroke-linecap`/`linejoin` round, stroke width 2.5 (3 at small sizes).
+
+### 4.8 Segmented control
+Equal columns, 5px gap, 44px tall, radius 2. Inactive: 1px `line/hairline`, 11px label in
+`text/quaternary`. Active: 1px `accent`, `surface/accent`, 11px label in `accent`. Weight on the
+active segment is 700 in the span selector (2) and 600 in the tabs (5) — see §7.
+
+### 4.9 Meal card — four states
+
+| State | Border | Fill | Marker | Content |
+| --- | --- | --- | --- | --- |
+| Confirmed (3) | `line/hairline` | none | `done` filled 7px dot | Title in `text/secondary` + check and `EATEN` in `done`; foods as one mono string |
+| Active (3) | `line/accent` | `surface/active` | `accent` 1px ring, 7px | Title in `text/primary`; foods as a name/quantity list; three actions |
+| Planned (3) | `line/hairline` | none | `line/field` 1px ring, 7px | Title in `text/secondary` + kcal/protein; foods as one mono string |
+| Unconfirmed (4) | `line/border` | none | none — listed, not on a rail | Time + title + kcal; foods as one mono string; three actions |
+
+Action row is constant: `EATEN AS PLANNED` / `AS PLANNED` (flex-grow, 44px), `ADJUST` (62 × 44),
+`REPL` (78 × 44, with a 13px swap icon). On screen 3 the first is primary; on screen 4 all three are
+secondary because the screen's own primary is `CONFIRM ALL AS PLANNED`.
+
+### 4.10 Macro meter
+Stacked: a label row (9px `text/micro` head, 11px mono value in `text/secondary`), a 3px track in
+`line/hairline` with a fill in `done`, then a 9px mono denominator in `text/faintest`. Fill width is
+percent-of-target and is capped visually at 100% — the PRO meter reads 182 against 180 at 100%
+width.
+
+### 4.11 Timeline rail
+`42px 1fr` grid, 10px gap. The rail column stacks a 10px mono time, a marker, then a 1px
+`line/hairline` line that flex-grows to the next entry. Markers: 7px `done` filled disc (done), 7px
+1px-ringed disc in `accent` (active) or `line/field` (future), and a 9px **square** in `accent` for
+the training block — the only non-round marker.
+
+### 4.12 Evidence tag — partial
+As drawn on screen 3: 1px `line/flag`, radius 2, padding `2px 6px`, containing a 9px mono claim in
+`flag` (`CARBS ↑`), a 1px × 9px `line/flag` divider, and an 8px sans strength label at `0.06em` in
+`flag/dim`. Only the moderate state exists. Strong, contested, and the route to the source are
+undesigned — see `docs/10` §7.1.
+
+### 4.13 Overlay chip
+46px tall, `0 12px`, 9px gap, radius 2. A 14 × 2px swatch, then an 11px `0.06em` label.
+- **Off:** 1px `line/hairline`, swatch `line/field`, label `text/quaternary`.
+- **On:** 1px in the series colour, fill in the series' dim tone, swatch and label in the series
+  colour. Only one series is currently specified: weight trend, `flag` on `#1A1509`, border
+  `line/flag`.
+
+### 4.14 Rest bar
+Pinned to the bottom edge, `surface/raised` with a top border in `line/border`. A 2px progress track
+in `line/hairline` sits on the very top edge with an `accent` fill (62% in the artboard). Below:
+`REST` at 9px `0.12em` `text/quaternary` over a 30px mono timer, and two controls right-aligned.
+
+### 4.15 Footnote rule
+Absolutely positioned at `bottom: 18px`, 12px padding above a `line/hairline` top border, holding a
+10px sans statement on the left and a 10px mono formula or metadata string on the right in
+`text/faintest`. Used for the Epley formula (2) and the phase/week footer (6).
+
+---
+
+## 5. Charts
+
+Two chart types exist, both authored as inline SVG at 358px wide.
+
+| Property | e1RM (2) | Weight trend (6) |
+| --- | --- | --- |
+| Canvas | 358 × 192 | 358 × 186 |
+| Plot x-range | 14 → 344 | 14 → 344 |
+| Baseline | y = 160, `line/border` | y = 160, `line/border` |
+| Gridlines | y = 26.7 / 76.7 / 126.7, `line/hairline` | y = 31.5 / 85.4 / 139.2, `line/hairline` |
+| Scale | 50px per 6 kg | 53.85px per 1.0 kg |
+| Value labels | right-anchored at x=356, 9px mono `text/faintest` | same |
+| Date labels | y = 178, 9px mono `text/faintest`; start left-anchored, end right-anchored | same |
+| Primary series | `accent`, 2px polyline, round caps | `accent`, 2px polyline, 7 smoothed points |
+| Data points | r=2.5 rings, 1.5px `accent` stroke on `surface/ground` fill | r=2 discs in `line/field` (raw weigh-ins) |
+| Latest point | r=3.5 solid `accent` | r=3.5 solid `accent` |
+| Overlay series | `flag`, 1.5px, `stroke-dasharray="3 3"`, opacity 0.75 | — |
+
+Conventions that carry to any new chart: the primary series is solid `accent` at 2px; overlays are
+dashed at 1.5px in their own colour at 0.75 opacity; raw observations are inert `line/field` discs
+and the derived line is `accent`; the most recent point is always solid and larger.
+
+A legend appears only where raw and derived data are both plotted (6): 14 × 2px swatch or 5px dot,
+7px gap, 10px sans in `text/quaternary`, 18px between entries.
+
+---
+
+## 6. Iconography
+
+All icons are inline SVG on a 24 × 24 viewBox, `fill="none"`, round caps and joins, stroke coloured
+to match the adjacent label.
+
+| Icon | Path | Sizes / strokes in use |
+| --- | --- | --- |
+| Check | `M4 12.5 9.5 18 20 6.5` | 12–13px @3, 15px @2.5, 17px @2.5, 20–22px @2.5 |
+| Back chevron | `M15 5 8 12l7 7` | 18px @2 |
+| Swap | `M3 8h13l-3.5-3.5M21 16H8l3.5 3.5` | 13px @2 |
+| Info | `M12 8v5M12 17h.01` + `circle cx=12 cy=12 r=9` | 14px @2 |
+
+Four icons total across six screens. The density comes from type and rule, not from iconography;
+adding a fifth icon should need a reason.
+
+---
+
+## 7. Deviations found in extraction
+
+Recorded, not silently resolved. Each needs a decision before or during build.
+
+1. **Two amber panel fills.** The warning panel on screen 4 is `#15110A`; the active overlay chip on
+   screen 2 is `#1A1509`. Nothing distinguishes the two uses. Pick one.
+2. **Active-segment weight is inconsistent.** 700 on the span selector (2), 600 on the tabs (5).
+   Pick one; 600 matches every other emphatic label in the app.
+3. **The back chevron is a 30px target** (2), below the 44px rule the rest of the app keeps.
+4. **`accent/hover` `#6FCDE3` is declared but unused.** It exists only as `a:hover` in each
+   artboard's style block. Either adopt it as the pressed/hover token for accent controls or drop it.
+5. **No error or destructive colour exists.** Six screens, none of which can fail visibly. Revoked
+   access, a refused sync and a failed save are all in the PRD's edge cases and have nowhere to go.
+   A red must be added to the palette and contrast-checked before those states are built.
+6. **Four tones fail WCAG AA** at the sizes they are used — `text/quaternary`, `text/micro`,
+   `text/faintest`, and `flag/dim` — as does the `line/field` control boundary (§1.5). Raising them
+   softens Instrument toward Quiet, which the decision log explicitly forbids doing quietly. The
+   options are: accept the deviation and record it; raise only the tones carrying content that must
+   be read (`text/quaternary` at 10–11px); or add a user-controlled high-contrast mode. **This is a
+   decision for the user, not for the build.**
+
+---
+
+## 8. Token export
+
+Names for implementation. Values are exactly as extracted.
+
+```
+--surface-ground:   #0B0D0F;
+--surface-raised:   #12161A;
+--surface-active:   #0F171B;
+--surface-accent:   #10262E;
+--surface-done:     #15241E;
+--surface-flag:     #15110A;
+
+--line-row:         #14191E;
+--line-hairline:    #1A2026;
+--line-border:      #232B32;
+--line-field:       #2A3440;
+--line-accent:      #234A57;
+--line-done:        #2E4A40;
+--line-flag:        #4A3A1C;
+
+--text-primary:     #E6EDF3;
+--text-secondary:   #A8B4C0;
+--text-tertiary:    #8A96A3;
+--text-quaternary:  #5A6673;
+--text-micro:       #4A5560;
+--text-faintest:    #3C464F;
+
+--accent:           #3FB6D4;
+--accent-hover:     #6FCDE3;
+--done:             #57C99A;
+--flag:             #E0A83C;
+--flag-dim:         #8A7340;
+
+--font-mono:        'JetBrains Mono', monospace;
+--font-sans:        'IBM Plex Sans', system-ui, sans-serif;
+
+--radius:           2px;
+--gutter:           16px;
+--content:          358px;
+--target-min:       44px;
+```

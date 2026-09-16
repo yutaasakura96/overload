@@ -111,3 +111,52 @@ a spreadsheet, Quiet was the better bet — adherence beats density. Revisit aft
 **Carried into the build, unresolved.** The carb-shift recommendation (S16, last bullet) needs an
 evidence tag and none of the three directions drew one; settle the evidence-tag treatment when
 building screen 3, since S23 needs the same component.
+
+## 2026-09-16 — Phase 3 extraction: six text tones, and the contrast cost left on the record
+
+**Decision.** `docs/05-design-system.md` documents six text tones, not the four the canvas sticky
+note claimed, and records the measured WCAG contrast of every one rather than adjusting any of them.
+The failing tones — `#5A6673` (3.32:1), `#4A5560` (2.56:1), `#3C464F` (2.02:1), `#8A7340` (4.27:1),
+and the `#2A3440` control boundary (1.54:1) — are kept exactly as drawn.
+
+**Alternatives considered.** Raising the failing tones during extraction to reach AA; collapsing the
+six tones back to the note's four by reassigning uses.
+
+**Reason.** Instrument's rank ladder is built out of those steps, and raising them is a visual change
+that softens the direction toward Quiet — which the direction decision above explicitly says must be
+raised rather than done quietly. Phase 3 extracts; it does not redesign. The six tones are used
+consistently enough for rank that collapsing them would lose information the artboards carry.
+
+**Revisit if:** Yuta decides on one of the three options in `docs/05` §7.6 — accept and record;
+raise only the tones carrying content that must be read; or add a high-contrast mode.
+
+## 2026-09-16 — The 56px active set is specified as a named exception with constraints
+
+**Decision.** The 56px figure on screen 1 is documented as a single named exception to the 17–18px
+figure scale, with four constraints: one row at a time, dropping to 17px the moment the set is
+completed, no other screen may use it, and its unfilled state stays 56px in `#4A5560`. A second
+proposed use is a change to the type scale and belongs in this log.
+
+**Alternatives considered.** Documenting it as a second display scale alongside the body scale.
+
+**Reason.** It is a borrow from the rejected Heavy direction covering one moment — mid-set, arm's
+length. Written as a scale it would spread; written as a constrained exception it cannot.
+
+**Revisit if:** A second screen has a genuine arm's-length reading moment.
+
+## 2026-09-16 — Phase 3 found gaps the PRD requires and no artboard covers
+
+**Decision.** `docs/10` §8 lists them rather than inventing screens for them: session start and
+routine selection, exercise library, food list management, goal and target setup, the grocery list
+proper, invite administration, export and delete, health setup and dashboard, photo/text estimation,
+plateau protocols beyond the evidence tag, and every error and failure state. The palette has no
+error colour at all.
+
+**Alternatives considered.** Designing them during extraction; leaving them undocumented until the
+build hit them.
+
+**Reason.** Six screens were scoped in Phase 2 deliberately. Drawing more during an extraction phase
+would produce untested design with no direction review behind it. Listing them makes the shortfall a
+known input to Phase 4 rather than a mid-build surprise.
+
+**Revisit if:** Never — these get designed when their milestone comes up.
