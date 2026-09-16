@@ -1,0 +1,75 @@
+{
+  "pages": [
+    { "id": "page-1", "name": "Screens" },
+    { "id": "page-2", "name": "Directions (rejected)" }
+  ],
+  "artboards": [
+    { "file": "Main.dc.html", "title": "1 · Live session", "page": "page-1", "x": 0, "y": 0, "w": 390, "h": 844 },
+    { "file": "Progress.dc.html", "title": "2 · Exercise progress", "page": "page-1", "x": 470, "y": 0, "w": 390, "h": 844 },
+    { "file": "MealPlan.dc.html", "title": "3 · Today's meal plan", "page": "page-1", "x": 940, "y": 0, "w": 390, "h": 844 },
+    { "file": "EndOfDay.dc.html", "title": "4 · End-of-day check", "page": "page-1", "x": 0, "y": 980, "w": 390, "h": 844 },
+    { "file": "PrepList.dc.html", "title": "5 · Prep + grocery", "page": "page-1", "x": 470, "y": 980, "w": 390, "h": 844 },
+    { "file": "WeightTrend.dc.html", "title": "6 · Weight + maintenance", "page": "page-1", "x": 940, "y": 980, "w": 390, "h": 844 },
+    { "file": "Heavy.dc.html", "title": "Heavy — rejected", "page": "page-2", "x": 0, "y": 0, "w": 868, "h": 1000 },
+    { "file": "Quiet.dc.html", "title": "Quiet — rejected", "page": "page-2", "x": 948, "y": 0, "w": 868, "h": 1000 }
+  ],
+  "annotations": [
+    {
+      "id": "note-instrument",
+      "page": "page-1",
+      "x": -5,
+      "y": -280,
+      "w": 420,
+      "text": "INSTRUMENT\n\nWhy: the app is mostly numbers — e1RM, volume load, grams, macro deltas. A dense mono grid lets you compare set 3 to last time without reading a sentence, and the same grammar carries straight into the chart, prep list and grocery screens.\n\nCost: it is quiet. Nothing on the session screen shouts, so at arm's length in bad gym light you are reading 18px figures, not 90px ones."
+    },
+    {
+      "id": "note-system",
+      "page": "page-1",
+      "x": 1420,
+      "y": 0,
+      "w": 400,
+      "text": "THE SYSTEM\n\nGround #0B0D0F · panel #12161A · active panel #0F171B\nHairline #1A2026 · border #232B32 · field border #2A3440\nText #E6EDF3 · dim #A8B4C0 · faint #5A6673 · faintest #3C464F\nAccent #3FB6D4 on #10262E, border #234A57\nDone #57C99A on #15241E, border #2E4A40\nFlag #E0A83C, border #4A3A1C\n\nJetBrains Mono for every figure. IBM Plex Sans for labels, small caps at 9-11px with 0.08-0.12em tracking.\nRadius 2px throughout. Every control at least 44px.\n\nThe one answer to Instrument's cost above: on screen 1 the live set is 56px, because that is the number read at arm's length mid-set. Everything else stays at 17-18px."
+    },
+    {
+      "id": "note-open",
+      "page": "page-1",
+      "x": 1420,
+      "y": 560,
+      "w": 400,
+      "text": "STILL OPEN — settle in Phase 3 or the build\n\n1. The evidence tag. Screen 3 draws the carb-shift recommendation as CARBS ↑ + MODERATE. S23's plateau protocols need the same component with strong / moderate / contested, and a way to reach the source. One component, three states — spec it once.\n\n2. Warm-up sets are collapsed to a summary row on screen 1 to buy vertical space. Expanding them is undesigned.\n\n3. Screens 3, 5 and 6 scroll in reality; these artboards are one viewport each. Scroll behaviour and sticky headers are undesigned.\n\n4. The offline pending count appears only on screen 1. Where it lives on the other five is undecided."
+    },
+    {
+      "id": "note-heavy",
+      "page": "page-2",
+      "x": -7,
+      "y": -333,
+      "w": 420,
+      "text": "HEAVY\n\nWhy: it solves the actual hard moment — mid-set, one hand, sweat. One exercise fills the screen, the weight is 96px, DONE is an 88px slab you cannot miss. Nothing else comes close on the gym floor.\n\nCost: it does not scale down. The meal plan already fights it, and the e1RM chart with four overlays, the weekly prep list and the grocery list will fight it harder. Expect a second, denser mode for those screens — which means two vocabularies, not one."
+    },
+    {
+      "id": "note-quiet",
+      "page": "page-2",
+      "x": 911,
+      "y": -320,
+      "w": 420,
+      "text": "QUIET\n\nWhy: two thirds of this app is not the gym — it is meal plans, weight trends, maintenance estimates, evidence-tagged advice. Serif headings and air make that side feel considered rather than clinical, and it is the direction you would still like a year in.\n\nCost: it is the weakest of the three at 18:30 on a bench. Airy rows and mid-contrast text are the opposite of what sweaty one-handed reading wants."
+    },
+    {
+      "id": "note-brief",
+      "page": "page-2",
+      "x": 1896,
+      "y": 0,
+      "w": 380,
+      "text": "Same two screens in each direction, same data: Bench Press set 3, last session 80 × 10 on every working set, so the suggestion is 82.5 (+2.5 barbell increment). Meal plan is Tuesday, training 18:30, 2,480 of 2,500 kcal.\n\nThe session screen is the one that has to work. The meal plan is here so no direction gets judged only on its best case.\n\nPick one and I will build all six screens into it."
+    },
+    {
+      "id": "note-rejected",
+      "page": "page-2",
+      "x": 1896,
+      "y": 440,
+      "w": 380,
+      "text": "Resolved 16 Sep: Instrument. Full reasoning, including what was given up, is in docs/06-decision-log.md.\n\nThese two are kept as the record of the exploration, not as live options."
+    }
+  ],
+  "launch": { "view": "canvas", "page": "page-1" }
+}

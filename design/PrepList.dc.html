@@ -1,0 +1,143 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap">
+  <style>
+    body { margin: 0; }
+    a { color: #3FB6D4; }
+    a:hover { color: #6FCDE3; }
+  </style>
+</helmet>
+
+<div style="position: relative; width: 390px; height: 844px; box-sizing: border-box; background: #0B0D0F; overflow: hidden; font-family: 'IBM Plex Sans', system-ui, sans-serif;">
+
+  <!-- app bar -->
+  <div style="display: flex; align-items: center; justify-content: space-between; padding: 18px 16px 13px 16px; border-bottom: 1px solid #1A2026;">
+    <div style="font-size: 11px; font-weight: 600; letter-spacing: 0.12em; color: #E6EDF3;">WEEK OF 16 SEP</div>
+    <div style="font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #5A6673;">7 DAYS</div>
+  </div>
+
+  <!-- tabs -->
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; padding: 14px 16px 0 16px;">
+    <div style="height: 44px; display: flex; align-items: center; justify-content: center; border: 1px solid #3FB6D4; border-radius: 2px; background: #10262E;">
+      <div style="font-size: 11px; font-weight: 600; letter-spacing: 0.1em; color: #3FB6D4;">PREP PLAN</div>
+    </div>
+    <div style="height: 44px; display: flex; align-items: center; justify-content: center; border: 1px solid #1A2026; border-radius: 2px;">
+      <div style="font-size: 11px; letter-spacing: 0.1em; color: #5A6673;">GROCERY</div>
+    </div>
+  </div>
+
+  <!-- yield source -->
+  <div style="margin: 14px 16px 0 16px; display: flex; align-items: center; justify-content: space-between; padding: 10px 11px; border: 1px solid #1A2026; border-radius: 2px;">
+    <div style="font-size: 10px; color: #5A6673;">Using yields from your last batch</div>
+    <div style="font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #4A5560;">9 SEP</div>
+  </div>
+
+  <!-- column heads -->
+  <div style="display: grid; grid-template-columns: 1fr 74px 74px 44px; gap: 8px; padding: 18px 16px 7px 16px; align-items: center;">
+    <div style="font-size: 9px; letter-spacing: 0.1em; color: #4A5560;">COOK</div>
+    <div style="font-size: 9px; letter-spacing: 0.1em; color: #4A5560; text-align: right;">RAW</div>
+    <div style="font-size: 9px; letter-spacing: 0.1em; color: #4A5560; text-align: right;">COOKED</div>
+    <div></div>
+  </div>
+  <div style="height: 1px; background: #1A2026; margin: 0 16px;"></div>
+
+  <!-- rows -->
+  <div style="display: grid; grid-template-columns: 1fr 74px 74px 44px; gap: 8px; padding: 11px 16px; align-items: center; border-bottom: 1px solid #14191E;">
+    <div style="display: flex; flex-direction: column; gap: 3px;">
+      <div style="font-size: 13px; color: #E6EDF3;">Chicken breast</div>
+      <div style="font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #4A5560;">yield 75%</div>
+    </div>
+    <div style="font-family: 'JetBrains Mono', monospace; font-size: 15px; color: #E6EDF3; text-align: right;">1,400</div>
+    <div style="font-family: 'JetBrains Mono', monospace; font-size: 15px; color: #5A6673; text-align: right;">1,050</div>
+    <div style="display: flex; justify-content: flex-end;">
+      <div style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 1px solid #232B32; border-radius: 2px;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#3C464F" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5 9.5 18 20 6.5"></path></svg>
+      </div>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 1fr 74px 74px 44px; gap: 8px; padding: 11px 16px; align-items: center; border-bottom: 1px solid #14191E;">
+    <div style="display: flex; flex-direction: column; gap: 3px;">
+      <div style="font-size: 13px; color: #E6EDF3;">Rice</div>
+      <div style="font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #4A5560;">yield 280%</div>
+    </div>
+    <div style="font-family: 'JetBrains Mono', monospace; font-size: 15px; color: #E6EDF3; text-align: right;">900</div>
+    <div style="font-family: 'JetBrains Mono', monospace; font-size: 15px; color: #5A6673; text-align: right;">2,520</div>
+    <div style="display: flex; justify-content: flex-end;">
+      <div style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 1px solid #2E4A40; border-radius: 2px; background: #15241E;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#57C99A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5 9.5 18 20 6.5"></path></svg>
+      </div>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 1fr 74px 74px 44px; gap: 8px; padding: 11px 16px; align-items: center; border-bottom: 1px solid #14191E;">
+    <div style="display: flex; flex-direction: column; gap: 3px;">
+      <div style="font-size: 13px; color: #E6EDF3;">Potato</div>
+      <div style="font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #4A5560;">yield 90%</div>
+    </div>
+    <div style="font-family: 'JetBrains Mono', monospace; font-size: 15px; color: #E6EDF3; text-align: right;">1,200</div>
+    <div style="font-family: 'JetBrains Mono', monospace; font-size: 15px; color: #5A6673; text-align: right;">1,080</div>
+    <div style="display: flex; justify-content: flex-end;">
+      <div style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 1px solid #232B32; border-radius: 2px;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#3C464F" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5 9.5 18 20 6.5"></path></svg>
+      </div>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 1fr 74px 74px 44px; gap: 8px; padding: 11px 16px; align-items: center; border-bottom: 1px solid #14191E;">
+    <div style="display: flex; flex-direction: column; gap: 3px;">
+      <div style="font-size: 13px; color: #E6EDF3;">Broccoli</div>
+      <div style="font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #4A5560;">no batch — raw weight</div>
+    </div>
+    <div style="font-family: 'JetBrains Mono', monospace; font-size: 15px; color: #E6EDF3; text-align: right;">1,050</div>
+    <div style="font-family: 'JetBrains Mono', monospace; font-size: 15px; color: #3C464F; text-align: right;">—</div>
+    <div style="display: flex; justify-content: flex-end;">
+      <div style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 1px solid #232B32; border-radius: 2px;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#3C464F" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5 9.5 18 20 6.5"></path></svg>
+      </div>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 1fr 74px 74px 44px; gap: 8px; padding: 11px 16px; align-items: center; border-bottom: 1px solid #14191E;">
+    <div style="display: flex; flex-direction: column; gap: 3px;">
+      <div style="font-size: 13px; color: #E6EDF3;">Okra</div>
+      <div style="font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #4A5560;">rotates with broccoli</div>
+    </div>
+    <div style="font-family: 'JetBrains Mono', monospace; font-size: 15px; color: #E6EDF3; text-align: right;">600</div>
+    <div style="font-family: 'JetBrains Mono', monospace; font-size: 15px; color: #3C464F; text-align: right;">—</div>
+    <div style="display: flex; justify-content: flex-end;">
+      <div style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 1px solid #232B32; border-radius: 2px;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#3C464F" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5 9.5 18 20 6.5"></path></svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- grocery preview -->
+  <div style="padding: 22px 16px 0 16px; display: flex; flex-direction: column; gap: 10px;">
+    <div style="display: flex; align-items: baseline; justify-content: space-between;">
+      <div style="font-size: 9px; letter-spacing: 0.12em; color: #4A5560;">GROCERY LIST</div>
+      <div style="font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #3C464F;">9 ITEMS · RAW</div>
+    </div>
+    <div style="border: 1px solid #1A2026; border-radius: 2px; padding: 12px; display: flex; flex-direction: column; gap: 8px;">
+      <div style="display: flex; justify-content: space-between;"><div style="font-size: 12px; color: #A8B4C0;">Chicken breast</div><div style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #8A96A3;">1,400 g</div></div>
+      <div style="display: flex; justify-content: space-between;"><div style="font-size: 12px; color: #A8B4C0;">Rice</div><div style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #8A96A3;">900 g</div></div>
+      <div style="display: flex; justify-content: space-between;"><div style="font-size: 12px; color: #A8B4C0;">Potato</div><div style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #8A96A3;">1,200 g</div></div>
+      <div style="display: flex; justify-content: space-between;"><div style="font-size: 12px; color: #A8B4C0;">Oats</div><div style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #8A96A3;">560 g</div></div>
+      <div style="display: flex; justify-content: space-between;"><div style="font-size: 12px; color: #A8B4C0;">Eggs</div><div style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #8A96A3;">14</div></div>
+      <div style="display: flex; align-items: center; gap: 7px; padding-top: 2px;">
+        <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #3FB6D4;">+ 4 more</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

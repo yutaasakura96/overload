@@ -1,0 +1,167 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap">
+  <style>
+    body { margin: 0; }
+    a { color: #3FB6D4; }
+    a:hover { color: #6FCDE3; }
+  </style>
+</helmet>
+
+<div style="position: relative; width: 390px; height: 844px; box-sizing: border-box; background: #0B0D0F; overflow: hidden; font-family: 'IBM Plex Sans', system-ui, sans-serif;">
+
+  <!-- app bar -->
+  <div style="display: flex; align-items: center; justify-content: space-between; padding: 18px 16px 14px 16px; border-bottom: 1px solid #1A2026;">
+    <div style="display: flex; flex-direction: column; gap: 3px;">
+      <div style="font-size: 11px; font-weight: 600; letter-spacing: 0.12em; color: #E6EDF3;">PUSH A</div>
+      <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #5A6673; letter-spacing: 0.02em;">42:18 elapsed</div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 7px; padding: 7px 9px; border: 1px solid #2A3440; border-radius: 2px;">
+      <div style="width: 6px; height: 6px; border-radius: 50%; background: #E0A83C;"></div>
+      <div style="font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.08em; color: #A8B4C0;">3 PENDING</div>
+    </div>
+  </div>
+
+  <!-- exercise header -->
+  <div style="padding: 15px 16px 9px 16px; display: flex; align-items: baseline; justify-content: space-between;">
+    <div style="font-size: 15px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #E6EDF3;">Bench Press</div>
+    <div style="font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #5A6673; letter-spacing: 0.04em;">6–10 · +2.5</div>
+  </div>
+
+  <!-- warm-up summary -->
+  <div style="margin: 0 16px; display: flex; align-items: center; justify-content: space-between; padding: 10px 11px; border: 1px solid #1A2026; border-radius: 2px;">
+    <div style="display: flex; align-items: center; gap: 9px;">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#57C99A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5 9.5 18 20 6.5"></path></svg>
+      <div style="font-size: 11px; letter-spacing: 0.06em; color: #5A6673;">2 WARM-UP SETS</div>
+    </div>
+    <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #4A5560;">40 × 10 · 60 × 6</div>
+  </div>
+
+  <!-- column heads -->
+  <div style="display: grid; grid-template-columns: 24px 58px 1fr 50px 38px 46px; gap: 6px; padding: 16px 16px 7px 16px; align-items: center;">
+    <div style="font-size: 9px; letter-spacing: 0.1em; color: #4A5560;">SET</div>
+    <div style="font-size: 9px; letter-spacing: 0.1em; color: #4A5560;">LAST</div>
+    <div style="font-size: 9px; letter-spacing: 0.1em; color: #4A5560;">KG</div>
+    <div style="font-size: 9px; letter-spacing: 0.1em; color: #4A5560;">REPS</div>
+    <div style="font-size: 9px; letter-spacing: 0.1em; color: #4A5560;">RIR</div>
+    <div></div>
+  </div>
+  <div style="height: 1px; background: #1A2026; margin: 0 16px;"></div>
+
+  <!-- working 1 -->
+  <div style="display: grid; grid-template-columns: 24px 58px 1fr 50px 38px 46px; gap: 6px; padding: 9px 16px; align-items: center; border-bottom: 1px solid #14191E;">
+    <div style="font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #8A96A3;">1</div>
+    <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #5A6673;">80 × 10</div>
+    <div style="font-family: 'JetBrains Mono', monospace; font-size: 17px; font-weight: 500; color: #E6EDF3;">82.5</div>
+    <div style="font-family: 'JetBrains Mono', monospace; font-size: 17px; font-weight: 500; color: #E6EDF3;">10</div>
+    <div style="font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #8A96A3;">2</div>
+    <div style="display: flex; justify-content: flex-end;">
+      <div style="width: 46px; height: 44px; display: flex; align-items: center; justify-content: center; border: 1px solid #2E4A40; border-radius: 2px; background: #15241E;">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#57C99A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5 9.5 18 20 6.5"></path></svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- working 2 -->
+  <div style="display: grid; grid-template-columns: 24px 58px 1fr 50px 38px 46px; gap: 6px; padding: 9px 16px; align-items: center; border-bottom: 1px solid #14191E;">
+    <div style="font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #8A96A3;">2</div>
+    <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #5A6673;">80 × 10</div>
+    <div style="font-family: 'JetBrains Mono', monospace; font-size: 17px; font-weight: 500; color: #E6EDF3;">82.5</div>
+    <div style="font-family: 'JetBrains Mono', monospace; font-size: 17px; font-weight: 500; color: #E6EDF3;">10</div>
+    <div style="font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #8A96A3;">2</div>
+    <div style="display: flex; justify-content: flex-end;">
+      <div style="width: 46px; height: 44px; display: flex; align-items: center; justify-content: center; border: 1px solid #2E4A40; border-radius: 2px; background: #15241E;">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#57C99A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5 9.5 18 20 6.5"></path></svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- ACTIVE SET — scaled up -->
+  <div style="margin: 14px 16px 0 16px; border: 1px solid #234A57; border-left: 2px solid #3FB6D4; border-radius: 2px; background: #0F171B; padding: 14px 14px 16px 14px; display: flex; flex-direction: column; gap: 13px;">
+
+    <div style="display: flex; align-items: baseline; justify-content: space-between;">
+      <div style="font-size: 10px; letter-spacing: 0.12em; color: #3FB6D4;">SET 3</div>
+      <div style="display: flex; align-items: baseline; gap: 7px;">
+        <div style="font-size: 9px; letter-spacing: 0.1em; color: #4A5560;">LAST</div>
+        <div style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #8A96A3;">80 × 10</div>
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 88px 62px; gap: 8px; align-items: end;">
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        <div style="font-size: 9px; letter-spacing: 0.1em; color: #4A5560;">KG</div>
+        <div style="font-family: 'JetBrains Mono', monospace; font-size: 56px; font-weight: 500; line-height: 0.86; letter-spacing: -0.03em; color: #E6EDF3;">82.5</div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        <div style="font-size: 9px; letter-spacing: 0.1em; color: #4A5560;">REPS</div>
+        <div style="font-family: 'JetBrains Mono', monospace; font-size: 56px; font-weight: 500; line-height: 0.86; letter-spacing: -0.03em; color: #4A5560;">10</div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        <div style="font-size: 9px; letter-spacing: 0.1em; color: #4A5560;">RIR</div>
+        <div style="font-family: 'JetBrains Mono', monospace; font-size: 56px; font-weight: 500; line-height: 0.86; letter-spacing: -0.03em; color: #4A5560;">—</div>
+      </div>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 9px; padding-top: 1px;">
+      <div style="font-size: 9px; letter-spacing: 0.1em; color: #4A5560;">SUGGESTED</div>
+      <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #3FB6D4; border: 1px solid #234A57; border-radius: 2px; padding: 4px 7px;">82.5</div>
+      <div style="font-size: 10px; color: #4A5560;">hit 10 on every set last time</div>
+    </div>
+
+    <div style="display: flex; gap: 8px;">
+      <div style="width: 52px; height: 64px; display: flex; align-items: center; justify-content: center; border: 1px solid #2A3440; border-radius: 2px;">
+        <div style="font-size: 10px; letter-spacing: 0.08em; color: #8A96A3;">WARM</div>
+      </div>
+      <div style="flex-grow: 1; height: 64px; display: flex; align-items: center; justify-content: center; gap: 11px; border: 1px solid #3FB6D4; border-radius: 2px; background: #10262E;">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3FB6D4" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5 9.5 18 20 6.5"></path></svg>
+        <div style="font-size: 14px; font-weight: 600; letter-spacing: 0.1em; color: #3FB6D4;">COMPLETE SET</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- up next -->
+  <div style="padding: 18px 16px 0 16px; display: flex; flex-direction: column; gap: 8px;">
+    <div style="font-size: 9px; letter-spacing: 0.12em; color: #4A5560;">UP NEXT</div>
+    <div style="display: flex; justify-content: space-between; align-items: center; padding: 13px 12px; border: 1px solid #1A2026; border-radius: 2px;">
+      <div style="font-size: 12px; color: #A8B4C0; letter-spacing: 0.03em;">Incline DB Press</div>
+      <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #5A6673;">3 × 8–10</div>
+    </div>
+    <div style="display: flex; justify-content: space-between; align-items: center; padding: 13px 12px; border: 1px solid #1A2026; border-radius: 2px;">
+      <div style="font-size: 12px; color: #A8B4C0; letter-spacing: 0.03em;">Overhead Press</div>
+      <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #5A6673;">3 × 6–8</div>
+    </div>
+  </div>
+
+  <!-- rest bar -->
+  <div style="position: absolute; left: 0; right: 0; bottom: 0; background: #12161A; border-top: 1px solid #232B32;">
+    <div style="height: 2px; background: #1A2026;">
+      <div style="width: 62%; height: 2px; background: #3FB6D4;"></div>
+    </div>
+    <div style="display: flex; align-items: center; justify-content: space-between; padding: 13px 16px 17px 16px; gap: 12px;">
+      <div style="display: flex; flex-direction: column; gap: 2px;">
+        <div style="font-size: 9px; letter-spacing: 0.12em; color: #5A6673;">REST</div>
+        <div style="font-family: 'JetBrains Mono', monospace; font-size: 30px; font-weight: 500; line-height: 1; color: #E6EDF3; letter-spacing: -0.01em;">1:47</div>
+      </div>
+      <div style="display: flex; gap: 8px;">
+        <div style="height: 46px; min-width: 62px; display: flex; align-items: center; justify-content: center; border: 1px solid #2A3440; border-radius: 2px;">
+          <div style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #A8B4C0;">+30s</div>
+        </div>
+        <div style="height: 46px; min-width: 72px; display: flex; align-items: center; justify-content: center; border: 1px solid #3FB6D4; border-radius: 2px; background: #10262E;">
+          <div style="font-size: 11px; letter-spacing: 0.1em; color: #3FB6D4;">SKIP</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>
