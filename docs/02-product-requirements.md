@@ -83,7 +83,7 @@ As a user, I want my morning weight to arrive by itself and show as a smoothed t
 
 **S12. Food list — MUST**
 As a user who eats from a short list of foods, I want to add each food once and never type its macros again, so that planning and logging use exact data.
-- A food is added by searching a nutrition database or scanning a barcode. If it isn't found, it is entered by hand from the label.
+- A food is added by searching a nutrition database or scanning a barcode. If a barcode isn't found, a photo of the nutrition label (栄養成分表示) is read automatically. The extracted values, including the basis (per 100 g, per piece or per serving), are shown for confirmation before saving. Manual entry remains the last fallback.
 - Each food stores calories, protein, carbohydrate, fat and fiber per 100 g, with a state: raw or cooked.
 - The list is personal. Each food can be marked as a rotation alternative to another (e.g. okra ↔ broccoli, rice ↔ potato).
 

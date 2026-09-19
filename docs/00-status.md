@@ -13,15 +13,16 @@
 - 2026-09-16: Phase 3 — `docs/05-design-system.md` and `docs/10-screen-specifications.md` written from the six `.dc.html` files. Every hex code, size, tracking value and grid measurement lifted from source; contrast ratios computed, not estimated. The canvas's "THE SYSTEM" sticky note was found inaccurate and is superseded by `docs/05`.
 
 ## Next
-**Phase 4 — Tech docs, continued.** Architecture is settled (see below); resume the 03 interview at the **frontend framework**, then the rest of banks 03 and 04. Write `docs/03-technical-design.md`, `docs/04-database-schema.md`, triggered Tier 2 docs, and **`CONTEXT.md`**.
+**Phase 4 — Tech docs, continued.** Architecture is settled (see below); resume the 03 interview at **folder structure**, then the rest of banks 03 and 04. Write `docs/03-technical-design.md`, `docs/04-database-schema.md`, triggered Tier 2 docs, and **`CONTEXT.md`**.
 
 ### Phase 4 so far (2026-09-19, recorded in `06`)
 - **Two apps, one backend.** Native iOS (SwiftUI) later for the daily loop; web app first for everything through M2, phone-first. Brief updated: native iOS moved from Out of scope to LATER.
 - **Offline scope:** online app with an offline gym session — set upload queue in IndexedDB, client ids, home-screen install + persistent storage. Not local-first; PowerSync set aside.
 - **Native-ready rules:** REST + OpenAPI, heavy logic on the server, bearer tokens, retry-safe writes.
 - **Better Auth verified** (native Google ID token, bearer plugin, `validateUserInfo` allowlist).
-- **Open, ask first next session:** framework — React + Vite (Yuta's comfort) vs Nuxt (app + server routes in one project) vs SvelteKit. SSR is not useful here (login-only, offline shell). Backend framework and hosting follow from it.
-- **Open for M2:** morning weight source before the native app exists — Health Auto Export or manual entry.
+- **Stack decided:** TypeScript throughout; React + Vite client-only web app (no SSR); separate Hono API with `@hono/zod-openapi`, and its OpenAPI spec is the contract for both clients. Next.js, Nuxt, SvelteKit, Go and Spring Boot rejected. Database: Postgres. Hosting: Vercel Hobby + Neon Free, both Singapore; later AWS Tokyo on Yuta's own platform (portability rules in `06`). Food data: MEXT seed + Open Food Facts barcode + Haiku label photo (moved into M2) + manual. Weight source parked. Error handling decided (3 failure kinds, RFC 9457, Sentry). Security baseline decided. Remaining for 03: **folder structure, state management, the 3 hardest technical problems**. Then bank 04 (schema), triggered Tier 2 docs, and CONTEXT.md. **Nothing written to 03/04 yet**; all decisions so far live in `06`.
+- **Security baseline decided** (see `06`). Add the per-user label cap before the first invitee.
+- **Parked for M2 (decide before M2 starts):** morning weight source. Two hardware tests are defined in `06` (2026-09-19 entry); run them, then apply the decision rule there.
 
 ## Blocked
 _(nothing)_
@@ -44,8 +45,7 @@ _(nothing)_
 - Design risk on record: if the real failure mode turns out to be not logging at all because the app reads as a spreadsheet, Quiet was the better bet. Revisit after M1 is in daily use. Phase 3 did not soften Instrument — the contrast cost is recorded as a measured deviation and left for Yuta.
 - `docs/10` §8 lists everything the PRD requires that no artboard covers — session start, exercise library, food list management, target setup, the grocery list proper, invite admin, health setup, photo estimation, plateau protocols, and every error state.
 - Auth: Better Auth with Google, invite-only — allowlist support verified 2026-09-17.
-- Health Auto Export: which tier includes REST automations, and its price, are unverified. Resolve in Phase 4.
-- Food database (must support search and barcode) and photo/text estimation provider: unresearched. Phase 4.
+- M3 photo/text meal-estimate provider: not yet chosen. Haiku 4.5 already reads labels in M2, so it is the default candidate. Phase 4.
 - Weekday routine times are set in the app, not fixed in the docs.
 - Yuta uses no tracking app today. Import from Hevy/MacroFactor is LATER, for invitees.
 - `START-HERE.md` remains as research input (sources for the nutrition evidence).

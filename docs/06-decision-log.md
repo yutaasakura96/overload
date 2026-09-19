@@ -81,7 +81,7 @@ Append-only.
 - **Revisit if:** Plans regularly can't meet the tolerance with a realistic food list, or off-plan meals are frequent enough in M2 that manual entry stops logging.
 
 ### Pending (Phase 4)
-Stack, database and hosting choices, the food database source and its licensing (it now also needs barcode lookup), the photo/text estimation provider, and which Health Auto Export tier is needed and what it costs.
+Database and hosting choices (stack decided 2026-09-19, below), the food database source and its licensing (it now also needs barcode lookup), the photo/text estimation provider, and which Health Auto Export tier is needed and what it costs.
 
 ## 2026-09-16 — Visual direction: Instrument
 
@@ -216,3 +216,299 @@ from a native client with per-platform client IDs, a bearer plugin for non-cooki
 app calls its endpoints directly. This closes the Phase 1 "verify allowlist support" item.
 
 **Revisit if:** A later Better Auth release changes ID-token or bearer support.
+
+## 2026-09-19 — TypeScript across the web app and the API
+
+**Decision.** TypeScript for both the web app and the API server.
+
+**Alternatives considered.** Go and Java/Spring Boot for the API.
+
+**Reason.** No requirement needs either. Both would mean replacing Better Auth, which is a
+TypeScript library and was verified for this app on 2026-09-17, and they lose type sharing between
+the web app and the API. Speed at this scale (one user plus a handful of invitees, one person's sets
+and meals per query) is set by network latency and database round trips, not by the language: the
+things that will actually be felt are indexes, avoiding N+1 queries, putting the server in the same
+region as the database, and the frontend bundle. Spring Boot's enterprise dominance comes from team
+size and ecosystem, and the JVM's idle memory is a real cost on small hosting.
+
+**Revisit if:** Planner, expenditure or plateau computation becomes CPU-bound. That piece can move to
+a Go service behind the same REST contract without either client noticing.
+
+## 2026-09-19 — Frontend: React + Vite, client-only; no SSR
+
+**Decision.** The web app is React + Vite, rendered entirely in the browser, installed to the home
+screen with a service worker. It has no server of its own and talks only to the API.
+
+**Alternatives considered.**
+- **Next.js.** Server-first: React Server Components, server actions and API routes all need a
+  Next.js server. Paired with a separate API it means two servers, or static export and losing most
+  of what Next.js offers. Server actions can only be called from Next.js pages, so every feature
+  built on them would have to be rebuilt as REST for the Swift app.
+- **Nuxt (Vue).** Same shape: built-in server routes pull the API toward the web pages. It can run
+  with `ssr: false`, but then it only adds routing conventions over Vue + Vite.
+- **Vue + Vite.** The same architecture as the choice, and viable. Rejected on Yuta's fluency and
+  React's larger charting ecosystem. The dense screens (the S20 e1RM chart with four overlays)
+  depend more on the chart library than on the framework.
+- **SvelteKit.** Server routes carry the same coupling risk, and it is the least familiar stack.
+
+**Why no SSR.** SSR helps with search indexing, link previews and a faster cold first load. Every
+screen is behind login, so the first two do not apply. The third saves roughly one round trip,
+because the server fetches data next to the database, but it barely matters here: the installed
+app's shell loads from the service worker cache, so a client-only screen costs one API call if each
+screen loads from a single request. Meanwhile SSR does nothing offline, where the gym screen must
+render with no server at all, gives the Swift app nothing, and adds a second server that has to read
+the session too.
+
+**Revisit if:** A public page appears (an invitee landing page, a shareable progress card). Static
+generation or SSR for that page alone, beside the app.
+
+## 2026-09-19 — Backend: Hono with @hono/zod-openapi; the OpenAPI spec is the contract
+
+**Decision.** The API is a separate Hono service. Routes are defined with `@hono/zod-openapi`, so
+one Zod schema per route validates the request, types the handler and generates the OpenAPI spec.
+Both clients build on that spec: the web app on TypeScript types derived from it, the Swift app on a
+client generated from it. Better Auth is mounted in the same service at `/api/auth/*`, with Hono's
+CORS middleware and matching `trustedOrigins` for the web app's origin (Better Auth Hono integration
+docs, checked 2026-09-19).
+
+**Alternatives considered.** Hono's RPC client (`hc`), which types the web app directly from server
+code with no OpenAPI step.
+
+**Reason.** The Swift app can only depend on HTTP and JSON, so the contract has to be
+language-neutral. The RPC client works only for TypeScript clients. If the web app relied on it, the
+OpenAPI spec would stop being the thing anyone depends on and could go stale unnoticed, which is
+the React-only RPC layer the two-apps decision ruled out. Generating the spec from the validation
+schemas means it cannot drift from the code.
+
+**Unverified.** The details of Apple's `swift-openapi-generator`. Check them when the native app starts.
+
+**Revisit if:** `@hono/zod-openapi` cannot express a needed endpoint shape, such as file upload for
+photo estimates in M3.
+
+## 2026-09-19 — Database: Postgres
+
+**Decision.** Postgres.
+
+**Alternatives considered.** SQLite.
+
+**Reason.** Three writers (the web app, the future Swift app, and the offline retry queue) need
+concurrent writes, foreign keys, check constraints and `ON CONFLICT` for retry-safe inserts. SQLite
+would do the job on one server, but it ties the API to one machine with a persistent disk and a
+backup scheme built by hand. Managed Postgres brings backups and is cheap at one user. The data is
+relational (sets to sessions, plan meals to foods, batch yields to cooked portions), and `jsonb`
+covers the few loose fields. Yuta uses Postgres by default.
+
+**Revisit if:** Never at this scale.
+
+## 2026-09-19 — Hosting: Vercel Hobby and Neon Free, both in Singapore; AWS Tokyo later
+
+**Decision.** For now, the web app is served as static files from Vercel. The Hono API runs as a
+Vercel function pinned to `sin1` (Singapore). Postgres is Neon Free in `aws-ap-southeast-1`
+(Singapore). Cost is $0. **Later, the app will be redeployed to Yuta's own deployment platform, an
+AWS stack in Tokyo (`ap-northeast-1`).** When that happens the database moves with the API, because
+the two must stay in the same region.
+
+**Why Singapore.** Neon has no Tokyo region (checked with Neon's region list, 2026-09-19); the
+nearest are Singapore and Sydney. The API goes where the database is, not where the user is: a
+request crosses Tokyo to Singapore once, and the several queries behind it stay local.
+
+**Alternatives considered.**
+- **Cloudflare Workers Free** with Hyperdrive to Neon. Also $0, and Yuta plans to learn Cloudflare,
+  but the 10 ms CPU limit per request could bite plan generation, and Better Auth needs
+  `nodejs_compat`.
+- **AWS Lambda.** The most setup, and for new accounts API Gateway is free for only 12 months and the
+  free tier is now credit-based. It fits better as the later home than as the first one.
+- **An API in Tokyo against Neon in Singapore.** Rejected: every database query would cross the
+  region gap instead of one request.
+
+**Limits accepted** (vendor pages, 2026-09-19):
+- **Vercel Hobby:** non-commercial use only; 1M function invocations and 4 h active CPU per month;
+  one region; hitting a limit can pause that feature for up to 30 days.
+- **Neon Free:** 0.5 GB storage per project, 100 CU-hours per month, a 6-hour restore window. The
+  compute suspends after 5 minutes idle, which can't be disabled, and wakes in "a few hundred
+  milliseconds", so the first request of a gym session pays that wake-up.
+- **Watch:** M3's health samples are the likeliest thing to press on 0.5 GB.
+
+**Portability rules, so the AWS move is a redeploy and not a rewrite:**
+- No Vercel-specific APIs in the API code. Hono's app is built once; Vercel, Node and Lambda are thin
+  entry adapters.
+- No Neon-only features in the app: no Neon Auth, no reliance on branching at runtime. Plain
+  Postgres through a standard driver.
+- All configuration is environment variables: the database URL, auth secrets, the allowed web
+  origin.
+- The schema is changed only by versioned migration files in the repo, never by console edits, so
+  that `pg_dump`/restore to the Tokyo database is the whole data move.
+
+**Revisit if:** The AWS Tokyo platform is ready, or Hobby limits or Neon's 0.5 GB are reached first.
+
+## 2026-09-19 — Food data: MEXT table, Open Food Facts, label photo in M2
+
+**Decision.** A food comes from one of four sources, tried in order:
+1. **Ingredients** come from 日本食品標準成分表（八訂）増補2023 (MEXT). The Excel file is imported
+   into Postgres as seed data, and the app credits it as edited from the MEXT source.
+2. **Packaged products** are looked up by barcode in **Open Food Facts**. Results are cached in a
+   separate table, never merged into our own food tables.
+3. **On a barcode miss**, the user photographs the nutrition label. Claude Haiku 4.5 extracts the
+   values as schema-checked JSON, including the basis (per 100 g, per piece or per serving), and the
+   user confirms them before the food is saved as their own.
+4. **Manual entry** is the last fallback.
+
+Nothing looked up or extracted is saved without the user confirming it. **Label-photo reading is new
+scope and ships in M2**, not M3. The PRD's food-list bullet is updated to match.
+
+**Alternatives considered.**
+- Barcode only, with manual entry on a miss, which is the PRD's previous position.
+- Label reading deferred to M3 alongside meal-photo estimates.
+- Commercial JAN databases. None free was found with nutrition, and their pricing was not checked.
+
+**Reason.**
+- Users are in Japan and mostly cook at home. MEXT is authoritative for raw and cooked ingredients,
+  free, and compatible with CC BY 4.0 (mext.go.jp, checked 2026-09-19).
+- Open Food Facts has about 43k Japanese products with nutrition (API count, not cross-checked);
+  whether that covers what Yuta buys is unknown.
+- Its ODbL licence requires share-alike for derived databases. Keeping cached records in their own
+  table makes the whole a collective database, which ODbL §4.5 exempts.
+- A barcode miss without label reading means typing five numbers by hand, which is where logging gets
+  abandoned. A label costs about $0.002 with Haiku 4.5 ($1/$5 per million input/output tokens).
+- Japanese labels must show energy, protein, fat, carbohydrate and 食塩相当量, but fibre and sugar
+  are optional and the basis varies, so extraction must capture the basis and allow missing fibre.
+
+**Consequences.**
+- M2 needs an Anthropic API key and a small prepaid balance. It is the first cost that isn't $0.
+- Open Food Facts requires a User-Agent of the form `AppName/Version (contact)` and allows
+  15 product reads per minute per IP.
+- The MEXT table has no English version for the eighth edition, so food names are Japanese.
+
+**Unverified.**
+- Which cooked-state rows (ゆで, 焼き) and nutrient columns MEXT actually has.
+- Whether an invite-only app counts as "publicly using" the data under ODbL.
+
+**Revisit if:** Open Food Facts misses most of Yuta's packaged foods in the first two weeks of M2.
+
+## 2026-09-19 — Morning weight source for M2: parked until two hardware tests are done
+
+**Status.** Open. Decide before M2 starts. M1 does not need weight.
+
+**Scale.** Eufy Smart Scale P2 Pro (T9149), which has Wi-Fi and Bluetooth. EufyLife writes weight,
+body fat %, BMI and lean mass to Apple Health, and can also link to Fitbit.
+
+**Established (primary sources, 2026-09-19):**
+- **No web API for HealthKit, and no Web Bluetooth on iOS Safari (MDN).** The web app cannot read
+  Health or the scale directly.
+- **Apple encrypts HealthKit while the phone is locked.** Anything on the phone that reads Health
+  (Shortcuts, Health Auto Export) only works after an unlock.
+- **Shortcuts:**
+  - There is no "new Health sample" trigger.
+  - Time-of-day automations can run without confirmation.
+  - Find Health Samples and a POST to a URL exist.
+- **Health Auto Export:** REST automations need Premium (¥300/month, ¥1,100/year, ¥4,000
+  lifetime). It runs by background refresh, only while unlocked, at times iOS chooses, and backfills
+  missed data.
+- **Fitbit and Google:** the legacy Fitbit Web API is being turned down in September 2026. Its
+  successor, the Google Health API, exposes `weight` and body fat over REST with Google OAuth and
+  webhooks.
+- **Eufy:** no official cloud API. Home Assistant's `eufylife_ble` supports the P2 Pro over Bluetooth
+  only, and needs an always-on device near the scale.
+- **Unverifiable from docs:**
+  - whether a Wi-Fi reading reaches Eufy's cloud without the phone
+  - whether EufyLife writes to HealthKit without being opened
+  - whether Eufy's Fitbit link is server-to-server, and whether it has moved off the legacy Fitbit API
+
+**The tests** (Yuta, on his own hardware):
+1. Phone in another room, weigh in, wait 10 minutes without opening EufyLife, then check Apple Health
+   for the reading.
+2. Link Fitbit in EufyLife, weigh in with the phone in airplane mode, then check Fitbit/Google from
+   another device.
+
+**Decision rule.**
+- **Test 2 passes:** Google Health API webhook to our API. No phone involved, and it reuses Google
+  sign-in.
+- **Only test 1 passes:** Health Auto Export Premium POSTs to our API. It also covers M3's sleep, HRV
+  and workouts.
+- **Neither passes:** the same HAE setup, but each reading arrives at the next unlock.
+
+**Rejected:**
+- Manual entry, which breaks the M2 success criterion.
+- A Shortcut fired when EufyLife closes: Wi-Fi sync means the app is never opened.
+- A Shortcut fired by the morning alarm: it runs before the weigh-in and while locked.
+- Terra and Junction, which need a native SDK.
+- A Withings scale, which means buying hardware.
+
+## 2026-09-19 — Error handling: three failure kinds, one error format, Sentry for tracking
+
+**Decision.** Failures are handled by kind:
+1. **No signal is not an error.** Sets go to the device queue, and the app bar's data-state slot
+   (`docs/10` §7.4) shows the pending count. Other screens show the last loaded data with its age.
+2. **Service down or slow:**
+   - The message appears inline at the point of action, always with a way forward:
+     - Open Food Facts down: photograph the label or enter it by hand.
+     - Haiku down: the manual form, pre-filled with anything already read.
+     - API unreachable: treated as kind 1.
+   - Neon waking from scale-to-zero: the API retries once before reporting.
+   - Google sign-in down: existing sessions keep working.
+   - A missing morning weight is a gap the trend already tolerates.
+3. **Server refuses the data** (validation, revoked access): the item stays in the queue, marked
+   refused in the error colour, and can be edited or discarded. **A set is never dropped silently.**
+
+**API side.**
+- Every endpoint returns errors as RFC 9457 problem details (`type`, `title`, `status`, `detail`,
+  plus our `code`).
+- A retried write with the same client id returns the original result, not a duplicate or an
+  error.
+
+**Logging.**
+- One structured JSON line per request in Vercel's function logs, with a request id. Stack traces
+  are logged for kind 3 and for every 5xx.
+- **Never logged:** food, weight or health values, meal photos, tokens. Log ids and error codes only.
+
+**Error tracking: Sentry**, on both the web app and the API, on the free Developer plan.
+- The API uses `@sentry/hono`. On Vercel, events must be flushed before the function returns, or
+  they can be lost (Sentry docs, checked 2026-09-19).
+- Collection is locked down: user info off, no HTTP bodies, and `beforeSend` strips any value field.
+  The same never-log list applies.
+- The Developer plan is $0, one user, error monitoring and tracing, and email alerts (sentry.io,
+  2026-09-19). **Unverified:** its monthly error allowance and retention, which Sentry's pages list
+  only for paid plans.
+- Which region to store data in (US or EU) is chosen at org creation. Neither is in Japan.
+
+**Alternatives considered.**
+- Discarding refused sets automatically.
+- Vercel logs only, with no error tracker.
+
+**Reason.**
+- A lost set is the one failure that breaks trust in the logger. Everything else degrades to a
+  fallback.
+- Sentry was Yuta's choice. It gives alerts before a user reports a problem, which Vercel's logs do
+  not.
+
+**Blocked on design.** Kind 3 needs an error colour, and the palette has none (`docs/05` §7.5). This
+is Yuta's call, and it is needed before the first screen that can show a refused set.
+
+## 2026-09-19 — Security baseline
+
+**Decision.**
+- **Secrets:** Vercel environment variables, with production and preview kept separate, plus a
+  gitignored `.env.local`. Never in the repo, and never in the web bundle beyond public values.
+- **Validation:** on the server, by the Zod schema on every route (the same schemas that generate
+  OpenAPI). Values from label photos and Open Food Facts are untrusted input.
+- **Transport:** HTTPS only (Vercel), and TLS to Neon.
+- **Sensitive data:** email, bodyweight and composition, the food log, and later sleep, HRV and meal
+  photos. None of it goes to logs or Sentry. Neon at-rest encryption is still to verify for `03`.
+- **Photos:** label photos are sent to Anthropic for extraction and **discarded afterwards**. Only
+  the confirmed values are stored.
+- **Dependencies:** Dependabot weekly and grouped, with security updates immediately.
+- **Worst case: reading or changing another user's data.** Every query is scoped to the session
+  user in the data layer rather than per route, and tests attempt cross-user reads.
+- **Second worst: running up the Anthropic bill.** Invite-only access, plus an Anthropic console
+  spend limit if one exists (unverified).
+
+**Alternatives considered.**
+- A per-user daily cap on label reads (30 per day was proposed).
+- Keeping label photos so a food can be re-checked later.
+
+**Reason.**
+- **The cap:** Yuta is the only user until invites open, so a per-user cap protects nothing. A
+  console spend limit also covers a leaked key, which a cap would not.
+- **Photos:** discarding them removes a class of sensitive data and keeps Neon's 0.5 GB for rows.
+
+**Revisit if:** The first invitee is about to join. Add the per-user label cap before then.
