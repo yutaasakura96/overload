@@ -1,8 +1,8 @@
 # Project status
 
 **Project:** A weight-training progress tracker combining lift logging, meal planning, Apple Watch/iPhone health data, and bodyweight/diet coaching.
-**Phase:** 3 — Extract (complete)
-**Updated:** 2026-09-16
+**Phase:** 4 — Tech docs (in progress)
+**Updated:** 2026-09-19
 
 ## Done
 - Phase 1 — Brief + PRD: `docs/01-project-brief.md`, `docs/02-product-requirements.md`, `docs/06-decision-log.md`.
@@ -13,7 +13,15 @@
 - 2026-09-16: Phase 3 — `docs/05-design-system.md` and `docs/10-screen-specifications.md` written from the six `.dc.html` files. Every hex code, size, tracking value and grid measurement lifted from source; contrast ratios computed, not estimated. The canvas's "THE SYSTEM" sticky note was found inaccurate and is superseded by `docs/05`.
 
 ## Next
-**Phase 4 — Tech docs.** Interview against question banks 03 and 04 in the catalog's `project-planning-template.md`, then write `docs/03-technical-design.md`, `docs/04-database-schema.md`, any triggered Tier 2 docs, and **`CONTEXT.md`**.
+**Phase 4 — Tech docs, continued.** Architecture is settled (see below); resume the 03 interview at the **frontend framework**, then the rest of banks 03 and 04. Write `docs/03-technical-design.md`, `docs/04-database-schema.md`, triggered Tier 2 docs, and **`CONTEXT.md`**.
+
+### Phase 4 so far (2026-09-19, recorded in `06`)
+- **Two apps, one backend.** Native iOS (SwiftUI) later for the daily loop; web app first for everything through M2, phone-first. Brief updated: native iOS moved from Out of scope to LATER.
+- **Offline scope:** online app with an offline gym session — set upload queue in IndexedDB, client ids, home-screen install + persistent storage. Not local-first; PowerSync set aside.
+- **Native-ready rules:** REST + OpenAPI, heavy logic on the server, bearer tokens, retry-safe writes.
+- **Better Auth verified** (native Google ID token, bearer plugin, `validateUserInfo` allowlist).
+- **Open, ask first next session:** framework — React + Vite (Yuta's comfort) vs Nuxt (app + server routes in one project) vs SvelteKit. SSR is not useful here (login-only, offline shell). Backend framework and hosting follow from it.
+- **Open for M2:** morning weight source before the native app exists — Health Auto Export or manual entry.
 
 ## Blocked
 _(nothing)_
@@ -35,7 +43,7 @@ _(nothing)_
 ### Standing
 - Design risk on record: if the real failure mode turns out to be not logging at all because the app reads as a spreadsheet, Quiet was the better bet. Revisit after M1 is in daily use. Phase 3 did not soften Instrument — the contrast cost is recorded as a measured deviation and left for Yuta.
 - `docs/10` §8 lists everything the PRD requires that no artboard covers — session start, exercise library, food list management, target setup, the grocery list proper, invite admin, health setup, photo estimation, plateau protocols, and every error state.
-- Auth is decided at product level: Better Auth with Google, invite-only. Verify Better Auth allowlist support in Phase 4.
+- Auth: Better Auth with Google, invite-only — allowlist support verified 2026-09-17.
 - Health Auto Export: which tier includes REST automations, and its price, are unverified. Resolve in Phase 4.
 - Food database (must support search and barcode) and photo/text estimation provider: unresearched. Phase 4.
 - Weekday routine times are set in the app, not fixed in the docs.

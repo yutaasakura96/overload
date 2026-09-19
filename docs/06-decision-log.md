@@ -160,3 +160,59 @@ would produce untested design with no direction review behind it. Listing them m
 known input to Phase 4 rather than a mid-build surprise.
 
 **Revisit if:** Never — these get designed when their milestone comes up.
+
+## 2026-09-19 — Two apps, one backend; web app first
+
+**Decision.** The product becomes two clients over one backend. A **native iOS app** (Swift/SwiftUI)
+carries the daily loop: set logging, rest timer, meal confirmation, morning weight and health data
+via HealthKit, grocery list, photo estimates. A **web app** carries setup and analysis: routines and
+exercise library, food list, phase and targets, progress charts and overlays, maintenance check,
+expenditure, plateaus, invites, export/delete. The **web app is built first**, phone-first and
+covering everything through M2; the native app is planned for later, probably arriving with M3.
+This moves "Native iOS app" in the brief from Out of scope to LATER. Android (Kotlin) is not planned.
+
+**Alternatives considered.** Web only (the brief's position); native iOS first, which would test M1
+in the real phone app and make HealthKit available for M2's weight; React Native, Flutter and Expo,
+all rejected by Yuta.
+
+**Reason.** Daily use is in hand and needs what the phone does well (HealthKit, camera,
+arm's-length logging); setup and the dense analysis screens read better on a large screen. Web goes
+first because Yuta is most fluent there, and M1's riskiest assumption — that the logger gets used
+every session — is tested fastest in a familiar stack. The backend, schema, auth and server logic
+carry over to the native app unchanged.
+
+**Consequences.** The native app stays cheap to add only if these hold from day one: a REST API
+described by OpenAPI (no React-only RPC layer); planner, expenditure and plateau logic on the server;
+bearer-token auth alongside cookies; client-generated ids and retry-safe writes. The web app has no
+wide-layout design yet — all six artboards are phone width.
+
+**Revisit if:** M1 shows the web logger is too clunky mid-session to use every time — then the
+native app moves forward.
+
+## 2026-09-19 — Offline scope: an online app with an offline gym session, not local-first
+
+**Decision.** Only the gym session must work offline (S1): sets, the rest timer, last time's numbers
+and the suggestion. Sets go into an on-device upload queue (IndexedDB) with client-generated ids and
+upload whenever the app is open. Other screens show the last loaded data when offline. The web app is
+installed to the home screen and requests persistent storage.
+
+**Alternatives considered.** Local-first, with every table synced to the device by a sync engine
+(PowerSync, which has web and Swift SDKs over Postgres).
+
+**Reason.** The PRD only requires offline set logging, and several features cannot work offline at
+all (plan generation, food lookup, AI estimates, health ingestion, expenditure). A sync engine on
+every table is more machinery than the requirement. WebKit deletes script-writable storage after 7
+days without interaction, except for home-screen web apps, and grants persistent storage by heuristic
+(webkit.org, checked 2026-09-17) — hence the install requirement. Background sync on Safari is
+unverified, so correctness must not depend on it.
+
+**Revisit if:** A moment appears where the whole app is needed without signal.
+
+## 2026-09-19 — Better Auth verified for web and a future native client
+
+**Decision.** Better Auth stays. Checked against its docs (2026-09-17): Google sign-in by ID token
+from a native client with per-platform client IDs, a bearer plugin for non-cookie clients, and
+`user.validateUserInfo` to refuse any email not on the invite list. There is no Swift SDK; the native
+app calls its endpoints directly. This closes the Phase 1 "verify allowlist support" item.
+
+**Revisit if:** A later Better Auth release changes ID-token or bearer support.

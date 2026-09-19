@@ -33,7 +33,7 @@ Serious side project with no deadline. Personal-first, with invite-only access. 
 ## Out of scope
 
 - watchOS app. Sets are logged on the phone between sets.
-- Native iOS app. Health data comes in through Health Auto Export.
+- Native iOS app in v1. It is planned LATER (probably with M3) for the daily loop; the web app comes first. See the 2026-09-19 decision log entry.
 - Social features: feeds, leaderboards, sharing, invitees seeing each other's data.
 - Importing history from Hevy, MacroFactor or other apps (LATER, for future users).
 - Automatic stall explainer. M3 shows overlays and the user reads the correlation.
