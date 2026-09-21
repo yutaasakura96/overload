@@ -1,7 +1,7 @@
 # Project status
 
 **Project:** A weight-training progress tracker combining lift logging, meal planning, Apple Watch/iPhone health data, and bodyweight/diet coaching.
-**Phase:** 5 — Configure the repo
+**Phase:** 6 — Build
 **Updated:** 2026-09-21
 
 ## Done
@@ -13,9 +13,14 @@
 - 2026-09-16: Phase 3 — `docs/05-design-system.md` and `docs/10-screen-specifications.md` written from the six `.dc.html` files. Every hex code, size, tracking value and grid measurement lifted from source; contrast ratios computed, not estimated. The canvas's "THE SYSTEM" sticky note was found inaccurate and is superseded by `docs/05`.
 
 ## Next
-**Phase 5 — Configure the repo.** Follow `skills/new-project/SKILL.md` from the catalog, step by step,
-including its approval gate. It should read `docs/` (stack in `03` §2, layout in `03` §5, CI in `11`,
-deploy in `12`, security in `13`) rather than infer.
+**Phase 6 — Build, M1 first.** Restart the session (plugins load at start), then run
+`/setup-matt-pocock-skills` once (tracker: GitHub Issues or local files; the repo is public), then
+`/grill-with-docs` for the first feature. Each UI feature clears the polish gate in `CLAUDE.md`.
+
+### Phase 5 — done 2026-09-21
+Written: `CLAUDE.md`, `.claude/settings.json`, `.claude/hooks/{pre-edit-branch-guard,stop-branch-drift}.sh`,
+`.gitignore` entry. No `.mcp.json` (Neon and Sentry come from claude.ai connectors). Decision in `06`.
+The pnpm entries in the allowlist are provisional until `package.json` exists.
 
 ### Phase 4 — done 2026-09-21
 Written: `03`, `04`, `CONTEXT.md`, `07`, `08`, `09`, `11`, `12`, `13`, and

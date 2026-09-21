@@ -1,2 +1,5 @@
 # Generated design canvas — reseed from design/*.dc.html + canvas.json
 design/overload.html
+
+# Per-machine Claude Code overrides
+.claude/settings.local.json

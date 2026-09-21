@@ -1181,3 +1181,27 @@ One WAF rule, 300 req/60 s per IP on the web project's `/api/*`. `no-store` on e
 
 **Revisit if:** the first invitee is near (§9 of `13`); the app moves to AWS (IaC for everything,
 domain chosen then); a dump grows past what a GitHub runner handles comfortably.
+
+### [2026-09-21] Repo configuration (Phase 5): mattpocock-skills on, no project MCP, two hooks
+
+**Decided (approved as proposed).**
+1. **Plugins:** `mattpocock-skills` on (the build phase starts with `/grill-with-docs`);
+   `frontend-design` off, because it generates its own visual direction and `docs/05` is settled.
+2. **No `.mcp.json`.** Neon and Sentry arrive as claude.ai connectors; a project copy would
+   duplicate every tool. Read-only connector tools are allowed; every write, `run_sql` and
+   `get_connection_string` asks.
+3. **Hooks:** `pre-edit-branch-guard.sh` blocks edits on `main` (it deploys production and migrates);
+   `stop-branch-drift.sh` reports when `main` is ≥6 commits behind `develop`. Both copied from lfca-lab.
+4. **Permissions:** `dbmate`, `psql`, `pg_dump`/`pg_restore`, `terraform apply/destroy`, `vercel`,
+   `aws`, `age` and every `gh` write ask; `.env`, `.env.local`, `.env.*.local`, `.env.production`
+   and `.env.staging` reads are denied (`.env.example` stays readable). The repo is public.
+5. **`CLAUDE.md`** points at `docs/` and holds only the rules a linter cannot catch, plus the
+   hands-off workflow block and the polish gate.
+
+**Alternatives considered.** A project `.mcp.json` with Neon, Sentry and Playwright, as lfca-lab has
+(duplicates the connectors; Playwright is used as a test runner, not an MCP). Format and commit-gate
+hooks now (no linter or formatter chosen yet).
+
+**Revisit if:** the pnpm scripts land under different names than the allowlist guessed (run
+`/fewer-permission-prompts`); a linter and formatter are chosen (add `post-edit-format`); the
+connectors are not authorised in a terminal session (add Neon and Sentry to `.mcp.json`).
