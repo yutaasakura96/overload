@@ -2,7 +2,7 @@
 
 **Project:** A weight-training progress tracker combining lift logging, meal planning, Apple Watch/iPhone health data, and bodyweight/diet coaching.
 **Phase:** 4 — Tech docs (in progress)
-**Updated:** 2026-09-19
+**Updated:** 2026-09-20
 
 ## Done
 - Phase 1 — Brief + PRD: `docs/01-project-brief.md`, `docs/02-product-requirements.md`, `docs/06-decision-log.md`.
@@ -13,17 +13,18 @@
 - 2026-09-16: Phase 3 — `docs/05-design-system.md` and `docs/10-screen-specifications.md` written from the six `.dc.html` files. Every hex code, size, tracking value and grid measurement lifted from source; contrast ratios computed, not estimated. The canvas's "THE SYSTEM" sticky note was found inaccurate and is superseded by `docs/05`.
 
 ## Next
-**Phase 4 — Tech docs, continued.** Architecture is settled (see below); resume the 03 interview at **the 3 hardest technical problems**, then the rest of banks 03 and 04. Write `docs/03-technical-design.md`, `docs/04-database-schema.md`, triggered Tier 2 docs, and **`CONTEXT.md`**.
+**Phase 4 — Tech docs, continued.** Banks 03 and 04 are answered for M1 and M2. `docs/04-database-schema.md` is written (M1 + M2). Remaining: **M3 tables**, then `docs/03-technical-design.md` written up from the decisions in `06`, the triggered Tier 2 docs, and **`CONTEXT.md`**.
 
 ### Phase 4 so far (2026-09-19, recorded in `06`)
 - **Two apps, one backend.** Native iOS (SwiftUI) later for the daily loop; web app first for everything through M2, phone-first. Brief updated: native iOS moved from Out of scope to LATER.
 - **Offline scope:** online app with an offline gym session — set upload queue in IndexedDB, client ids, home-screen install + persistent storage. Not local-first; PowerSync set aside.
 - **Native-ready rules:** REST + OpenAPI, heavy logic on the server, bearer tokens, retry-safe writes.
 - **Better Auth verified** (native Google ID token, bearer plugin, `validateUserInfo` allowlist).
-- **Stack decided:** TypeScript throughout; React + Vite client-only web app (no SSR); separate Hono API with `@hono/zod-openapi`, and its OpenAPI spec is the contract for both clients. Next.js, Nuxt, SvelteKit, Go and Spring Boot rejected. Database: Postgres. Hosting: Vercel Hobby + Neon Free, both Singapore; later AWS Tokyo on Yuta's own platform (portability rules in `06`). Food data: MEXT seed + Open Food Facts barcode + Haiku label photo (moved into M2) + manual. Weight source parked. Error handling decided (3 failure kinds, RFC 9457, Sentry). Security baseline decided. Folder structure decided. State management decided. Remaining for 03: **the 3 hardest technical problems**. Then bank 04 (schema), triggered Tier 2 docs, and CONTEXT.md. **Nothing written to 03/04 yet**; all decisions so far live in `06`.
-- **Open question, awaiting Yuta's answer:** the 3 hardest problems. Proposed: (1) meal planner (S16) as a pure deterministic function in `domain/`, solver-vs-hand-written decided at M2 start; (2) exactly-once set sync (S1): client ids, `ON CONFLICT`, one uploading tab (the mechanism in Safari still to verify), airplane-mode browser tests; (3) maintenance/expenditure maths (S18a → S21): smoothed trend plus energy balance over complete days, weekly change capped, smoothing method and source picked before M2. Runner-up left out: automatic morning weight (already parked). Ask whether to keep or swap one, then record in `06`.
+- **Stack decided:** TypeScript throughout; React + Vite client-only web app (no SSR); separate Hono API with `@hono/zod-openapi`, and its OpenAPI spec is the contract for both clients. Next.js, Nuxt, SvelteKit, Go and Spring Boot rejected. Database: Postgres. Hosting: Vercel Hobby + Neon Free, both Singapore; later AWS Tokyo on Yuta's own platform (portability rules in `06`). Food data: MEXT seed + Open Food Facts barcode + Haiku label photo (moved into M2) + manual. Weight source parked. Error handling decided (3 failure kinds, RFC 9457, Sentry). Security baseline decided. Folder structure decided. State management decided. Bank 03 complete. Next: bank 04 (schema), triggered Tier 2 docs, and CONTEXT.md. **Nothing written to 03/04 yet**; all decisions so far live in `06`.
+- **3 hardest problems decided 2026-09-19** (see `06`): meal planner, exactly-once set sync, maintenance/expenditure maths. Bank 03 is complete.
 - **Repo layout and client state decided 2026-09-19** (see `06`): pnpm monorepo, web and API as two Vercel projects with `/api/*` rewritten through the web origin (Safari cookie fix); TanStack Query + one Zustand store for the gym session + own IndexedDB set store with strict durability.
 - **Security baseline decided** (see `06`). Add the per-user label cap before the first invitee.
+- **Schema written 2026-09-20:** `docs/04` holds M1 (8 tables) and M2 (11 tables) in full — columns, types, keys, delete behaviour, indexes, example rows. M3 not written. Rules recorded in `06`: UUIDv7 ids generated wherever the row is created, no blanket soft delete, past days keep snapshotted numbers, prep list / grocery list / daily weight / day completeness / batch yield are derived not stored.
 - **Parked for M2 (decide before M2 starts):** morning weight source. Two hardware tests are defined in `06` (2026-09-19 entry); run them, then apply the decision rule there.
 
 ## Blocked

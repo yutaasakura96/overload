@@ -599,3 +599,136 @@ is a precaution against it, not a response to a documented behaviour.
 
 **Revisit if:** The native app takes over gym logging; the web app's set store then only serves the
 web client.
+
+## 2026-09-19 — The three hardest technical problems
+
+**Decision.** These three get extra design and test effort. Each plan goes into `docs/03`.
+
+1. **Meal planner (S16).** A pure, deterministic function in `domain/`: the same food list and
+   targets always give the same plan. Whether to use a solver library or hand-written code is
+   decided when M2 starts.
+2. **Exactly-once set sync (S1).** Client-generated ids, `INSERT … ON CONFLICT` on the server,
+   one uploading tab at a time, and browser tests run in airplane mode. **Unverified:** how to
+   make only one tab upload in Safari.
+3. **Maintenance and expenditure maths (S18a → S21).** A smoothed weight trend plus energy
+   balance over complete logging days only, with the weekly target change capped. The smoothing
+   method and the intake source are picked before M2.
+
+**Alternatives considered.** Automatic morning weight was the runner-up. Left out because it is
+already parked behind the two hardware tests (2026-09-19 entry).
+
+**Reason.** Each is the failure hardest to undo once live: a wrong plan feeds wrong amounts, a lost
+or doubled set corrupts the training record, and a wrong maintenance figure skews every target
+after it.
+
+**Revisit if:** the native app takes over gym logging (problem 2 moves to the Swift client).
+
+## 2026-09-19 — M1 tables, and "workout" instead of "session"
+
+**Decision.** M1 has eight tables of our own beside Better Auth's four (`user`, `session`,
+`account`, `verification`; core schema checked in Better Auth's docs, 2026-09-19):
+`invite`, `exercise`, `exercise_setting`, `routine`, `routine_exercise`, `workout`,
+`workout_exercise`, `set`. Charts (S7), last time (S2) and export (S10) are derived from `set`
+and have no tables.
+
+A gym visit is a **workout** in tables, API and code. The UI may still say "session".
+
+**Alternatives considered.**
+- Calling the gym visit `session` as the PRD does, rejected: Better Auth's `session` table is a login,
+  and one word would mean two things in the code.
+- Storing weight step, rest and rep range on `exercise`, rejected: seeded exercises are shared by
+  every user, so per-user values need `exercise_setting`.
+
+**Revisit if:** never, for the naming. The table list grows with M2 and M3.
+
+## 2026-09-20 — Row ids: UUIDv7, generated on whichever side creates the row
+
+**Decision.** Every table of ours uses a `uuid` primary key holding a UUIDv7.
+
+- Rows created at the gym (`workout`, `workout_exercise`, `set`) get their id on the phone, from
+  the `uuid` npm package's `v7()` (package major 14). That id **is** the primary key — there is no
+  separate client-id column, and the server's `ON CONFLICT` on it is what makes set upload
+  exactly-once.
+- Rows created online default to Postgres 18's built-in `uuidv7()`.
+- Better Auth keeps `advanced.database.generateId: "uuid"` so `user.id` is a `uuid` column our
+  foreign keys can point at. On Postgres it lets the database generate the value, which means v4.
+  Left as is: login rows gain nothing from time ordering.
+
+**Alternatives considered.**
+- Auto-incrementing integers, rejected: an offline phone cannot know the next number.
+- `crypto.randomUUID()`, rejected: MDN documents it as v4 only, so ids would not be time-ordered.
+- UUIDv4 everywhere, rejected: RFC 9562 §2.1 calls out v4's "poor database-index locality".
+  Marginal at our size; v7 costs nothing over it.
+
+**Verified 2026-09-20 (primary sources).**
+- `uuidv7()` and `uuid_extract_timestamp()` are built in from Postgres 18
+  (postgresql.org/docs/18/functions-uuid.html).
+- Neon lists Postgres 14–18; 18 went GA on Neon 2026-05-01, Free plan included
+  (neon.com/docs/postgresql/postgres-version-policy, neon.com/docs/changelog/2026-05-01).
+- `uuid` npm exports `v7()`; current major is 14 (github.com/uuidjs/uuid).
+- RFC 9562 §5.7: UUIDv7 is time-ordered on a 48-bit Unix-millisecond prefix.
+
+**Revisit if:** we ever need ids short enough to type or read aloud.
+
+## 2026-09-20 — Deletion rules, and conventions
+
+**Decision — conventions.** `snake_case` column and table names, singular table names,
+`created_at` and `updated_at` on every table, all instants stored as `timestamptz`.
+
+**Decision — deletion.** No blanket soft delete. Deleted means deleted, with two exceptions.
+
+| Deleted | Behaviour |
+| --- | --- |
+| A set | Hard delete. |
+| A workout | Hard delete; `workout_exercise` and `set` cascade. |
+| A routine | Hard delete. `workout.routine_id` is `ON DELETE SET NULL`; the workout copies the routine's name at start, so history still reads "Push A". |
+| A custom exercise with sets logged | **Archived**, not deleted, so history keeps its name. With no sets logged, hard delete. |
+| A seeded exercise | Cannot be deleted; hidden per user, stored in that user's `exercise_setting`. |
+| An account (S10) | Hard delete of everything the user owns, on confirmation. Cascades from `user`. |
+| A revoked invite (S9) | The `invite` row stays with `revoked_at` set; that user's Better Auth sessions are deleted so they are signed out everywhere; **their data stays**. |
+
+**Reason for the revoke rule.** Revoking is "you cannot get in", not "your data is destroyed".
+Account deletion already covers the destructive case, deliberately and with confirmation.
+
+**Invites are a gate, not a feature.** Nothing references `invite`, and no other table's behaviour
+depends on it. If the app ever opens to public sign-up, removing it is: drop the table, delete the
+`validateUserInfo` allowlist check (verified 2026-09-17). That is also why revoke does not wipe
+data — building a wipe into a mechanism we plan to delete would be the more expensive choice.
+
+**Revisit if:** an invitee ever asks for their data to be removed without deleting their own
+account — then the admin needs a delete-this-user's-data action, which is S10 run by the admin.
+
+## 2026-09-20 — M2 schema: snapshots, rotation groups, and what is not stored
+
+**Decision.** M2 adds eleven tables: `user_profile`, `body_measurement`, `food`, `rotation_group`,
+`batch`, `goal_phase`, `day_routine`, `meal_slot`, `plan_day`, `plan_meal`, `plan_meal_item`.
+Columns are in `docs/04`.
+
+Three rules shape them.
+
+1. **Past days keep their own numbers.** `plan_day` copies the phase's calorie and macro targets
+   when the day is generated; `plan_meal_item` copies the food's per-100 g macros. Correcting a food
+   or changing a phase later must not rewrite what an earlier day was aiming for or what it says you
+   ate — S18a reads its maintenance estimate straight off those snapshots. Same rule as
+   `workout_exercise` in M1.
+2. **Derive rather than store.** No tables for the prep plan or grocery list (S17), the daily weight
+   or its trend (S11), day completeness (S18), or batch yield (S13). Each is one query over rows that
+   already exist; storing them would mean keeping two answers in step.
+3. **Rotation is a group, not a pair.** `rotation_group` plus `food.rotation_group_id`. "Okra ↔
+   broccoli ↔ green beans" is one group, and the planner picks from a set instead of walking a chain
+   of pairs.
+
+**Also decided.**
+- Food macros are stored per 100 g of the named state, whatever basis the label or database used;
+  the API converts before saving and the confirmation screen shows the original basis (S12).
+  `piece_weight_g` carries unit foods (one egg = 55 g).
+- `body_measurement` is `UNIQUE (user_id, source, external_id)`, so the same Apple Health sample
+  arriving twice lands once — the same idea as set upload, different key.
+- `user_profile.timezone` (default `Asia/Tokyo`) is what S11's "before 10:00 local" is read against.
+- `goal_phase` has `UNIQUE (user_id) WHERE ended_on IS NULL`: one open phase at a time. Phases are
+  kept, never overwritten.
+- A day's type comes from `day_routine`, not from whether a workout happened. A missed session does
+  not retroactively rewrite the plan.
+
+**Revisit if:** reading intake over a long span gets slow — then a per-day rollup, written once a
+day is complete, is the first thing to add.
