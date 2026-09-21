@@ -1,0 +1,200 @@
+# 12 — Deployment / DevOps
+
+_Written 2026-09-21. How the app ships. Where each piece runs and what it costs is `03` §3, what
+happens when a service is down is `03` §4, and secrets and the security baseline are `03` §10. Those
+are not restated here. Decisions are in `06` (2026-09-21, deployment)._
+
+## 1. Environments
+
+| | Local | Staging | Production |
+| --- | --- | --- | --- |
+| Git branch | any | `develop` | `main` |
+| Web | `vite` dev server | Vercel preview, branch URL `overload-web-git-develop-<scope>.vercel.app` | Vercel production domain of `overload-web` |
+| API | Hono on Node | Vercel preview of `overload-api`, branch `develop` | Vercel production of `overload-api`, `sin1` |
+| Database | Postgres 18 in Docker (`docker compose`, as in `11`) | Neon branch `staging` | Neon branch `main` (root) |
+| Migrations | `dbmate migrate` by hand | In the API build (§3) | In the API build (§3) |
+| Cron | none; call the route by hand | none (Vercel runs crons on production only) | `0 15 * * *` UTC (`03` §8.4) |
+| Monitoring | none | Sentry events tagged `staging`, no alerts | Everything in §5 |
+
+- **Staging is where the iPhone checklist in `11` §3 runs** — installed to the home screen from the
+  `develop` branch URL, before `develop` is merged to `main`. Production holds real training data and
+  is never the test bed.
+- **PR previews** (any branch other than `develop` and `main`) use the Preview variables, so they
+  point at the staging API and the Neon `staging` branch. They never run migrations (§3), so a
+  preview whose PR adds a migration will fail against staging until that PR is merged to `develop`.
+  Accepted: CI (`11` §5) is where a PR is proven, not its preview.
+- **Neon `staging`** is a child branch of `main`. It holds test data only; it is never reset from
+  `main`, so production data never reaches it.
+- **One Google OAuth client for both** (Yuta's choice, to manage less). It lists two redirect URIs:
+  the production web origin and the staging branch URL, each `…/api/auth/callback/google`. Local
+  uses a third, `http://localhost:<port>/api/auth/callback/google`, on the same client.
+- **One Anthropic key for both**, for now. Staging label reads are real calls and real spend. Split
+  into two keys when staging spend needs to be told apart.
+
+### The web → API rewrite per environment
+
+`03` §5 routes `/api/*` through the web origin. `vercel.json` is static, so it would point staging
+at the production API. The web project uses **`vercel.ts`** instead, which runs at build time and
+reads env vars (Vercel docs, checked 2026-09-21):
+
+```ts
+// apps/web/vercel.ts
+import { routes, type VercelConfig } from '@vercel/config/v1';
+
+export const config: VercelConfig = {
+  rewrites: [
+    routes.rewrite('/api/(.*)', `${process.env.API_ORIGIN}/api/$1`),
+    routes.rewrite('/(.*)', '/index.html'),
+  ],
+};
+```
+
+The exact rewrite syntax is checked when the file is written; the point fixed here is that the
+destination comes from `API_ORIGIN`.
+
+---
+
+## 2. Environment variables
+
+Set in each Vercel project. **Secret** type (write-only after saving) for every secret; **Config**
+for the rest. Staging values are Preview variables scoped to the `develop` branch; unscoped Preview
+variables carry the same values so PR previews match staging. Locally, a gitignored `.env.local`
+per app, pointing at Docker Postgres — local never touches Neon.
+
+| Name | Project | Type | Purpose | Staging vs production |
+| --- | --- | --- | --- | --- |
+| `DATABASE_URL` | api | Secret | Neon **pooled** connection, used at runtime | `staging` / `main` branch |
+| `DATABASE_URL_DIRECT` | api | Secret | Neon **direct** connection, used only by `dbmate` in the build. The pooler does not keep session state across a migration | `staging` / `main` branch |
+| `BETTER_AUTH_SECRET` | api | Secret | Session signing | **Different** |
+| `BETTER_AUTH_URL` | api | Config | Public origin — the **web** origin, behind the rewrite (`03` §5) | Different |
+| `GOOGLE_CLIENT_ID` | api | Config | Sign-in | Same |
+| `GOOGLE_CLIENT_SECRET` | api | Secret | Sign-in | Same |
+| `ADMIN_EMAIL` | api | Config | The one admin (`08`) | Same |
+| `CRON_SECRET` | api | Secret | Vercel Cron's bearer (`08`) | **Different** (staging has no cron, but the route still checks it) |
+| `ANTHROPIC_API_KEY` | api | Secret | Label reads (M2), estimates (M3) | Same, for now |
+| `SENTRY_DSN` | api | Config | Errors, tagged with `environment` from `VERCEL_ENV` | Same |
+| `VITE_SENTRY_DSN` | web | Config | Browser errors. Public by design: it ends up in the bundle | Same |
+| `SENTRY_AUTH_TOKEN` | web, api | Secret | Source-map upload at build time | Same |
+| `API_ORIGIN` | web | Config | Rewrite target in `vercel.ts`, read at build time | Different |
+| `OFF_CONTACT` | api | Config | Contact in the Open Food Facts User-Agent (`03` §4) | Same |
+
+- Anything prefixed `VITE_` is shipped to every browser. Only `VITE_SENTRY_DSN` has the prefix.
+- Changing a variable does nothing until the next deploy, and an Instant Rollback keeps the old
+  deployment's variables (Vercel docs, checked 2026-09-21). After rotating a secret, redeploy.
+- Rotation steps for a leaked key belong to the incident plan in `13`.
+
+---
+
+## 3. Deploy
+
+No deploy script. Vercel's Git integration builds both projects on every push.
+
+- Push to `develop` → staging. Merge `develop` → `main` → production.
+- Merges to either need CI green (`11` §5).
+- The two projects deploy independently. Order does not matter as long as the API stays compatible
+  with the web app already in people's service workers: the contract rule in `03` §1 and oasdiff in
+  `11` already enforce this.
+
+### Migrations run inside the API build
+
+The API project's build command:
+
+```sh
+if [ "$VERCEL_GIT_COMMIT_REF" = "main" ] || [ "$VERCEL_GIT_COMMIT_REF" = "develop" ]; then
+  dbmate --url "$DATABASE_URL_DIRECT" --migrations-dir ./migrations --no-dump-schema migrate
+fi
+pnpm build
+```
+
+- **dbmate** (npm `dbmate`): plain SQL files, timestamp-versioned, each run in a transaction, its own
+  `schema_migrations` table. It fits `04`'s "versioned SQL in `migrations/`" rule and ties nothing to
+  the query layer, which is still a build-phase choice. The same command runs locally and in CI.
+- **If a migration fails, the build fails** and the previous deployment keeps serving. A migration
+  that succeeded before a later build step failed stays applied — which the add-first rule makes
+  harmless.
+- **Seed data is migrations too** (decided by default): the ~50 seeded exercises and the MEXT
+  `reference_food` import are generated SQL files in `migrations/`, so every environment gets them the
+  same way. A correction is a new migration. `apps/api/seed/` holds the generator, not a runner.
+
+### The add-first rule (binding)
+
+Every migration must work with the code **already running**. Old code runs against the new schema
+for the minutes between migration and promotion, and again after any rollback.
+
+- **Allowed in one release:** add a table, add a nullable column or one with a default, add an
+  index, widen a type, add a `CHECK` the existing data already meets.
+- **Takes two releases:** drop or rename a column or table, make a column `NOT NULL`, narrow a type.
+  Release 1 stops the code using it; release 2, after release 1 has been live, removes it.
+- **Before a destructive migration reaches `main`:** take a manual Neon snapshot of `main`. Free
+  keeps **one** snapshot, so it replaces the previous one.
+- dbmate's `-- migrate:down` sections are written but **never run against staging or production**.
+  Going backwards is §4.
+
+---
+
+## 4. Rollback — written before the first deploy
+
+### Bad code, schema fine (the usual case)
+
+1. Vercel dashboard → the affected project → Production Deployment → **Instant Rollback**. On
+   Hobby it goes back **one** deployment only.
+2. Rolling back the API also rolls back its cron definition. The daily job is idempotent
+   (`03` §8.4), so that is harmless.
+3. **After a rollback, pushes to `main` no longer go live.** Fix forward on `develop`, merge to
+   `main`, then **Undo Rollback** (promote the new deployment) to turn auto-assignment back on.
+4. The web app's service worker may keep the bad shell until it updates. The contract rule means the
+   rolled-back API still serves it.
+
+### Bad data or a bad migration
+
+Instant Rollback does not touch the database.
+
+1. If the damage is under **6 hours** old (Free's restore window, or 1 GB of changes, whichever
+   comes first): Neon console → branch `main` → Backup & Restore → **Restore from history**, to a
+   time just before the damage. It overwrites the branch, drops connections briefly, and Neon keeps
+   a backup of the pre-restore state automatically.
+2. If older: restore the manual snapshot from §3, if one was taken for this change.
+3. Otherwise, fix forward with a new migration.
+4. Roll the code back to match the restored schema if needed (above), then fix forward.
+
+Because of the 6-hour window, **check production within an hour of any deploy that migrates**.
+
+The restore has never been tested. Running one on `staging` before M1 ships is on the checklist in §6.
+
+---
+
+## 5. Monitoring — finding out before a user does
+
+All production-only, all $0. Sentry's Developer plan includes one uptime monitor and one cron
+monitor, with email alerts (Sentry pricing docs, checked 2026-09-21).
+
+| What breaks | How Yuta hears |
+| --- | --- |
+| An uncaught error, web or API | Sentry email on each **new** issue, filtered to `environment:production` |
+| API down or unreachable | Sentry uptime check, `GET /api/health`, every **5 min**, 3 consecutive failures → email (about 15 min) |
+| Daily job missed or failed | Sentry cron monitor: the job checks in at start and finish; a missed or failed check-in → email |
+| A deploy fails (build or migration) | Vercel's deploy-failure email |
+| Health Auto Export stops syncing | No alert. `health_sync_state` on the dashboard (S19) |
+| Anthropic spend | Left for `13` |
+
+- **`/api/health` must not touch the database** (binding). A 5-minute check would keep Neon's compute
+  from ever scaling to zero: always-on at 0.25 CU is about 180 CU-hours a month against Free's 100,
+  and the database would stop partway through the month. The route answers `200` if the function
+  runs. A database outage still surfaces as Sentry errors from real requests.
+- The uptime check costs about 8,600 function invocations a month, well inside Hobby's 1M.
+- Logging rules (what is never logged) are `03` §7.
+
+---
+
+## 6. Before the first production deploy
+
+- [ ] Neon project, branch `staging` off `main`.
+- [ ] Two Vercel projects, roots `apps/web` and `apps/api`, production branch `main`.
+- [ ] Every variable in §2, Secret type where marked, Preview values scoped to `develop`.
+- [ ] Google OAuth client with all three redirect URIs.
+- [ ] `vercel.ts` rewrite verified on the staging URL: sign-in round-trips, cookie set on the web origin.
+- [ ] Sentry: two projects (web, api), new-issue alert on production, uptime monitor, cron monitor.
+- [ ] A Neon restore from history, tried on `staging`.
+- [ ] `dbmate` confirmed to run inside Vercel's build image (its npm package ships platform binaries;
+      not yet tried there).
+- [ ] `11` §3 checklist passed on staging.

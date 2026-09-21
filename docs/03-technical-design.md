@@ -127,7 +127,8 @@ design/  docs/  CONTEXT.md
 ```
 
 - The web app imports `api-contract` only, never `apps/api`.
-- `apps/web/vercel.json` rewrites `/api/:path*` to the API project.
+- `apps/web/vercel.ts` rewrites `/api/*` to the API project, with the target read from `API_ORIGIN`
+  at build time so staging reaches the staging API (`12` §1). Static `vercel.json` cannot do that.
 - Better Auth `baseURL` is the web origin, so the Google callback returns through the rewrite.
   This is the fix for Safari blocking cookies across two `*.vercel.app` sites (see `06`).
 - Every API response sends `Cache-Control: private, no-store`. Vercel rewrites honour upstream

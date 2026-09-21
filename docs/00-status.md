@@ -13,12 +13,10 @@
 - 2026-09-16: Phase 3 — `docs/05-design-system.md` and `docs/10-screen-specifications.md` written from the six `.dc.html` files. Every hex code, size, tracking value and grid measurement lifted from source; contrast ratios computed, not estimated. The canvas's "THE SYSTEM" sticky note was found inaccurate and is superseded by `docs/05`.
 
 ## Next
-**Phase 4 — Tech docs, continued: the remaining Tier 2 docs.** Done so far: `03`, `04`, `CONTEXT.md`, `07`, `08`, `09`. Still to write:
-- `11-testing-plan` (long-term). `07` hands it the OpenAPI breaking-change checker. `08` §10 and `03` §8.1 already list required tests; collect them rather than restating them.
-- `12-deployment-devops` (shipping). Reference `03` §3, §4 and §10 rather than restating them.
-- `13-infrastructure-security` (real health data, several services). Same rule as `12`.
+**Phase 4 — Tech docs, continued: the last Tier 2 doc.** Done so far: `03`, `04`, `CONTEXT.md`, `07`, `08`, `09`, `11`, `12`. Still to write:
+- `13-infrastructure-security` (real health data, several services). Reference `03` §3, §4, §10 and `12` rather than restating them. Carry in from `12`: Anthropic spend (console limit unverified, per-user label cap), key rotation steps for the incident plan, and the untested Neon restore.
 
-Phase 4 is done when all four exist. Then Phase 5.
+Phase 4 is done when `13` exists. Then Phase 5.
 
 ### Phase 4 so far (2026-09-19, recorded in `06`)
 - **Two apps, one backend.** Native iOS (SwiftUI) later for the daily loop; web app first for everything through M2, phone-first. Brief updated: native iOS moved from Out of scope to LATER.
@@ -56,6 +54,8 @@ Phase 4 is done when all four exist. Then Phase 5.
   - `user_profile.training_weekdays` (the training weekdays were recorded nowhere)
   - a new `reference_food` table for the MEXT catalogue (it had no table)
 - **`09` written 2026-09-21** — 16 flows (F1–F16). Decisions in `06`: 3 h idle ends a workout; one open workout per user; zero-set workouts are deleted; end-of-day check 60 min before bed plus a "Yesterday" card; plan days lock after 7 days (`day_locked`); each setup step saves alone; a hand-set target wins until next Monday via new `goal_phase.calorie_target_set_at` (fixed a gap where M3 would have ignored every hand edit). `04`, `07` and `03` §8.3 updated.
+- **`11` written 2026-09-21:** Vitest + Postgres 18 in Docker, Playwright on Chromium and WebKit, oasdiff, a 7-item iPhone checklist, and an explicit untested list. CI on every PR, all required (by default).
+- **`12` written 2026-09-21** (see `06`): staging = `develop` → Vercel preview → Neon `staging`; one Google client and one Anthropic key for now; the web rewrite moves to `vercel.ts` reading `API_ORIGIN` (`03` §5 updated); dbmate migrations inside the API build on `main`/`develop` only; the **add-first** migration rule; Sentry uptime (`/api/health` must not touch the DB) + cron monitor, production only.
 - **Parked for M2 (decide before M2 starts):** morning weight source. Two hardware tests are defined in `06` (2026-09-19 entry); run them, then apply the decision rule there.
 
 ## Blocked
@@ -82,6 +82,7 @@ _(nothing)_
 - The exact names in HAE's body fat and lean mass payloads.
 - `pg_trgm` on Neon Free, for `reference_food` search (`04`).
 - How `@hono/zod-openapi` describes a multipart file part (`07`).
+- `dbmate` running inside Vercel's build image, and the exact `vercel.ts` rewrite syntax (`12` §6).
 
 ### Standing
 - Design risk on record: if the real failure mode turns out to be not logging at all because the app reads as a spreadsheet, Quiet was the better bet. Revisit after M1 is in daily use. Phase 3 did not soften Instrument — the contrast cost is recorded as a measured deviation and left for Yuta.

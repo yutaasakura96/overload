@@ -1072,3 +1072,69 @@ estimate silently overrode.
 
 **Revisit if:** real use shows the 3 h timeout closing workouts that were still going, or the
 "Yesterday" card being dismissed more often than used.
+
+### [2026-09-21] Testing plan: real Postgres in Docker, Playwright on two engines, a phone checklist
+
+**Decided (asked).**
+1. **Must-automate** is the list collected from `03`, `07`, `08` and `09` (`docs/11` §2) — set upload,
+   auth, domain maths, ingest, contract, and the four new flow rules.
+2. **Tools:** Vitest for domain and for the API in process; Postgres 18 in Docker, one rolled-back
+   transaction per test; Playwright on Chromium and WebKit with `setOffline`; `oasdiff` for breaking
+   changes. oasdiff's OpenAPI 3.1 support and GitHub Action checked 2026-09-21.
+3. **A 7-item manual checklist on a real iPhone**, run before each milestone and after any change to the
+   offline path, with the result in the PR.
+4. **Untested on purpose:** component and visual tests, load, model output quality, live third
+   parties, and any coverage percentage.
+
+**Alternatives considered.** A Neon branch per CI run (network-dependent, Free limits); PGlite (not
+Postgres 18); Chromium only (would miss WebKit engine differences before the phone check).
+
+**Decided by default, not asked.** CI on every PR to `develop` and `main`: typecheck, lint, Vitest,
+Playwright, oasdiff, all required.
+
+**Revisit if:** the screens stabilise after M1 — then component or visual tests start earning their keep.
+
+### [2026-09-21] Deployment: staging on `develop`, migrations in the API build, add-first schema changes
+
+**Decided (asked).**
+1. **Three environments:** local (Docker Postgres), staging (`develop` → Vercel preview with
+   branch-scoped variables → Neon branch `staging`), production (`main` → Neon `main`). Staging is
+   where the iPhone checklist in `11` §3 runs, so production data is never the test bed.
+2. **One Google OAuth client and one Anthropic key** across environments. Yuta is a solo developer
+   and wants less to manage at first; the Anthropic key is to be split later so staging spend is
+   visible on its own.
+3. **Migrations run inside the API's Vercel build**, only on `main` and `develop`, with dbmate against
+   the direct (unpooled) connection. A failed migration fails the build and the old deployment keeps
+   serving.
+4. **The add-first rule:** every migration works with the code already running. Drops, renames,
+   `NOT NULL` and narrowing take two releases. Manual Neon snapshot before any destructive change.
+5. **Monitoring, production only, $0:** Sentry new-issue emails, one uptime monitor on
+   `/api/health` every 5 min, one cron monitor on the daily job, Vercel deploy-failure email.
+   Anthropic spend is left for `13`.
+
+**Found by verification (2026-09-21), and what it forced.**
+- `vercel.json` rewrites are static, so staging's web app would have proxied to the production API.
+  `vercel.ts` runs at build time and reads env vars → the rewrite target is `API_ORIGIN`. `03` §5
+  updated.
+- Vercel Hobby's Instant Rollback reaches only the previous deployment, leaves the database alone,
+  and turns off auto-promotion until "Undo Rollback". Hence the add-first rule.
+- Neon Free: 10 branches, a 6-hour / 1 GB restore window, one snapshot. Hence "check production
+  within an hour of a migrating deploy".
+- Sentry's free Developer plan includes one uptime and one cron monitor. An uptime check that queried
+  the database would keep Neon awake (~180 CU-hours/month against Free's 100), so `/api/health`
+  must not touch it.
+- Vercel crons fire only on the production deployment, so staging has no cron.
+
+**Alternatives considered.** Local + production only (the phone checklist would run on real data);
+a Neon branch per PR via Neon's Vercel integration (platform-specific, eats the 10-branch limit,
+already rejected for CI in `11`); migrations in a GitHub Actions job (races Vercel's deploy, DB
+secrets in two places); migrations by hand (forgotten).
+
+**Decided by default, not asked.** dbmate as the runner (plain SQL, no query-layer tie-in; the query
+layer stays a build-phase choice). Seed data — the seeded exercises and the MEXT import — ships as
+generated migrations. PR previews share staging's variables and never migrate. Uptime interval
+5 minutes. `down` migrations are written but never run outside local.
+
+**Revisit if:** staging Anthropic spend becomes noticeable (split the key); a second developer joins
+(per-PR databases start earning their keep); the app moves to AWS Tokyo (migrations move to the
+deploy pipeline there).
