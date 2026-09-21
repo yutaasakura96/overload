@@ -13,15 +13,12 @@
 - 2026-09-16: Phase 3 — `docs/05-design-system.md` and `docs/10-screen-specifications.md` written from the six `.dc.html` files. Every hex code, size, tracking value and grid measurement lifted from source; contrast ratios computed, not estimated. The canvas's "THE SYSTEM" sticky note was found inaccurate and is superseded by `docs/05`.
 
 ## Next
-**Phase 4 — Tech docs, continued: `CONTEXT.md` and the triggered Tier 2 docs.** `03` and `04` are complete. All six Tier 2 docs are triggered, and none is written:
-- `07-api-design` (real API)
-- `08-auth-and-permissions` (users log in)
-- `09-user-flows` (six-plus screens)
-- `11-testing-plan` (long-term)
-- `12-deployment-devops` (shipping)
-- `13-infrastructure-security` (real health data, several services)
+**Phase 4 — Tech docs, continued: the remaining Tier 2 docs.** Done so far: `03`, `04`, `CONTEXT.md`, `07`, `08`, `09`. Still to write:
+- `11-testing-plan` (long-term). `07` hands it the OpenAPI breaking-change checker. `08` §10 and `03` §8.1 already list required tests; collect them rather than restating them.
+- `12-deployment-devops` (shipping). Reference `03` §3, §4 and §10 rather than restating them.
+- `13-infrastructure-security` (real health data, several services). Same rule as `12`.
 
-Suggested order for the next session: **`CONTEXT.md` first** (harvest the vocabulary, e.g. workout vs session, complete day, applied estimate, ingest token), then `08` and `07`. If the window runs short, `09`, `11`, `12` and `13` can take a second session. Much of `12` and `13` is already in `03` §3, §4 and §10, so they should reference it rather than restate it.
+Phase 4 is done when all four exist. Then Phase 5.
 
 ### Phase 4 so far (2026-09-19, recorded in `06`)
 - **Two apps, one backend.** Native iOS (SwiftUI) later for the daily loop; web app first for everything through M2, phone-first. Brief updated: native iOS moved from Out of scope to LATER.
@@ -47,6 +44,18 @@ Suggested order for the next session: **`CONTEXT.md` first** (harvest the vocabu
   - HRV is daily
   - new columns `health_workout.link_source` and `expenditure_estimate.window_days` / `week_complete_day_count`
   - new table `ingest_token`
+- **`CONTEXT.md`, `07` and `08` written 2026-09-21.** Decisions in `06` (two entries, each with a "decided by default, not asked" list for Yuta to overrule):
+  - 30-day sliding sessions
+  - admin = `ADMIN_EMAIL` env var
+  - sign-out with pending sets warns, then discards
+  - revoked = no access, and re-invite restores
+  - one sync batch carries creates, edits and deletes, guarded by `client_updated_at` (replaces `DO NOTHING`)
+  - camelCase JSON
+- **`04` changed by `07` (2026-09-21):**
+  - `client_updated_at` on `workout`, `workout_exercise` and `set`
+  - `user_profile.training_weekdays` (the training weekdays were recorded nowhere)
+  - a new `reference_food` table for the MEXT catalogue (it had no table)
+- **`09` written 2026-09-21** — 16 flows (F1–F16). Decisions in `06`: 3 h idle ends a workout; one open workout per user; zero-set workouts are deleted; end-of-day check 60 min before bed plus a "Yesterday" card; plan days lock after 7 days (`day_locked`); each setup step saves alone; a hand-set target wins until next Monday via new `goal_phase.calorie_target_set_at` (fixed a gap where M3 would have ignored every hand edit). `04`, `07` and `03` §8.3 updated.
 - **Parked for M2 (decide before M2 starts):** morning weight source. Two hardware tests are defined in `06` (2026-09-19 entry); run them, then apply the decision rule there.
 
 ## Blocked
@@ -71,6 +80,8 @@ _(nothing)_
 - Web Locks in Safari, for one uploading tab.
 - Whether Workouts v2 without workout metrics still carries average and max heart rate.
 - The exact names in HAE's body fat and lean mass payloads.
+- `pg_trgm` on Neon Free, for `reference_food` search (`04`).
+- How `@hono/zod-openapi` describes a multipart file part (`07`).
 
 ### Standing
 - Design risk on record: if the real failure mode turns out to be not logging at all because the app reads as a spreadsheet, Quiet was the better bet. Revisit after M1 is in daily use. Phase 3 did not soften Instrument — the contrast cost is recorded as a measured deviation and left for Yuta.

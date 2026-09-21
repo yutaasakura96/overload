@@ -937,3 +937,138 @@ correctness never depends on the cron firing.
 
 **Sources.** vercel.com/pricing, neon.com/pricing, neon.com/docs/security/security-overview, all
 2026-09-21.
+
+## 2026-09-21 — Auth and permissions (`docs/08`)
+
+**Decision — chosen by Yuta.**
+- **Sessions last 30 days, sliding** (`expiresIn` 30 d, `updateAge` 1 d), stored in Postgres with
+  the cookie cache off. Revoke therefore takes effect on the next request whatever the lifetime is.
+- **The admin is the `ADMIN_EMAIL` env var**, compared with the session user's email. There is no
+  role column.
+- **Signing out with pending or refused sets** shows a warning with Upload now, or Discard and
+  sign out. Signing out also clears the cached API data on the device.
+- **A revoked member has no access at all.** They are refused at sign-in with "access revoked",
+  distinct from "not invited", and their data stays. Re-inviting restores it, which is also how a
+  revoked member gets an export.
+
+**Alternatives considered.**
+- Sessions: 7 days (Better Auth's default) bounces an infrequent user to Google sign-in at the gym;
+  90 days is weakest for a phone lost unlocked.
+- Admin: the Better Auth admin plugin brings impersonation, a way into members' health data. An own
+  role column is a second source of truth beside `invite`.
+- Sign-out: keeping sets for the same user leaves one person's data on a device that may be passed
+  on. Blocking sign-out traps a revoked user.
+- Revoked users: an export-and-delete-only mode adds a second auth state to test on every route.
+
+**Decided by default in `08`, not asked. Object and they change:**
+- Account deletion needs a fresh session (Better Auth `freshAge`, 1 day) and a typed `DELETE`.
+- Deleting an account deletes its `invite` row.
+- The admin cannot delete their own account or revoke their own invite while `ADMIN_EMAIL` names
+  them.
+- Better Auth's rate limiter uses database storage, because the in-memory store is per serverless
+  instance.
+- Another user's row returns 404, never 403.
+- A 401 never marks sets refused. Only a sign-in refused as `access_revoked` does.
+
+**Verified 2026-09-21.**
+- Better Auth, via Context7:
+  - `expiresIn` and `updateAge` default to 7 days and 1 day.
+  - `cookieCache` is off by default, `maxAge` 5 minutes.
+  - `freshAge` defaults to 1 day and guards deletion.
+  - `validateUserInfo` runs on every OAuth sign-in with the fresh provider email.
+  - `rateLimit.storage: "database"` exists.
+- Vercel cron docs: `CRON_SECRET` is sent as `Authorization: Bearer`, and the request is a GET.
+
+**Revisit if:** a second admin is ever needed (then a role column), or a revoked member asks for
+their data often enough that re-inviting them becomes a chore.
+
+## 2026-09-21 — API design (`docs/07`)
+
+**Decision — chosen by Yuta.**
+- **One sync batch** is the only write path for workouts, workout exercises and sets,
+  `POST /api/workouts/sync`. It returns 200 with a per-row `stored` / `unchanged` / `deleted` /
+  `refused` result.
+- **Edits and deletes travel in the same batch.** Each row is sent whole with `client_updated_at`,
+  and the server applies it only when that value is newer than the stored one. This replaces `03`
+  §8.1's `ON CONFLICT DO NOTHING`, and adds `client_updated_at` to the three tables.
+- **JSON is camelCase.** The db layer maps to the tables' snake_case.
+
+**Alternatives considered.**
+- Per-row `PUT` by id: ~50 requests after a 40-set workout on gym signal, with ordering left to the
+  phone.
+- Online-only `PATCH` for edits: it fails exactly where typo fixes happen, mid-workout without
+  signal.
+- snake_case JSON: no mapping layer, but snake_case would run through the TypeScript and Swift
+  code.
+
+**Decided by default in `07`, not asked. Object and they change:**
+- Every create takes a client-generated `id`, so a retried create returns the stored row.
+- `DELETE` returns 204 whenever the row is gone.
+- Last write wins; there are no ETags.
+- No `/v1`. The contract grows by adding; a breaking change becomes a new route, and CI checks the
+  spec diff.
+- Cursor pagination only on growing lists; bounded lists are returned whole.
+- Plan generation is an explicit `POST /api/plan-days/generate`, so no GET writes (except the cron,
+  which Vercel calls with GET).
+- Export is sectioned and paged, and the client assembles the file. Vercel caps response bodies at
+  4.5 MB.
+- The client resizes photos to ≤1568 px JPEG, and the API refuses anything over 4 MB.
+- A weigh-in from Apple Health cannot be deleted in the app, because the next export would re-send
+  it.
+- Ingest never fails a payload for unknown metrics or bad points. It skips them and counts them,
+  because a 4xx makes Health Auto Export drop the whole batch.
+
+**Schema gaps found while mapping endpoints to tables, now fixed in `04`:**
+- `user_profile.training_weekdays`: nothing recorded which calendar days are training days.
+- `reference_food`: the MEXT catalogue had no table.
+
+**Verified 2026-09-21.** Vercel functions limits: 4.5 MB maximum request **and** response body,
+with 413 `FUNCTION_PAYLOAD_TOO_LARGE` above it.
+
+**Revisit if:** the native app ships. Then breaking changes need a deprecation window, and the
+no-`/v1` rule is tested for real.
+
+### [2026-09-21] User flows: how workouts end, how days close, what a partial flow leaves
+
+**Context.** Writing `docs/09` traced every flow from entry to success and found steps no doc
+specified: a workout nobody finished, a day nobody closed, and a hand-set target that the weekly
+estimate silently overrode.
+
+**Decided (asked).**
+1. **A workout with no new set for 3 hours counts as ended**, `ended_at` = the last set's
+   `performed_at`, written by the phone on its next open. A long leg day with warm-ups runs about 2 h.
+2. **One workout in progress per user**, with a Finish/Resume dialog. Enforced on the phone only; the
+   server accepts what sync sends, because refusing a workout would refuse its sets.
+3. **Finishing with zero ticked sets deletes the workout.** Unticked planned sets are never stored.
+4. **The end-of-day check appears 60 minutes before the day routine's bedtime**, and as a "Yesterday"
+   card on the next morning's first open. Dismissing it leaves the day incomplete.
+5. **A plan day is confirmable for 7 days, then read-only** (409 `day_locked`).
+6. **A late confirm never rewrites an applied estimate**; it feeds next week's window.
+7. **Each step of a multi-step flow saves on its own.** No wizard drafts; the first missing
+   prerequisite is the empty state and the resume point. Unconfirmed candidates are discarded; an
+   abandoned meal estimate stays as an unapplied row.
+8. **A hand-set calorie target wins until next Monday.** New column `goal_phase.calorie_target_set_at`;
+   current targets are the newer of it and the newest applied estimate, and the next estimate clamps
+   ±150 kcal from whichever was in force. Without this, once M3 applied its first estimate every later
+   hand edit — including applying the S18a maintenance check — would have done nothing.
+
+**Alternatives considered.**
+- A resumable setup wizard with a draft table: a table and a state for data nobody confirmed.
+- A hand edit that pauses weekly adjustment (`goal_phase.auto_adjust`): more control, but one more
+  state to explain, and easy to forget it is paused.
+- Keeping empty workouts: every mis-tap on Start would sit in history.
+- Server-enforced single open workout: would refuse sets from a second device.
+
+**Decided by default in `09`, not asked. Object and they change:**
+- Health setup shows "Waiting for first data" until any `health_sync_state` row exists, and tells the
+  user to run HAE's manual export once.
+- A batch-cooked food with no batch newer than 7 days shows "Weigh this week's batch" on the prep
+  screen.
+- Routines, food edits and meal confirmations need a connection. Only the gym session is offline, as
+  already decided.
+
+**Changed elsewhere:** `04` (`calorie_target_set_at`, the current-targets query), `07` (`day_locked`),
+`03` §8.3 (the clamp reads the target in force).
+
+**Revisit if:** real use shows the 3 h timeout closing workouts that were still going, or the
+"Yesterday" card being dismissed more often than used.

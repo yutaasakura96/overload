@@ -187,8 +187,10 @@ design/  docs/  CONTEXT.md
    only then updates the screen.
 2. The uploader sends queued sets whenever the app is open and has signal. It does not depend on
    Background Sync, which is unverified on Safari.
-3. The server inserts with `INSERT … ON CONFLICT (id) DO NOTHING` and returns the stored row. A
-   retry after a lost response therefore gets the same answer.
+3. The server upserts with `INSERT … ON CONFLICT (id) DO UPDATE … WHERE stored.client_updated_at <
+   incoming.client_updated_at` and returns a result per row (`docs/07` §3.4). A retry after a lost
+   response, or a stale copy, changes nothing. Edits and deletes made offline travel in the same
+   batch. *Changed 2026-09-21* from `DO NOTHING`, which could not carry an offline edit.
 4. **The local record is deleted only after the server acknowledges the set.** A refusal (kind 3)
    marks it refused and keeps it.
 5. **One tab uploads at a time.** Use the Web Locks API (`navigator.locks.request`) around the
@@ -254,7 +256,9 @@ tdee          = mean_intake − (trend_delta × 7,700) ÷ N                    k
 - **S21 (M3, weekly):** recomputed every local Monday over the **trailing 14 days**.
 - **Applied only if the newest 7 days hold ≥ 5 complete days.** Otherwise the row is still written
   with `applied_at = NULL`, it is shown to the user, and the previous targets stay in force.
-- **The new calorie target is clamped to ±150 kcal of the previous applied target.**
+- **The new calorie target is clamped to ±150 kcal of the target in force** — the previous applied
+  estimate's, or a target the user set by hand after it (`goal_phase.calorie_target_set_at`,
+  `docs/09` F13).
   `estimated_tdee_kcal` is stored unclamped; only `target_kcal` is clamped. Macros follow the phase's
   protein rule, with fat and carbohydrate filling the rest.
 - The first estimate of a phase has no previous target to clamp against, so it uses
@@ -331,8 +335,9 @@ All three automations use:
   - Then one `health_sync_state` upsert per metric present in the payload
 - **Validation:**
   - The payload is Zod-validated like any route, and unknown metric names are ignored and counted.
-  - The body limit is Vercel's function request limit. Batch Requests keeps each request well under
-    it (the exact limit is unverified).
+  - The body limit is Vercel's function request limit, 4.5 MB (Vercel functions limits, checked
+    2026-09-21). Batch Requests should keep each request well under it; confirm against the first
+    real payloads.
 - **Response:** 200 with counts. A 4xx makes HAE log a failure in its Activity Logs, which is where
   the user looks.
 
@@ -373,7 +378,7 @@ All three automations use:
 - Web Locks API support in Safari home-screen apps (§8.1).
 - When iOS ends a home-screen web app. The strict per-set write is the precaution.
 - The latency the Vercel rewrite hop adds. Measure it in Vercel Observability once deployed.
-- Vercel's function request body limit against HAE batch sizes.
+- HAE batch sizes against Vercel's 4.5 MB request limit (the limit itself verified 2026-09-21).
 - Whether Workouts v2 with workout metrics OFF still carries average and max heart rate. If not,
   turn on workout metrics at Minutes grouping for `overload-workouts` only.
 - The Sentry Developer plan's monthly error allowance and retention.

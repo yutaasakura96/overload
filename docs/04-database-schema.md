@@ -172,6 +172,7 @@ the schema, API and code say **workout**.
 | `started_at` | timestamptz | no | — | From the phone |
 | `ended_at` | timestamptz | yes | — | `NULL` while in progress |
 | `note` | text | yes | — | |
+| `client_updated_at` | timestamptz | no | — | Phone's clock at the last edit. Sync applies a row only when this is newer than the stored value (`docs/07` §3.4) |
 | `created_at` | timestamptz | no | `now()` | Server clock — when the row reached the server |
 | `updated_at` | timestamptz | no | `now()` | |
 
@@ -202,6 +203,7 @@ here does not touch the routine (S4).
 | `rep_low` | smallint | no | — | **Resolved and copied at start**: routine slot → user setting → exercise default |
 | `rep_high` | smallint | no | — | Same |
 | `increment_kg` | numeric(5,2) | no | — | Copied at start, same order |
+| `client_updated_at` | timestamptz | no | — | Same sync guard as `workout` |
 | `created_at` | timestamptz | no | `now()` | |
 | `updated_at` | timestamptz | no | `now()` | |
 
@@ -219,7 +221,7 @@ One logged set. The row the whole offline path exists to protect (S1).
 
 | Column | Type | Null | Default | Notes |
 | --- | --- | --- | --- | --- |
-| `id` | uuid | no | — | PK, **generated on the phone**. `INSERT … ON CONFLICT (id) DO NOTHING` is what makes upload exactly-once |
+| `id` | uuid | no | — | PK, **generated on the phone**. Sync upserts on it, guarded by `client_updated_at`, which is what makes upload exactly-once |
 | `workout_exercise_id` | uuid | no | — | → `workout_exercise.id`, `ON DELETE CASCADE` |
 | `set_number` | smallint | no | — | 1-based, within the exercise |
 | `weight_kg` | numeric(6,2) | no | — | |
@@ -228,6 +230,7 @@ One logged set. The row the whole offline path exists to protect (S1).
 | `rpe` | numeric(3,1) | yes | — | 1.0–10.0 |
 | `is_warmup` | boolean | no | `false` | Warm-ups are stored and shown, but excluded from e1RM, volume and the S3 rule (S6) |
 | `performed_at` | timestamptz | no | — | From the phone. The rest timer counts from the last set's value |
+| `client_updated_at` | timestamptz | no | — | Same sync guard as `workout`. An edit made offline mid-workout travels in the same batch |
 | `created_at` | timestamptz | no | `now()` | Server clock — when it actually arrived |
 | `updated_at` | timestamptz | no | `now()` | |
 
@@ -253,13 +256,13 @@ One logged set. The row the whole offline path exists to protect (S1).
 | **Last time** (S2): last session's weight × reps per set number | `workout (user_id, started_at DESC)` → `workout_exercise (exercise_id)` → `set (workout_exercise_id, set_number)` |
 | **Suggestion** (S3): did every working set hit the top of the range last time | Same rows, plus `workout_exercise.rep_high` copied at start |
 | **Chart** (S7): best working set per workout over a span, Epley `weight × (1 + reps / 30)` | `workout (user_id, started_at DESC)` filtered by span → the same join, `is_warmup = false` |
-| **Upload a set** (S1) | `INSERT … ON CONFLICT (id) DO NOTHING` on the PK |
+| **Upload a set** (S1) | `INSERT … ON CONFLICT (id) DO UPDATE … WHERE set.client_updated_at < EXCLUDED.client_updated_at` on the PK. *Changed 2026-09-21* from `DO NOTHING`, so offline edits and deletes use the same path (`docs/07` §3.4) |
 | **Exercise picker** (S8) | `exercise (owner_user_id)`, left joined to `exercise_setting` to drop `hidden_at` rows |
 | **Export** (S10) | Every table by `user_id`, or by join for the child tables |
 
 # M2 — meal plan + weight
 
-Eleven tables. Three things M2 needs are **not** tables, because they are worked out from rows that
+Eleven tables, plus the shared `reference_food` catalogue added 2026-09-21. Three things M2 needs are **not** tables, because they are worked out from rows that
 already exist: the prep plan and grocery list (S17), the daily weight used for the trend (S11), and
 whether a day counts as complete (S18). Storing them would mean keeping two answers in step.
 
@@ -276,6 +279,7 @@ One row per user: the facts the maths needs and the clock the rules are read aga
 | `height_cm` | numeric(5,1) | yes | — | For the provisional formula estimate (S14) |
 | `sex` | text | yes | — | `male` \| `female`, `CHECK`. Formula input only |
 | `birth_date` | date | yes | — | Formula input only |
+| `training_weekdays` | smallint[] | no | `'{}'` | ISO weekdays, 1 = Monday. Which calendar days are training days (S15). *Added 2026-09-21*: the schema had no record of it |
 | `created_at` / `updated_at` | timestamptz | no | `now()` | |
 
 ---
@@ -345,6 +349,33 @@ everything downstream does one kind of arithmetic.
 
 ---
 
+## reference_food
+
+The MEXT 日本食品標準成分表（八訂）増補2023 catalogue, imported by `seed/`, searched when adding a
+food (S12). **Shared, read-only, and not the food list**: choosing an entry copies its values into a
+new `food` row with `source = 'mext'` and `source_ref = code`. *Added 2026-09-21*: `docs/07` needs
+it, and the schema had nowhere to keep it.
+
+| Column | Type | Null | Default | Notes |
+| --- | --- | --- | --- | --- |
+| `code` | text | no | — | PK. MEXT 食品番号, e.g. `11220` |
+| `name` | text | no | — | As MEXT prints it |
+| `food_group` | smallint | no | — | MEXT 食品群, 1–18 |
+| `state` | text | no | — | `raw` \| `cooked`, `CHECK`. Derived from the MEXT name at import |
+| `energy_kcal` / `protein_g` / `carb_g` / `fat_g` / `fiber_g` | numeric | no | — | Per 100 g, same types as `food` |
+| `created_at` / `updated_at` | timestamptz | no | `now()` | |
+
+- The PK is MEXT's own code rather than a UUIDv7, the one exception to the id convention: the
+  catalogue already has a stable key, and nothing references it.
+- No `user_id` and no foreign keys in or out. A `food` copied from it keeps working if the seed is
+  re-imported, because the values were copied, not referenced.
+- `INDEX` on `name` with `pg_trgm` (`gin_trgm_ops`) for search. **Unverified:** that `pg_trgm` is
+  available on Neon Free. Check it when M2 starts; `ILIKE` over ~2,500 rows is the fallback.
+- Which MEXT column supplies `carb_g` (差引き法 or 利用可能炭水化物) is decided at import and recorded
+  in `seed/`.
+
+---
+
 ## rotation_group
 
 A set of foods that stand in for each other (S12: okra ↔ broccoli, rice ↔ potato).
@@ -404,6 +435,7 @@ see what a previous cut actually did.
 | `fat_pct_calories` | numeric(4,1) | no | — | Carbohydrate is the remainder |
 | `calorie_target_kcal` | integer | no | — | |
 | `calorie_basis` | text | no | — | `provisional_formula` \| `measured` \| `manual`, `CHECK`. Drives the "provisional" label (S14) |
+| `calorie_target_set_at` | timestamptz | no | `now()` | When `calorie_target_kcal` was last set by the user. *Added 2026-09-21* (`docs/09` F13): current targets read the newer of this and the newest applied `expenditure_estimate` |
 | `created_at` / `updated_at` | timestamptz | no | `now()` | |
 
 - `UNIQUE (user_id) WHERE ended_on IS NULL` — one open phase at a time.
@@ -883,7 +915,7 @@ the first thing to add if a long span ever measures slow — a measurement, not 
 | **Overlay a span** (S20) | `health_sample (user_id, metric, started_at DESC)` filtered by span, one pass per series |
 | **Weekly recalculation** (S21) | `plan_meal_item` via `plan_meal` → `plan_day` for complete days in the 14-day window, plus `body_measurement (user_id, measured_at DESC)` |
 | **Ingest auth** (S19) | `ingest_token (token_hash)`, once per request |
-| **Current targets** (S21) | Newest `expenditure_estimate (user_id, week_start DESC)` with `applied_at IS NOT NULL` |
+| **Current targets** (S21) | Newest `expenditure_estimate (user_id, week_start DESC)` with `applied_at IS NOT NULL`, **unless** the open `goal_phase.calorie_target_set_at` is newer than its `applied_at`, in which case the phase's target. The next estimate clamps against whichever was in force. *Changed 2026-09-21* (`docs/09` F13) |
 | **Plateau check** (S23) | `expenditure_estimate` over recent weeks, then `protocol_suggestion (user_id, suggested_on DESC)` to drop what was dismissed |
 
 ## Open
