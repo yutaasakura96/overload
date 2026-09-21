@@ -1,10 +1,9 @@
 # 04 — Database schema
 
 Postgres 18 on Neon. Decisions behind this file are in `docs/06-decision-log.md`
-(2026-09-19 stack and hosting; 2026-09-20 ids, tables, deletion rules).
+(2026-09-19 stack and hosting; 2026-09-20 ids, tables, deletion rules; 2026-09-21 M3 tables).
 
-**Status:** M1 (training log) and M2 (meal plan + weight) are complete below. M3 (health +
-coaching) is not written yet.
+**Status:** complete for M1 (training log), M2 (meal plan + weight) and M3 (health + coaching).
 
 ## Conventions
 
@@ -544,9 +543,314 @@ One food in one meal, planned and as eaten (S16, S18).
 | Is this day complete (S18) | No `plan_meal` on it left at `planned` |
 | Average intake over 14 complete days (S18a) | `plan_meal_item` snapshots on complete days only |
 
+# M3 — health + coaching
+
+Six tables of our own, plus one column added to each of two M2 tables. Two things M3 needs are
+**not** tables: the overlay series on a chart (S20) and the plateau protocol catalogue itself (S23).
+Both are covered at the end.
+
+The de-duplication key here is not the one M2 used. `body_measurement` keys on
+`(user_id, source, external_id)` because an Apple Health weight sample arrives with an id.
+**Health metric samples do not carry one** — verified 2026-09-21 against Health Auto Export's JSON
+format, where a metric data point is `{qty, date, source?}` and only a *workout* has an `id` field.
+So metrics key on `(user_id, metric, started_at)` and workouts key on the id they are given.
+
+---
+
+## health_sample
+
+One reading of one metric (S19). A long table: the metric is a value in a column, not a column of
+its own, so adding sleeping wrist temperature later is a new string rather than a migration.
+
+| Column | Type | Null | Default | Notes |
+| --- | --- | --- | --- | --- |
+| `id` | uuid | no | `uuidv7()` | PK |
+| `user_id` | uuid | no | — | → `user.id`, `ON DELETE CASCADE` |
+| `metric` | text | no | — | From the vocabulary below |
+| `value` | numeric(10,3) | no | — | |
+| `unit` | text | no | — | `count` \| `kcal` \| `bpm` \| `ms` \| `hr`, `CHECK` |
+| `started_at` | timestamptz | no | — | The sample's own start, from the export |
+| `ended_at` | timestamptz | yes | — | `NULL` for a point reading |
+| `source` | text | no | — | `apple_health` \| `manual`, `CHECK`. Same vocabulary as `body_measurement` |
+| `device` | text | yes | — | What recorded it, when the export says. Omitted on iOS 27+ for cumulative and heart-rate data |
+| `external_id` | text | yes | — | HealthKit's own sample UUID. **Always `NULL` today** — kept because a native client reading HealthKit directly would have it |
+| `created_at` / `updated_at` | timestamptz | no | `now()` | |
+
+- `UNIQUE (user_id, metric, started_at)`. This is the de-duplication key, and it is a natural key
+  rather than an id because the payload gives us nothing else to key on.
+- Ingest is `INSERT … ON CONFLICT (user_id, metric, started_at) DO UPDATE`. **Update, not nothing** —
+  the PRD's edge case says a repeated reading *replaces* the earlier copy, which is the opposite of
+  the set upload's `DO NOTHING`. A set is a fact the phone observed once; a health sample is Apple's
+  current answer, and Apple revises it.
+- `INDEX (user_id, metric, started_at DESC)` — the constraint's index, and the one every overlay
+  (S20) and dashboard trend (S24) reads.
+- `metric` is `text`, not an enum. The vocabulary is a typed union in `domain/` and validated at the
+  API edge, so a typo cannot land, but widening it never needs a migration.
+- **Export aggregation is fixed at setup.** Health Auto Export can send step count daily or hourly.
+  Changing that setting changes what one row means and would collide against the same
+  `started_at`, so it is chosen once and recorded — the setup path is specified in `docs/03`.
+
+| user_id | metric | value | unit | started_at | ended_at |
+| --- | --- | --- | --- | --- | --- |
+| `0192u001-…` | `resting_heart_rate` | 52.000 | bpm | `2026-11-04 00:00:00+09` | `null` |
+| `0192u001-…` | `sleep_deep_hours` | 1.500 | hr | `2026-11-03 23:00:00+09` | `2026-11-04 06:30:00+09` |
+
+---
+
+## The metric vocabulary
+
+S19's list, mapped onto what the export actually sends. Names are the exporter's own `snake_case`
+where one exists, so the import does as little renaming as possible.
+
+| `metric` | `unit` | Comes from | One row per |
+| --- | --- | --- | --- |
+| `resting_heart_rate` | bpm | `resting_heart_rate.qty` | day |
+| `heart_rate_variability` | ms | `heart_rate_variability.qty` | reading |
+| `step_count` | count | `step_count.qty` | day |
+| `active_energy` | kcal | `active_energy.qty` | day |
+| `sleep_total_hours` | hr | `sleep_analysis.totalSleep` | night |
+| `sleep_core_hours` | hr | `sleep_analysis.core` | night |
+| `sleep_deep_hours` | hr | `sleep_analysis.deep` | night |
+| `sleep_rem_hours` | hr | `sleep_analysis.rem` | night |
+| `sleep_in_bed_hours` | hr | `sleep_analysis.inBed` | night |
+
+- **Sleep is ingested aggregated**, which is a setting in the exporting app. Aggregated mode gives
+  one summary per night — `totalSleep`, `core`, `deep`, `rem`, `inBed` in hours, plus `sleepStart`
+  and `sleepEnd` — which is exactly the shape S24's 7- and 30-day trends and S20's overlay want.
+  Unaggregated mode gives raw segments and would have to be summed on every read.
+- The stage names are the exporter's flattening of HealthKit's `asleepCore`, `asleepDeep` and
+  `asleepREM`, which are the iOS 16 / watchOS 9 sleep-stage cases (Apple's
+  `HKCategoryValueSleepAnalysis`, checked 2026-09-21). `asleepUnspecified` is what older data and
+  non-Apple sources land in; it is carried inside `totalSleep` and not stored separately.
+- The four sleep-duration rows share `started_at = sleepStart` and `ended_at = sleepEnd`.
+  `sleep_in_bed_hours` uses `inBedStart` / `inBedEnd` instead, because it is a different interval.
+- **Lean body mass is not here.** It arrives with the same scale reading as weight and body fat, so
+  it is a column on `body_measurement` (below) rather than a fifth way to say the same thing.
+- Plain `heart_rate` is deliberately not ingested. The export sends it as `Min`/`Avg`/`Max` over a
+  period rather than one number, and S19 only asks for resting heart rate and workout heart rate.
+
+---
+
+## health_workout
+
+One Apple workout — a watch-recorded exercise session (S19). Distinct from `workout`, which is a
+gym visit *you* logged. The watch may record one where you logged none, and the other way round.
+
+| Column | Type | Null | Default | Notes |
+| --- | --- | --- | --- | --- |
+| `id` | uuid | no | `uuidv7()` | PK, ours |
+| `user_id` | uuid | no | — | → `user.id`, `ON DELETE CASCADE` |
+| `workout_id` | uuid | yes | — | → `workout.id`, `ON DELETE SET NULL`. The gym visit this appears to be |
+| `activity_type` | text | no | — | Apple's own name: "Traditional Strength Training" |
+| `started_at` / `ended_at` | timestamptz | no | — | |
+| `duration_seconds` | integer | no | — | The export gives this directly; it is not always `ended_at − started_at` |
+| `avg_heart_rate` | smallint | yes | — | bpm |
+| `max_heart_rate` | smallint | yes | — | bpm |
+| `active_kcal` | numeric(7,2) | yes | — | |
+| `is_indoor` | boolean | yes | — | |
+| `source` | text | no | — | `apple_health` \| `manual`, `CHECK` |
+| `external_id` | text | yes | — | The export's workout `id`, a UUID. Present for everything Apple sends |
+| `created_at` / `updated_at` | timestamptz | no | `now()` | |
+
+- `UNIQUE (user_id, external_id)` — workouts *do* carry an id, so this one keys the way
+  `body_measurement` does. Same `DO UPDATE` rule as `health_sample`.
+- `INDEX (user_id, started_at DESC)`, and `INDEX (workout_id) WHERE workout_id IS NOT NULL`.
+- **The link to `workout` is a guess, not a fact.** How an Apple workout is matched to a logged gym
+  visit, and whether the user can correct it, is specified in `docs/03`. `ON DELETE SET NULL` means
+  deleting a gym visit leaves the watch's record of it intact.
+
+---
+
+## health_sync_state
+
+When each metric last synced (S19). **The one place M3 stores something it could almost derive**,
+and the reason is worth stating: a sync that ran correctly and carried nothing leaves no sample
+behind, so there is no row from which to derive that it happened. Without this table a dead sync
+and a quiet week look identical, which is the exact distinction the dashboard exists to make.
+
+| Column | Type | Null | Default | Notes |
+| --- | --- | --- | --- | --- |
+| `user_id` | uuid | no | — | → `user.id`, `ON DELETE CASCADE` |
+| `metric` | text | no | — | |
+| `last_synced_at` | timestamptz | no | — | When a payload last covered this metric, new samples or not |
+| `last_sample_at` | timestamptz | yes | — | Newest `started_at` seen |
+| `sample_count` | integer | no | `0` | Running total, for "is this actually working" |
+| `created_at` / `updated_at` | timestamptz | no | `now()` | |
+
+- `PRIMARY KEY (user_id, metric)`. One upsert per metric per import.
+- **No row means never synced**, which is the dashboard's empty state without a flag column.
+
+| user_id | metric | last_synced_at | last_sample_at | sample_count |
+| --- | --- | --- | --- | --- |
+| `0192u001-…` | `heart_rate_variability` | `2026-11-04 07:02:00+00` | `2026-11-01 22:14:00+00` | 3186 |
+
+---
+
+## expenditure_estimate
+
+One week's recalculation (S21). Written by the weekly job, never overwritten — "the change from
+last week" is two rows, and a finished cut can be read back as the sequence of estimates it was
+actually run on.
+
+| Column | Type | Null | Default | Notes |
+| --- | --- | --- | --- | --- |
+| `id` | uuid | no | `uuidv7()` | PK |
+| `user_id` | uuid | no | — | → `user.id`, `ON DELETE CASCADE` |
+| `goal_phase_id` | uuid | no | — | → `goal_phase.id`, `ON DELETE CASCADE` |
+| `week_start` | date | no | — | Local Monday, per `user_profile.timezone` |
+| `estimated_tdee_kcal` | integer | no | — | |
+| `previous_tdee_kcal` | integer | yes | — | `NULL` on the first estimate of a phase |
+| `trend_weight_delta_kg` | numeric(5,3) | no | — | Change in the *smoothed* trend across the week, not raw weights |
+| `mean_intake_kcal` | integer | no | — | Over complete days only |
+| `complete_day_count` | smallint | no | — | How many of the seven days counted |
+| `method` | text | no | — | Which maths produced it, e.g. `weight_trend_balance_v1` |
+| `target_kcal` | integer | no | — | The targets this estimate produced |
+| `target_protein_g` | numeric(6,1) | no | — | |
+| `target_carb_g` | numeric(6,1) | no | — | |
+| `target_fat_g` | numeric(6,1) | no | — | |
+| `applied_at` | timestamptz | yes | — | `NULL` = computed but not in force |
+| `created_at` / `updated_at` | timestamptz | no | `now()` | |
+
+- `UNIQUE (user_id, week_start)`, `INDEX (user_id, week_start DESC)`.
+- **`plan_day` copies from the newest *applied* estimate of the day's phase**, falling back to
+  `goal_phase.calorie_target_kcal` when there is none. `goal_phase` keeps its meaning — what you
+  decided, and the provisional formula figure you started from — and stops being rewritten by a job.
+- `applied_at IS NULL` is how a thin week is handled: too few complete days and the estimate is
+  still recorded, still visible, but the previous targets stay in force. The threshold lives in
+  `docs/03` beside the smoothing method.
+- `method` is there so an old row stays honest. When the maths is improved, past estimates keep
+  saying which version produced them rather than being silently reinterpreted.
+
+| week_start | estimated_tdee_kcal | previous_tdee_kcal | trend_weight_delta_kg | complete_day_count | target_kcal | applied_at |
+| --- | --- | --- | --- | --- | --- | --- |
+| 2026-11-02 | 2780 | 2840 | -0.412 | 6 | 2380 | `2026-11-09 00:05:00+00` |
+| 2026-11-09 | 2765 | 2780 | -0.380 | 3 | 2380 | `null` |
+
+---
+
+## meal_estimate
+
+One photo or text estimate (S22), and what the user did with it.
+
+| Column | Type | Null | Default | Notes |
+| --- | --- | --- | --- | --- |
+| `id` | uuid | no | `uuidv7()` | PK |
+| `user_id` | uuid | no | — | → `user.id`, `ON DELETE CASCADE` |
+| `plan_meal_id` | uuid | no | — | → `plan_meal.id`, `ON DELETE CASCADE`. An estimate always replaces a planned meal |
+| `input_kind` | text | no | — | `photo` \| `text`, `CHECK` |
+| `input_text` | text | yes | — | The description typed. `NULL` for a photo |
+| `model` | text | no | — | `claude-haiku-4-5-20251001` |
+| `raw_energy_kcal` | numeric(7,2) | no | — | **Exactly what came back**, before any edit |
+| `raw_protein_g` | numeric(6,2) | no | — | |
+| `raw_carb_g` | numeric(6,2) | no | — | |
+| `raw_fat_g` | numeric(6,2) | no | — | |
+| `raw_fiber_g` | numeric(6,2) | no | `0` | |
+| `estimated_grams` | numeric(7,2) | no | — | The portion weight the model guessed — the divisor that turns totals into per-100 g |
+| `edited` | boolean | no | `false` | True when the user changed a number before saving |
+| `confirmed_at` | timestamptz | yes | — | `NULL` = shown but never saved |
+| `created_at` / `updated_at` | timestamptz | no | `now()` | |
+
+- `INDEX (user_id, created_at DESC)`.
+- **There is no photo column.** The image goes to Anthropic, is read, and is discarded — the same
+  rule M2 set for label photos (2026-09-19 security entry in `06`). A photo estimate therefore has
+  no `input_text`; a text estimate has no image to discard.
+- **Why `raw_*` is kept beside what was saved.** The saved numbers live in `plan_meal_item`; these
+  are what the model said before the user corrected it. The gap between the two is the only way to
+  find out whether the provider is accurate enough to keep paying for — the PRD already records
+  photo macro error at 48–66%.
+- The API divides the raw totals by `estimated_grams` to get per-100 g values and writes one
+  `plan_meal_item` with `food_id` `NULL`, `estimate_id` set, and `actual_grams = estimated_grams`.
+  Everything downstream — the day's totals, S21's intake average — does the one kind of arithmetic
+  it already did.
+
+---
+
+## protocol_suggestion
+
+One plateau protocol offered to one user on one day (S23), and what they did about it.
+
+The protocol catalogue itself — name, what it is, the trigger, the evidence tag, the citations — is
+**not a table**. It is a typed constant in `domain/`, so changing a claim about the literature goes
+through code review like any other claim, and there is no seed-versus-code copy to drift.
+
+| Column | Type | Null | Default | Notes |
+| --- | --- | --- | --- | --- |
+| `id` | uuid | no | `uuidv7()` | PK |
+| `user_id` | uuid | no | — | → `user.id`, `ON DELETE CASCADE` |
+| `goal_phase_id` | uuid | no | — | → `goal_phase.id`, `ON DELETE CASCADE` |
+| `protocol_key` | text | no | — | `diet_break` \| `refeed` \| `reduce_deficit` \| `deload` — a key in the `domain/` catalogue |
+| `evidence_tag` | text | no | — | `strong` \| `moderate` \| `contested`, `CHECK`. **Snapshotted** |
+| `suggested_on` | date | no | — | Local date |
+| `trigger_weeks_missed` | smallint | no | — | Consecutive weeks off the phase's target rate |
+| `trigger_actual_rate_pct` | numeric(4,2) | no | — | Measured weekly % change in the trend |
+| `trigger_target_rate_pct` | numeric(4,2) | no | — | Copied from `goal_phase` |
+| `status` | text | no | `'offered'` | `offered` \| `accepted` \| `dismissed`, `CHECK` |
+| `responded_at` | timestamptz | yes | — | `NULL` while `offered` |
+| `created_at` / `updated_at` | timestamptz | no | `now()` | |
+
+- `UNIQUE (user_id, protocol_key, suggested_on)`, `INDEX (user_id, suggested_on DESC)`.
+- **Why `evidence_tag` is copied.** If the literature moves and a protocol's tag goes from moderate
+  to contested, last March's suggestion must still read the way it read when it was made. Same rule
+  as `workout_exercise`'s rep range and `plan_meal_item`'s macros.
+- **The trigger numbers are stored, not recomputed.** "Offered because the trend missed 0.60%/week
+  for three weeks running" has to keep saying that after the trend is revised by later weigh-ins.
+- A `dismissed` protocol is not offered again while the same `goal_phase` is open. That rule is why
+  the table exists at all: without it, the app suggests a diet break every week until you stop
+  reading the suggestions.
+
+| protocol_key | evidence_tag | suggested_on | trigger_weeks_missed | trigger_actual_rate_pct | status |
+| --- | --- | --- | --- | --- | --- |
+| `diet_break` | strong | 2026-11-16 | 3 | -0.08 | accepted |
+| `refeed` | contested | 2026-12-07 | 2 | -0.11 | dismissed |
+
+---
+
+## Two columns added to M2 tables
+
+| Table | Column | Type | Null | Why |
+| --- | --- | --- | --- | --- |
+| `body_measurement` | `lean_mass_kg` | numeric(5,2) | yes | S19's lean body mass arrives with the same scale reading as weight and body fat, so it belongs beside them. `NULL` on hand-entered rows |
+| `plan_meal_item` | `estimate_id` | uuid | yes | → `meal_estimate.id`, `ON DELETE SET NULL`. Not `NULL` is what puts the "estimate" label on the row |
+
+Both are additive — no M2 row has to change, and no M1 or M2 behaviour depends on either.
+
+---
+
+## What M3 derives instead of storing
+
+| Wanted | Read from |
+| --- | --- |
+| Overlay series on a lift chart (S20) | `plan_meal_item` per day for intake, `body_measurement` for the trend, `health_sample` for sleep and HRV — all summed per day at read time |
+| Which overlays are switched on (S20) | Client state. It is a view preference, not data |
+| The plateau protocol catalogue (S23) | A typed constant in `domain/`, with its evidence tags and sources |
+| "Change from last week" (S21) | Two `expenditure_estimate` rows |
+| 7- and 30-day dashboard trends (S24) | `health_sample` and `body_measurement` over the span |
+| Whether a protocol is still dismissed | Newest `protocol_suggestion` for that key in the open phase |
+
+**No daily rollup table.** A year of one person's data is a few thousand rows per series, which
+Postgres sums in single-digit milliseconds, and a stored copy of intake would have to be rebuilt
+every time S18 lets you edit a confirmed meal later in the day. `06` already records the rollup as
+the first thing to add if a long span ever measures slow — a measurement, not a guess.
+
+## Queries the M3 indexes are for
+
+| Query | Path |
+| --- | --- |
+| **Ingest a health payload** (S19) | `health_sample` upsert on `(user_id, metric, started_at)`; `health_workout` upsert on `(user_id, external_id)`; one `health_sync_state` upsert per metric |
+| **Dashboard freshness** (S19, S24) | `health_sync_state (user_id, metric)`, whole table per user |
+| **Overlay a span** (S20) | `health_sample (user_id, metric, started_at DESC)` filtered by span, one pass per series |
+| **Weekly recalculation** (S21) | `plan_meal_item` via `plan_meal` → `plan_day` for complete days in the week, plus `body_measurement (user_id, measured_at DESC)` |
+| **Current targets** (S21) | Newest `expenditure_estimate (user_id, week_start DESC)` with `applied_at IS NOT NULL` |
+| **Plateau check** (S23) | `expenditure_estimate` over recent weeks, then `protocol_suggestion (user_id, suggested_on DESC)` to drop what was dismissed |
+
 ## Open
 
-- Whether the chart query needs a materialised per-workout best-set row. Not until it is slow;
-  one user's year of training is a few thousand rows.
-- M3 tables (health samples, overlays, expenditure, photo estimates, plateau protocols).
-- The smoothing method for the weight trend is picked before M2 starts (2026-09-19 decision, `06`).
+- Which Health Auto Export tier the REST API automation needs, and what it costs. Carried from the
+  2026-09-19 food-data entry; it gates S19 and is settled in `docs/03`.
+- The smoothing method for the weight trend, and the complete-day threshold below which an
+  `expenditure_estimate` is written but not applied. Both picked before M2 starts.
+- How an Apple workout is matched to a logged gym visit, and whether the user can correct the match.
+- The M3 estimate provider is still nominally open, though Haiku 4.5 reads labels in M2 already and
+  is the default candidate.
+- Whether the chart query needs a materialised per-workout best-set row. Not until it is slow; one
+  user's year of training is a few thousand rows.

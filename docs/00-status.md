@@ -2,7 +2,7 @@
 
 **Project:** A weight-training progress tracker combining lift logging, meal planning, Apple Watch/iPhone health data, and bodyweight/diet coaching.
 **Phase:** 4 — Tech docs (in progress)
-**Updated:** 2026-09-20
+**Updated:** 2026-09-21
 
 ## Done
 - Phase 1 — Brief + PRD: `docs/01-project-brief.md`, `docs/02-product-requirements.md`, `docs/06-decision-log.md`.
@@ -13,7 +13,7 @@
 - 2026-09-16: Phase 3 — `docs/05-design-system.md` and `docs/10-screen-specifications.md` written from the six `.dc.html` files. Every hex code, size, tracking value and grid measurement lifted from source; contrast ratios computed, not estimated. The canvas's "THE SYSTEM" sticky note was found inaccurate and is superseded by `docs/05`.
 
 ## Next
-**Phase 4 — Tech docs, continued.** Banks 03 and 04 are answered for M1 and M2. `docs/04-database-schema.md` is written (M1 + M2). Remaining: **M3 tables**, then `docs/03-technical-design.md` written up from the decisions in `06`, the triggered Tier 2 docs, and **`CONTEXT.md`**.
+**Phase 4 — Tech docs, continued.** Banks 03 and 04 are now fully answered. `docs/04-database-schema.md` is complete for M1, M2 and M3. Remaining: **`docs/03-technical-design.md`**, written up from the decisions already in `06` — nothing has been written to `03` yet — then the triggered Tier 2 docs, and **`CONTEXT.md`**.
 
 ### Phase 4 so far (2026-09-19, recorded in `06`)
 - **Two apps, one backend.** Native iOS (SwiftUI) later for the daily loop; web app first for everything through M2, phone-first. Brief updated: native iOS moved from Out of scope to LATER.
@@ -25,6 +25,8 @@
 - **Repo layout and client state decided 2026-09-19** (see `06`): pnpm monorepo, web and API as two Vercel projects with `/api/*` rewritten through the web origin (Safari cookie fix); TanStack Query + one Zustand store for the gym session + own IndexedDB set store with strict durability.
 - **Security baseline decided** (see `06`). Add the per-user label cap before the first invitee.
 - **Schema written 2026-09-20:** `docs/04` holds M1 (8 tables) and M2 (11 tables) in full — columns, types, keys, delete behaviour, indexes, example rows. M3 not written. Rules recorded in `06`: UUIDv7 ids generated wherever the row is created, no blanket soft delete, past days keep snapshotted numbers, prep list / grocery list / daily weight / day completeness / batch yield are derived not stored.
+- **M3 schema written 2026-09-21:** `docs/04` is complete — M3 adds six tables (`health_sample`, `health_workout`, `health_sync_state`, `expenditure_estimate`, `meal_estimate`, `protocol_suggestion`) plus `body_measurement.lean_mass_kg` and `plan_meal_item.estimate_id`. Rules in `06`: health data is one long table keyed on `(user_id, metric, started_at)` with `ON CONFLICT DO UPDATE`; per-metric sync state is stored on purpose; the weekly estimate carries its own targets and `plan_day` reads the newest applied one; meal estimates convert to per 100 g on the way in and keep the raw model output beside it; the protocol catalogue is code, only suggestions are rows; no daily rollup.
+- **Correction found by verification 2026-09-21:** Health Auto Export's metric payload has **no per-sample id** — only workouts do. The draft had copied `body_measurement`'s `external_id` key; metrics now use a natural key. Full sources in `06`.
 - **Parked for M2 (decide before M2 starts):** morning weight source. Two hardware tests are defined in `06` (2026-09-19 entry); run them, then apply the decision rule there.
 
 ## Blocked
@@ -43,6 +45,14 @@ _(nothing)_
 2. **Expanded warm-up sets** — §7.2. Screen 1's ~66px of slack depends on the collapse; two expanded rows cost ~126px.
 3. **Scroll and sticky behaviour** for screens 3–6 — §7.3, with a per-screen table of what should plausibly stick.
 4. **Offline pending count** on screens 2–6 — §7.4. Recommended direction: one shared "data state" slot in the app bar, of which screen 6's `SYNCED 06:41` is the existing relative. Needs one design pass.
+
+### Settled before M2 or M3 starts — raised by Phase 4
+- The weight-trend smoothing method, and the complete-day threshold below which an
+  `expenditure_estimate` is recorded but not applied. Both go in `docs/03`.
+- Which Health Auto Export tier the REST API automation needs, and what it costs. Gates S19.
+- The export's sleep and step **aggregation setting is fixed at setup** — changing it later changes
+  what a row means and collides on `started_at`. Setup path belongs in `docs/03`.
+- How an Apple workout is matched to a logged gym visit, and whether the user can correct it.
 
 ### Standing
 - Design risk on record: if the real failure mode turns out to be not logging at all because the app reads as a spreadsheet, Quiet was the better bet. Revisit after M1 is in daily use. Phase 3 did not soften Instrument — the contrast cost is recorded as a measured deviation and left for Yuta.

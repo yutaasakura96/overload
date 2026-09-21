@@ -732,3 +732,78 @@ Three rules shape them.
 
 **Revisit if:** reading intake over a long span gets slow — then a per-day rollup, written once a
 day is complete, is the first thing to add.
+
+## 2026-09-21 — M3 schema: a long health table, weekly estimates, protocols in code
+
+**Decision.** M3 adds six tables — `health_sample`, `health_workout`, `health_sync_state`,
+`expenditure_estimate`, `meal_estimate`, `protocol_suggestion` — plus
+`body_measurement.lean_mass_kg` and `plan_meal_item.estimate_id`. Columns are in `docs/04`.
+
+1. **Health data is one long table plus a workouts table.** `health_sample` holds every scalar
+   reading as `metric` / `value` / `unit` / `started_at`; sleep stages become their own metric
+   names. Apple workouts get `health_workout`, because a workout is an interval with average and
+   maximum heart rate, not one number, and it can point at the gym visit you logged. Lean body mass
+   goes on `body_measurement`, since it arrives with the same scale reading as weight and body fat.
+2. **Per-metric sync state is stored.** `health_sync_state` is the one place M3 breaks M2's
+   derive-don't-store rule, deliberately: a sync that ran and carried nothing leaves no sample
+   behind, so a dead sync and a quiet week would look identical. No row means never synced.
+3. **The weekly estimate carries its own targets.** `expenditure_estimate` records the week's
+   expenditure, its inputs and the targets it produced; `plan_day` copies from the newest *applied*
+   estimate, falling back to `goal_phase`. This supersedes the M2 note that S18a's estimate is
+   applied by writing `goal_phase.calorie_target_kcal` — S21 is automatic and weekly, so `goal_phase`
+   goes back to meaning what you decided rather than what the job last wrote. `applied_at IS NULL`
+   is how a week with too few complete days is recorded without changing anything.
+4. **Meal estimates convert to per 100 g on the way in.** `meal_estimate` keeps the raw totals the
+   model returned, the portion weight it guessed, and whether the user edited them; the API divides
+   and writes one ordinary `plan_meal_item` with `estimate_id` set. The gap between `raw_*` and what
+   was saved is how we find out whether the provider is worth paying for.
+5. **Protocols live in code; only suggestions are rows.** The catalogue — name, trigger, evidence
+   tag, citations — is a typed constant in `domain/`, so a claim about the literature changes through
+   code review. `protocol_suggestion` records what was offered, the trend numbers that triggered it,
+   and whether it was taken; a dismissed protocol is not offered again while the same phase is open.
+6. **No daily rollup table, and overlay toggles are client state.** Overlay series are summed at
+   read time. `06`'s existing note stands: a rollup is the first thing to add if a long span
+   measures slow.
+
+**Corrected by verification (2026-09-21).** The first draft keyed `health_sample` on
+`(user_id, source, external_id)`, copying `body_measurement`. **Health Auto Export's metric payload
+carries no per-sample id** — a metric data point is `{qty, date, source?}`, and only a *workout* has
+an `id` field (a UUID). So metrics key on the natural `(user_id, metric, started_at)` and workouts
+key on the id they are given. `health_sample.external_id` is kept and left `NULL`, because a native
+iOS client reading HealthKit directly would have `HKObject.uuid`.
+
+Ingest is `ON CONFLICT … DO UPDATE`, not `DO NOTHING`. The PRD's edge case says a repeated reading
+*replaces* the earlier copy — the opposite of the set upload, because a set is a fact the phone
+observed once and a health sample is Apple's current answer, which Apple revises.
+
+**Alternatives considered.**
+- One wide row per day (`health_day`), rejected: every new metric is a migration and several HRV
+  readings collapse to one number.
+- A table per metric, rejected: six or seven more tables, and every overlay has to know which to read.
+- Logging every import instead of per-metric state, noted as the better debugging tool but deferred;
+  it costs a row per sync forever and makes the dashboard query harder.
+- Updating `goal_phase` weekly, rejected: the phase row stops meaning what you decided.
+- Letting `plan_meal_item` hold absolute macros via a `basis` column, rejected: more honest about an
+  unweighed plate, but every intake reader — including S21's — would grow two cases.
+- Seeded `protocol` / `protocol_source` tables, rejected: literature claims in rows nobody reviews.
+- Recomputing protocols with nothing stored, rejected: the app would re-suggest a diet break every
+  week after you declined it.
+
+**Verified 2026-09-21 (primary sources).**
+- Health Auto Export JSON format: metrics are `{name, units, data:[{qty, date, source?}]}` with no
+  id; Workouts v2 requires `id`, `name`, `start`, `end`, `duration`
+  (help.healthyapps.dev/en/health-auto-export/export-format and its metrics/workouts pages).
+- Aggregated `sleep_analysis` gives `totalSleep`, `asleep`, `core`, `deep`, `rem`, `inBed` in hours
+  plus `sleepStart`/`sleepEnd`; unaggregated gives raw segments (same source).
+- All seven S19 metrics are supported, including Lean Body Mass, Resting Heart Rate and Heart Rate
+  Variability (help.healthyapps.dev supported-data page).
+- `HKCategoryValueSleepAnalysis` cases are `inBed`, `awake`, `asleepCore`, `asleepDeep`, `asleepREM`,
+  `asleepUnspecified`, with `asleep` deprecated; the stage cases are iOS 16 / watchOS 9
+  (developer.apple.com/documentation/healthkit/hkcategoryvaluesleepanalysis).
+- `HKObject.uuid` exists and is assigned by HealthKit on creation, iOS 8+
+  (developer.apple.com/documentation/healthkit/hkobject/uuid).
+
+**Revisit if:** a native iOS client reads HealthKit directly — then `health_sample.external_id` is
+populated and can become the de-duplication key, and `(user_id, metric, started_at)` relaxes to an
+index. Also if the export's aggregation setting has to change after setup, which would collide
+against existing `started_at` values and needs a migration, not a toggle.
