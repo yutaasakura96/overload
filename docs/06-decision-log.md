@@ -807,3 +807,133 @@ observed once and a health sample is Apple's current answer, which Apple revises
 populated and can become the de-duplication key, and `(user_id, metric, started_at)` relaxes to an
 index. Also if the export's aggregation setting has to change after setup, which would collide
 against existing `started_at` values and needs a migration, not a toggle.
+
+## 2026-09-21 — Weight trend and expenditure: `weight_trend_balance_v1`
+
+**Decision.**
+- **Trend:** a time-aware EWMA at 10% per day, `a = 1 − 0.9^Δdays`. No trend line under 3 weighed
+  days.
+- **Expenditure:** mean confirmed intake on complete days − trend change × 7,700 kcal/kg ÷ window
+  days, over a **trailing 14 days**. S18a (M2) and S21 (M3) share the formula.
+- **Applying it:** S21 applies the estimate only when the newest 7 days hold **≥ 5 complete days**,
+  and clamps the new calorie target to **±150 kcal** of the previous applied one. The TDEE is stored
+  unclamped.
+- **Schema:** `expenditure_estimate` gains `window_days` and `week_complete_day_count`.
+
+Full spec in `docs/03` §8.3.
+
+**Alternatives considered.**
+- **Other smoothing methods:**
+  - a 7-day moving average: abrupt drop-outs, a window that shrinks on missed days, more jitter
+  - a Kalman or local-linear-trend model: most accurate and gives an uncertainty band, but the most
+    maths to get right and the hardest to explain on screen
+- **Other thresholds:** 6/7 (one missed day plus one dinner out skips the update) and 4/7 (a mean
+  that skips the weekend understates intake — the error the app exists to catch).
+- **Other windows:** one week (a 10-day EWMA barely moves in 7 days, so it is noisy) and 21 days
+  (a real change takes three weeks to reach targets).
+- **Other caps:** ±100 kcal (a 300 kcal misestimate at phase start takes 3 weeks to correct) and
+  ±250 kcal (noise passes straight into the plan and the grocery list).
+
+**Reason.** Deterministic, one number of state, explainable in a sentence on the S21 screen. The
+14-day window matches S18a, so M2's read-only check and M3's automatic one cannot disagree about
+the same fortnight.
+
+**Revisit if:** estimates swing by more than the cap for several weeks running despite complete
+logging. That would point at the smoothing, not at the user. `method` is versioned so a `v2`
+leaves old rows honest.
+
+## 2026-09-21 — Health Auto Export setup: three automations, daily grouping, per-user ingest token
+
+**Decision.**
+- **Three HAE REST automations:**
+  - weight alone, Summarize OFF
+  - sleep, resting heart rate, HRV, steps, active energy, body fat % and lean body mass, Summarize
+    ON, Time Grouping = Days
+  - Workouts v2
+- **All three:** JSON, Batch Requests ON, Date Range "Previous 7 Days", hourly.
+- **Endpoint:** `POST /api/ingest/health-auto-export` with `Authorization: Bearer <ingest token>`.
+- **The token:** per user, shown once and stored hashed in a new `ingest_token` table. It
+  authorises that one route only.
+- The setup is fixed. Changing grouping later is a migration.
+
+**Verified (help.healthyapps.dev, REST API automation page, 2026-09-21).**
+- More than one metric in an automation is always aggregated.
+- Summarize OFF gives individual points only for a single metric.
+- Custom headers carry auth.
+- Date Range offers Default / Since Last Sync / Today / Yesterday / Previous 7 Days.
+- Background runs get about 30 s.
+- Runs happen only while the phone is unlocked.
+- REST automations need Premium, which closes the tier question left open in the Phase 1 pending
+  list: ¥300/month, ¥1,100/year, ¥4,000 lifetime, per the 2026-09-19 entry.
+
+**Consequences, and two corrections to the M2/M3 schema.**
+- **HRV is one daily value**, not one row per reading.
+- **Body fat and lean body mass move to `health_sample`.**
+  - They arrive daily in a different request from the weight, in no fixed order, so attaching them
+    to the day's weight row would race.
+  - This supersedes the M3 entry's "lean body mass goes on `body_measurement`" for HAE data.
+    `body_measurement`'s columns stay for hand entry and a future native client.
+- **`body_measurement` now de-duplicates on `(user_id, source, measured_at)`.** The M2 key
+  `(user_id, source, external_id)` would never have matched, because HAE's metric payload has no id.
+  This is the same fault the 2026-09-21 verification found in `health_sample`, which the M3 fix did
+  not carry back to M2.
+
+**Alternatives considered.**
+- **One automation, daily:** the simplest for invitees, but it loses individual weigh-ins, and
+  S11's before-10:00 rule needs them.
+- **Hourly grouping:** ~24× the rows against Neon's 0.5 GB, longer background runs, and sleep still
+  has to be read per night.
+- **"Since Last Sync":** smaller payloads, but a revision Apple makes to an older day never arrives.
+- **Reusing a Better Auth session as the HAE credential:** it expires, and it authorises everything.
+
+**Revisit if:** HAE background runs fail on the 7-day range (Activity Logs show timeouts). In that
+case, try "Default" (yesterday plus today). Also revisit if the Google Health API path wins the
+weight tests, which removes the weight automation.
+
+## 2026-09-21 — Apple workout ↔ gym visit: overlap match, user can correct
+
+**Decision.**
+- **At ingest,** a `health_workout` is linked to the logged `workout` with the greatest time overlap
+  (first set to last set), when:
+  - the overlap is ≥ 50% of the shorter of the two
+  - the activity type is a strength type
+- **The user can correct it:** unlink, or pick another Apple workout from that day.
+- **Corrections are permanent:** `health_workout.link_source` (`auto` | `manual`) records who
+  decided, and the upsert never overwrites a manual choice.
+
+**Alternatives considered.**
+- **Automatic only:** a wrong match on a two-session day stays wrong.
+- **Manual only:** always correct, but it is a tap per session that would mostly be skipped.
+
+**Revisit if:** auto matches are corrected more than occasionally. That means the rule is wrong,
+not the user.
+
+## 2026-09-21 — Weekly job on a daily Hobby cron, with an inline fallback
+
+**Decision.**
+- **The cron:** one Vercel cron at `0 15 * * *` UTC (00:00–00:59 JST). It writes each user's
+  `expenditure_estimate` once their local Monday has begun, and regenerates unconfirmed plan days.
+  `UNIQUE (user_id, week_start)` makes a re-run harmless.
+- **If the cron is missed,** the first request that needs current targets runs the same function
+  inline.
+
+**Reason.** Hobby allows only daily crons, with a trigger time anywhere inside the scheduled hour
+(Vercel cron docs, checked 2026-09-21). A weekly estimate needs nothing finer. The fallback means
+correctness never depends on the cron firing.
+
+**Revisit if:** the move to Pro or AWS. Hourly then costs nothing to turn on.
+
+## 2026-09-21 — Cost model and at-rest encryption checked
+
+**Decision.** Recorded in `docs/03` §3 and §10.
+- **Today:** $0 plus Anthropic cents.
+- **1,000 users (hypothetical):**
+  - Vercel Pro: $20/month per seat including $20 of usage; $0.60 per extra million invocations
+  - Neon Launch: $0.106/CU-hour and $0.35/GB-month, about $20/month at an always-awake 0.25 CU
+  - total ≈ $40–60/month plus Anthropic
+- **Encryption:** Neon encrypts at rest with AES-256 on its NVMe volumes. This closes the "Neon
+  at-rest encryption still to verify" item in the security baseline.
+- **Unmeasured:** meal-photo cost, measured in M3 before any invitee has S22.
+
+**Sources.** vercel.com/pricing, neon.com/pricing, neon.com/docs/security/security-overview, all
+2026-09-21.

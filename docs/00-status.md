@@ -13,7 +13,15 @@
 - 2026-09-16: Phase 3 — `docs/05-design-system.md` and `docs/10-screen-specifications.md` written from the six `.dc.html` files. Every hex code, size, tracking value and grid measurement lifted from source; contrast ratios computed, not estimated. The canvas's "THE SYSTEM" sticky note was found inaccurate and is superseded by `docs/05`.
 
 ## Next
-**Phase 4 — Tech docs, continued.** Banks 03 and 04 are now fully answered. `docs/04-database-schema.md` is complete for M1, M2 and M3. Remaining: **`docs/03-technical-design.md`**, written up from the decisions already in `06` — nothing has been written to `03` yet — then the triggered Tier 2 docs, and **`CONTEXT.md`**.
+**Phase 4 — Tech docs, continued: `CONTEXT.md` and the triggered Tier 2 docs.** `03` and `04` are complete. All six Tier 2 docs are triggered, and none is written:
+- `07-api-design` (real API)
+- `08-auth-and-permissions` (users log in)
+- `09-user-flows` (six-plus screens)
+- `11-testing-plan` (long-term)
+- `12-deployment-devops` (shipping)
+- `13-infrastructure-security` (real health data, several services)
+
+Suggested order for the next session: **`CONTEXT.md` first** (harvest the vocabulary, e.g. workout vs session, complete day, applied estimate, ingest token), then `08` and `07`. If the window runs short, `09`, `11`, `12` and `13` can take a second session. Much of `12` and `13` is already in `03` §3, §4 and §10, so they should reference it rather than restate it.
 
 ### Phase 4 so far (2026-09-19, recorded in `06`)
 - **Two apps, one backend.** Native iOS (SwiftUI) later for the daily loop; web app first for everything through M2, phone-first. Brief updated: native iOS moved from Out of scope to LATER.
@@ -27,6 +35,18 @@
 - **Schema written 2026-09-20:** `docs/04` holds M1 (8 tables) and M2 (11 tables) in full — columns, types, keys, delete behaviour, indexes, example rows. M3 not written. Rules recorded in `06`: UUIDv7 ids generated wherever the row is created, no blanket soft delete, past days keep snapshotted numbers, prep list / grocery list / daily weight / day completeness / batch yield are derived not stored.
 - **M3 schema written 2026-09-21:** `docs/04` is complete — M3 adds six tables (`health_sample`, `health_workout`, `health_sync_state`, `expenditure_estimate`, `meal_estimate`, `protocol_suggestion`) plus `body_measurement.lean_mass_kg` and `plan_meal_item.estimate_id`. Rules in `06`: health data is one long table keyed on `(user_id, metric, started_at)` with `ON CONFLICT DO UPDATE`; per-metric sync state is stored on purpose; the weekly estimate carries its own targets and `plan_day` reads the newest applied one; meal estimates convert to per 100 g on the way in and keep the raw model output beside it; the protocol catalogue is code, only suggestions are rows; no daily rollup.
 - **Correction found by verification 2026-09-21:** Health Auto Export's metric payload has **no per-sample id** — only workouts do. The draft had copied `body_measurement`'s `external_id` key; metrics now use a natural key. Full sources in `06`.
+- **`03` written 2026-09-21**, with `docs/diagrams/architecture.drawio.svg`. New decisions in `06`:
+  - the trend and expenditure method `weight_trend_balance_v1`: EWMA 10%/day, trailing 14 days, applied at ≥5/7 complete days, ±150 kcal/week cap
+  - the Health Auto Export setup: 3 automations, daily grouping, a per-user `ingest_token`
+  - workout matching by overlap, correctable
+  - the weekly job on a daily Hobby cron with an inline fallback
+  - the cost model; Neon AES-256 at rest verified
+- **`04` corrected 2026-09-21:**
+  - `body_measurement` de-duplicates on `(user_id, source, measured_at)`; HAE sends no id, so the old key would never have matched
+  - HAE body fat and lean mass go to `health_sample`
+  - HRV is daily
+  - new columns `health_workout.link_source` and `expenditure_estimate.window_days` / `week_complete_day_count`
+  - new table `ingest_token`
 - **Parked for M2 (decide before M2 starts):** morning weight source. Two hardware tests are defined in `06` (2026-09-19 entry); run them, then apply the decision rule there.
 
 ## Blocked
@@ -46,13 +66,11 @@ _(nothing)_
 3. **Scroll and sticky behaviour** for screens 3–6 — §7.3, with a per-screen table of what should plausibly stick.
 4. **Offline pending count** on screens 2–6 — §7.4. Recommended direction: one shared "data state" slot in the app bar, of which screen 6's `SYNCED 06:41` is the existing relative. Needs one design pass.
 
-### Settled before M2 or M3 starts — raised by Phase 4
-- The weight-trend smoothing method, and the complete-day threshold below which an
-  `expenditure_estimate` is recorded but not applied. Both go in `docs/03`.
-- Which Health Auto Export tier the REST API automation needs, and what it costs. Gates S19.
-- The export's sleep and step **aggregation setting is fixed at setup** — changing it later changes
-  what a row means and collides on `started_at`. Setup path belongs in `docs/03`.
-- How an Apple workout is matched to a logged gym visit, and whether the user can correct it.
+### Check when built — raised by Phase 4
+`docs/03` §11 lists the unverified items. The ones that bite first:
+- Web Locks in Safari, for one uploading tab.
+- Whether Workouts v2 without workout metrics still carries average and max heart rate.
+- The exact names in HAE's body fat and lean mass payloads.
 
 ### Standing
 - Design risk on record: if the real failure mode turns out to be not logging at all because the app reads as a spreadsheet, Quiet was the better bet. Revisit after M1 is in daily use. Phase 3 did not soften Instrument — the contrast cost is recorded as a measured deviation and left for Yuta.
