@@ -67,6 +67,7 @@ The native app stays cheap only if these hold:
 | Daily job (§8.4) | Vercel Cron → an API route | Stateless; idempotent by table key |
 | Database | Neon Free, `aws-ap-southeast-1`, Postgres 18 | The only state |
 | Health export | Health Auto Export on each user's iPhone | On the phone |
+| Nightly backup | GitHub Actions → S3, `ap-northeast-1` (`13` §2) | Encrypted dumps, 30 days |
 
 **Later:** everything moves to Yuta's own AWS platform in Tokyo (`ap-northeast-1`). The API and the
 database move together. The portability rules in `06` (2026-09-19, Hosting) make that a redeploy:
@@ -370,7 +371,7 @@ All three automations use:
 | **Sensitive data** | Email, bodyweight and composition, the food log, sleep, HRV, heart rate. Neon encrypts data at rest with AES-256 on its NVMe volumes (Neon security overview, checked 2026-09-21). None of it goes to logs or Sentry (§7). Label and meal photos go to Anthropic and are **discarded afterwards**; only confirmed values are stored |
 | **Dependency updates** | Dependabot weekly, grouped. Security updates immediately |
 | **Worst thing an attacker could do** | Read or change another user's data. The data layer takes the session user on every query rather than each route remembering to filter, and tests attempt cross-user reads and writes on every resource. The ingest token is scoped to one route |
-| **Second worst** | Run up the Anthropic bill. Invite-only access, plus an Anthropic console spend limit (whether one exists is unverified). Add a per-user daily label cap before the first invitee joins |
+| **Second worst** | Run up the Anthropic bill. Invite-only access, plus a dedicated `overload` Anthropic workspace with a $10/month hard limit (workspace limits verified 2026-09-21). Add a per-user daily label cap before the first invitee joins. Keys, roles, backups, audit trail and the incident plan: `13` |
 
 ---
 
@@ -383,7 +384,6 @@ All three automations use:
 - Whether Workouts v2 with workout metrics OFF still carries average and max heart rate. If not,
   turn on workout metrics at Minutes grouping for `overload-workouts` only.
 - The Sentry Developer plan's monthly error allowance and retention.
-- Whether an Anthropic console spend limit exists.
 - `swift-openapi-generator` specifics, when the native app starts.
 - The M2 morning weight source. It is parked behind two hardware tests (`06`, 2026-09-19); if the
   Google Health API path wins, §9's `overload-weight` automation is not needed.

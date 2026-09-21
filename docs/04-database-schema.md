@@ -3,7 +3,8 @@
 Postgres 18 on Neon. Decisions behind this file are in `docs/06-decision-log.md`
 (2026-09-19 stack and hosting; 2026-09-20 ids, tables, deletion rules; 2026-09-21 M3 tables).
 
-**Status:** complete for M1 (training log), M2 (meal plan + weight) and M3 (health + coaching).
+**Status:** complete for M1 (training log), M2 (meal plan + weight) and M3 (health + coaching),
+plus the security roles and `audit_event` from `docs/13`, which ship with M1.
 
 ## Conventions
 
@@ -917,6 +918,47 @@ the first thing to add if a long span ever measures slow — a measurement, not 
 | **Ingest auth** (S19) | `ingest_token (token_hash)`, once per request |
 | **Current targets** (S21) | Newest `expenditure_estimate (user_id, week_start DESC)` with `applied_at IS NOT NULL`, **unless** the open `goal_phase.calorie_target_set_at` is newer than its `applied_at`, in which case the phase's target. The next estimate clamps against whichever was in force. *Changed 2026-09-21* (`docs/09` F13) |
 | **Plateau check** (S23) | `expenditure_estimate` over recent weeks, then `protocol_suggestion (user_id, suggested_on DESC)` to drop what was dismissed |
+
+# Security — from M1
+
+_Added 2026-09-21 by `docs/13`. Needed from the first migration, whatever the milestone._
+
+## Roles
+
+Created by the first migration, the same everywhere (`docs/13` §5): `overload_owner` (owns
+everything, runs migrations), `overload_app` (DML on app tables, no DDL), `overload_backup`
+(`SELECT` only). `ALTER DEFAULT PRIVILEGES FOR ROLE overload_owner` grants each new table to the
+other two.
+
+## audit_event
+
+Who did what to access and accounts (`docs/13` §7). Append-only.
+
+| Column | Type | Null | Default | Notes |
+| --- | --- | --- | --- | --- |
+| `id` | uuid | no | `uuidv7()` | PK |
+| `occurred_at` | timestamptz | no | `now()` | |
+| `actor_user_id` | uuid | yes | — | **No FK**, so the row outlives a deleted account. Null only for a system actor |
+| `action` | text | no | — | `CHECK` in the vocabulary of `docs/13` §7 |
+| `target_type` | text | yes | — | e.g. `invite`, `user`, `ingest_token` |
+| `target_id` | uuid | yes | — | No FK, same reason |
+| `detail` | jsonb | yes | — | Small, non-sensitive facts only, e.g. `{"discardedSets": 3}` on sign-out. Never health, food, weight, token or email values |
+| `ip` | inet | yes | — | |
+| `user_agent` | text | yes | — | |
+
+- No `created_at` / `updated_at`: `occurred_at` is the creation time and a row is never updated —
+  the one exception to the conventions above.
+- `INDEX (actor_user_id, occurred_at DESC)`, `INDEX (occurred_at)` for the purge.
+- Grants: `overload_app` has `SELECT, INSERT` only. The first migration revokes `UPDATE, DELETE`
+  after the default privileges apply.
+- `purge_audit_events()`: `SECURITY DEFINER`, owned by `overload_owner`, deletes rows with
+  `occurred_at < now() - interval '1 year'`. `overload_app` may `EXECUTE` it; the daily job calls it.
+
+| occurred_at | actor_user_id | action | target_type | target_id | detail |
+| --- | --- | --- | --- | --- | --- |
+| `2026-11-04 12:10:00+00` | `0192u001-…` | `ingest_token_created` | `ingest_token` | `0192t001-…` | `null` |
+
+---
 
 ## Open
 

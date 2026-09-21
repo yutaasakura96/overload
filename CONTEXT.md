@@ -34,6 +34,16 @@ A per-user secret that Health Auto Export sends as a bearer token, authorising e
 (`ingest_token`). Shown once, stored hashed, never expires on its own.
 _Avoid_: API key, access token, HAE password
 
+**Audit event**:
+One row in `audit_event`: who did what to access or an account (sign-in, invite, revoke, token,
+deletion). Append-only, kept a year, never holds health or food values.
+_Avoid_: log, activity, history
+
+**Before the first invitee**:
+The gate between Yuta as the only user and a friend signing in. Label cap, compliance and the
+Anthropic key split wait for it (`docs/13` §9). Nothing on that list blocks M1.
+_Avoid_: launch, go-live, production (production exists from M1)
+
 ## Training
 
 **Workout**:
@@ -287,5 +297,11 @@ _Avoid_: layer, comparison
 **Daily job**:
 The once-a-day cron that writes each user's weekly expenditure estimate once their local Monday has
 begun and regenerates the week's unconfirmed plan days. Re-running it is harmless, and the first
-request that needs current targets runs it inline if the cron was missed.
+request that needs current targets runs it inline if the cron was missed. It also purges audit
+events older than a year.
 _Avoid_: weekly cron, batch job
+
+**Nightly backup**:
+The GitHub Actions `pg_dump` of production to S3, encrypted before upload. Separate from Neon's
+restore history, which reaches back only 6 hours.
+_Avoid_: snapshot (a Neon snapshot is the manual one before a destructive migration)

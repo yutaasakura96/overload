@@ -63,8 +63,8 @@ per app, pointing at Docker Postgres — local never touches Neon.
 
 | Name | Project | Type | Purpose | Staging vs production |
 | --- | --- | --- | --- | --- |
-| `DATABASE_URL` | api | Secret | Neon **pooled** connection, used at runtime | `staging` / `main` branch |
-| `DATABASE_URL_DIRECT` | api | Secret | Neon **direct** connection, used only by `dbmate` in the build. The pooler does not keep session state across a migration | `staging` / `main` branch |
+| `DATABASE_URL` | api | Secret | Neon **pooled** connection, used at runtime, as role `overload_app` (`13` §5) | `staging` / `main` branch |
+| `DATABASE_URL_DIRECT` | api | Secret | Neon **direct** connection, used only by `dbmate` in the build, as `overload_owner`. The pooler does not keep session state across a migration | `staging` / `main` branch |
 | `BETTER_AUTH_SECRET` | api | Secret | Session signing | **Different** |
 | `BETTER_AUTH_URL` | api | Config | Public origin — the **web** origin, behind the rewrite (`03` §5) | Different |
 | `GOOGLE_CLIENT_ID` | api | Config | Sign-in | Same |
@@ -81,7 +81,9 @@ per app, pointing at Docker Postgres — local never touches Neon.
 - Anything prefixed `VITE_` is shipped to every browser. Only `VITE_SENTRY_DSN` has the prefix.
 - Changing a variable does nothing until the next deploy, and an Instant Rollback keeps the old
   deployment's variables (Vercel docs, checked 2026-09-21). After rotating a secret, redeploy.
-- Rotation steps for a leaked key belong to the incident plan in `13`.
+- One more secret lives outside Vercel: `DATABASE_URL_BACKUP` (direct connection, role
+  `overload_backup`), a GitHub Actions secret for the nightly backup (`13` §2).
+- Rotation steps for a leaked key are the incident plan in `13` §8.
 
 ---
 
@@ -175,7 +177,8 @@ monitor, with email alerts (Sentry pricing docs, checked 2026-09-21).
 | Daily job missed or failed | Sentry cron monitor: the job checks in at start and finish; a missed or failed check-in → email |
 | A deploy fails (build or migration) | Vercel's deploy-failure email |
 | Health Auto Export stops syncing | No alert. `health_sync_state` on the dashboard (S19) |
-| Anthropic spend | Left for `13` |
+| Anthropic spend | Not alerted: the `overload` workspace's $10/month hard limit caps it (`13` §4) |
+| Nightly backup fails | GitHub's failed-workflow email (`13` §2) |
 
 - **`/api/health` must not touch the database** (binding). A 5-minute check would keep Neon's compute
   from ever scaling to zero: always-on at 0.25 CU is about 180 CU-hours a month against Free's 100,
@@ -198,3 +201,4 @@ monitor, with email alerts (Sentry pricing docs, checked 2026-09-21).
 - [ ] `dbmate` confirmed to run inside Vercel's build image (its npm package ships platform binaries;
       not yet tried there).
 - [ ] `11` §3 checklist passed on staging.
+- [ ] The security and backup items in `13` §9, "Before M1 ships".

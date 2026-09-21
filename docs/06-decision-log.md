@@ -1138,3 +1138,46 @@ generated migrations. PR previews share staging's variables and never migrate. U
 **Revisit if:** staging Anthropic spend becomes noticeable (split the key); a second developer joins
 (per-PR databases start earning their keep); the app moves to AWS Tokyo (migrations move to the
 deploy pipeline there).
+
+### [2026-09-21] Infrastructure and security: S3 backups, three DB roles, audit trail, compliance deferred
+
+**Decided (asked).**
+1. **Nightly `pg_dump` to S3** in Yuta's AWS account, `ap-northeast-1`, from a GitHub Actions
+   schedule. Neon Free's 6-hour restore window alone would lose anything noticed the next morning.
+   S3 because the future platform is AWS anyway.
+2. **No custom domain.** The app stays on `vercel.app`. Accepted cost: at the AWS move every user
+   re-enters the ingest URL in Health Auto Export, the Google redirect URIs change, and everyone
+   signs in again.
+3. **Anthropic: a dedicated `overload` workspace with a $10/month hard limit.** The per-user daily
+   label cap is **not** built while Yuta is the only user; it is added before the first invitee.
+4. **Three Postgres roles:** `overload_owner` (migrations), `overload_app` (runtime DML, no DDL),
+   `overload_backup` (`SELECT` only).
+5. **`audit_event`**, append-only, written in the action's transaction, one-year retention through a
+   `SECURITY DEFINER` purge.
+6. **Compliance deferred** until before the first real user. Invitees would be mostly in Japan and
+   the Philippines. Findings kept in `13` §9 so the work starts from them.
+
+**Found by verification (2026-09-21).**
+- Anthropic: spend limits exist per organization and per workspace; a key belongs to one workspace;
+  over the limit the API returns `400 invalid_request_error`.
+- Neon Free: IP Allow is Scale-only; limited roles can be made by SQL; 6 h / 1 GB restore window, one
+  snapshot, no scheduled backups. Neon documents nightly `pg_dump` to S3 via GitHub Actions, on the
+  direct connection.
+- Vercel Hobby: one WAF rate-limit rule per project, three custom rules; custom domains at no charge.
+- APPI: covers non-profit activity, 事業 for a private friends' app is a grey zone; bodyweight and
+  heart rate outside medical care are not 要配慮; the cloud exception depends on the provider's
+  contract; photos to Anthropic are a foreign third-party transfer.
+
+**Alternatives considered.** Neon restore window only (next-day damage unrecoverable); Neon Launch
+for a longer window (monthly cost, backup still inside Neon); a custom subdomain of
+`asakurayuta.dev` (recommended, rejected by Yuta for now); one owner role for everything (a leaked
+runtime URL could drop tables); logs instead of an audit table (Vercel runtime logs are short-lived).
+
+**Decided by default, not asked.** Backup at 03:00 JST, `age`-encrypted before upload, private key
+offline, OIDC role that can only `PutObject`, 30-day lifecycle; S3 restore tested before M1 then
+quarterly. Terraform for AWS pieces only, in `infra/aws/`; Vercel and Neon stay dashboard-configured.
+One WAF rule, 300 req/60 s per IP on the web project's `/api/*`. `no-store` on every API response.
+`audit_event.detail` jsonb for small non-sensitive facts.
+
+**Revisit if:** the first invitee is near (§9 of `13`); the app moves to AWS (IaC for everything,
+domain chosen then); a dump grows past what a GitHub runner handles comfortably.
