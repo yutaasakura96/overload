@@ -254,7 +254,7 @@ PUT /api/routines/0192r001-…/exercises
 
 | Method | Path | Auth | Purpose | Success | Failures |
 | --- | --- | --- | --- | --- | --- |
-| GET | `/api/training/last-time` | M | For **every exercise the caller has logged**: last time per set number, and today's suggestion | 200 | 401 |
+| GET | `/api/training/last-time` | M | For **every exercise the caller has logged**: last time per working set, and today's suggestion | 200 | 401 |
 
 **Why one call for everything:** the gym screen must show last time and the suggestion with no
 signal (S2, S3), including for an exercise added mid-workout. The client fetches this once when
@@ -267,12 +267,12 @@ GET /api/training/last-time  →  200
 { "asOf": "2026-11-04T10:15:02.000Z",
   "exercises": [
     { "exerciseId": "0192a001-…", "workoutId": "0192w001-…", "performedOn": "2026-11-04",
-      "sets": [ { "setNumber": 1, "weightKg": 80, "reps": 10 }, { "setNumber": 2, "weightKg": 80, "reps": 10 }, { "setNumber": 3, "weightKg": 80, "reps": 10 } ],
+      "sets": [ { "workingSet": 1, "weightKg": 80, "reps": 10 }, { "workingSet": 2, "weightKg": 80, "reps": 10 }, { "workingSet": 3, "weightKg": 80, "reps": 10 } ],
       "suggestion": { "weightKg": 82.5, "rule": "top_of_range_hit", "reason": "hit 10 on every set last time" } }
   ] }
 ```
 
-`suggestion.rule` is `top_of_range_hit` or `repeat`. An exercise never logged is absent, and the
+`sets` holds working sets only; `workingSet` is derived, 1…n in `position` order (`04`). `suggestion.rule` is `top_of_range_hit` or `repeat`. An exercise never logged is absent, and the
 screen shows "first session".
 
 ### 3.4 Sync — the only write path for workouts, workout exercises and sets
@@ -298,10 +298,10 @@ POST /api/workouts/sync
       "clientUpdatedAt": "2026-11-11T09:01:40.000Z" }
   ],
   "sets": [
-    { "id": "0192s020-…", "workoutExerciseId": "0192x010-…", "setNumber": 1, "weightKg": 82.5, "reps": 10,
+    { "id": "0192s020-…", "workoutExerciseId": "0192x010-…", "position": 0, "weightKg": 82.5, "reps": 10,
       "rir": 2, "rpe": null, "isWarmup": false, "performedAt": "2026-11-11T09:09:12.000Z",
       "clientUpdatedAt": "2026-11-11T09:09:12.000Z" },
-    { "id": "0192s021-…", "workoutExerciseId": "0192x010-…", "setNumber": 2, "weightKg": 82.5, "reps": 0,
+    { "id": "0192s021-…", "workoutExerciseId": "0192x010-…", "position": 1, "weightKg": 82.5, "reps": 0,
       "rir": null, "rpe": null, "isWarmup": false, "performedAt": "2026-11-11T09:12:40.000Z",
       "clientUpdatedAt": "2026-11-11T09:12:40.000Z" },
     { "id": "0192s019-…", "deletedAt": "2026-11-11T09:10:03.000Z" }

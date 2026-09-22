@@ -26,7 +26,7 @@ As a lifter, I want to log a set the moment I finish it, even without signal, so
 
 **S2. See last time — MUST**
 As a lifter, I want last workout's weight and reps shown next to each set, so that I never guess.
-- When an exercise starts, each set row shows that exercise's most recent workout's weight × reps for the same set number.
+- When an exercise starts, each set row shows that exercise's most recent workout's weight × reps for the same working set (the nth working set against the nth; warm-ups are not counted).
 - New set rows are pre-filled with those values and can be edited.
 
 **S3. Get a suggested weight — MUST**

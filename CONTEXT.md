@@ -81,7 +81,8 @@ _Avoid_: work set, top set (top set is the heaviest working set, a narrower thin
 A set flagged `is_warmup`. Stored and shown, excluded from every calculation.
 
 **Last time**:
-The weight × reps of the same set number in the most recent workout containing that exercise.
+The weight × reps of the same working set (nth against nth, warm-ups not counted) in the most recent
+workout containing that exercise.
 _Avoid_: previous, history
 
 **Suggestion**:
@@ -104,6 +105,11 @@ The device's own IndexedDB store holding one record per set, and per `workout` a
 row, until the server acknowledges it. The open workout's rows stay until the workout ends, so the
 workout can be rebuilt after iOS closes the app.
 _Avoid_: queue (in code), cache, outbox
+
+**Tombstone**:
+The id of a workout, workout exercise or set deleted through sync, kept 30 days so a stale copy is not
+inserted again (`sync_tombstone`). An id and a time, no content.
+_Avoid_: soft delete, deleted flag
 
 **Pending set**:
 A set in the set store that the server has not yet acknowledged. The count of pending sets is what the
@@ -240,7 +246,9 @@ A calorie target from the formula estimate, before any measured expenditure exis
 **Maintenance check**:
 The M2, read-only comparison of mean intake on complete days against the trend's change over the
 trailing 14 days (the same window as the expenditure estimate), giving an implied maintenance
-figure. It appears once the user has 14 complete days in total. It never changes targets unless the user applies it.
+figure. It appears once the user has 14 complete days in total, and shows a figure only with at least
+3 weigh-ins in the window and one in its newest 7 days. It never changes targets unless the user
+applies it.
 _Avoid_: TDEE check, metabolism test
 
 **Expenditure estimate**:
@@ -288,8 +296,8 @@ One of the three Health Auto Export REST exports set up on the phone: `overload-
 _Avoid_: sync job, webhook, integration
 
 **Sync state**:
-When a metric last arrived, and its newest sample (`health_sync_state`). What tells a dead sync from
-a quiet week.
+When a series last arrived, and its newest sample (`health_sync_state`): each metric, plus `body_mass`
+for weight and `workouts` for Apple workouts. What tells a dead sync from a quiet week.
 _Avoid_: last updated, freshness (in code)
 
 **Overlay**:
@@ -302,7 +310,7 @@ _Avoid_: layer, comparison
 The once-a-day cron that writes each user's weekly expenditure estimate once their local Monday has
 begun and regenerates the week's unconfirmed plan days. Re-running it is harmless, and the first
 request that needs current targets runs it inline if the cron was missed. It also purges audit
-events older than a year.
+events older than a year and tombstones older than 30 days.
 _Avoid_: weekly cron, batch job
 
 **Nightly backup**:

@@ -394,7 +394,8 @@ All three automations use:
   - Metrics: `INSERT … ON CONFLICT (user_id, metric, started_at) DO UPDATE`
   - Workouts: `ON CONFLICT (user_id, external_id) DO UPDATE`
   - Weight: `body_measurement` keyed `(user_id, source, measured_at)`, also `DO UPDATE`
-  - Then one `health_sync_state` upsert per metric present in the payload
+  - Then one `health_sync_state` upsert per series the request covered, even if empty: each metric,
+    `body_mass` for weight, `workouts` for workouts (`docs/04`)
 - **Validation:**
   - Only the envelope is validated strictly: a body that is not an HAE export gets a 4xx. Inside
     it, unknown metric names and malformed points are skipped and counted, never refused, because a

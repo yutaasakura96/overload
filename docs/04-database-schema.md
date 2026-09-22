@@ -9,14 +9,22 @@ plus the security roles and `audit_event` from `docs/13`, which ship with M1.
 ## Conventions
 
 - `snake_case`, singular table names.
-- Primary key `id uuid`, holding a **UUIDv7**. Rows created at the gym get their id on the phone
-  (`uuid` npm, `v7()`); rows created online default to Postgres 18's `uuidv7()`.
+- Primary key `id uuid`, holding a **UUIDv7**. Every row the app creates gets its id on the device
+  (`uuid` npm, `v7()`) and sends it, so a retried create lands once (`docs/07` §1). The column
+  default, Postgres 18's `uuidv7()`, covers rows the server makes itself: ingest, the daily job,
+  seeds, `audit_event`.
 - `created_at timestamptz NOT NULL DEFAULT now()` and `updated_at timestamptz NOT NULL DEFAULT
   now()` on every table. `updated_at` is maintained by the API, not a trigger.
 - All instants are `timestamptz`, stored UTC.
 - Weights are kilograms, `numeric(6,2)`. No pounds anywhere (S8).
 - Foreign keys are named `<table>_id` and every one declares a delete behaviour.
 - The schema changes only through versioned SQL migrations in `migrations/`.
+- **Exceptions**, each explained at its table:
+  - composite or `user_id` primary keys instead of `id`: `exercise_setting`, `user_profile`,
+    `day_routine`, `health_sync_state`
+  - a natural key instead of a UUIDv7: `reference_food.code`
+  - no `updated_at`, because the row is never updated: `sync_tombstone`, `audit_event` (which also
+    uses `occurred_at` for `created_at`)
 
 ## Tables owned by Better Auth
 
@@ -71,8 +79,9 @@ One exercise. Either **seeded** (`owner_user_id IS NULL`, visible to everyone, ~
 | `updated_at` | timestamptz | no | `now()` | |
 
 - `CHECK (default_rep_low <= default_rep_high)`.
-- `UNIQUE NULLS NOT DISTINCT (owner_user_id, lower(name))` — one user cannot have two exercises of
-  the same name, and seeded names are unique among themselves.
+- `UNIQUE INDEX … NULLS NOT DISTINCT (owner_user_id, lower(name))` — one user cannot have two
+  exercises of the same name, and seeded names are unique among themselves. An index, not a table
+  constraint, because it has an expression.
 - `INDEX (owner_user_id)` — the picker reads "seeded plus mine".
 - Deleting a custom exercise that has sets logged is refused by the API; it is hidden instead (see
   `exercise_setting.hidden_at`). With no sets logged it is deleted outright.
@@ -139,7 +148,7 @@ One exercise slot in a routine.
 | --- | --- | --- | --- | --- |
 | `id` | uuid | no | `uuidv7()` | PK |
 | `routine_id` | uuid | no | — | → `routine.id`, `ON DELETE CASCADE` |
-| `exercise_id` | uuid | no | — | → `exercise.id`, `ON DELETE RESTRICT` |
+| `exercise_id` | uuid | no | — | → `exercise.id`, `NO ACTION DEFERRABLE INITIALLY DEFERRED` |
 | `position` | integer | no | — | Order within the routine |
 | `target_sets` | smallint | no | `3` | |
 | `rep_low` | smallint | yes | — | Slot override; falls back to setting, then exercise |
@@ -149,8 +158,12 @@ One exercise slot in a routine.
 
 - `INDEX (routine_id, position)`. **Not unique** — reordering would otherwise collide mid-update.
   Ties break on `id`, which is time-ordered.
-- `ON DELETE RESTRICT` on `exercise_id`: an exercise still used by a routine cannot be deleted. The
-  API tells the user which routines use it.
+- `exercise_id` is `NO ACTION DEFERRABLE INITIALLY DEFERRED`: an exercise still used by a routine
+  cannot be deleted, and the API checks first so it can tell the user which routines use it.
+  **Not `RESTRICT`, and not plain `NO ACTION`.** Deleting a `user` cascades to `exercise`, `routine`
+  and `workout` as separate steps, each checked at its own end, so either of those refuses the account
+  delete whenever a custom exercise sits in a routine or a workout. Deferred, the check runs at commit,
+  after every cascade. Tested on Postgres 18, 2026-09-22 (`06`). *Corrected 2026-09-22.*
 
 | id | routine_id | exercise_id | position | target_sets | rep_low | rep_high |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -198,7 +211,7 @@ here does not touch the routine (S4).
 | --- | --- | --- | --- | --- |
 | `id` | uuid | no | — | PK, from the phone |
 | `workout_id` | uuid | no | — | → `workout.id`, `ON DELETE CASCADE` |
-| `exercise_id` | uuid | no | — | → `exercise.id`, `ON DELETE RESTRICT` |
+| `exercise_id` | uuid | no | — | → `exercise.id`, `NO ACTION DEFERRABLE INITIALLY DEFERRED`, for the reason under `routine_exercise` |
 | `position` | integer | no | — | Order within the workout |
 | `target_sets` | smallint | yes | — | Copied from the routine slot at start |
 | `rep_low` | smallint | no | — | **Resolved and copied at start**: routine slot → user setting → exercise default |
@@ -224,7 +237,7 @@ One logged set. The row the whole offline path exists to protect (S1).
 | --- | --- | --- | --- | --- |
 | `id` | uuid | no | — | PK, **generated on the phone**. Sync upserts on it, guarded by `client_updated_at`, which is what makes upload exactly-once |
 | `workout_exercise_id` | uuid | no | — | → `workout_exercise.id`, `ON DELETE CASCADE` |
-| `set_number` | smallint | no | — | 1-based, within the exercise |
+| `position` | integer | no | — | Order within the exercise, warm-ups included. Never renumbered: a delete leaves a gap. *Renamed 2026-09-22* from `set_number` |
 | `weight_kg` | numeric(6,2) | no | — | |
 | `reps` | smallint | no | — | `CHECK (reps > 0)` |
 | `rir` | smallint | yes | — | 0–10 |
@@ -235,15 +248,19 @@ One logged set. The row the whole offline path exists to protect (S1).
 | `created_at` | timestamptz | no | `now()` | Server clock — when it actually arrived |
 | `updated_at` | timestamptz | no | `now()` | |
 
-- `UNIQUE (workout_exercise_id, set_number)`.
-- `INDEX (workout_exercise_id, set_number)` is that constraint's index; it serves every read of a
-  workout.
+- `INDEX (workout_exercise_id, position)`, **not unique**, the same reason as `routine_exercise`:
+  renumbering would collide when sync applies rows one at a time. Ties break on `id`. It serves
+  every read of a workout.
+- **The number on screen is derived, not stored.** Working sets are numbered 1…n in `position`
+  order; warm-ups are unnumbered. Last time (S2) pairs today's nth working set with the nth
+  working set of the previous workout, so a warm-up is never compared with a working set. *Changed
+  2026-09-22* (`06`).
 - `CHECK (rir IS NULL OR rpe IS NULL)` — a set records effort one way or the other, never both
   (S6).
 - `created_at − performed_at` is how long a set sat in the phone's queue. Worth watching while the
   offline path is new.
 
-| id | workout_exercise_id | set_number | weight_kg | reps | rir | is_warmup |
+| id | workout_exercise_id | position | weight_kg | reps | rir | is_warmup |
 | --- | --- | --- | --- | --- | --- | --- |
 | `0192s001-…` | `0192x001-…` | 1 | 60.00 | 10 | `null` | true |
 | `0192s002-…` | `0192x001-…` | 2 | 100.00 | 8 | 2 | false |
@@ -266,8 +283,7 @@ arriving later is not inserted again (`docs/03` §8.1). An id and a time, no con
 
 - Written in the same transaction as the delete. Deleting a workout also writes its
   `workout_exercise` and `set` ids, which the server knows at that moment.
-- No `updated_at`: a tombstone is never updated. The second exception to the conventions, after
-  `audit_event`.
+- No `updated_at`: a tombstone is never updated (see Conventions, Exceptions).
 - `INDEX (created_at)` for the purge. The daily job deletes rows older than 30 days.
 - One PK serves all three tables: UUIDv7 ids carry 74 random bits, so a collision across tables is negligible.
 
@@ -277,7 +293,7 @@ arriving later is not inserted again (`docs/03` §8.1). An id and a time, no con
 
 | Query | Path |
 | --- | --- |
-| **Last time** (S2): last session's weight × reps per set number | `workout (user_id, started_at DESC)` → `workout_exercise (exercise_id)` → `set (workout_exercise_id, set_number)` |
+| **Last time** (S2): the previous workout's weight × reps per working set, in order | `workout (user_id, started_at DESC)` → `workout_exercise (exercise_id)` → `set (workout_exercise_id, position)`, `is_warmup = false` |
 | **Suggestion** (S3): did every working set hit the top of the range last time | Same rows, plus `workout_exercise.rep_high` copied at start |
 | **Chart** (S7): best working set per workout over a span, Epley `weight × (1 + reps / 30)` | `workout (user_id, started_at DESC)` filtered by span → the same join, `is_warmup = false` |
 | **Upload a set** (S1) | `INSERT … ON CONFLICT (id) DO UPDATE … WHERE set.client_updated_at < EXCLUDED.client_updated_at` on the PK. *Changed 2026-09-21* from `DO NOTHING`, so offline edits and deletes use the same path (`docs/07` §3.4). Skipped when `sync_tombstone` holds the row's id or its parent's |
@@ -286,7 +302,8 @@ arriving later is not inserted again (`docs/03` §8.1). An id and a time, no con
 
 # M2 — meal plan + weight
 
-Eleven tables, plus the shared `reference_food` catalogue added 2026-09-21. Three things M2 needs are **not** tables, because they are worked out from rows that
+Twelve tables (`health_sync_state` moved here from M3 on 2026-09-22), plus the shared
+`reference_food` catalogue added 2026-09-21. Three things M2 needs are **not** tables, because they are worked out from rows that
 already exist: the prep plan and grocery list (S17), the daily weight used for the trend (S11), and
 whether a day counts as complete (S18). Storing them would mean keeping two answers in step.
 
@@ -318,7 +335,7 @@ One reading from the scale, or one typed by hand (S11).
 | `user_id` | uuid | no | — | → `user.id`, `ON DELETE CASCADE` |
 | `measured_at` | timestamptz | no | — | When the reading was taken, not when it arrived |
 | `weight_kg` | numeric(5,2) | no | — | |
-| `body_fat_pct` | numeric(4,1) | yes | — | The Eufy scale sends it; hand entry usually will not |
+| `body_fat_pct` | numeric(4,1) | yes | — | Hand entry, and later a native client. Health Auto Export sends body fat to `health_sample` instead |
 | `source` | text | no | — | `apple_health` \| `manual`, `CHECK` |
 | `external_id` | text | yes | — | HealthKit's sample UUID. **`NULL` for Health Auto Export rows**, whose metric payload carries no id; kept for a native HealthKit client |
 | `created_at` / `updated_at` | timestamptz | no | `now()` | |
@@ -389,8 +406,8 @@ it, and the schema had nowhere to keep it.
 | `energy_kcal` / `protein_g` / `carb_g` / `fat_g` / `fiber_g` | numeric | no | — | Per 100 g, same types as `food` |
 | `created_at` / `updated_at` | timestamptz | no | `now()` | |
 
-- The PK is MEXT's own code rather than a UUIDv7, the one exception to the id convention: the
-  catalogue already has a stable key, and nothing references it.
+- The PK is MEXT's own code rather than a UUIDv7: the catalogue already has a stable key, and
+  nothing references it.
 - No `user_id` and no foreign keys in or out. A `food` copied from it keeps working if the seed is
   re-imported, because the values were copied, not referenced.
 - `INDEX` on `name` with `pg_trgm` (`gin_trgm_ops`) for search. **Unverified:** that `pg_trgm` is
@@ -520,7 +537,7 @@ the day (S18).
 | `plan_date` | date | no | — | Local date |
 | `day_type` | text | no | — | `training` \| `rest` |
 | `goal_phase_id` | uuid | yes | — | → `goal_phase.id`, `ON DELETE SET NULL` |
-| `target_kcal` | integer | no | — | **Copied from the phase when the day was generated** |
+| `target_kcal` | integer | no | — | **Copied from the targets in force when the day was generated**: the phase's in M2; from M3, the newest applied `expenditure_estimate` unless the phase target was set more recently (see *Current targets*) |
 | `target_protein_g` | numeric(6,1) | no | — | Copied |
 | `target_carb_g` | numeric(6,1) | no | — | Copied |
 | `target_fat_g` | numeric(6,1) | no | — | Copied |
@@ -592,6 +609,35 @@ One food in one meal, planned and as eaten (S16, S18).
 
 ---
 
+## health_sync_state
+
+When each series last synced (S19). *Moved to M2 2026-09-22*, so it ships with Health Auto Export
+weight if M2 chooses it (`06`). **The one place the schema stores something it could almost derive**,
+and the reason is worth stating: a sync that ran correctly and carried nothing leaves no sample
+behind, so there is no row from which to derive that it happened. Without this table a dead sync
+and a quiet week look identical, which is the exact distinction the dashboard exists to make.
+
+| Column | Type | Null | Default | Notes |
+| --- | --- | --- | --- | --- |
+| `user_id` | uuid | no | — | → `user.id`, `ON DELETE CASCADE` |
+| `metric` | text | no | — | A key from the metric vocabulary (M3), or one of two reserved keys: `body_mass` for the weight automation, `workouts` for the workouts automation |
+| `last_synced_at` | timestamptz | no | — | When a payload last covered this metric, new samples or not |
+| `last_sample_at` | timestamptz | yes | — | Newest `started_at` seen |
+| `sample_count` | integer | no | `0` | Running total, for "is this actually working" |
+| `created_at` / `updated_at` | timestamptz | no | `now()` | |
+
+- `PRIMARY KEY (user_id, metric)`. Every ingest request upserts one row for **each series it
+  covered, even when that series carried no points**: each vocabulary metric present, `body_mass` for
+  a weight payload, `workouts` for a workouts payload. Without the two reserved keys, a dead weight
+  or workouts automation would look like a week without weigh-ins or training. *Added 2026-09-22.*
+- **No row means never synced**, which is the dashboard's empty state without a flag column.
+
+| user_id | metric | last_synced_at | last_sample_at | sample_count |
+| --- | --- | --- | --- | --- |
+| `0192u001-…` | `heart_rate_variability` | `2026-11-04 07:02:00+00` | `2026-11-01 22:14:00+00` | 3186 |
+
+---
+
 ## What M2 derives instead of storing
 
 | Wanted | Read from |
@@ -605,7 +651,7 @@ One food in one meal, planned and as eaten (S16, S18).
 
 # M3 — health + coaching
 
-Seven tables of our own (`ingest_token` added 2026-09-21), plus one column added to each of two M2 tables. Two things M3 needs are
+Six tables of our own (`ingest_token` added 2026-09-21; `health_sync_state` moved to M2 2026-09-22), plus one column added to each of two M2 tables. Two things M3 needs are
 **not** tables: the overlay series on a chart (S20) and the plateau protocol catalogue itself (S23).
 Both are covered at the end.
 
@@ -637,9 +683,9 @@ its own, so adding sleeping wrist temperature later is a new string rather than 
 - `UNIQUE (user_id, metric, started_at)`. This is the de-duplication key, and it is a natural key
   rather than an id because the payload gives us nothing else to key on.
 - Ingest is `INSERT … ON CONFLICT (user_id, metric, started_at) DO UPDATE`. **Update, not nothing** —
-  the PRD's edge case says a repeated reading *replaces* the earlier copy, which is the opposite of
-  the set upload's `DO NOTHING`. A set is a fact the phone observed once; a health sample is Apple's
-  current answer, and Apple revises it.
+  the PRD's edge case says a repeated reading *replaces* the earlier copy. Unlike the set upload,
+  there is no clock guard: a set changes only when the phone edits it, while a health sample is
+  Apple's current answer, and Apple revises it.
 - `INDEX (user_id, metric, started_at DESC)` — the constraint's index, and the one every overlay
   (S20) and dashboard trend (S24) reads.
 - `metric` is `text`, not an enum. The vocabulary is a typed union in `domain/` and validated at the
@@ -726,31 +772,6 @@ gym visit *you* logged. The watch may record one where you logged none, and the 
   user (`docs/03` §9). The upsert leaves `workout_id` and `link_source` alone when
   `link_source = 'manual'`, so a re-import never undoes a correction. `ON DELETE SET NULL` means
   deleting a gym visit leaves the watch's record of it intact.
-
----
-
-## health_sync_state
-
-When each metric last synced (S19). **The one place M3 stores something it could almost derive**,
-and the reason is worth stating: a sync that ran correctly and carried nothing leaves no sample
-behind, so there is no row from which to derive that it happened. Without this table a dead sync
-and a quiet week look identical, which is the exact distinction the dashboard exists to make.
-
-| Column | Type | Null | Default | Notes |
-| --- | --- | --- | --- | --- |
-| `user_id` | uuid | no | — | → `user.id`, `ON DELETE CASCADE` |
-| `metric` | text | no | — | |
-| `last_synced_at` | timestamptz | no | — | When a payload last covered this metric, new samples or not |
-| `last_sample_at` | timestamptz | yes | — | Newest `started_at` seen |
-| `sample_count` | integer | no | `0` | Running total, for "is this actually working" |
-| `created_at` / `updated_at` | timestamptz | no | `now()` | |
-
-- `PRIMARY KEY (user_id, metric)`. One upsert per metric per import.
-- **No row means never synced**, which is the dashboard's empty state without a flag column.
-
-| user_id | metric | last_synced_at | last_sample_at | sample_count |
-| --- | --- | --- | --- | --- |
-| `0192u001-…` | `heart_rate_variability` | `2026-11-04 07:02:00+00` | `2026-11-01 22:14:00+00` | 3186 |
 
 ---
 
@@ -938,7 +959,7 @@ the first thing to add if a long span ever measures slow — a measurement, not 
 
 | Query | Path |
 | --- | --- |
-| **Ingest a health payload** (S19) | `health_sample` upsert on `(user_id, metric, started_at)`; `health_workout` upsert on `(user_id, external_id)`; one `health_sync_state` upsert per metric |
+| **Ingest a health payload** (S19) | `health_sample` upsert on `(user_id, metric, started_at)`; `health_workout` upsert on `(user_id, external_id)`; one `health_sync_state` upsert per series covered, `body_mass` and `workouts` included |
 | **Dashboard freshness** (S19, S24) | `health_sync_state (user_id, metric)`, whole table per user |
 | **Overlay a span** (S20) | `health_sample (user_id, metric, started_at DESC)` filtered by span, one pass per series |
 | **Weekly recalculation** (S21) | `plan_meal_item` via `plan_meal` → `plan_day` for complete days in the 14-day window, plus `body_measurement (user_id, measured_at DESC)` |
@@ -973,8 +994,8 @@ Who did what to access and accounts (`docs/13` §7). Append-only.
 | `ip` | inet | yes | — | |
 | `user_agent` | text | yes | — | |
 
-- No `created_at` / `updated_at`: `occurred_at` is the creation time and a row is never updated —
-  the one exception to the conventions above.
+- No `created_at` / `updated_at`: `occurred_at` is the creation time and a row is never updated
+  (see Conventions, Exceptions).
 - `INDEX (actor_user_id, occurred_at DESC)`, `INDEX (occurred_at)` for the purge.
 - Grants: `overload_app` has `SELECT, INSERT` only. The first migration revokes `UPDATE, DELETE`
   after the default privileges apply.

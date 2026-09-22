@@ -1512,3 +1512,75 @@ the §8.1 test for one bad set expects a `refused` row inside a 200 batch (`07` 
 native-ready rule 2 names trend beside planner, progression, expenditure and plateau (`CLAUDE.md`);
 §10's secrets list adds the migration DB URL and `CRON_SECRET` and drops the Sentry DSN, which is
 public; §9 says ingest validates the envelope strictly and skips bad points (`07` §6.1).
+
+### [2026-09-22] Phase 6 review, group 4 (schema): exercise references are deferred, so account deletion works
+
+**Decided (asked).** `routine_exercise.exercise_id` and `workout_exercise.exercise_id` become
+`NO ACTION DEFERRABLE INITIALLY DEFERRED` instead of `ON DELETE RESTRICT`. The API still checks before
+deleting an exercise and names the routines that use it. `11` §2 adds an account-deletion test for a
+custom exercise used in a routine and in a workout. Corrects the 2026-09-20 deletion rules, which
+promised account deletion (S10) cascades from `user`. Changed in `04` and `11`.
+
+**Why.** Deleting a `user` cascades to `exercise`, `routine` and `workout` as separate steps, and
+Postgres checks each foreign key at the end of its step. Tested on Postgres 18 in a throwaway
+container (2026-09-22): with `RESTRICT`, and with plain `NO ACTION`, the account delete fails as soon
+as a custom exercise is still referenced by a routine slot. Deferred, it succeeds, and a direct
+delete of a referenced exercise is still refused at commit.
+
+**Alternatives considered.** Deleting the user's routines and workouts in code before the `user` row,
+which puts correctness on statement order. `ON DELETE CASCADE` on the exercise reference, which would
+let one exercise delete quietly empty routines and history if the API check were ever skipped.
+
+**Revisit if:** never, unless the schema gains another `RESTRICT` reference under a `user` cascade.
+The same rule applies to it.
+
+### [2026-09-22] Phase 6 review, group 4: a set's order is `position`, and last time pairs working sets
+
+**Decided (asked).** `set.set_number` becomes `set.position`: an order within the exercise, warm-ups
+included, not unique, never renumbered, ties on `id`. The number on screen is derived: working sets
+1…n, warm-ups unnumbered. Last time (S2) pairs the nth working set with the previous workout's nth
+working set. Changed in `02` (S2 wording), `04`, `07` §3.3–3.4 (`position` in sync, `workingSet` in
+last time) and `CONTEXT.md`.
+
+**Why.** Nothing defined whether warm-ups shared the numbering, what a delete did to later numbers,
+or how a renumber survived sync. With warm-ups opening in place above working sets (2b), shared
+numbers would compare today's first working set with last time's warm-up. Renumbering against
+`UNIQUE (workout_exercise_id, set_number)` fails when sync applies "set 3 becomes 2" before "delete
+set 2", because each row is its own unit; `routine_exercise.position` is non-unique for the same
+reason. The unique key's other job, refusing a second "set 2", is covered by the `id` upsert and by
+the set store rebuilding the open workout (group 3).
+
+**Alternatives considered.** Keeping `set_number` with renumbering rules and a deferred unique
+constraint, which still breaks across batches. A separate working-set counter stored on the row,
+which is two numbers to keep in step.
+
+**Revisit if:** the native app needs a stable printed set number for export. Derive it there too.
+
+### [2026-09-22] Phase 6 review, group 4: sync state covers weight and workouts, and ships in M2
+
+**Decided (asked).** `health_sync_state.metric` takes two reserved keys beside the metric vocabulary:
+`body_mass` for the weight automation and `workouts` for the workouts automation. Every ingest request
+upserts one row per series it covered, even when empty. The table moves from M3 to M2. Changed in
+`03` §9, `04` and `CONTEXT.md`. Extends the 2026-09-21 M3 schema entry's rule 2.
+
+**Why.** Sync state was keyed on the metric vocabulary, which covers only the daily automation.
+Weight lands in `body_measurement` and workouts in `health_workout`, so two of the three automations
+left no sync-state row, and a dead weight automation looked like days without weigh-ins. Weight is
+the series the trend, S18a and S21 all read, and the first to arrive if M2 chooses HAE.
+
+**Alternatives considered.** Deriving weight freshness from the newest `body_measurement` row, which
+is the dead-sync-versus-quiet-week confusion the table exists to remove. Keying sync state per
+automation, which loses per-metric freshness on the daily one.
+
+**Revisit if:** the Google Health API path wins the weight tests. Then `body_mass` is written by that
+path instead.
+
+### [2026-09-22] Phase 6 review, group 4: eight wording fixes in `04` and `CONTEXT.md`, no decision changed
+
+**Decided (asked).** Restatements that had drifted now match the decisions that own them: `health_sample`
+no longer contrasts with a `DO NOTHING` set upload (changed 2026-09-21); `body_measurement.body_fat_pct`
+is for hand entry, not the Eufy via HAE; the id convention says every app create sends a device-made
+id (`07` §1), with `uuidv7()` for server-made rows; the conventions' exceptions are listed once;
+`plan_day.target_*` copy the targets in force, not the phase; `exercise`'s name rule is a unique index,
+since it has an expression; `CONTEXT.md` gains **Tombstone** and the daily job's 30-day purge; the
+maintenance check names group 3's weigh-in gate.

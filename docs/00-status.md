@@ -28,9 +28,11 @@ one if a later fix changes it. `06` is the reference for every group, not a grou
   open workout, HAE every 3 hours (Neon CU-hours break first), expenditure as a rate between two trend
   points, four wording fixes (`06` entries of that date). Also edited `04`, `07`, `08`, `09`, `10` §8,
   `11`, `12`, `CONTEXT.md` to match; their groups re-check those edits
-- [ ] 4. **Next:** `04` schema + `CONTEXT.md` — includes the new `sync_tombstone` and the
-  `expenditure_estimate` columns from group 3
-- [ ] 5. `07` API + `08` auth
+- [x] 4. `04` schema + `CONTEXT.md` — 2026-09-22, four findings: deferred exercise FKs (account
+  deletion failed, tested on PG 18), `set.position` replaces `set_number`, sync state gains `body_mass`
+  and `workouts` and moves to M2, eight wording fixes (`06` entries of that date). Also edited `02`,
+  `03` §9, `07` §3.3–3.4 and `11` §2
+- [ ] 5. **Next:** `07` API + `08` auth
 - [ ] 6. `09` user flows
 - [ ] 7. `11` testing + `12` deploy + `13` security
 
@@ -42,6 +44,8 @@ clears the polish gate in `CLAUDE.md`.
 
 ### Carried to a later group
 - Group 6 (`09`): F3's step-1 row says the empty state reads "first session"; the PRD says "first workout".
+- Group 5 (`07`): §3.3 says an exercise never logged shows "first session"; same wording issue.
+- Group 6 (`09`): F-health step 4 says "rather than wait an hour"; HAE now syncs every 3 hours.
 
 ### Reviewed, kept
 - `10` §7.3 scroll and sticky for screens 3–6: left open for each screen's M2 `/grill-with-docs` (2026-09-22).
