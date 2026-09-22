@@ -23,9 +23,10 @@
       <div style="font-size: 11px; font-weight: 600; letter-spacing: 0.12em; color: #E6EDF3;">PUSH A</div>
       <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #738393; letter-spacing: 0.02em;">42:18 elapsed</div>
     </div>
-    <div style="display: flex; align-items: center; gap: 7px; padding: 7px 9px; border: 1px solid #2A3440; border-radius: 2px;">
-      <div style="width: 6px; height: 6px; border-radius: 50%; background: #E0A83C;"></div>
-      <div style="font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.08em; color: #A8B4C0;">3 PENDING</div>
+    <!-- data-state slot, refused: outranks pending (10 §7.4) -->
+    <div style="display: flex; align-items: center; gap: 6px; padding: 7px 9px; border: 1px solid #501C1E; border-radius: 2px; background: #170B0C;">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#F2555A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v5M12 17h.01"></path></svg>
+      <div style="font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.08em; color: #F2555A;">1 REFUSED</div>
     </div>
   </div>
 
@@ -69,16 +70,32 @@
     </div>
   </div>
 
-  <!-- working 2 -->
-  <div style="display: grid; grid-template-columns: 24px 58px 1fr 50px 38px 46px; gap: 6px; padding: 9px 16px; align-items: center; border-bottom: 1px solid #14191E;">
-    <div style="font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #8A96A3;">2</div>
-    <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #738393;">80 × 10</div>
-    <div style="font-family: 'JetBrains Mono', monospace; font-size: 17px; font-weight: 500; color: #E6EDF3;">82.5</div>
-    <div style="font-family: 'JetBrains Mono', monospace; font-size: 17px; font-weight: 500; color: #E6EDF3;">10</div>
-    <div style="font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #8A96A3;">2</div>
-    <div style="display: flex; justify-content: flex-end;">
-      <div style="width: 46px; height: 44px; display: flex; align-items: center; justify-content: center; border: 1px solid #2E4A40; border-radius: 2px; background: #15241E;">
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#57C99A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5 9.5 18 20 6.5"></path></svg>
+  <!-- working 2 — refused by the server (09 F4): kept, edited or discarded, never dropped -->
+  <div style="background: #170B0C; border-top: 1px solid #501C1E; border-bottom: 1px solid #501C1E;">
+    <div style="display: grid; grid-template-columns: 24px 58px 1fr 50px 38px 46px; gap: 6px; padding: 7px 16px 6px 16px; align-items: center;">
+      <div style="font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #8A96A3;">2</div>
+      <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #738393;">80 × 10</div>
+      <div style="font-family: 'JetBrains Mono', monospace; font-size: 17px; font-weight: 500; color: #E6EDF3;">825</div>
+      <div style="font-family: 'JetBrains Mono', monospace; font-size: 17px; font-weight: 500; color: #E6EDF3;">10</div>
+      <div style="font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #8A96A3;">2</div>
+      <div style="display: flex; justify-content: flex-end;">
+        <div style="width: 46px; height: 44px; display: flex; align-items: center; justify-content: center; border: 1px solid #501C1E; border-radius: 2px;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#F2555A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v5M12 17h.01"></path></svg>
+        </div>
+      </div>
+    </div>
+    <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 16px 8px 46px;">
+      <div style="display: flex; flex-direction: column; gap: 3px;">
+        <div style="font-size: 9px; letter-spacing: 0.1em; color: #F2555A;">REFUSED</div>
+        <div style="font-size: 10px; color: #A8B4C0;">Weight over 500 kg</div>
+      </div>
+      <div style="display: flex; gap: 8px;">
+        <div style="width: 62px; height: 44px; display: flex; align-items: center; justify-content: center; border: 1px solid #2A3440; border-radius: 2px;">
+          <div style="font-size: 10px; letter-spacing: 0.08em; color: #8A96A3;">EDIT</div>
+        </div>
+        <div style="width: 78px; height: 44px; display: flex; align-items: center; justify-content: center; border: 1px solid #1A2026; border-radius: 2px;">
+          <div style="font-size: 10px; letter-spacing: 0.08em; color: #738393;">DISCARD</div>
+        </div>
       </div>
     </div>
   </div>

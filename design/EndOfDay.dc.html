@@ -7,11 +7,11 @@
 <body>
 <x-dc>
 <helmet>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap">
   <style>
     body { margin: 0; }
     a { color: #3FB6D4; }
-    a:hover { color: #6FCDE3; }
+    a:active { color: #6FCDE3; }
   </style>
 </helmet>
 
@@ -19,8 +19,15 @@
 
   <!-- app bar -->
   <div style="display: flex; align-items: center; justify-content: space-between; padding: 18px 16px 13px 16px; border-bottom: 1px solid #1A2026;">
-    <div style="font-size: 11px; font-weight: 600; letter-spacing: 0.12em; color: #E6EDF3;">END OF DAY</div>
-    <div style="font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #5A6673;">TUE 16 SEP · 22:40</div>
+    <div style="display: flex; flex-direction: column; gap: 3px;">
+      <div style="font-size: 11px; font-weight: 600; letter-spacing: 0.12em; color: #E6EDF3;">END OF DAY</div>
+      <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #738393; letter-spacing: 0.02em;">TUE 16 SEP · 22:40</div>
+    </div>
+    <!-- data-state slot, resting state: last sync time (10 §7.4) -->
+    <div style="display: flex; align-items: center; gap: 6px;">
+      <div style="width: 5px; height: 5px; border-radius: 50%; background: #57C99A;"></div>
+      <div style="font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #738393;">SYNCED 22:38</div>
+    </div>
   </div>
 
   <!-- headline -->
@@ -37,17 +44,17 @@
 
   <!-- unconfirmed list -->
   <div style="padding: 20px 16px 0 16px; display: flex; flex-direction: column; gap: 9px;">
-    <div style="font-size: 9px; letter-spacing: 0.12em; color: #4A5560;">UNCONFIRMED</div>
+    <div style="font-size: 9px; letter-spacing: 0.12em; color: #738393;">UNCONFIRMED</div>
 
     <div style="border: 1px solid #232B32; border-radius: 2px; padding: 12px; display: flex; flex-direction: column; gap: 9px;">
       <div style="display: flex; justify-content: space-between; align-items: center;">
         <div style="display: flex; align-items: baseline; gap: 9px;">
-          <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #5A6673;">19:45</div>
+          <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #738393;">19:45</div>
           <div style="font-size: 11px; letter-spacing: 0.08em; color: #E6EDF3;">POST-TRAINING</div>
         </div>
-        <div style="font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #5A6673;">690 kcal</div>
+        <div style="font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #738393;">690 kcal</div>
       </div>
-      <div style="font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #5A6673; line-height: 1.6;">Chicken breast 180 g <span style="color: #3C464F;">cooked</span> · Potato 300 g <span style="color: #3C464F;">cooked</span> · Okra 150 g</div>
+      <div style="font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #738393; line-height: 1.6;">Chicken breast 180 g <span style="color: #738393;">cooked</span> · Potato 300 g <span style="color: #738393;">cooked</span> · Okra 150 g</div>
       <div style="display: flex; gap: 6px;">
         <div style="flex-grow: 1; height: 44px; display: flex; align-items: center; justify-content: center; border: 1px solid #2A3440; border-radius: 2px;">
           <div style="font-size: 10px; letter-spacing: 0.08em; color: #A8B4C0;">AS PLANNED</div>
@@ -65,12 +72,12 @@
     <div style="border: 1px solid #232B32; border-radius: 2px; padding: 12px; display: flex; flex-direction: column; gap: 9px;">
       <div style="display: flex; justify-content: space-between; align-items: center;">
         <div style="display: flex; align-items: baseline; gap: 9px;">
-          <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #5A6673;">21:30</div>
+          <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #738393;">21:30</div>
           <div style="font-size: 11px; letter-spacing: 0.08em; color: #E6EDF3;">EVENING</div>
         </div>
-        <div style="font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #5A6673;">310 kcal</div>
+        <div style="font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #738393;">310 kcal</div>
       </div>
-      <div style="font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #5A6673; line-height: 1.6;">Greek yogurt 200 g · Almonds 20 g</div>
+      <div style="font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #738393; line-height: 1.6;">Greek yogurt 200 g · Almonds 20 g</div>
       <div style="display: flex; gap: 6px;">
         <div style="flex-grow: 1; height: 44px; display: flex; align-items: center; justify-content: center; border: 1px solid #2A3440; border-radius: 2px;">
           <div style="font-size: 10px; letter-spacing: 0.08em; color: #A8B4C0;">AS PLANNED</div>
@@ -89,26 +96,26 @@
   <!-- what it does to the day -->
   <div style="padding: 20px 16px 0 16px;">
     <div style="border: 1px solid #1A2026; border-radius: 2px; padding: 13px; display: flex; flex-direction: column; gap: 11px;">
-      <div style="font-size: 9px; letter-spacing: 0.12em; color: #4A5560;">IF CONFIRMED</div>
+      <div style="font-size: 9px; letter-spacing: 0.12em; color: #738393;">IF CONFIRMED</div>
       <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;">
         <div style="display: flex; flex-direction: column; gap: 4px;">
           <div style="display: flex; align-items: baseline; gap: 7px;">
             <div style="font-family: 'JetBrains Mono', monospace; font-size: 19px; font-weight: 500; color: #E6EDF3;">2,480</div>
-            <div style="font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #5A6673;">/ 2,500</div>
+            <div style="font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #738393;">/ 2,500</div>
           </div>
-          <div style="font-size: 9px; letter-spacing: 0.08em; color: #4A5560;">KCAL</div>
+          <div style="font-size: 9px; letter-spacing: 0.08em; color: #738393;">KCAL</div>
         </div>
         <div style="display: flex; flex-direction: column; gap: 4px;">
           <div style="display: flex; align-items: baseline; gap: 7px;">
             <div style="font-family: 'JetBrains Mono', monospace; font-size: 19px; font-weight: 500; color: #E6EDF3;">182</div>
-            <div style="font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #5A6673;">/ 180</div>
+            <div style="font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #738393;">/ 180</div>
           </div>
-          <div style="font-size: 9px; letter-spacing: 0.08em; color: #4A5560;">PROTEIN</div>
+          <div style="font-size: 9px; letter-spacing: 0.08em; color: #738393;">PROTEIN</div>
         </div>
       </div>
       <div style="height: 1px; background: #1A2026;"></div>
       <div style="display: flex; align-items: center; justify-content: space-between;">
-        <div style="font-size: 10px; color: #5A6673;">Complete days this phase</div>
+        <div style="font-size: 10px; color: #738393;">Complete days this phase</div>
         <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #A8B4C0;">11 → 12</div>
       </div>
     </div>
@@ -121,7 +128,7 @@
       <div style="font-size: 13px; font-weight: 600; letter-spacing: 0.1em; color: #3FB6D4;">CONFIRM ALL AS PLANNED</div>
     </div>
     <div style="height: 46px; display: flex; align-items: center; justify-content: center; border: 1px solid #1A2026; border-radius: 2px;">
-      <div style="font-size: 11px; letter-spacing: 0.08em; color: #5A6673;">LEAVE DAY INCOMPLETE</div>
+      <div style="font-size: 11px; letter-spacing: 0.08em; color: #738393;">LEAVE DAY INCOMPLETE</div>
     </div>
   </div>
 

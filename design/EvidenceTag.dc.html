@@ -1,0 +1,73 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap">
+  <style>
+    body { margin: 0; }
+    a { color: #3FB6D4; }
+    a:active { color: #6FCDE3; }
+  </style>
+</helmet>
+
+<div style="position: relative; width: 390px; height: 340px; box-sizing: border-box; background: #0B0D0F; overflow: hidden; font-family: 'IBM Plex Sans', system-ui, sans-serif; padding: 18px 16px;">
+  <!-- evidence tag: one component, three strengths (10 §7.1). The dashed square is the 44 × 44 hit area, a guide only, never drawn in the app -->
+  <div style="font-size: 11px; font-weight: 600; letter-spacing: 0.12em; color: #E6EDF3;">EVIDENCE TAG</div>
+  <div style="font-size: 10px; line-height: 1.55; color: #738393; padding-top: 6px;">13px tall. The strength word is always printed. Every tag opens its sources sheet.</div>
+  <div style="padding-top: 8px;">
+    <div style="display: grid; grid-template-columns: 150px 1fr; gap: 12px; align-items: center; padding: 14px 0; border-bottom: 1px solid #14191E;">
+      <div style="position: relative; height: 44px; display: flex; align-items: center;">
+        <div style="position: relative;">
+        <div style="position: absolute; left: 0; right: 0; top: -14.5px; bottom: -14.5px; min-width: 44px; box-sizing: border-box; border: 1px dashed #2A3440;"></div><div style="display: inline-flex; align-items: center; gap: 5px; border: 1px solid #2E4A40; border-radius: 2px; padding: 2px 6px;">
+          <div style="font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #57C99A;">PROTEIN 1.6 g/kg</div>
+          <div style="width: 1px; height: 9px; background: #2E4A40;"></div>
+          <div style="font-size: 9px; letter-spacing: 0.06em; color: #57C99A;">STRONG</div>
+        </div></div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 3px;">
+        <div style="font-size: 9px; letter-spacing: 0.1em; color: #738393;">STRONG</div>
+        <div style="font-size: 10px; line-height: 1.55; color: #A8B4C0;">Multiple controlled trials or a meta-analysis agree</div>
+      </div>
+    </div>
+    <div style="display: grid; grid-template-columns: 150px 1fr; gap: 12px; align-items: center; padding: 14px 0; border-bottom: 1px solid #14191E;">
+      <div style="position: relative; height: 44px; display: flex; align-items: center;">
+        <div style="position: relative;">
+        <div style="position: absolute; left: 0; right: 0; top: -14.5px; bottom: -14.5px; min-width: 44px; box-sizing: border-box; border: 1px dashed #2A3440;"></div><div style="display: inline-flex; align-items: center; gap: 5px; border: 1px solid #4A3A1C; border-radius: 2px; padding: 2px 6px;">
+          <div style="font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #E0A83C;">CARBS ↑</div>
+          <div style="width: 1px; height: 9px; background: #4A3A1C;"></div>
+          <div style="font-size: 9px; letter-spacing: 0.06em; color: #947B45;">MODERATE</div>
+        </div></div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 3px;">
+        <div style="font-size: 9px; letter-spacing: 0.1em; color: #738393;">MODERATE</div>
+        <div style="font-size: 10px; line-height: 1.55; color: #A8B4C0;">Mixed or limited evidence</div>
+      </div>
+    </div>
+    <div style="display: grid; grid-template-columns: 150px 1fr; gap: 12px; align-items: center; padding: 14px 0; border-bottom: 1px solid #14191E;">
+      <div style="position: relative; height: 44px; display: flex; align-items: center;">
+        <div style="position: relative;">
+        <div style="position: absolute; left: 0; right: 0; top: -14.5px; bottom: -14.5px; min-width: 44px; box-sizing: border-box; border: 1px dashed #2A3440;"></div><div style="display: inline-flex; align-items: center; gap: 5px; border: 1px solid #2A3440; border-radius: 2px; padding: 2px 6px;">
+          <div style="font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #8A96A3;">REFEED DAYS</div>
+          <div style="width: 1px; height: 9px; background: #2A3440;"></div>
+          <div style="font-size: 9px; letter-spacing: 0.06em; color: #738393;">CONTESTED</div>
+        </div></div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 3px;">
+        <div style="font-size: 9px; letter-spacing: 0.1em; color: #738393;">CONTESTED</div>
+        <div style="font-size: 10px; line-height: 1.55; color: #A8B4C0;">Commonly believed, not supported</div>
+      </div>
+    </div>
+  </div>
+  <div style="display: flex; align-items: center; gap: 8px; padding-top: 14px;">
+    <div style="width: 14px; height: 14px; box-sizing: border-box; border: 1px dashed #2A3440;"></div>
+    <div style="font-size: 10px; color: #738393;">Hit area: 44px tall, at least 44px wide, expanded around the tag</div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

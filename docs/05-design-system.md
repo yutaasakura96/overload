@@ -1,7 +1,8 @@
 # 05 — Design System
 
 **Direction:** Instrument (picked 2026-09-16 — see `docs/06-decision-log.md`).
-**Extracted from:** the six `.dc.html` artboards in `design/`, 2026-09-16.
+**Extracted from:** the six `.dc.html` artboards in `design/`, 2026-09-16. Updated 2026-09-22 from the
+scoped design pass (review 2b): the artboards now carry these tokens, and seven state artboards were added.
 
 Every value here was lifted from the artboard source. Nothing is rounded to a 4/8px grid and nothing
 is invented. Where a value appears once, or where two artboards disagree, that is recorded rather
@@ -20,12 +21,13 @@ lists four text tones where the files use six, omits two colours, and gives one 
 | Token | Hex | Where it is used |
 | --- | --- | --- |
 | `surface/ground` | `#0B0D0F` | Body background of all six screens. |
-| `surface/raised` | `#12161A` | Rest bar only (screen 1). The system's only raised surface. |
+| `surface/raised` | `#12161A` | Rest bar (screen 1) and the sheet (§4.16). The system's only raised surface. |
 | `surface/active` | `#0F171B` | Active set card (1), active meal card (3), maintenance check (6). |
 | `surface/accent` | `#10262E` | Fill behind every accent control: COMPLETE SET, SKIP, active span, active tab, EATEN AS PLANNED, CONFIRM ALL, APPLY TO TARGETS. |
 | `surface/done` | `#15241E` | Completed set check cell (1), completed prep row check cell (5). |
 | `surface/flag` | `#15110A` | Warning panel (4). |
-| `surface/error` | `#170B0C` | Fill behind a refused item. Added 2026-09-22 (§1.4). |
+| `surface/error` | `#170B0C` | Fill behind a refused item: the refused set row and the refused slot (1). Added 2026-09-22 (§1.4). |
+| `scrim` | `rgba(11, 13, 15, 0.72)` | `surface/ground` at 72%, behind a sheet. Added 2026-09-22 (review 2b). |
 
 ### 1.2 Lines
 
@@ -66,7 +68,7 @@ so do not rely on those two tones alone to separate adjacent items.
 | `accent` | `#3FB6D4` | 8.21:1 | The one accent. Active state, primary action, the e1RM and trend line, the "now" marker on the timeline. |
 | `accent/pressed` | `#6FCDE3` | 10.68:1 | The label and border colour of an accent control while it is pressed. 8.6:1 on `surface/accent`. Renamed from `accent/hover` 2026-09-22: the app runs from the iPhone home screen and has no hover. Pressed motion and timing belong to the polish gate. |
 | `done` | `#57C99A` | 9.48:1 | Completed, confirmed, on-target. Check marks, macro meter fills, the synced dot, positive deltas. |
-| `flag` | `#E0A83C` | 9.12:1 | Needs attention, not an error. Pending count, unconfirmed count, `CARBS ↑`. The weight-trend overlay has the same hex but uses its own token, `series/weight` (§1.6). |
+| `flag` | `#E0A83C` | 9.12:1 | Needs attention, not an error. Pending count, unconfirmed count, `CARBS ↑`. Also the low-logging line on screen 6. The weight-trend overlay has the same hex but uses its own token, `series/weight` (§1.6). |
 | `flag/dim` | `#947B45` | 4.80:1 | One use: the strength label in the evidence tag (3), at 9px. Raised from `#8A7340` 2026-09-22; 4.64:1 on `surface/flag`. |
 | `error` | `#F2555A` | 5.77:1 | **The server refused the data**, and nothing else: a refused set, a rejected save, revoked access. Added 2026-09-22; 5.71:1 on `surface/error`. |
 
@@ -171,13 +173,13 @@ Every size present in the six screens, with its use.
 | 10 | Mono | Timestamps, metadata, food-list strings, unit suffixes. |
 | 11 | Sans | App-bar titles, card titles, control labels, overlay chip labels. |
 | 11 | Mono | "Last time" values, meter values, chip figures, span labels. |
-| 12 | Sans | Up-next names, grocery item names, "Implied maintenance". |
+| 12 | Sans | Up-next names, grocery item names, citation titles on the sources sheet. |
 | 12 | Mono | `+30s`, grocery quantities, per-food grams in a list. |
 | 13 | Sans | `CONFIRM ALL AS PLANNED`, prep food names. |
-| 13 | Mono | Set number, RIR, the `+11.3` delta, the `−0.42` rate. |
+| 13 | Mono | Set number, RIR, the `+11.3` delta, the `−0.42` rate, expanded warm-up figures (1). |
 | 14 | Sans | `COMPLETE SET`. |
 | 14 | Mono | `kg` unit beside a 42px figure. |
-| 15 | Sans | Exercise name (1), "meals unconfirmed" (4). |
+| 15 | Sans | Exercise name (1), "meals unconfirmed" (4), the claim on the sources sheet. |
 | 15 | Mono | Prep raw/cooked gram figures (5). |
 | 17 | Mono | **Working-set kg and reps (1). The app's standard figure size.** |
 | 19 | Mono | If-confirmed kcal and protein (4). |
@@ -278,7 +280,7 @@ The rule is 44px minimum. It holds across the six screens. The one drawn excepti
 
 | Height | Controls |
 | --- | --- |
-| 44 | Set check cell (46 × 44), prep check cell (44 × 44), span selector, tabs, `EATEN AS PLANNED`, `ADJUST` (62 wide), `REPL` (78 wide) |
+| 44 | Set check cell (46 × 44), prep check cell (44 × 44), span selector, tabs, `EATEN AS PLANNED`, `ADJUST` (62 wide), `REPL` (78 wide), the warm-up summary row (full width), `EDIT` (62) and `DISCARD` (78) on a refused set, `CLOSE` and each citation row on the sources sheet, the evidence tag's hit area |
 | 46 | Overlay chips, `+30s` (min-width 62), `SKIP` (min-width 72), `LEAVE DAY INCOMPLETE` |
 | 52 | `APPLY TO TARGETS` |
 | 60 | `CONFIRM ALL AS PLANNED` |
@@ -294,7 +296,8 @@ they are not interactive.
 The vertical rhythm is bespoke — it is not a 4px or 8px grid, and the extraction confirms this
 rather than contradicting it.
 
-- **App bar padding:** `18px 16px 13px 16px` on screens 3–6, `18px 16px 14px 16px` on 1 and 2.
+- **App bar padding:** `18px 16px 13px 16px` on screens 3–6, `18px 16px 14px 16px` on 1 and 2. Screens 1
+  and 4 carry a subline under the title, so their bars are about 14px taller.
 - **Section top padding:** 14, 16, 18, 20 or 22px depending on the weight of the break.
 - **Card interior padding:** 10–14px. Resting cards `10px 11px`; active cards `11px 12px` to `14px`.
 - **Table row padding:** `9px 16px` (1), `11px 16px` (5).
@@ -311,14 +314,22 @@ Treat the recurring values — 16px gutter, 9px and 11px row padding, 6–9px in
 
 ### 4.1 App bar
 Flex row, `18px 16px 13–14px 16px`, bottom border `line/hairline`. Left: title, 11px sans / 600 /
-`0.12em` / `text/primary`, uppercase. Right: one of — a mono metadata string at 10px
-`text/quaternary`, an accent string at 10px (`TRAINING 18:30`), a status chip, or a status dot plus
-string. Screen 2 replaces the title block with a back chevron plus a 12px / `0.1em` title.
+`0.12em` / `text/primary`, uppercase, optionally over a subline in 11px mono `text/quaternary` at
+`0.02em` with a 3px gap (elapsed time on 1, date and time on 4). Screen 2 replaces the title block with
+a back chevron plus a 12px / `0.1em` title. **Right: always the data-state slot (§4.2), on every screen.**
+Nothing else goes there; metadata that used to (`TRAINING 18:30`, `7 DAYS`) was dropped as a duplicate or
+moved to the subline (2026-09-22, review 2b).
 
-### 4.2 Status chip
-`7px 9px` padding, 1px `line/field`, radius 2. A 6px `50%` dot in the state colour, 7px gap, then a
-10px mono label at `0.08em` in `text/secondary`. Used for the offline pending count. The synced
-indicator on screen 6 is the same idea without the border: a 5px `done` dot plus a 10px mono string.
+### 4.2 Data-state slot
+One condition at a time, in the priority order of `docs/10` §7.4. Three drawn forms:
+
+| Form | Box | Marker | Label |
+| --- | --- | --- | --- |
+| Refused | `7px 9px`, 1px `line/error`, `surface/error` fill, radius 2 | 12px info icon in `error`, 6px gap | `1 REFUSED`, 10px mono `0.08em` `error` |
+| Pending | `7px 9px`, 1px `line/field`, radius 2 | 6px `flag` dot, 7px gap | `3 PENDING`, 10px mono `0.08em` `text/secondary` |
+| Resting (last sync) | none | 5px `done` dot, 6px gap | `SYNCED 06:41`, 10px mono `text/quaternary` |
+
+Cached data age uses the resting form with its own string. It is not drawn.
 
 ### 4.3 Section label
 9px sans, `0.12em`, `text/quaternary`, uppercase. Sits 8–10px above its content. This is the only
@@ -385,11 +396,18 @@ width.
 1px-ringed disc in `accent` (active) or `line/field` (future), and a 9px **square** in `accent` for
 the training block — the only non-round marker.
 
-### 4.12 Evidence tag — partial
-As drawn on screen 3: 1px `line/flag`, radius 2, padding `2px 6px`, containing a 9px mono claim in
-`flag` (`CARBS ↑`), a 1px × 9px `line/flag` divider, and a 9px sans strength label at `0.06em` in
-`flag/dim` (8px as drawn; raised 2026-09-22). Only the moderate state is drawn. Strong (`done`), contested (`text/tertiary` on
-`line/field`) and the 44 × 44 route to a sources sheet were decided 2026-09-22 — see `docs/10` §7.1.
+### 4.12 Evidence tag
+1px border, radius 2, padding `2px 6px`: a 9px mono claim, a 1px × 9px divider in the border colour, and
+a 9px sans strength label at `0.06em`. 13px tall. The colour pair varies by strength:
+
+| Strength | Claim | Border and divider | Strength label |
+| --- | --- | --- | --- |
+| Strong | `done` | `line/done` | `done` |
+| Moderate | `flag` | `line/flag` | `flag/dim` |
+| Contested | `text/tertiary` | `line/field` | `text/quaternary` |
+
+Every tag opens the sources sheet (§4.16). Its hit area is 44px tall and at least 44px wide, expanded
+into the space around it, so the row keeps its height. All three are drawn on the `EvidenceTag` board.
 
 ### 4.13 Overlay chip
 46px tall, `0 12px`, 9px gap, radius 2. A 14 × 2px swatch, then an 11px `0.06em` label.
@@ -408,6 +426,20 @@ Absolutely positioned at `bottom: 18px`, 12px padding above a `line/hairline` to
 10px sans statement on the left and a 10px mono formula or metadata string on the right in
 `text/quaternary`. Used for the Epley formula (2) and the phase/week footer (6).
 
+### 4.16 Sheet
+Pinned to the bottom edge over a full-screen `scrim`. `surface/raised` fill, 1px `line/border` top edge,
+radius `2px 2px 0 0`, padding `6px 16px 30px`, 14px gap. The first row is a 9px section label on the left
+and `CLOSE` on the right, 11px `0.08em` `text/tertiary` in a 44px target with no border. There is no
+drag handle and no shadow. One use so far: the sources sheet (`docs/10` §7.1). `text/quaternary` on
+`surface/raised` is 4.67:1, so the whole text ladder works on it.
+
+### 4.17 Refused set row
+The set row keeps its figures in their usual tones, on a `surface/error` band with 1px `line/error` top
+and bottom. The check cell becomes a 46 × 44 cell with a `line/error` border and a 15px info icon in
+`error`. A second row, indented to the LAST column, holds `REFUSED` (9px `0.1em` `error`) over the
+reason (10px `text/secondary`), and on the right `EDIT` (secondary, 62 × 44) and `DISCARD` (tertiary,
+78 × 44). The word, the icon and the reason are always present, so red is never the only cue.
+
 ---
 
 ## 5. Charts
@@ -417,26 +449,31 @@ Two chart types exist, both authored as inline SVG at 358px wide.
 | Property | e1RM (2) | Weight trend (6) |
 | --- | --- | --- |
 | Canvas | 358 × 192 | 358 × 186 |
-| Plot x-range | 14 → 344 | 14 → 344 |
+| Plot x-range | 24 → 290, then a 64px gutter for end labels | 14 → 344 |
 | Baseline | y = 160, `line/border` | y = 160, `line/border` |
 | Gridlines | y = 26.7 / 76.7 / 126.7, `line/hairline` | y = 31.5 / 85.4 / 139.2, `line/hairline` |
 | Scale | 50px per 6 kg | 53.85px per 1.0 kg |
-| Value labels | right-anchored at x=356, 9px mono `text/quaternary` | same |
-| Date labels | y = 178, 9px mono `text/quaternary`; start left-anchored, end right-anchored | same |
+| Value labels | left edge, x=0, baseline 4px above each gridline, 9px mono `text/quaternary` | same (moved from x=356 on 2026-09-22; the right-anchored `82.0` sat on a weigh-in disc) |
+| Date labels | y = 178, 9px mono `text/quaternary`; start left-anchored at the plot's start, end right-anchored at its end | same |
 | Primary series | `accent`, 2px polyline, round caps | `accent`, 2px polyline, 7 smoothed points |
 | Data points | r=2.5 rings, 1.5px `accent` stroke on `surface/ground` fill | r=2 discs in `line/control` (daily weights); a fallback daily weight is an r=2 ring, 1.5px `line/control` stroke |
 | Latest point | r=3.5 solid `accent` | r=3.5 solid `accent` |
-| Overlay series | `series/*` (§1.6), 1.5px, each with its own dash pattern, opacity 0.75. As drawn: weight only, `3 3` | — |
+| Overlay series | `series/*` (§1.6), 1.5px, each with its own dash pattern, opacity 0.75, named by an end label | — |
 
 Conventions that carry to any new chart: the primary series is solid `accent` at 2px; overlays are
 dashed at 1.5px in their own colour at 0.75 opacity, each with its own dash pattern; raw observations are inert `line/control` discs
 and the derived line is `accent`; the most recent point is always solid and larger.
 
-**Overlay end label** (added 2026-09-22, not yet drawn). Each overlay that is on is named at the
-right end of its line: 9px mono, in the series colour at full opacity, holding the series name and
-its latest value (`HRV 48`). This label, not the colour, is what identifies the line. Placement and
-collision handling (labels closer than 11px, and the y-axis value labels at x=356) are left to the
-scoped design pass.
+**Overlay end label** (decided 2026-09-22, drawn in review 2b). Each overlay that is on is named in the
+right gutter: 9px mono, in the series colour at full opacity, left-anchored at x=297, holding the series
+name and its latest value in at most 11 characters (`WEIGHT 82.4`, `INTAKE 2450`, `SLEEP 7.2`, `HRV 48`;
+no units). This label, not the colour, is what identifies the line. The e1RM line has no end label,
+because the headline names it.
+
+**Collisions.** Labels sit at the y of their line's last point. Where two are closer than 11px they are
+pushed apart as a group, keeping their order by value, spaced exactly 11px and centred on the group's
+mean y. A pushed label gets a 1px leader in its series colour from (291, line end) to (295, label).
+With all four on, the drawn case moves labels by at most 6.25px.
 
 A legend appears only where raw and derived data are both plotted (6): 14 × 2px swatch or 5px dot,
 7px gap, 10px sans in `text/quaternary`, 18px between entries.
@@ -453,9 +490,9 @@ to match the adjacent label.
 | Check | `M4 12.5 9.5 18 20 6.5` | 12–13px @3, 15px @2.5, 17px @2.5, 20–22px @2.5 |
 | Back chevron | `M15 5 8 12l7 7` | 18px @2 |
 | Swap | `M3 8h13l-3.5-3.5M21 16H8l3.5 3.5` | 13px @2 |
-| Info | `M12 8v5M12 17h.01` + `circle cx=12 cy=12 r=9` | 14px @2 |
+| Info | `M12 8v5M12 17h.01` + `circle cx=12 cy=12 r=9` | 12px @2 (refused slot), 14px @2, 15px @2 (refused check cell) |
 
-Four icons total across six screens. The density comes from type and rule, not from iconography;
+Four icons total across the six screens and their states. The density comes from type and rule, not from iconography;
 adding a fifth icon should need a reason.
 
 ---
@@ -492,6 +529,7 @@ Names for implementation. Values are exactly as extracted.
 --surface-done:     #15241E;
 --surface-flag:     #15110A;
 --surface-error:    #170B0C;
+--scrim:            rgba(11, 13, 15, 0.72);
 
 --line-row:         #14191E;
 --line-hairline:    #1A2026;

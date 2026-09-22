@@ -1,17 +1,154 @@
 {
   "pages": [
-    { "id": "page-1", "name": "Screens" },
-    { "id": "page-2", "name": "Directions (rejected)" }
+    {
+      "id": "page-1",
+      "name": "Screens"
+    },
+    {
+      "id": "page-3",
+      "name": "States (review 2b)"
+    },
+    {
+      "id": "page-2",
+      "name": "Directions (rejected)"
+    }
   ],
   "artboards": [
-    { "file": "Main.dc.html", "title": "1 · Live session", "page": "page-1", "x": 0, "y": 0, "w": 390, "h": 844 },
-    { "file": "Progress.dc.html", "title": "2 · Exercise progress", "page": "page-1", "x": 470, "y": 0, "w": 390, "h": 844 },
-    { "file": "MealPlan.dc.html", "title": "3 · Today's meal plan", "page": "page-1", "x": 940, "y": 0, "w": 390, "h": 844 },
-    { "file": "EndOfDay.dc.html", "title": "4 · End-of-day check", "page": "page-1", "x": 0, "y": 980, "w": 390, "h": 844 },
-    { "file": "PrepList.dc.html", "title": "5 · Prep + grocery", "page": "page-1", "x": 470, "y": 980, "w": 390, "h": 844 },
-    { "file": "WeightTrend.dc.html", "title": "6 · Weight + maintenance", "page": "page-1", "x": 940, "y": 980, "w": 390, "h": 844 },
-    { "file": "Heavy.dc.html", "title": "Heavy — rejected", "page": "page-2", "x": 0, "y": 0, "w": 868, "h": 1000 },
-    { "file": "Quiet.dc.html", "title": "Quiet — rejected", "page": "page-2", "x": 948, "y": 0, "w": 868, "h": 1000 }
+    {
+      "file": "Main.dc.html",
+      "title": "1 · Live workout",
+      "page": "page-1",
+      "x": 0,
+      "y": 0,
+      "w": 390,
+      "h": 844
+    },
+    {
+      "file": "Progress.dc.html",
+      "title": "2 · Exercise progress",
+      "page": "page-1",
+      "x": 470,
+      "y": 0,
+      "w": 390,
+      "h": 844
+    },
+    {
+      "file": "MealPlan.dc.html",
+      "title": "3 · Today's meal plan",
+      "page": "page-1",
+      "x": 940,
+      "y": 0,
+      "w": 390,
+      "h": 844
+    },
+    {
+      "file": "EndOfDay.dc.html",
+      "title": "4 · End-of-day check",
+      "page": "page-1",
+      "x": 0,
+      "y": 980,
+      "w": 390,
+      "h": 844
+    },
+    {
+      "file": "PrepList.dc.html",
+      "title": "5 · Prep + grocery",
+      "page": "page-1",
+      "x": 470,
+      "y": 980,
+      "w": 390,
+      "h": 844
+    },
+    {
+      "file": "WeightTrend.dc.html",
+      "title": "6 · Weight + maintenance",
+      "page": "page-1",
+      "x": 940,
+      "y": 980,
+      "w": 390,
+      "h": 844
+    },
+    {
+      "file": "Main-Warmups.dc.html",
+      "title": "1 · Warm-ups expanded",
+      "page": "page-3",
+      "x": 0,
+      "y": 0,
+      "w": 390,
+      "h": 844
+    },
+    {
+      "file": "Main-Refused.dc.html",
+      "title": "1 · Refused set",
+      "page": "page-3",
+      "x": 470,
+      "y": 0,
+      "w": 390,
+      "h": 844
+    },
+    {
+      "file": "Progress-Overlays.dc.html",
+      "title": "2 · Four overlays, end labels",
+      "page": "page-3",
+      "x": 940,
+      "y": 0,
+      "w": 390,
+      "h": 844
+    },
+    {
+      "file": "MealPlan-Sources.dc.html",
+      "title": "3 · Sources sheet",
+      "page": "page-3",
+      "x": 1410,
+      "y": 0,
+      "w": 390,
+      "h": 844
+    },
+    {
+      "file": "WeightTrend-Countdown.dc.html",
+      "title": "6 · Under 14 complete days",
+      "page": "page-3",
+      "x": 1880,
+      "y": 0,
+      "w": 390,
+      "h": 844
+    },
+    {
+      "file": "WeightTrend-LowLogging.dc.html",
+      "title": "6 · Low logging, fallback weights",
+      "page": "page-3",
+      "x": 2350,
+      "y": 0,
+      "w": 390,
+      "h": 844
+    },
+    {
+      "file": "EvidenceTag.dc.html",
+      "title": "Evidence tag · three strengths",
+      "page": "page-3",
+      "x": 0,
+      "y": 980,
+      "w": 390,
+      "h": 340
+    },
+    {
+      "file": "Heavy.dc.html",
+      "title": "Heavy — rejected",
+      "page": "page-2",
+      "x": 0,
+      "y": 0,
+      "w": 868,
+      "h": 1000
+    },
+    {
+      "file": "Quiet.dc.html",
+      "title": "Quiet — rejected",
+      "page": "page-2",
+      "x": 948,
+      "y": 0,
+      "w": 868,
+      "h": 1000
+    }
   ],
   "annotations": [
     {
@@ -28,7 +165,7 @@
       "x": 1420,
       "y": 0,
       "w": 400,
-      "text": "THE SYSTEM\n\nGround #0B0D0F · panel #12161A · active panel #0F171B\nHairline #1A2026 · border #232B32 · field border #2A3440\nText #E6EDF3 · dim #A8B4C0 · faint #5A6673 · faintest #3C464F\nAccent #3FB6D4 on #10262E, border #234A57\nDone #57C99A on #15241E, border #2E4A40\nFlag #E0A83C, border #4A3A1C\n\nJetBrains Mono for every figure. IBM Plex Sans for labels, small caps at 9-11px with 0.08-0.12em tracking.\nRadius 2px throughout. Every control at least 44px.\n\nThe one answer to Instrument's cost above: on screen 1 the live set is 56px, because that is the number read at arm's length mid-set. Everything else stays at 17-18px."
+      "text": "THE SYSTEM\n\nSuperseded. The tokens here are the 2026-09-16 originals; three tones failed WCAG AA and were raised on 2026-09-22. The source of truth is docs/05-design-system.md.\n\nJetBrains Mono for every figure. IBM Plex Sans for labels. Radius 2px throughout. Every control at least 44px. The live set on screen 1 is 56px; everything else stays at 17-18px."
     },
     {
       "id": "note-open",
@@ -36,7 +173,7 @@
       "x": 1420,
       "y": 560,
       "w": 400,
-      "text": "STILL OPEN — settle in Phase 3 or the build\n\n1. The evidence tag. Screen 3 draws the carb-shift recommendation as CARBS ↑ + MODERATE. S23's plateau protocols need the same component with strong / moderate / contested, and a way to reach the source. One component, three states — spec it once.\n\n2. Warm-up sets are collapsed to a summary row on screen 1 to buy vertical space. Expanding them is undesigned.\n\n3. Screens 3, 5 and 6 scroll in reality; these artboards are one viewport each. Scroll behaviour and sticky headers are undesigned.\n\n4. The offline pending count appears only on screen 1. Where it lives on the other five is undecided."
+      "text": "WAS OPEN, NOW DECIDED (review 2026-09-22)\n\n1. Evidence tag: three strengths, every tag opens a sources sheet. See the States page and docs/10 §7.1.\n\n2. Warm-ups expand in place as compact 13px rows. docs/10 §7.2.\n\n3. Scroll and sticky: still open, decided per screen in M2. docs/10 §7.3.\n\n4. The data-state slot is in every app bar. docs/10 §7.4."
     },
     {
       "id": "note-heavy",
@@ -69,7 +206,18 @@
       "y": 440,
       "w": 380,
       "text": "Resolved 16 Sep: Instrument. Full reasoning, including what was given up, is in docs/06-decision-log.md.\n\nThese two are kept as the record of the exploration, not as live options."
+    },
+    {
+      "id": "note-states",
+      "page": "page-3",
+      "x": 0,
+      "y": -200,
+      "w": 420,
+      "text": "STATES — review 2b, 2026-09-22\n\nThe states docs/10 said needed drawing. The six screens on page 1 are the resting state; these are the exceptions. Decisions are in docs/06 (2026-09-22) and specs in docs/10."
     }
   ],
-  "launch": { "view": "canvas", "page": "page-1" }
+  "launch": {
+    "view": "canvas",
+    "page": "page-1"
+  }
 }

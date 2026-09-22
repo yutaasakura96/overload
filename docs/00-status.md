@@ -20,11 +20,11 @@ one if a later fix changes it. `06` is the reference for every group, not a grou
 - [x] 2. `05` design system + `10` screens — 2026-09-22, nine findings: contrast, `error`, `series/*`
   overlays, `workout` wording, data-state slot priority, screen 6 vs S18a, four deviations,
   evidence tag, warm-up/sticky placement (`06` entries of that date)
-- [ ] 2b. **Next: one scoped design pass** (agreed 2026-09-22 — group 2 is now ticked). The scope is to bring the six `.dc.html` files up to the new tokens and to draw the states
-  `10` says need a design pass: the refused state, the data-state slot, the three evidence-tag strengths and the sources sheet,
-  the warm-up expand, the four overlays with their end labels (placement and collisions), and
-  screen 6's four new states (`10` §6). This is not a new direction and not the §8 screens. Re-extract the deltas into `05`/`10`.
-- [ ] 3. `03` technical design
+- [x] 2b. Scoped design pass — 2026-09-22. Six artboards on the new tokens, seven state artboards
+  (refused set, warm-ups, four overlays, sources sheet, evidence tags, screen 6 countdown and low logging),
+  `05`/`10` re-extracted, canvas republished (v5). Three decisions: warm-ups in place, slot owns the app bar's
+  right side, end labels in a right gutter (`06` entry of that date)
+- [ ] 3. **Next:** `03` technical design
 - [ ] 4. `04` schema + `CONTEXT.md`
 - [ ] 5. `07` API + `08` auth
 - [ ] 6. `09` user flows
@@ -92,7 +92,15 @@ sticky are kept open for M2 (see *Reviewed, kept*).
 ### Design files
 `design/` holds `Main.dc.html` (1), `Progress.dc.html` (2), `MealPlan.dc.html` (3), `EndOfDay.dc.html` (4), `PrepList.dc.html` (5), `WeightTrend.dc.html` (6), plus `Heavy.dc.html` / `Quiet.dc.html` (rejected) and `canvas.json`. The seeded `overload.html` is generated and gitignored — reseed it rather than expecting it in a fresh clone.
 
-To change the canvas: edit the `.dc.html` files, re-run `seed-canvas.mjs` from the design skill's base directory, republish `design/overload.html` with `contract: "0.1.31"`, favicon 🏋️, and **no** `capabilities`. If a publish is refused as stale, extract the live version first and merge — it happened once in Phase 2.
+`design/` now also holds the seven state artboards listed in `10` (page *States (review 2b)* in `canvas.json`).
+
+To change the canvas: edit the `.dc.html` files and `canvas.json`. Then `Artifact read` the live canvas.
+Check that its `appifact-doc` files match `git HEAD` (so no canvas-side edits are lost). Replace that JSON
+block's `content.files` with every artboard plus `canvas.json`, `<` escaped as `\u003c`. Strip the
+service's outer wrapper from the saved copy, write it to `design/overload.html`, and republish to the
+same URL with `contract: "0.1.31"`, no `icon` and no `capabilities` (the stored `downloads`/`self` carry
+forward). There is no `seed-canvas.mjs`: the canvas is the Artifact **Design** type, not a skill on
+disk. If a publish is refused as stale, extract the live version first and merge.
 
 ## Skipped
 _(nothing)_

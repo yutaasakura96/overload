@@ -78,9 +78,9 @@
       <circle cx="264.4" cy="115.1" r="2" fill="#55687A"></circle>
       <circle cx="275.7" cy="98.6" r="2" fill="#55687A"></circle>
       <circle cx="287.1" cy="112.1" r="2" fill="#55687A"></circle>
-      <circle cx="298.5" cy="93.6" r="2" fill="#55687A"></circle>
+      <circle cx="298.5" cy="93.6" r="2" fill="#0B0D0F" stroke="#55687A" stroke-width="1.5"></circle>
       <circle cx="309.9" cy="120.1" r="2" fill="#55687A"></circle>
-      <circle cx="321.3" cy="106.6" r="2" fill="#55687A"></circle>
+      <circle cx="321.3" cy="106.6" r="2" fill="#0B0D0F" stroke="#55687A" stroke-width="1.5"></circle>
       <circle cx="332.6" cy="131.1" r="2" fill="#55687A"></circle>
       <circle cx="344" cy="108.7" r="2" fill="#55687A"></circle>
 
@@ -102,6 +102,10 @@
       <div style="width: 5px; height: 5px; border-radius: 50%; background: #55687A;"></div>
       <div style="font-size: 10px; color: #738393;">Morning weigh-in</div>
     </div>
+    <div style="display: flex; align-items: center; gap: 7px;">
+      <div style="width: 5px; height: 5px; border-radius: 50%; box-sizing: border-box; border: 1.5px solid #55687A;"></div>
+      <div style="font-size: 10px; color: #738393;">Not a morning weigh-in</div>
+    </div>
   </div>
 
   <!-- maintenance check -->
@@ -110,7 +114,7 @@
 
       <div style="display: flex; align-items: center; justify-content: space-between;">
         <div style="font-size: 10px; letter-spacing: 0.12em; color: #3FB6D4;">MAINTENANCE CHECK</div>
-        <div style="font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #738393;">LAST 14 DAYS · 12 COMPLETE</div>
+        <div style="font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #738393;">LAST 14 DAYS · 10 COMPLETE</div>
       </div>
 
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
@@ -138,6 +142,11 @@
           <div style="font-family: 'JetBrains Mono', monospace; font-size: 24px; font-weight: 500; color: #3FB6D4;">≈ 2,500</div>
           <div style="font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #738393;">kcal</div>
         </div>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#E0A83C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v5M12 17h.01"></path></svg>
+        <div style="font-size: 11px; color: #E0A83C;">Based on too little recent logging</div>
       </div>
 
       <div style="font-size: 10px; line-height: 1.55; color: #738393;">Read-only. Your targets are unchanged until you apply this.</div>

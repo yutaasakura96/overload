@@ -1378,3 +1378,39 @@ vocabulary. A 44px-tall tag everywhere costs row height on screen 3 for no gain.
 contested: the palette has no room left (see the overlay entry of this date).
 
 **Revisit if:** screen 3 has no 44px of clear space around the tag. Then the design pass makes the row taller.
+
+### [2026-09-22] Phase 6 review, 2b: the scoped design pass — warm-ups, slot layout, end labels, states drawn
+
+**Done.** The six `.dc.html` artboards now carry the 2026-09-22 tokens. The entry above that says they still
+showed the old tones no longer applies. Seven state artboards were added on a new canvas page. `05` and `10` were
+re-extracted from them. The pass edited the repo sources directly (canvas republished from them), not the canvas.
+
+**Decided: warm-ups expand in place as compact rows.** Tapping the 44px summary row opens about 23px rows at
+13px mono `text/tertiary` on the set table's columns, with no check cell. Two warm-ups still fit one viewport.
+Rejected: a bottom sheet (one more thing to dismiss mid-workout); full 17px rows (they look like working sets,
+and about 126px pushes UP NEXT off screen). Closes the "decisions needed" in `10` §7.2.
+
+**Decided: the data-state slot owns the app bar's right side everywhere.** Metadata that sat there was dropped as
+a duplicate (`TRAINING 18:30` on 3, `7 DAYS` on 5) or moved to a subline (the date and time on 4). Rejected: a
+subline on every screen (every bar grows 14px for strings the screen already shows); a dot-only slot (hides the
+resting sync time on 2–5). Closes the "left open" in the 2026-09-22 slot-priority entry.
+
+**Decided: overlay end labels live in a 64px right gutter.** The e1RM plot now ends at x=290, and its value labels
+move to the left edge (screen 6's too, where the right-anchored `82.0` label sat on a weigh-in disc). Labels closer
+than 11px are pushed apart as a group, keeping their value order, with a 1px leader. Rejected: labels inside the plot
+(they collide with the lines); two-line labels (twice the height, so four labels collide more). Costs 16% of the
+plot's width.
+
+**Smaller calls made while drawing**, each recorded in `05` or `10`:
+- A refused row shows `EDIT` and `DISCARD` without a tap, because it exists to be acted on.
+- The countdown header reads `9 OF 14 COMPLETE`, because there is no 14-day window before the gate.
+- The sheet adds one value, `scrim`, `surface/ground` at 72%. `surface/raised` is now used by the rest bar and the sheet.
+- The evidence tag's 44px hit area fits on screen 3 without a taller row (measured, `10` §3).
+- The sources sheet's citations are illustrative until the evidence content is written.
+
+**Correction.** Screen 1's slack is 54px as measured in the browser, not the estimated 66px. After this pass
+the expanded warm-ups leave 6px and the refused state leaves 4px. The screen has no room left for anything
+else without a scroll decision.
+
+**Revisit if:** three-warm-up routines are common. Then the expanded state scrolls every time, and a sheet
+may be the better call.
