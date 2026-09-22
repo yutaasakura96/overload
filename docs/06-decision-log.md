@@ -1235,3 +1235,30 @@ stripping IP and browser from a deleted user's audit rows (only if compliance re
 the user's first 14 complete days wherever they fall (can disagree with S21 about the same fortnight).
 
 **Revisit if:** compliance review before the first invitee wants deleted users' audit rows anonymised.
+
+### [2026-09-22] Phase 6 review, group 2 (design system + screens): contrast raised on information-carrying tones
+
+**Decided.** Only the tones that carry information are raised to WCAG 2.1 AA. `text/quaternary` becomes
+`#738393` (5.00:1 on ground, 4.66 on `surface/active`). `text/micro` and `text/faintest` are merged into it.
+A new `text/placeholder` `#5A6673` (3.32:1) is limited to text of 24px and up, and its one use is the 56px unfilled
+active-set figure. A new `line/control` `#55687A` (3.38:1) covers unlabelled controls (the inert check
+cell) and raw weigh-in discs. `flag/dim` becomes `#947B45` (4.80:1) at 9px, and nothing in the app is set at 8px.
+Supersedes the 2026-09-16 "six text tones, and the contrast cost left on the record" entry.
+
+**Correction.** `05` §1.5 had counted the `line/field` border on labelled buttons as a failure. W3C's *Understanding
+SC 1.4.11* ("Boundaries", checked 2026-09-22) says a control identified by its visible text needs no
+contrasting boundary. `line/field` stays at `#2A3440` and is never the only thing that shows a control exists.
+
+**Why.** Every UI feature would otherwise fail step 2 of the polish gate (`design:accessibility-review`). The
+failing tones were also read in the worst conditions: "last time" at 3.32:1, and pre-filled reps at 2.56:1 that
+are saved on COMPLETE SET, both mid-set in gym light.
+
+**Alternatives considered.** Accept and record the deviation (the gate fails on every feature). A
+user-controlled high-contrast mode (WCAG technique G174 allows it, but it doubles the token sets to test on an
+invite-only app).
+
+**Cost.** The bottom of the ladder is flatter: new quaternary against tertiary is 1.29:1, so rank below
+tertiary is carried by size, case and tracking. Instrument's grammar is unchanged. The `.dc.html` artboards
+still show the old tones, and `05` supersedes them.
+
+**Revisit if:** the flatter ladder makes dense screens (2, 5) hard to scan once built.

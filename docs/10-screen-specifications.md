@@ -32,8 +32,8 @@ about 66px of slack. It must stay that way: the warm-up collapse (§7.2) is what
 | --- | --- | --- |
 | App bar | `18px 16px 14px`, bottom `line/hairline` | Left: routine name (`PUSH A`) 11px/600/`0.12em` over elapsed time 11px mono `text/quaternary`, 3px gap. Right: offline pending chip |
 | Exercise header | `15px 16px 9px`, baseline-aligned row | `Bench Press` 15px/600/`0.06em` uppercase; right: `6–10 · +2.5` 10px mono `text/quaternary` — the rep range and this exercise's increment |
-| Warm-up summary | Inset 16px, `10px 11px`, 1px `line/hairline` | 13px `done` check, `2 WARM-UP SETS` 11px `text/micro`; right: `40 × 10 · 60 × 6` 11px mono `#4A5560` |
-| Column heads | `16px 16px 7px`, then 1px `line/hairline` inset | `SET · LAST · KG · REPS · RIR` 9px/`0.1em` `text/micro`; sixth column unlabelled |
+| Warm-up summary | Inset 16px, `10px 11px`, 1px `line/hairline` | 13px `done` check, `2 WARM-UP SETS` 11px `text/quaternary`; right: `40 × 10 · 60 × 6` 11px mono `text/quaternary` |
+| Column heads | `16px 16px 7px`, then 1px `line/hairline` inset | `SET · LAST · KG · REPS · RIR` 9px/`0.1em` `text/quaternary`; sixth column unlabelled |
 | Completed set rows | `9px 16px`, `line/row` bottom | Set no. 13px mono `text/tertiary`; last time 11px mono `text/quaternary`; kg and reps 17px mono/500 `text/primary`; RIR 13px mono `text/tertiary`; done check cell 46 × 44 |
 | **Active set card** | `14px 16px 0`, 1px `line/accent` + 2px `accent` left edge, `surface/active`, `14px 14px 16px`, 13px gap | See below |
 | Up next | `18px 16px 0`, 8px gap | `UP NEXT` section label; then rows at `13px 12px`, 1px `line/hairline`: name 12px `text/secondary`/`0.03em`, target 11px mono `text/quaternary` |
@@ -43,13 +43,13 @@ about 66px of slack. It must stay that way: the warm-up collapse (§7.2) is what
 
 | Row | Spec |
 | --- | --- |
-| Label row | `SET 3` 10px `0.12em` `accent`; right: `LAST` 9px `text/micro` + `80 × 10` 12px mono `text/tertiary`, 7px gap |
-| Figures | Grid `1fr 88px 62px`, 8px gap, `align-items: end`. Each column: 9px `0.1em` `text/micro` label, 6px gap, then a 56px mono/500/`-0.03em`/0.86 figure |
-| Suggestion | 9px `SUGGESTED` label, 9px gap, then `82.5` 11px mono `accent` in a `4px 7px` box with a 1px `line/accent` border, then the reason in 10px `text/micro` — `hit 10 on every set last time` |
+| Label row | `SET 3` 10px `0.12em` `accent`; right: `LAST` 9px `text/quaternary` + `80 × 10` 12px mono `text/tertiary`, 7px gap |
+| Figures | Grid `1fr 88px 62px`, 8px gap, `align-items: end`. Each column: 9px `0.1em` `text/quaternary` label, 6px gap, then a 56px mono/500/`-0.03em`/0.86 figure |
+| Suggestion | 9px `SUGGESTED` label, 9px gap, then `82.5` 11px mono `accent` in a `4px 7px` box with a 1px `line/accent` border, then the reason in 10px `text/quaternary` — `hit 10 on every set last time` |
 | Actions | 8px gap. `WARM` 52 × 64 secondary; `COMPLETE SET` flex-grow × 64 primary with a 22px check and 11px gap |
 
-**Figure states.** Entered values are `text/primary`. Unentered are the same 56px in `text/micro`
-`#4A5560` — reps shows the suggested rep count as a placeholder, RIR shows `—`. The completion
+**Figure states.** Entered values are `text/primary`. Unentered are the same 56px in `text/placeholder`
+`#5A6673` — reps shows the suggested rep count as a placeholder, RIR shows `—`. The completion
 control is enabled regardless; reps and RIR are pre-filled from the suggestion.
 
 ### States and rules
@@ -76,7 +76,7 @@ Read seated. Four independently toggleable overlays are the reason the whole app
 | Block | Geometry | Content |
 | --- | --- | --- |
 | App bar | `18px 16px 14px`, 12px gap | 30px back chevron (18px icon, `text/tertiary`), then `Bench Press` 12px/600/`0.1em` |
-| Headline | `18px 16px 0`, `align-items: flex-end` | `ESTIMATED 1RM` section label over `110.0` 42px mono/500/`-0.03em`/0.9 + `kg` 14px mono `text/quaternary`. Right, bottom-aligned: `+11.3` 13px mono `done` over `OVER 12W` 9px `0.08em` `text/micro` |
+| Headline | `18px 16px 0`, `align-items: flex-end` | `ESTIMATED 1RM` section label over `110.0` 42px mono/500/`-0.03em`/0.9 + `kg` 14px mono `text/quaternary`. Right, bottom-aligned: `+11.3` 13px mono `done` over `OVER 12W` 9px `0.08em` `text/quaternary` |
 | Span selector | `16px 16px 0`, 5 × 1fr, 5px gap, 44px | `4W · 12W · 6M · 1Y · ALL`. Active segment: `12W` |
 | Chart | `20px 16px 0`, SVG 358 × 192 | See `docs/05` §5 |
 | Secondary stats | `6px 16px 0`, 2 × 1fr, 8px gap | Two `12px`-padded cards, 1px `line/hairline`: `TOP SET` → `82.5` 20px mono + `× 10` 11px; `VOLUME LOAD` → `2,475` 20px mono + `kg` |
@@ -117,7 +117,7 @@ is a gap — §7.3.
 | Time | State | Card |
 | --- | --- | --- |
 | 07:00 | Confirmed | `BREAKFAST` + check and `EATEN` in `done`; foods as one 10px mono string at 1.6 |
-| 11:30 | Active | `LUNCH` + `745 kcal · P 58`; four foods as name/quantity rows at 11px, `cooked` qualifiers in `text/micro`; three actions |
+| 11:30 | Active | `LUNCH` + `745 kcal · P 58`; four foods as name/quantity rows at 11px, `cooked` qualifiers in `text/quaternary`; three actions |
 | 16:30 | Planned | `PRE-TRAINING` + **evidence tag** `CARBS ↑ · MODERATE`; foods as one string |
 | 18:30 | Training | 9px `accent` square marker, `PUSH A` 10px `0.14em` `accent`, 24px tall row |
 | 19:45 | Planned | `POST-TRAINING` + `690 kcal · P 56` |
@@ -181,10 +181,10 @@ preview with `+ 4 more`; a real week has nine grocery items and may have more co
 | --- | --- | --- |
 | App bar | `18px 16px 13px` | `WEEK OF 16 SEP`; right: `7 DAYS` 10px mono `text/quaternary` |
 | Tabs | `14px 16px 0`, 2 × 1fr, 5px gap, 44px | `PREP PLAN` (active, 600) / `GROCERY` |
-| Yield source | Inset 16px, `10px 11px`, 1px `line/hairline` | `Using yields from your last batch` 10px `text/quaternary`; right: `9 SEP` 10px mono `text/micro` |
-| Column heads | `18px 16px 7px`, then 1px `line/hairline` inset | `COOK · RAW · COOKED` 9px `0.1em` `text/micro`; RAW and COOKED right-aligned; fourth column unlabelled |
-| Cook rows | `11px 16px`, grid `1fr 74px 74px 44px`, 8px gap, `line/row` bottom | Name 13px `text/primary` over a 9px mono yield note in `text/micro`; raw 15px mono `text/primary`; cooked 15px mono `text/quaternary`; 44 × 44 check cell |
-| Grocery preview | `22px 16px 0`, 10px gap | `GROCERY LIST` label + `9 ITEMS · RAW` 10px mono `text/faintest`; then a card at `12px` padding, 8px gap: name 12px `text/secondary` / quantity 12px mono `text/tertiary`; `+ 4 more` 11px mono `accent` |
+| Yield source | Inset 16px, `10px 11px`, 1px `line/hairline` | `Using yields from your last batch` 10px `text/quaternary`; right: `9 SEP` 10px mono `text/quaternary` |
+| Column heads | `18px 16px 7px`, then 1px `line/hairline` inset | `COOK · RAW · COOKED` 9px `0.1em` `text/quaternary`; RAW and COOKED right-aligned; fourth column unlabelled |
+| Cook rows | `11px 16px`, grid `1fr 74px 74px 44px`, 8px gap, `line/row` bottom | Name 13px `text/primary` over a 9px mono yield note in `text/quaternary`; raw 15px mono `text/primary`; cooked 15px mono `text/quaternary`; 44 × 44 check cell |
+| Grocery preview | `22px 16px 0`, 10px gap | `GROCERY LIST` label + `9 ITEMS · RAW` 10px mono `text/quaternary`; then a card at `12px` padding, 8px gap: name 12px `text/secondary` / quantity 12px mono `text/tertiary`; `+ 4 more` 11px mono `accent` |
 
 ### Cook rows as drawn
 
@@ -224,10 +224,10 @@ preview with `+ 4 more`; a real week has nine grocery items and may have more co
 | --- | --- | --- |
 | App bar | `18px 16px 13px` | `WEIGHT`; right: 5px `done` dot + `SYNCED 06:41` 10px mono `text/quaternary` |
 | Headline | `18px 16px 0` | `TREND` label over `82.4` 42px mono + `kg`. Right: `−0.42` 13px mono `done` over `KG / WEEK` |
-| Chart | `18px 16px 0`, SVG 358 × 186 | 30 raw weigh-in discs in `line/field`, 7-point smoothed `accent` trend, solid latest point |
-| Legend | `4px 16px 0`, 18px gap | 14 × 2px `accent` swatch + `Smoothed trend`; 5px `line/field` dot + `Morning weigh-in` |
+| Chart | `18px 16px 0`, SVG 358 × 186 | 30 raw weigh-in discs in `line/control`, 7-point smoothed `accent` trend, solid latest point |
+| Legend | `4px 16px 0`, 18px gap | 14 × 2px `accent` swatch + `Smoothed trend`; 5px `line/control` dot + `Morning weigh-in` |
 | Maintenance check | `20px 16px 0`, active card, `14px` padding, 13px gap | See below |
-| Phase footer | `bottom: 18px` | `CUT` 10px `0.08em` `text/quaternary` + `target −0.5%/wk` 10px mono `text/faintest`; right: `week 6` |
+| Phase footer | `bottom: 18px` | `CUT` 10px `0.08em` `text/quaternary` + `target −0.5%/wk` 10px mono `text/quaternary`; right: `week 6` |
 
 ### Maintenance check card (S18a)
 
@@ -237,7 +237,7 @@ preview with `+ 4 more`; a real week has nine grocery items and may have more co
 | Figures | `1fr 1fr`, 14px gap: `AVG INTAKE` → `2,450` 22px mono + `kcal`; `TREND CHANGE` → `−0.1` 22px mono + `kg/wk` |
 | Divider | 1px `line/hairline` |
 | Result | `Implied maintenance` 11px `text/secondary`; right: `≈ 2,500` 24px mono/500 in `accent` + `kcal` |
-| Caveat | `Read-only. Your targets are unchanged until you apply this.` 10px/1.55 `text/micro` |
+| Caveat | `Read-only. Your targets are unchanged until you apply this.` 10px/1.55 `text/quaternary` |
 | Action | `APPLY TO TARGETS` 52px primary |
 
 ### States and rules
@@ -264,7 +264,7 @@ Screen 3 draws one state. S23 (plateau protocols) needs the same component with 
 contested, plus a way to reach the evidence. Specifying it once, for both uses:
 
 **Anatomy, as drawn (moderate).** 1px border, radius 2, padding `2px 6px`, containing a 9px mono
-claim, a 1px × 9px divider in the border colour, and an 8px sans strength label at `0.06em`.
+claim, a 1px × 9px divider in the border colour, and an 8px sans strength label at `0.06em` (9px from 2026-09-22).
 
 **Proposed extension.** Keep the anatomy; vary only the colour pair by strength, and add a third
 slot for the source route.
@@ -272,7 +272,7 @@ slot for the source route.
 | Strength | Claim + border | Strength label | Meaning |
 | --- | --- | --- | --- |
 | Strong | `done` `#57C99A` / `line/done` `#2E4A40` | `done` at reduced weight | Multiple controlled trials or a meta-analysis agree |
-| Moderate | `flag` `#E0A83C` / `line/flag` `#4A3A1C` | `flag/dim` `#8A7340` | Mixed or limited evidence — **as drawn on screen 3** |
+| Moderate | `flag` `#E0A83C` / `line/flag` `#4A3A1C` | `flag/dim` `#947B45` | Mixed or limited evidence — **as drawn on screen 3** |
 | Contested | **needs a colour** / **needs a border** | — | Commonly believed, not supported |
 
 **Three decisions this still needs.**
@@ -285,8 +285,8 @@ slot for the source route.
    subject of the row (S23) while keeping the inline 13px form non-interactive where it annotates
    something else (S16); or always make it 44px and accept the extra row height on screen 3. The
    first preserves screen 3; prefer it unless the citation must be reachable from the meal plan too.
-3. **The 8px strength label fails AA** at 4.27:1 (`docs/05` §1.5). If the tag becomes the primary
-   carrier of S23's advice, this is the wrong place to keep that deviation.
+3. ~~**The 8px strength label fails AA.**~~ Resolved 2026-09-22: 9px in `flag/dim` `#947B45`,
+   4.80:1 (`docs/05` §1.5).
 
 ### 7.2 Expanded warm-up sets
 
