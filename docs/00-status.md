@@ -1,8 +1,8 @@
 # Project status
 
 **Project:** A weight-training progress tracker combining lift logging, meal planning, Apple Watch/iPhone health data, and bodyweight/diet coaching.
-**Phase:** 6 — Build
-**Updated:** 2026-09-21
+**Phase:** 6 — Review
+**Updated:** 2026-09-22
 
 ## Done
 - Phase 1 — Brief + PRD: `docs/01-project-brief.md`, `docs/02-product-requirements.md`, `docs/06-decision-log.md`.
@@ -13,9 +13,25 @@
 - 2026-09-16: Phase 3 — `docs/05-design-system.md` and `docs/10-screen-specifications.md` written from the six `.dc.html` files. Every hex code, size, tracking value and grid measurement lifted from source; contrast ratios computed, not estimated. The canvas's "THE SYSTEM" sticky note was found inaccurate and is superseded by `docs/05`.
 
 ## Next
-**Phase 6 — Build, M1 first.** Restart the session (plugins load at start), then run
-`/setup-matt-pocock-skills` once (tracker: GitHub Issues or local files; the repo is public), then
-`/grill-with-docs` for the first feature. Each UI feature clears the polish gate in `CLAUDE.md`.
+**Phase 6 — Review.** One group per session, in this order. Tick each group when it is done; untick
+one if a later fix changes it. `06` is the reference for every group, not a group of its own.
+
+- [ ] 1. `01` brief + `02` PRD
+- [ ] 2. `05` design system + `10` screens (settle contrast, error colour and overlay colours here)
+- [ ] 3. `03` technical design
+- [ ] 4. `04` schema + `CONTEXT.md`
+- [ ] 5. `07` API + `08` auth
+- [ ] 6. `09` user flows
+- [ ] 7. `11` testing + `12` deploy + `13` security
+
+Findings Yuta leaves as they are go under **Reviewed, kept** below, one line each.
+
+**Then Phase 7 — Build, M1 first.** Run `/setup-matt-pocock-skills` once (tracker: GitHub Issues or
+local files; the repo is public), then `/grill-with-docs` for the first feature. Each UI feature
+clears the polish gate in `CLAUDE.md`.
+
+### Reviewed, kept
+_(nothing yet)_
 
 ### Phase 5 — done 2026-09-21
 Written: `CLAUDE.md`, `.claude/settings.json`, `.claude/hooks/{pre-edit-branch-guard,stop-branch-drift}.sh`,
