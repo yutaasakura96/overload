@@ -179,7 +179,8 @@ The endpoint list is `docs/07`.
   (1 day). For a Google-only account that is the confirmation: if the session is older, the app
   asks the user to sign in with Google again, then offers deletion.
 - **Confirmation:** the screen names what will go (workouts, sets, food list, plans, weigh-ins,
-  health data) and offers an export first. The user types `DELETE` to confirm.
+  health data), says what outlasts it (access records for a year, backups for up to 30 days), and
+  offers an export first. The user types `DELETE` to confirm.
 - **`beforeDelete`** removes the user's `invite` row. "Removes their access" in S10 means the email
   is no longer invited, and keeping the address after the account is gone would keep personal data
   that the user asked to remove. To come back, they need a new invite.
@@ -253,7 +254,7 @@ Every one of these is a test, not a code-review item:
   401.
 - `/api/cron/*` without the secret, or with a wrong one, gets 401.
 - Account deletion with a session older than `freshAge` is refused, and after deletion no row with
-  that `user_id` remains in any table.
+  that `user_id` remains in any table except `audit_event`, whose rows are kept for a year (S10).
 - Offline: an expired session with pending sets keeps them pending, and they upload after
   re-sign-in.
 

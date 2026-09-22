@@ -235,8 +235,9 @@ _Avoid_: macros (for the goals), budget
 A calorie target from the formula estimate, before any measured expenditure exists. Always labelled.
 
 **Maintenance check**:
-The M2, read-only comparison of 14 complete days' mean intake against the trend's change over the
-same days, giving an implied maintenance figure. It never changes targets unless the user applies it.
+The M2, read-only comparison of mean intake on complete days against the trend's change over the
+trailing 14 days (the same window as the expenditure estimate), giving an implied maintenance
+figure. It appears once the user has 14 complete days in total. It never changes targets unless the user applies it.
 _Avoid_: TDEE check, metabolism test
 
 **Expenditure estimate**:

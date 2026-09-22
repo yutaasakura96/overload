@@ -1,6 +1,6 @@
 # 02 — Product Requirements
 
-_Updated 2026-09-16. No technology decisions here; those are in `03`._
+_Updated 2026-09-22. No technology decisions here; those are in `03`._
 
 ## User types
 
@@ -25,26 +25,26 @@ As a lifter, I want to log a set the moment I finish it, even without signal, so
 - Closing the tab or locking the phone with sets pending does not lose them.
 
 **S2. See last time — MUST**
-As a lifter, I want last session's weight and reps shown next to each set, so that I never guess.
-- When an exercise starts, each set row shows that exercise's most recent session's weight × reps for the same set number.
+As a lifter, I want last workout's weight and reps shown next to each set, so that I never guess.
+- When an exercise starts, each set row shows that exercise's most recent workout's weight × reps for the same set number.
 - New set rows are pre-filled with those values and can be edited.
 
 **S3. Get a suggested weight — MUST**
 As a lifter, I want the app to suggest today's weight, so that I progress on purpose.
 - Each exercise has a rep range (default 6–10) and a load increment (e.g. 2.5 kg barbell, 2 kg dumbbell).
-- If every working set last session reached the top of the range, the suggestion is last weight + increment. Otherwise it is the same weight.
+- If every working set last workout reached the top of the range, the suggestion is last weight + increment. Otherwise it is the same weight.
 - The suggestion appears next to last time's numbers and never overwrites a value the user entered.
 
 **S4. Routines — MUST**
-As a lifter, I want saved workouts like "Push A", so that starting a session is one tap.
+As a lifter, I want saved routines like "Push A", so that starting a workout is one tap.
 - A routine is an ordered list of exercises with a target set count and rep range for each.
-- Starting a routine creates a session with those exercises, with last time's numbers and suggestions filled in.
-- Exercises can be added, removed or reordered within a live session without changing the routine.
+- Starting a routine creates a workout with those exercises, with last time's numbers and suggestions filled in.
+- Exercises can be added, removed or reordered within a live workout without changing the routine.
 
 **S5. Rest timer — MUST**
 As a lifter, I want a rest timer that starts on its own, so that my rest is consistent.
 - Ticking a set done starts a countdown using that exercise's default rest, or 120 s if none is set.
-- The timer can be skipped or extended, and it is visible without leaving the session screen.
+- The timer can be skipped or extended, and it is visible without leaving the workout screen.
 
 **S6. Effort and warm-ups — MUST**
 As a lifter, I want to record RIR/RPE and mark warm-up sets, so that stats reflect real working sets.
@@ -53,9 +53,9 @@ As a lifter, I want to record RIR/RPE and mark warm-up sets, so that stats refle
 
 **S7. Progress chart — MUST**
 As a lifter, I want to see how an exercise has progressed over a chosen time span, so that I know whether I am overloading.
-- The chart plots estimated 1RM per session from the best working set, using Epley: weight × (1 + reps / 30).
+- The chart plots estimated 1RM per workout from the best working set, using Epley: weight × (1 + reps / 30).
 - Time spans: 4 weeks, 12 weeks, 6 months, 1 year, all.
-- Top-set weight and session volume load (sets × reps × weight) appear as secondary stats for the selected span.
+- Top-set weight and workout volume load (sets × reps × weight) appear as secondary stats for the selected span.
 
 **S8. Exercise library — MUST**
 As a lifter, I want a ready list of common exercises plus my own, so that setup is quick.
@@ -71,13 +71,14 @@ As the admin, I want only people I invite to be able to sign in, so that the app
 **S10. Export and delete — MUST**
 As a user, I want to download all my data and be able to delete my account, so that I own my data.
 - Export produces a file containing every record the user owns.
-- Delete asks for confirmation, then removes all of the user's data and their access.
+- Delete asks for confirmation, then removes all of the user's data from the app and their access.
+- Two things outlast the account, and the delete screen says so: access records (ids, times, IP address and browser, no content) are kept for one year, and backups containing the data expire within 30 days.
 
 ### M2 — Meal plan + weight
 
 **S11. Weight trend — MUST**
 As a user, I want my morning weight to arrive by itself and show as a smoothed trend, so that daily fluctuation does not mislead me.
-- Weight and body fat % reach Apple Health from the Eufy scale via EufyLife, and arrive in the app through the health data path (the first metrics on it).
+- The morning weight arrives from the Eufy scale without manual entry. The route is decided by the two hardware tests in `06` (2026-09-19) before M2 starts.
 - The daily weight is the first reading before 10:00 local time. If there is none, the day's first reading is used and marked as not a morning weigh-in.
 - A smoothed trend line is drawn over the raw daily points. Weight can also be entered by hand.
 
@@ -96,7 +97,7 @@ As a user who cooks in batches and weighs cooked portions, I want to record a ba
 **S14. Goal phase and macro targets — MUST**
 As a user, I want a cut, bulk or maintenance phase to set my daily targets, so that dieting is planned rather than guessed.
 - A phase has a type, start date and target rate (cut default: 0.5–1% bodyweight per week, Helms 2014).
-- Protein is set in g/kg (default 1.6–2.2 g/kg, Morton 2018; 2.3–3.1 g/kg of lean mass on a cut, Helms 2014). Fat is a % of calories. Carbohydrate is the remainder.
+- Protein is set in g/kg of bodyweight (range 1.6–2.2 g/kg, Morton 2018). On a cut the default is the top of the range, 2.2 g/kg, because needs rise in a deficit (2.3–3.1 g/kg of lean mass, Helms 2014). The user can raise it. Fat is a % of calories. Carbohydrate is the remainder.
 - Until M3's measured expenditure exists, calories come from a formula estimate labelled provisional.
 - Every default shows its source.
 
@@ -129,7 +130,8 @@ As a user who won't type what I eat, I want to confirm planned meals instead of 
 
 **S18a. Maintenance check — MUST**
 As a user whose weight isn't moving, I want to see my real intake next to my weight trend, so that I know my actual maintenance calories instead of guessing.
-- After 14 complete days, the app shows average confirmed daily intake next to the weight-trend change over the same days, with an implied maintenance estimate (e.g. "averaged 2,450 kcal, trend −0.1 kg/week → maintenance ≈ 2,500 kcal").
+- Once 14 complete days have been logged, the app shows average confirmed daily intake next to the weight-trend change, with an implied maintenance estimate (e.g. "averaged 2,450 kcal, trend −0.1 kg/week → maintenance ≈ 2,500 kcal").
+- It always reads the trailing 14 calendar days, using complete days only — the same window S21 uses, so the two never disagree about the same fortnight. If fewer than 5 of the newest 7 days are complete, the estimate is labelled as based on too little recent logging.
 - The estimate is read-only and never changes targets automatically. The user can apply it to the phase's targets by hand.
 - With fewer than 14 complete days, it shows how many complete days remain.
 
@@ -137,7 +139,7 @@ As a user whose weight isn't moving, I want to see my real intake next to my wei
 
 **S19. Health data arrives automatically — MUST**
 As a user, I want my Apple Watch and iPhone data in the app without manual entry, so that the dashboard stays current.
-- Metrics added to the M2 path: sleep (duration and stages), resting heart rate, HRV, steps, active energy, workout heart rate and duration, lean body mass.
+- Metrics: sleep (duration and stages), resting heart rate, HRV, steps, active energy, workout heart rate and duration, body fat %, lean body mass.
 - The dashboard shows when each metric last synced.
 
 **S20. Overlays on lift charts — MUST**
@@ -147,7 +149,10 @@ As a lifter, I want to lay intake, weight trend, sleep and HRV over an exercise'
 **S21. Adaptive expenditure — MUST**
 As a user, I want my energy expenditure estimated from my weight trend and confirmed intake, and my targets adjusted weekly, so that coaching follows my real metabolism.
 - Once a week the app recalculates estimated expenditure from complete days only and updates calorie and macro targets. The meal plan regenerates to match.
-- The user sees the estimate, the change from last week and the new targets.
+- Targets change only when at least 5 of the newest 7 days are complete. Otherwise the estimate is shown and the previous targets stay.
+- The calorie target moves at most ±150 kcal per week, whatever the estimate says.
+- A target the user set by hand stays in force until the next weekly update, and that update moves from it.
+- The user sees the estimate, the change from last week and the new targets. The maths is in `03` §8.3.
 
 **S22. Photo and text meal estimates — MUST**
 As a user having an off-plan meal, I want to log it from a photo or a short description, so that I still log it.
@@ -176,9 +181,9 @@ As a user, I want one screen showing recent trends for the ingested metrics, so 
 
 | Where | With no data |
 | --- | --- |
-| Session start | No routines yet: offer to create one or start an empty session. |
-| Set row, first time doing an exercise | No "last time" or suggestion; the row shows "first session". |
-| Progress chart, fewer than 2 sessions | "Not enough data yet"; no chart is drawn. |
+| Workout start | No routines yet: offer to create one or start an empty workout. |
+| Set row, first time doing an exercise | No "last time" or suggestion; the row shows "first workout". |
+| Progress chart, fewer than 2 workouts | "Not enough data yet"; no chart is drawn. |
 | Weight trend, fewer than 3 days | Raw points only, no trend line. |
 | Food list empty | The meal plan can't be built. Prompt to add foods, starting with a protein source. |
 | No routine set | The plan can't place meals. Prompt for wake time, work hours, training days and bedtime. |
@@ -190,14 +195,14 @@ As a user, I want one screen showing recent trends for the ingested metrics, so 
 ## Edge cases
 
 - **Duplicate set submission** (double tap, two tabs, retry after a timeout): each set carries an id generated on the client and is stored once.
-- **Offline for a whole session:** every set, the session and the timer work offline, and it all syncs later without duplicates.
+- **Offline for a whole workout:** every set, the workout and the timer work offline, and it all syncs later without duplicates.
 - **Food list can't hit protein:** the plan shows the shortfall in grams and suggests adding a protein source. It never pads other foods to hide it.
 - **Food list can't fit the calories without extreme portions** (e.g. 900 g of rice): single portions are capped at a sensible maximum, and the plan flags the gap instead of breaking the cap.
 - **Meal confirmed, then edited later that day:** the edit replaces the confirmed record; it is never counted twice.
 - **Day left unconfirmed:** after the end-of-day check the day stays incomplete, and weekly expenditure uses complete days only.
 - **Several weigh-ins in one day:** the first reading before 10:00 counts. Others are stored but not used for the trend.
 - **Health data arriving late or twice:** a repeated reading replaces the earlier copy and is never added a second time.
-- **Exercise deleted with history:** past sessions keep their data. The exercise leaves the picker but stays visible in history.
+- **Exercise deleted with history:** past workouts keep their data. The exercise leaves the picker but stays visible in history.
 - **Revoked user with pending offline sets:** the upload is refused and the user is told that access was revoked.
 - **Photo estimate badly wrong:** estimates are editable before saving, and adaptive expenditure absorbs logging error through the weight trend.
 

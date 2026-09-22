@@ -286,7 +286,8 @@ values, marked approximate (PRD empty state).
 
 1. Weight screen → the maintenance check card (S18a). With fewer than 14 complete days: how many
    remain.
-2. With 14: mean intake, trend change and implied maintenance, labelled with its method.
+2. With 14: mean intake, trend change and implied maintenance over the trailing 14 days, labelled
+   with its method. Fewer than 5 complete days in the newest 7 adds a "too little recent logging" label.
 3. **Apply to targets** → `PATCH /api/goal-phases/{id}` with `calorieBasis: "measured"` → the client
    regenerates the unconfirmed plan days. Never automatic.
 

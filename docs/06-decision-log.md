@@ -1205,3 +1205,33 @@ hooks now (no linter or formatter chosen yet).
 **Revisit if:** the pnpm scripts land under different names than the allowlist guessed (run
 `/fewer-permission-prompts`); a linter and formatter are chosen (add `post-edit-format`); the
 connectors are not authorised in a terminal session (add Neon and Sentry to `.mcp.json`).
+
+### [2026-09-22] Phase 6 review, group 1 (brief + PRD): six corrections
+
+**Decided (asked, all accepted).**
+1. **S11 states the requirement, not the route.** Morning weight arrives without manual entry; the
+   two hardware tests (2026-09-19 entry) pick the route. Body fat % moves to S19 (M3), where HAE's
+   daily automation carries it. Supersedes the route in "Bodyweight source: Eufy scale via Apple
+   Health" (2026-09-15) as a PRD commitment.
+2. **Protein is always per kg of bodyweight.** Range 1.6–2.2 g/kg; a cut defaults to 2.2 g/kg and is
+   editable. The lean-mass rule (2.3–3.1 g/kg FFM) is kept as the reason, not as a calculation: M2
+   has no lean-mass value and `04` never modelled one. Verified 2026-09-22: Helms et al. 2014
+   (IJSNEM 24(2), 6 studies, "2.3–3.1 g/kg of FFM" scaled up with deficit and leanness); Morton et al.
+   2018 (BJSM, PMID 28698222, breakpoint 1.62 g/kg, 95% CI upper ≈ 2.2); Bosy-Westphal et al. 2008
+   (PMID 20054195: two of three foot-to-foot consumer scales within 1 kg of DXA lean mass on
+   average, so scale accuracy was not the deciding reason). The ISSN 2017 position stand (PMC5477153)
+   restates the range as "2.3–3.1 g/kg/d" without the FFM basis. Do not copy it as bodyweight.
+3. **S21 carries the three limits** decided on 2026-09-21: ≥ 5 complete days in the newest 7,
+   ±150 kcal per week, a hand-set target holds until the next update.
+4. **S10 says what outlasts deletion:** `audit_event` rows for a year, backups for up to 30 days.
+   `08` §6 and its test now say the same.
+5. **"Workout" replaces "session" for a gym visit** in `01` and `02`, per the 2026-09-19 naming
+   entry. S9's "sessions" (logins) stays.
+6. **S18a reads the same trailing 14 days as S21**, shown once 14 complete days exist in total and
+   labelled when fewer than 5 of the newest 7 are complete. Changed in `02`, `03` §8.3, `09`, `CONTEXT.md`.
+
+**Alternatives considered.** A lean-mass protein basis (needs an M3 metric and a new column);
+stripping IP and browser from a deleted user's audit rows (only if compliance review asks); S18a over
+the user's first 14 complete days wherever they fall (can disagree with S21 about the same fortnight).
+
+**Revisit if:** compliance review before the first invitee wants deleted users' audit rows anonymised.

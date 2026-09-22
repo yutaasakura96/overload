@@ -16,7 +16,7 @@
 **Phase 6 — Review.** One group per session, in this order. Tick each group when it is done; untick
 one if a later fix changes it. `06` is the reference for every group, not a group of its own.
 
-- [ ] 1. `01` brief + `02` PRD
+- [x] 1. `01` brief + `02` PRD — 2026-09-22, six fixes (`06` entry of that date)
 - [ ] 2. `05` design system + `10` screens (settle contrast, error colour and overlay colours here)
 - [ ] 3. `03` technical design
 - [ ] 4. `04` schema + `CONTEXT.md`

@@ -432,7 +432,7 @@ see what a previous cut actually did.
 | `started_on` | date | no | — | |
 | `ended_on` | date | yes | — | `NULL` = current |
 | `target_rate_pct_per_week` | numeric(4,2) | yes | — | 0.50–1.00 on a cut (Helms 2014) |
-| `protein_g_per_kg` | numeric(4,2) | no | — | Default 1.6–2.2 (Morton 2018) |
+| `protein_g_per_kg` | numeric(4,2) | no | — | Per kg of bodyweight. Range 1.6–2.2 (Morton 2018); a cut defaults to 2.2 (S14) |
 | `fat_pct_calories` | numeric(4,1) | no | — | Carbohydrate is the remainder |
 | `calorie_target_kcal` | integer | no | — | |
 | `calorie_basis` | text | no | — | `provisional_formula` \| `measured` \| `manual`, `CHECK`. Drives the "provisional" label (S14) |
