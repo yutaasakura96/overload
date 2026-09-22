@@ -9,7 +9,7 @@ stated and the scroll behaviour is listed as a gap (§7.3), not invented here.
 
 | # | Screen | Artboard | PRD stories | Milestone |
 | --- | --- | --- | --- | --- |
-| 1 | Live workout session | `Main.dc.html` | S1, S2, S3, S5, S6 | M1 |
+| 1 | Live workout | `Main.dc.html` | S1, S2, S3, S5, S6 | M1 |
 | 2 | Exercise progress | `Progress.dc.html` | S7, S20 | M1 / M3 |
 | 3 | Today's meal plan | `MealPlan.dc.html` | S16, S18 | M2 |
 | 4 | End-of-day check | `EndOfDay.dc.html` | S18 | M2 |
@@ -18,7 +18,7 @@ stated and the scroll behaviour is listed as a gap (§7.3), not invented here.
 
 ---
 
-## 1. Live workout session
+## 1. Live workout
 
 The screen that has to work. It is read mid-set, at arm's length, one-handed. Everything else is
 subordinate to the active set block.
@@ -54,14 +54,15 @@ control is enabled regardless; reps and RIR are pre-filled from the suggestion.
 
 ### States and rules
 
-- **Suggestion source (S3).** Double progression. The suggested weight appears only when the last
-  session's data supports it, and the reason string always states why in plain words.
+- **Suggestion source (S3).** Double progression. A suggestion always shows once the exercise has a
+  last time: plus the increment if every working set reached the top of the rep range, otherwise the
+  same weight. The reason string always says which, in plain words.
 - **First time doing an exercise (S2, PRD empty states).** No LAST column value, no suggestion chip
-  and no reason string; the row reads `first session`.
+  and no reason string; the row reads `first workout`.
 - **Set completion** collapses the card to a 17px table row and promotes the next set to active. The
   rest timer starts on completion.
 - **Offline (S1).** Every control works offline. The pending chip counts sets not yet synced and is
-  `flag`, not an error — nothing is lost. It is the only offline indicator in the app (§7.4).
+  `flag`, not an error — nothing is lost. It is the screen-1 form of the data-state slot every screen carries (§7.4).
 
 ---
 
@@ -75,7 +76,7 @@ Read seated. Four independently toggleable overlays are the reason the whole app
 
 | Block | Geometry | Content |
 | --- | --- | --- |
-| App bar | `18px 16px 14px`, 12px gap | 30px back chevron (18px icon, `text/tertiary`), then `Bench Press` 12px/600/`0.1em` |
+| App bar | `18px 16px 14px`, 12px gap | Back chevron, 44 × 44 target (18px icon, `text/tertiary`; drawn as 30px, `docs/05` §3.2), then `Bench Press` 12px/600/`0.1em` |
 | Headline | `18px 16px 0`, `align-items: flex-end` | `ESTIMATED 1RM` section label over `110.0` 42px mono/500/`-0.03em`/0.9 + `kg` 14px mono `text/quaternary`. Right, bottom-aligned: `+11.3` 13px mono `done` over `OVER 12W` 9px `0.08em` `text/quaternary` |
 | Span selector | `16px 16px 0`, 5 × 1fr, 5px gap, 44px | `4W · 12W · 6M · 1Y · ALL`. Active segment: `12W` |
 | Chart | `20px 16px 0`, SVG 358 × 192 | See `docs/05` §5 |
@@ -85,15 +86,15 @@ Read seated. Four independently toggleable overlays are the reason the whole app
 
 ### States and rules
 
-- **Primary series** is e1RM from the best working set of each session, per the decision log.
-- **Overlays (S20, M3).** Four series, each independently toggleable, each with its own colour when
-  on. Only the weight-trend series has a colour assigned (`flag` on `#1A1509`). **Intake, sleep and
-  HRV have no colours** — three more series colours must be chosen and contrast-checked, and they
-  must remain distinguishable from `accent` and from each other when two or three are on together.
-  Not solved by this artboard.
-- **Fewer than 2 sessions** (PRD empty states): no chart is drawn, message reads
+- **Primary series** is e1RM from the best working set of each workout, per the decision log.
+- **Overlays (S20, M3).** Four series, each independently toggleable, any combination on at once.
+  Each series has a colour, a dash pattern and an end label: `series/weight`, `series/intake`,
+  `series/sleep` and `series/hrv` (`docs/05` §1.6, decided 2026-09-22). The end label and the dash
+  pattern identify a series; colour is the third cue. The artboard draws only weight trend, and no
+  end label. Both are for the scoped design pass.
+- **Fewer than 2 workouts** (PRD empty states): no chart is drawn, message reads
   `Not enough data yet`. The headline, span selector and overlays have no defined empty treatment.
-- **Data points are r=2.5.** If a point is tappable to reach that session, it needs a 44px target
+- **Data points are r=2.5.** If a point is tappable to reach that workout, it needs a 44px target
   (`docs/05` §3.2).
 
 ---
@@ -224,7 +225,7 @@ preview with `+ 4 more`; a real week has nine grocery items and may have more co
 | --- | --- | --- |
 | App bar | `18px 16px 13px` | `WEIGHT`; right: 5px `done` dot + `SYNCED 06:41` 10px mono `text/quaternary` |
 | Headline | `18px 16px 0` | `TREND` label over `82.4` 42px mono + `kg`. Right: `−0.42` 13px mono `done` over `KG / WEEK` |
-| Chart | `18px 16px 0`, SVG 358 × 186 | 30 raw weigh-in discs in `line/control`, 7-point smoothed `accent` trend, solid latest point |
+| Chart | `18px 16px 0`, SVG 358 × 186 | 30 daily-weight discs in `line/control`, 7-point smoothed `accent` trend, solid latest point |
 | Legend | `4px 16px 0`, 18px gap | 14 × 2px `accent` swatch + `Smoothed trend`; 5px `line/control` dot + `Morning weigh-in` |
 | Maintenance check | `20px 16px 0`, active card, `14px` padding, 13px gap | See below |
 | Phase footer | `bottom: 18px` | `CUT` 10px `0.08em` `text/quaternary` + `target −0.5%/wk` 10px mono `text/quaternary`; right: `week 6` |
@@ -233,7 +234,7 @@ preview with `+ 4 more`; a real week has nine grocery items and may have more co
 
 | Row | Spec |
 | --- | --- |
-| Header | `MAINTENANCE CHECK` 10px `0.12em` `accent`; right: `14 COMPLETE DAYS` 10px mono `text/quaternary` |
+| Header | `MAINTENANCE CHECK` 10px `0.12em` `accent`; right: `14 COMPLETE DAYS` 10px mono `text/quaternary` as drawn — replaced by `LAST 14 DAYS · 12 COMPLETE` (see States) |
 | Figures | `1fr 1fr`, 14px gap: `AVG INTAKE` → `2,450` 22px mono + `kcal`; `TREND CHANGE` → `−0.1` 22px mono + `kg/wk` |
 | Divider | 1px `line/hairline` |
 | Result | `Implied maintenance` 11px `text/secondary`; right: `≈ 2,500` 24px mono/500 in `accent` + `kcal` |
@@ -244,12 +245,23 @@ preview with `+ 4 more`; a real week has nine grocery items and may have more co
 
 - **Read-only until applied**, per the decision log. The caveat sits directly above the action, and
   the `≈` on the result is part of the number, not decoration.
-- **14 complete days is the gate.** The card should not appear below that count; the PRD says the
-  provisional formula estimate is used instead and labelled as such. That state has no artboard.
+- **The window** is always the trailing 14 calendar days, counting complete days only (S18a, the same
+  window as S21). The header says both: `LAST 14 DAYS · 12 COMPLETE`. The drawn `14 COMPLETE DAYS`
+  is superseded, because after the gate the window can hold fewer than 14 complete days.
+- **Under 14 complete days in total:** the card shows only its header and `N complete days to go`.
+  No figures, no result, no action. It is not replaced by the provisional estimate, which is a
+  calorie target (`CONTEXT.md`), not this check.
+- **Too little recent logging** (fewer than 5 of the newest 7 days complete, S18a): one line in
+  `flag` above the caveat, `Based on too little recent logging`. `APPLY TO TARGETS` stays enabled;
+  the estimate is read-only until applied either way.
 - **Fewer than 3 days of weight data** (PRD): raw points only, no trend line. The legend's first
   entry and the headline rate both need a treatment for that case.
-- **First morning reading before 10:00 counts** (PRD edge case). Later readings are stored but are
-  not plotted as trend inputs. Whether they appear as discs at all is undecided.
+- **Only daily weights are plotted** (`CONTEXT.md`): the first weigh-in before 10:00, or failing
+  that the day's first weigh-in. A fallback daily weight feeds the trend like any other and is
+  drawn as a hollow ring in `line/control` (1.5px stroke, r=2) instead of a filled disc, with a third
+  legend entry, `Not a morning weigh-in`. The day's other readings are stored but not drawn.
+- **No artboard** for the countdown, the low-logging line, the ring or the third legend entry.
+  All four are for the scoped design pass.
 
 ---
 
@@ -260,7 +272,7 @@ system allows, and marked where a decision is still needed.
 
 ### 7.1 The evidence tag — one component, three strengths, a route to the source
 
-Screen 3 draws one state. S23 (plateau protocols) needs the same component with strong, moderate and
+Screen 3 draws one state. S16 and S23 need the same component with strong, moderate and
 contested, plus a way to reach the evidence. Specifying it once, for both uses:
 
 **Anatomy, as drawn (moderate).** 1px border, radius 2, padding `2px 6px`, containing a 9px mono
@@ -273,20 +285,24 @@ slot for the source route.
 | --- | --- | --- | --- |
 | Strong | `done` `#57C99A` / `line/done` `#2E4A40` | `done` at reduced weight | Multiple controlled trials or a meta-analysis agree |
 | Moderate | `flag` `#E0A83C` / `line/flag` `#4A3A1C` | `flag/dim` `#947B45` | Mixed or limited evidence — **as drawn on screen 3** |
-| Contested | **needs a colour** / **needs a border** | — | Commonly believed, not supported |
+| Contested | `text/tertiary` `#8A96A3` / `line/field` `#2A3440` | `text/quaternary` `#738393` | Commonly believed, not supported |
 
-**Three decisions this still needs.**
-1. **A contested colour.** The palette has no fourth accent. Contested is not an error, so it does
-   not reuse `error` (`docs/05` §1.4). A neutral treatment —
-   `text/tertiary` on `line/field` — is the option that needs no new token, and it reads as "noted,
-   not endorsed", which is the correct meaning.
-2. **The route to the source.** The tag as drawn is 13px tall and has no touch target. For S23 it
-   must be tappable to a citation. Options: make the whole tag a 44px control where it is the
-   subject of the row (S23) while keeping the inline 13px form non-interactive where it annotates
-   something else (S16); or always make it 44px and accept the extra row height on screen 3. The
-   first preserves screen 3; prefer it unless the citation must be reachable from the meal plan too.
-3. ~~**The 8px strength label fails AA.**~~ Resolved 2026-09-22: 9px in `flag/dim` `#947B45`,
-   4.80:1 (`docs/05` §1.5).
+The strength word is always printed, so colour is never the only cue (WCAG 1.4.1). Contested is
+neutral: it is not `error` (`docs/05` §1.4), and it reads as "noted, not endorsed". Decided
+2026-09-22.
+
+**Route to the source — decided 2026-09-22 (`docs/06`).** Every evidence tag opens its sources,
+wherever it appears (S16 on screen 3, and S23), because `CONTEXT.md` defines the tag as the label
+*with* its route. The tag stays 13px tall visually. Its tap area is 44 × 44, expanded into the space
+around it, so screen 3's row height does not change. A tap opens a sources sheet: the claim, its
+strength, and the citations. This replaces the earlier proposal to keep the inline S16 form
+non-interactive.
+
+**Left to the scoped design pass:** the strong and contested states, the sources sheet, and
+whether screen 3 has 44px of clear space around the tag. If it does not, the pass makes the row
+taller.
+
+The 8px strength label was fixed 2026-09-22: now 9px in `flag/dim` `#947B45`, 4.80:1 (`docs/05` §1.5).
 
 ### 7.2 Expanded warm-up sets
 
@@ -300,6 +316,9 @@ form cost about 126px, which does not fit above the active card without pushing 
 **Decisions needed:** whether expanding scrolls the screen, replaces the active card temporarily, or
 opens a sheet; and whether warm-up rows use the same 17px figures as working sets or a reduced size
 that signals they are not progression data.
+
+**Where it is decided:** the scoped design pass after the 2026-09-22 review, before M1's build,
+because screen 1's slack depends on it.
 
 ### 7.3 Scroll behaviour and sticky headers
 
@@ -319,21 +338,29 @@ What the artboards imply but do not specify:
 elevation, no shadow and one raised surface — `surface/raised` `#12161A`, currently used only by the
 rest bar), and whether a stuck block keeps its hairline or gains the heavier `line/border`.
 
-### 7.4 Offline pending count on the other five screens
+**Where it is decided:** in each screen's `/grill-with-docs` during M2, when real content lengths
+exist. Reviewed and kept as open on 2026-09-22.
+
+### 7.4 Data-state slot — decided, not yet drawn
 
 The pending chip exists only on screen 1. Sets sync offline-first (S1), so the count is meaningful
-anywhere in the app, and a user who leaves the session screen currently loses the only evidence that
-unsynced data exists.
+anywhere in the app. The chip is therefore the screen-1 form of one **data-state slot** in every
+screen's app bar (`CONTEXT.md`; decided in `docs/06` 2026-09-19, with its priority order 2026-09-22).
 
-What is known: the chip is `7px 9px`, `line/field`, a 6px `flag` dot and a 10px mono label, and it
-sits in the app bar's right slot. On screens 2–6 that slot is already occupied — by metadata (2, 4,
-5), an accent string (3), or the sync indicator (6).
+- **Always present**, on every screen. At zero pending it shows the resting state (`09` F4).
+- **One condition at a time**, in this priority order:
+  1. **Refused** — *N* refused, in `error` (`docs/05` §1.4). First, because it is the only state
+     that needs the user to act.
+  2. **Pending** — *N* pending, in `flag`, with the 6px `flag` dot. This is the chip as drawn on screen 1.
+  3. **Cached data age** — offline with nothing pending: the age of the data on screen, `text/quaternary`.
+  4. **Last sync time** — the resting state, `text/quaternary`. Screen 6's `SYNCED 06:41` is this
+     state as drawn.
 
-**Decisions needed:** whether the chip appears on every screen (requiring the right slot to hold two
-items, or the displaced metadata to move), only where it is relevant, or only when the count is
-non-zero. Screen 6's `SYNCED 06:41` indicator is the closest existing relative and suggests a single
-shared "data state" slot that shows whichever condition is true — that is the option worth trying
-first, and it needs one design pass, not a decision in the build.
+What is known of the drawn form: the chip is `7px 9px`, `line/field`, a 6px `flag` dot and a 10px
+mono label, in the app bar's right slot.
+
+**Left to the scoped design pass:** on screens 2–5 the right slot already holds metadata (2, 4, 5)
+or an accent string (3). Where that moves is a layout question for the pass, not for the build.
 
 ---
 
@@ -342,7 +369,7 @@ first, and it needs one design pass, not a decision in the build.
 Flagged so they are not discovered mid-build. None of these are gaps in the six screens; they are
 screens and states the PRD requires that Phase 2 did not draw.
 
-- **Session start and routine selection** (S4), including the no-routines empty state.
+- **Workout start and routine selection** (S4), including the no-routines empty state.
 - **Exercise library and picker** (S8).
 - **Food list management** (S12) and manual label entry.
 - **Goal phase and macro target setup** (S14), routine and meal count (S15).

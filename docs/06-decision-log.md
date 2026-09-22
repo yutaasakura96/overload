@@ -1280,3 +1280,101 @@ under simulated deuteranopia and protanopia (Machado 2009, OKLab distance): vs `
 deuteranopia. Using `flag` for refusals too was rejected because it would merge "nothing is lost" with "this was rejected".
 
 **Revisit if:** the refused state is hard to tell from `flag` on a real phone in daylight.
+
+### [2026-09-22] Phase 6 review, group 2: overlay series colours, with labels and dashes carrying identity
+
+**Decided.** The four S20 overlays get their own tokens: `series/weight` `#E0A83C`, `series/intake`
+`#8C7BE8` (violet), `series/sleep` `#DCD6CA` (bone), `series/hrv` `#C07A5A` (terracotta), each with a
+chip fill, a chip border and its own dash pattern (`05` §1.6). Each overlay line is named at its right
+end with its latest value. That label and the dash identify a series, and colour is the third cue.
+Weight trend keeps `flag`'s hex under its own token, so `flag` in code means only "needs attention".
+Resolves the open "three overlay series have no colours" item from the 2026-09-16 extraction.
+
+**Why.** The chart shows `accent` plus up to four overlays, and the palette has already spent cyan,
+green, amber and red on meaning. Measured under normal, deuteranopic and protanopic vision (Machado
+2009, OKLab distance), the chosen set's worst pair is `accent`–intake at 0.112, against the 0.107
+the palette already accepts for `flag`–`done`. A brute-force search for four hues topped out near
+0.16, and every winner included a second bright cyan. Pinks collapse onto `accent` under
+deuteranopia (0.01–0.04). Colour alone cannot separate five lines for every viewer, so the label and
+dash make the chart pass WCAG 1.4.1 on their own.
+
+**Alternatives considered.** Move weight trend off amber: the best amber-free set measured 0.161,
+against 0.166 with amber kept, so moving it gains nothing. Cap overlays at two on at once: this solves
+colour, but S20 makes each overlay independent, so it would narrow the PRD quietly. Rejected.
+
+**Cost.** `series/hrv` and `error` are nearly the same under deuteranopia (0.026). Allowed, because
+`error` never appears on a chart. The end label adds layout work (collisions, and the y-axis labels at
+x=356), left to the scoped design pass.
+
+**Revisit if:** four overlays on one real screen are unreadable even with labels. Then cap the number
+on at once, and record that as a PRD change.
+
+### [2026-09-22] Phase 6 review, group 2: the data-state slot's priority order
+
+**Decided.** The data-state slot (2026-09-19, error handling) is on every screen and always present.
+It shows one condition, in this order: refused (`error`), pending (`flag`), cached data age, then last
+sync time as the resting state. `10` §7.4 now records the slot as decided. It had still listed three
+options, although `03` §7, `09` F4 and `CONTEXT.md` already relied on the slot.
+
+**Why.** Refused is the only state that needs the user to act, so it cannot be hidden behind a pending
+count. Pending comes before data age because it is about data the user created. `09` F4 already has
+the slot return to a synced state at zero, which rules out showing it only when the count is non-zero.
+
+**Alternatives considered.** Showing pending and refused together in one slot costs width that the app
+bar on screens 2–5 does not have. Showing the slot only where relevant would hide unsynced data on
+exactly the screens where a user who left the workout would look.
+
+**Left open.** Where the metadata now in the right slot of screens 2–5 goes. That is for the scoped
+design pass.
+
+### [2026-09-22] Phase 6 review, group 2: screen 6 aligned with S18a, and the fallback weight marked
+
+**Decided.** `10` §6 now follows S18a as revised on 2026-09-22. The maintenance check shows
+`N complete days to go` below the 14-day gate instead of hiding. Its header reads
+`LAST 14 DAYS · N COMPLETE`. Fewer than 5 complete days out of the last 7 adds a `flag` line reading
+`Based on too little recent logging`. Two new rules: the chart plots only daily weights, and a fallback
+daily weight (no reading before 10:00) is a hollow `line/control` ring with its own legend entry,
+`Not a morning weigh-in`. The day's other readings are stored but not drawn.
+
+**Why.** `10` had been extracted before the PRD revision, so it still hid the card and called the
+stand-in "provisional", which `CONTEXT.md` reserves for a calorie target. It also said that readings
+after 10:00 are never trend inputs, which contradicts the `CONTEXT.md` definition of the daily weight.
+`CONTEXT.md` flags the fallback, and the ring is how the chart shows that flag without a new colour.
+
+**Alternatives considered.** Marking the fallback in `flag`: rejected, because a late weigh-in does
+not need attention. Drawing every reading as a disc: this puts non-inputs beside inputs on a chart
+whose job is the trend.
+
+### [2026-09-22] Phase 6 review, group 2: extraction deviations closed, and a pressed state
+
+**Decided.** `accent/hover` `#6FCDE3` is renamed `accent/pressed`. It is the label and border colour of
+an accent control while pressed: 10.68:1 on ground, 8.6:1 on `surface/accent`. Also closed: the
+active segment is 600 everywhere, so mono now loads 400/500/600. The back chevron gets a 44 × 44
+target. The two amber fills both stay, because `#1A1509` is now a series chip fill (the overlay entry
+of this date) and not a second flag surface.
+
+**Why.** The app runs from the iPhone home screen, so hover never fires, but `05` defined no pressed
+state, and a touch control with none feels dead. The token already existed in every artboard. Motion and
+timing for the press are left to the polish gate (`emil-design-eng`), which tunes them against this token.
+
+**Alternatives considered.** Dropping `#6FCDE3`: this leaves the pressed state undefined until the
+build, when the polish gate would have to invent a token rather than audit one.
+
+### [2026-09-22] Phase 6 review, group 2: evidence tag, contested colour and route to the source
+
+**Decided.** Contested is neutral: the claim in `text/tertiary`, the border in `line/field`, the strength
+label in `text/quaternary`. Strong is `done`, and moderate is `flag` as drawn. Every evidence tag opens a
+sources sheet (the claim, its strength and its citations), on the meal plan (S16) as well as on plateau
+protocols (S23). It stays 13px visually, with its tap area expanded to 44 × 44. This supersedes the
+`10` §7.1 proposal (2026-09-16 extraction) to keep the inline S16 tag non-interactive.
+
+**Why.** `CONTEXT.md` defines an evidence tag as the label with a route to its sources, and the S16
+carb-timing recommendation carries one. A tag that cannot be opened on the meal plan would make that
+the one place where a claim cannot be checked. An expanded tap area keeps screen 3's density.
+Contested needs no new token and must not read as an error.
+
+**Alternatives considered.** A non-interactive inline tag on S16 (the earlier proposal) contradicts the
+vocabulary. A 44px-tall tag everywhere costs row height on screen 3 for no gain. A fourth accent for
+contested: the palette has no room left (see the overlay entry of this date).
+
+**Revisit if:** screen 3 has no 44px of clear space around the tag. Then the design pass makes the row taller.

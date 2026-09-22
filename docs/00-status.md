@@ -17,27 +17,13 @@
 one if a later fix changes it. `06` is the reference for every group, not a group of its own.
 
 - [x] 1. `01` brief + `02` PRD — 2026-09-22, six fixes (`06` entry of that date)
-- [ ] 2. `05` design system + `10` screens — **in progress.** Findings 1 (contrast) and 2 (error colour) done
-  and logged 2026-09-22. Resume at finding 3. Remaining queue, most consequential first:
-  2. ~~Error colour~~ — done: `error` `#F2555A`, server refusals only.
-  3. **Overlay colours** for intake, sleep and HRV (S20, M3). Also: weight trend uses `flag`, which means
-     "needs attention", so its semantics are overloaded.
-  4. **Vocabulary** — `10` says "session" 7× (the PRD says "first workout", not "first session"). §1 also says
-     the suggestion appears "only when data supports it", but `CONTEXT.md` says a suggestion always exists
-     (+increment or the same weight).
-  5. **Data-state slot** — `03` §7 and `CONTEXT.md` treat it as decided; `10` §7.4 still calls it a
-     proposal needing a design pass.
-  6. **Screen 6 vs the updated S18a** — `10` §6 says the card is hidden below 14 days and uses
-     "provisional". The PRD now says: show the days remaining, use the trailing-14 window, add the
-     too-little-recent-logging label. The `14 COMPLETE DAYS` header is ambiguous. The fallback daily
-     weight marking is also missing.
-  7. **Four small deviations** (`05` §7.1–7.4): two amber fills, 700 vs 600, the 30px chevron, unused hover.
-  8. **Evidence tag** (`10` §7.1): the contested colour and the route to source (the 8px label is already fixed).
-  9. **Warm-up expand and scroll/sticky** (`10` §7.2–7.3): probably defer to the feature grill; record as kept.
-- [ ] 2b. **Next after group 2: one scoped design pass** after group 2 closes (agreed 2026-09-22 —
-  run it once group 2 is ticked). The scope is to bring the six `.dc.html` files up to the new tokens and to draw the states
-  `10` says need a design pass: the refused state, the data-state slot, the three evidence-tag strengths,
-  and the warm-up expand. This is not a new direction and not the §8 screens. Re-extract the deltas into `05`/`10`.
+- [x] 2. `05` design system + `10` screens — 2026-09-22, nine findings: contrast, `error`, `series/*`
+  overlays, `workout` wording, data-state slot priority, screen 6 vs S18a, four deviations,
+  evidence tag, warm-up/sticky placement (`06` entries of that date)
+- [ ] 2b. **Next: one scoped design pass** (agreed 2026-09-22 — group 2 is now ticked). The scope is to bring the six `.dc.html` files up to the new tokens and to draw the states
+  `10` says need a design pass: the refused state, the data-state slot, the three evidence-tag strengths and the sources sheet,
+  the warm-up expand, the four overlays with their end labels (placement and collisions), and
+  screen 6's four new states (`10` §6). This is not a new direction and not the §8 screens. Re-extract the deltas into `05`/`10`.
 - [ ] 3. `03` technical design
 - [ ] 4. `04` schema + `CONTEXT.md`
 - [ ] 5. `07` API + `08` auth
@@ -51,7 +37,7 @@ local files; the repo is public), then `/grill-with-docs` for the first feature.
 clears the polish gate in `CLAUDE.md`.
 
 ### Reviewed, kept
-_(nothing yet)_
+- `10` §7.3 scroll and sticky for screens 3–6: left open for each screen's M2 `/grill-with-docs` (2026-09-22).
 
 ### Phase 5 — done 2026-09-21
 Written: `CLAUDE.md`, `.claude/settings.json`, `.claude/hooks/{pre-edit-branch-guard,stop-branch-drift}.sh`,
@@ -77,17 +63,12 @@ _(nothing)_
 
 ## Carrying
 
-### Decide before or during build — raised by Phase 3, not resolved
-- ~~**Contrast.**~~ **Resolved 2026-09-22** (`06`). Was: four text tones and the secondary-control border fail WCAG AA at the sizes used: `#5A6673` (3.32:1, used at 10–11px for real content), `#4A5560` (2.56:1, all column heads), `#3C464F` (2.02:1, chart axes), `#8A7340` (4.27:1, evidence tag), `#2A3440` (1.54:1, control boundaries). Raising them softens Instrument toward Quiet, which the decision log forbids doing quietly. **This is Yuta's call.** `docs/05` §1.5 and §7.6 hold the measured numbers and the three options.
-- ~~**No error colour exists.**~~ **Resolved 2026-09-22** (`error` `#F2555A`, `06`). Was: six screens, none of which can fail visibly. Revoked access, refused sync and failed save are all PRD edge cases with nowhere to go. A red must be added and contrast-checked. `docs/05` §7.5.
-- **Three overlay series have no colours.** Only weight trend is assigned. Intake, sleep and HRV need colours that stay distinguishable from `accent` and each other when several are on. `docs/10` §2.
-- Four smaller extraction deviations (two amber fills, inconsistent active-segment weight, the 30px back chevron, the unused `#6FCDE3`) are listed in `docs/05` §7.
+### Raised by Phase 3 — all resolved in review 2026-09-22
+Contrast, error colour, overlay colours and the four extraction deviations. See `06` for 2026-09-22.
 
-### The four deliberate Phase 2 gaps — now specified as far as extraction allows, in `docs/10` §7
-1. **Evidence tag** — anatomy and a strong/moderate/contested colour scheme are proposed in §7.1. Three decisions remain: the contested colour (a neutral `text/tertiary` on `line/field` is recommended over a new token), the route to the source, and the failing 8px label.
-2. **Expanded warm-up sets** — §7.2. Screen 1's ~66px of slack depends on the collapse; two expanded rows cost ~126px.
-3. **Scroll and sticky behaviour** for screens 3–6 — §7.3, with a per-screen table of what should plausibly stick.
-4. **Offline pending count** on screens 2–6 — §7.4. Recommended direction: one shared "data state" slot in the app bar, of which screen 6's `SYNCED 06:41` is the existing relative. Needs one design pass.
+### The four deliberate Phase 2 gaps — decided in review 2026-09-22
+Evidence tag, data-state slot and warm-up expand are decided in `10` §7 and drawn in 2b. Scroll and
+sticky are kept open for M2 (see *Reviewed, kept*).
 
 ### Check when built — raised by Phase 4
 `docs/03` §11 lists the unverified items. The ones that bite first:

@@ -35,7 +35,7 @@ lists four text tones where the files use six, omits two colours, and gives one 
 | `line/hairline` | `#1A2026` | App-bar underline, resting card borders, section dividers, chart gridlines, meter tracks, timeline rail. The default border. |
 | `line/border` | `#232B32` | Rest-bar top edge (1), chart baseline (2, 6), unconfirmed meal cards (4). |
 | `line/field` | `#2A3440` | Secondary control borders (+30s, WARM, ADJUST, REPL, pending chip), inert overlay swatches, unfilled timeline dots. Every one of these sits beside a label or a redundant state cue, so it is not the thing that identifies the control. |
-| `line/control` | `#55687A` | 3.38:1 on ground. Anything that must be seen and has no label to carry it: the inert check cell's border and check (1, 5) and the raw weigh-in discs (6). Added 2026-09-22 (§1.5). |
+| `line/control` | `#55687A` | 3.38:1 on ground. Anything that must be seen and has no label to carry it: the inert check cell's border and check (1, 5) and the daily-weight discs and fallback rings (6). Added 2026-09-22 (§1.5). |
 | `line/accent` | `#234A57` | Border of active panels and the suggested-weight chip. |
 | `line/done` | `#2E4A40` | Border of done fills. |
 | `line/flag` | `#4A3A1C` | Border of flag fills and the evidence tag. |
@@ -64,11 +64,10 @@ so do not rely on those two tones alone to separate adjacent items.
 | Token | Hex | Contrast on ground | Where it is used |
 | --- | --- | --- | --- |
 | `accent` | `#3FB6D4` | 8.21:1 | The one accent. Active state, primary action, the e1RM and trend line, the "now" marker on the timeline. |
-| `accent/hover` | `#6FCDE3` | — | Declared as `a:hover` in every artboard's `<style>`. Never used in a body element. |
+| `accent/pressed` | `#6FCDE3` | 10.68:1 | The label and border colour of an accent control while it is pressed. 8.6:1 on `surface/accent`. Renamed from `accent/hover` 2026-09-22: the app runs from the iPhone home screen and has no hover. Pressed motion and timing belong to the polish gate. |
 | `done` | `#57C99A` | 9.48:1 | Completed, confirmed, on-target. Check marks, macro meter fills, the synced dot, positive deltas. |
-| `flag` | `#E0A83C` | 9.12:1 | Needs attention, not an error. Pending count, weight-trend overlay line, unconfirmed count, `CARBS ↑`. |
+| `flag` | `#E0A83C` | 9.12:1 | Needs attention, not an error. Pending count, unconfirmed count, `CARBS ↑`. The weight-trend overlay has the same hex but uses its own token, `series/weight` (§1.6). |
 | `flag/dim` | `#947B45` | 4.80:1 | One use: the strength label in the evidence tag (3), at 9px. Raised from `#8A7340` 2026-09-22; 4.64:1 on `surface/flag`. |
-
 | `error` | `#F2555A` | 5.77:1 | **The server refused the data**, and nothing else: a refused set, a rejected save, revoked access. Added 2026-09-22; 5.71:1 on `surface/error`. |
 
 **Rules for `error`.**
@@ -111,6 +110,37 @@ review raised only the tones carrying information (`docs/06`). Instrument's gram
 mono grid, one accent, 2px radius, density. What it lost is the three-step fade at the bottom of the
 ladder.
 
+### 1.6 Chart series
+
+The overlays on the e1RM chart (S20, screen 2). Added 2026-09-22 (`docs/06`). These tokens are used
+only for series: the line, its end label, and its chip. They carry no status meaning, and code refers
+to `series/weight`, never `flag`, even though the two have the same hex.
+
+| Token | Hex | On ground | Chip fill | Chip border | Dash |
+| --- | --- | --- | --- | --- | --- |
+| `series/weight` | `#E0A83C` | 9.12:1 | `#1A1509` | `#4A3A1C` | `3 3` |
+| `series/intake` | `#8C7BE8` | 5.7:1 | `#14151E` | `#322E50` | `6 3` |
+| `series/sleep` | `#DCD6CA` | 13.5:1 | `#1A1B1C` | `#4A4947` | `1.5 3` |
+| `series/hrv` | `#C07A5A` | 5.7:1 | `#181514` | `#412E26` | `8 3 2 3` |
+
+Weight's chip fill and border are the values drawn on screen 2. The other three fills and borders are
+7% and 30% of the series colour over `surface/ground`, which is the ratio of weight's border. Each
+series colour on its own chip fill is at least 5.29:1 (intake). Chip borders are below 3:1 and allowed,
+because the chip is labelled (§1.5).
+
+**Rules.**
+- **Colour is the third cue, not the first.** A series is identified by its end label (§5) and its
+  dash pattern, and only after that by its colour, so the chart passes WCAG 1.4.1 however the colours
+  are perceived.
+- **Measured separation** (Machado 2009, severity 1.0, OKLab distance, the worst of normal,
+  deuteranopic and protanopic vision), against `accent` and against each other with all five lines on:
+  the worst pair is `accent`–`series/intake` at 0.112. That is no worse than the existing `flag`–`done`
+  pair (0.107). No set of four hues did much better: a brute-force search topped out near 0.16, and
+  every winner included a second bright cyan.
+- **Known collision.** `series/hrv` and `error` read almost the same under deuteranopia (0.026).
+  Allowed, because `error` never appears on a chart, and the chip always names its series.
+- Pinks and magentas are out: under deuteranopia they collapse onto `accent` (0.01–0.04).
+
 ---
 
 ## 2. Typography
@@ -119,7 +149,7 @@ ladder.
 
 | Role | Family | Loaded weights |
 | --- | --- | --- |
-| Figures, units, timestamps, chart labels, anything monospaced | `JetBrains Mono` | 400, 500, 700 |
+| Figures, units, timestamps, chart labels, anything monospaced | `JetBrains Mono` | 400, 500, 600 |
 | Labels, names, prose, button text | `IBM Plex Sans` | 400, 500, 600 |
 
 Fallback stack on the artboard root: `'IBM Plex Sans', system-ui, sans-serif`. Mono elements declare
@@ -165,9 +195,8 @@ Every size present in the six screens, with its use.
 | Weight | Use |
 | --- | --- |
 | 400 | Default for sans labels and prose. |
-| 500 | Every mono figure at 13px and above. No mono figure is 400 or 700 except the one noted below. |
-| 600 | App-bar titles, exercise name, primary button labels, active tab label. |
-| 700 | One instance: the active span selector `12W` (2). |
+| 500 | Every mono figure at 13px and above. |
+| 600 | App-bar titles, exercise name, primary button labels, active tab label, active span segment (mono). |
 
 ### 2.4 Tracking
 
@@ -245,7 +274,7 @@ decision log, not in a component.
 
 ### 3.2 Touch targets
 
-The rule is 44px minimum. It holds across the six screens with one exception.
+The rule is 44px minimum. It holds across the six screens. The one drawn exception, the 30px back chevron, is corrected below.
 
 | Height | Controls |
 | --- | --- |
@@ -254,7 +283,7 @@ The rule is 44px minimum. It holds across the six screens with one exception.
 | 52 | `APPLY TO TARGETS` |
 | 60 | `CONFIRM ALL AS PLANNED` |
 | 64 | `COMPLETE SET`, `WARM` (52 wide) |
-| **30** | **Back chevron (2) — violates the rule. Must be 44 × 44 in build.** |
+| 44 | Back chevron (2): 44 × 44 target around the 18px icon, taken from the app bar's left padding so the title does not move. Drawn as 30px; superseded 2026-09-22. |
 
 Two further elements read as tappable but have no target: the `+ 4 more` grocery link (5, 11px text
 only) and the chart data points (2, r=2.5–3.5). Both need 44px targets or an explicit decision that
@@ -328,7 +357,8 @@ Check icon geometry is fixed across the app: `viewBox="0 0 24 24"`, path `M4 12.
 ### 4.8 Segmented control
 Equal columns, 5px gap, 44px tall, radius 2. Inactive: 1px `line/hairline`, 11px label in
 `text/quaternary`. Active: 1px `accent`, `surface/accent`, 11px label in `accent`. Weight on the
-active segment is 700 in the span selector (2) and 600 in the tabs (5) — see §7.
+active segment is 600 in both the span selector (2, mono) and the tabs (5, sans). The artboard's
+700 on `12W` is superseded (§7).
 
 ### 4.9 Meal card — four states
 
@@ -358,15 +388,15 @@ the training block — the only non-round marker.
 ### 4.12 Evidence tag — partial
 As drawn on screen 3: 1px `line/flag`, radius 2, padding `2px 6px`, containing a 9px mono claim in
 `flag` (`CARBS ↑`), a 1px × 9px `line/flag` divider, and a 9px sans strength label at `0.06em` in
-`flag/dim` (8px as drawn; raised 2026-09-22). Only the moderate state exists. Strong, contested, and the route to the source are
-undesigned — see `docs/10` §7.1.
+`flag/dim` (8px as drawn; raised 2026-09-22). Only the moderate state is drawn. Strong (`done`), contested (`text/tertiary` on
+`line/field`) and the 44 × 44 route to a sources sheet were decided 2026-09-22 — see `docs/10` §7.1.
 
 ### 4.13 Overlay chip
 46px tall, `0 12px`, 9px gap, radius 2. A 14 × 2px swatch, then an 11px `0.06em` label.
 - **Off:** 1px `line/hairline`, swatch `line/field`, label `text/quaternary`.
-- **On:** 1px in the series colour, fill in the series' dim tone, swatch and label in the series
-  colour. Only one series is currently specified: weight trend, `flag` on `#1A1509`, border
-  `line/flag`.
+- **On:** 1px border in the series' chip border, fill in the series' chip fill, swatch and label in
+  the series colour. All four series are specified in §1.6. The swatch draws the series' dash
+  pattern, so the chip and the line match without relying on colour.
 
 ### 4.14 Rest bar
 Pinned to the bottom edge, `surface/raised` with a top border in `line/border`. A 2px progress track
@@ -394,13 +424,19 @@ Two chart types exist, both authored as inline SVG at 358px wide.
 | Value labels | right-anchored at x=356, 9px mono `text/quaternary` | same |
 | Date labels | y = 178, 9px mono `text/quaternary`; start left-anchored, end right-anchored | same |
 | Primary series | `accent`, 2px polyline, round caps | `accent`, 2px polyline, 7 smoothed points |
-| Data points | r=2.5 rings, 1.5px `accent` stroke on `surface/ground` fill | r=2 discs in `line/control` (raw weigh-ins) |
+| Data points | r=2.5 rings, 1.5px `accent` stroke on `surface/ground` fill | r=2 discs in `line/control` (daily weights); a fallback daily weight is an r=2 ring, 1.5px `line/control` stroke |
 | Latest point | r=3.5 solid `accent` | r=3.5 solid `accent` |
-| Overlay series | `flag`, 1.5px, `stroke-dasharray="3 3"`, opacity 0.75 | — |
+| Overlay series | `series/*` (§1.6), 1.5px, each with its own dash pattern, opacity 0.75. As drawn: weight only, `3 3` | — |
 
 Conventions that carry to any new chart: the primary series is solid `accent` at 2px; overlays are
-dashed at 1.5px in their own colour at 0.75 opacity; raw observations are inert `line/control` discs
+dashed at 1.5px in their own colour at 0.75 opacity, each with its own dash pattern; raw observations are inert `line/control` discs
 and the derived line is `accent`; the most recent point is always solid and larger.
+
+**Overlay end label** (added 2026-09-22, not yet drawn). Each overlay that is on is named at the
+right end of its line: 9px mono, in the series colour at full opacity, holding the series name and
+its latest value (`HRV 48`). This label, not the colour, is what identifies the line. Placement and
+collision handling (labels closer than 11px, and the y-axis value labels at x=356) are left to the
+scoped design pass.
 
 A legend appears only where raw and derived data are both plotted (6): 14 × 2px swatch or 5px dot,
 7px gap, 10px sans in `text/quaternary`, 18px between entries.
@@ -428,13 +464,12 @@ adding a fifth icon should need a reason.
 
 Recorded, not silently resolved. Each needs a decision before or during build.
 
-1. **Two amber panel fills.** The warning panel on screen 4 is `#15110A`; the active overlay chip on
-   screen 2 is `#1A1509`. Nothing distinguishes the two uses. Pick one.
-2. **Active-segment weight is inconsistent.** 700 on the span selector (2), 600 on the tabs (5).
-   Pick one; 600 matches every other emphatic label in the app.
-3. **The back chevron is a 30px target** (2), below the 44px rule the rest of the app keeps.
-4. **`accent/hover` `#6FCDE3` is declared but unused.** It exists only as `a:hover` in each
-   artboard's style block. Either adopt it as the pressed/hover token for accent controls or drop it.
+1. ~~**Two amber panel fills.**~~ **Resolved 2026-09-22:** `#1A1509` is `series/weight`'s chip fill
+   (§1.6), a series token, and `#15110A` is `surface/flag`. They mean different things, so both stay.
+2. ~~**Active-segment weight is inconsistent.**~~ **Resolved 2026-09-22:** 600 everywhere (§2.3, §4.8).
+3. ~~**The back chevron is a 30px target.**~~ **Resolved 2026-09-22:** 44 × 44 target, 18px icon (§3.2).
+4. ~~**`accent/hover` is declared but unused.**~~ **Resolved 2026-09-22:** renamed `accent/pressed`
+   (§1.4, `docs/06`).
 5. ~~**No error or destructive colour exists.**~~ **Resolved 2026-09-22:** `error` `#F2555A`, with
    `surface/error` and `line/error` (§1.1, §1.2, §1.4, `docs/06`). No artboard draws a refused state
    yet.
@@ -475,11 +510,16 @@ Names for implementation. Values are exactly as extracted.
 --text-placeholder: #5A6673;   /* >= 24px only */
 
 --accent:           #3FB6D4;
---accent-hover:     #6FCDE3;
+--accent-pressed:   #6FCDE3;
 --done:             #57C99A;
 --flag:             #E0A83C;
 --flag-dim:         #947B45;
 --error:            #F2555A;
+
+--series-weight:    #E0A83C;   /* chip #1A1509 / #4A3A1C, dash 3 3 */
+--series-intake:    #8C7BE8;   /* chip #14151E / #322E50, dash 6 3 */
+--series-sleep:     #DCD6CA;   /* chip #1A1B1C / #4A4947, dash 1.5 3 */
+--series-hrv:       #C07A5A;   /* chip #181514 / #412E26, dash 8 3 2 3 */
 
 --font-mono:        'JetBrains Mono', monospace;
 --font-sans:        'IBM Plex Sans', system-ui, sans-serif;
