@@ -146,7 +146,7 @@ Who would attack an invite-only lifting tracker, most likely first:
 | # | Threat | Want | Control |
 | --- | --- | --- | --- |
 | 1 | A signed-in user, or a bug | Another user's data | Session user applied in the data layer on every query; cross-user tests on every resource (`03` §10, `11`) |
-| 2 | Anyone holding a leaked key or session | The Anthropic bill | $10 workspace limit now; per-user label cap before invitees |
+| 2 | Anyone holding a leaked key or session | The Anthropic bill | $10 workspace limit now; per-user model-call cap before invitees |
 | 3 | Anyone holding a leaked ingest token | Write junk health data for one user | One route, one user, revocable; payloads schema-checked (`08` §9) |
 | 4 | Anyone holding a leaked DB URL | All the data | Runtime URL can't drop tables (§5); rotation in §8 |
 | 5 | Anyone with the backup workflow | The dumps | Write-only role; dumps encrypted to a key that is not online |
@@ -217,8 +217,10 @@ past it.**
 
 Nothing below is needed while Yuta is the only user. All of it is needed before a friend signs in.
 
-- [ ] **Per-user daily label-read cap** in the API (proposed: 20/day), with a `429` problem
-      response that opens the manual form.
+- [ ] **Per-user daily model-call cap** in the API (proposed: 20/day), counting label reads and
+      meal estimates together, with a `429 model_cap_reached` problem response that opens the manual
+      form. A label read leaves no row (`04`), so the count needs its own store; decide it with the
+      cap. *Widened 2026-09-22* from label reads only (`09` F15).
 - [ ] **Compliance.** Invitees would be mostly in Japan and the Philippines. Deferred by Yuta
       2026-09-21 as too early; what verification already found, so the work starts from here:
   - APPI covers non-profit activity; whether a private app for friends is 事業 is a grey zone the

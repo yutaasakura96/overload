@@ -162,6 +162,7 @@ design/  docs/  CONTEXT.md
 | API data | TanStack Query, persisted to IndexedDB | Screens render the last loaded data offline, with its age |
 | Pending and refused sets, and the workout rows they belong to | The set store: our IndexedDB store, one record per `workout`, `workout_exercise` or `set` row keyed by its id, `durability: "strict"` | Written the moment the row is created or changed. Deleted only after the server acknowledges it. **Rows of the open workout stay, marked acknowledged, until the workout ends** (Finish, or the 3-hour rule in `docs/09` F3) |
 | Active gym session | One Zustand store, in memory, **rebuilt from the set store on every launch** | The rest timer stores when rest *started* (the last set's timestamp), never a countdown |
+| Days left incomplete at the end-of-day check | IndexedDB, device only | A list of dates, cleared by the sign-out wipe (`docs/08` §7), so the evening and "Yesterday" cards do not ask twice (`docs/09` F11). Not sent to the server, which derives incomplete days itself |
 | One screen's inputs, open tab | React state, plus the URL for anything worth linking | — |
 | Server truth | Postgres | — |
 
@@ -434,7 +435,7 @@ All three automations use:
 | **Sensitive data** | Email, bodyweight and composition, the food log, sleep, HRV, heart rate. Neon encrypts data at rest with AES-256 on its NVMe volumes (Neon security overview, checked 2026-09-21). None of it goes to logs or Sentry (§7). Label and meal photos go to Anthropic and are **discarded afterwards**; only confirmed values are stored |
 | **Dependency updates** | Dependabot weekly, grouped. Security updates immediately |
 | **Worst thing an attacker could do** | Read or change another user's data. The data layer takes the session user on every query rather than each route remembering to filter, and tests attempt cross-user reads and writes on every resource. The ingest token is scoped to one route |
-| **Second worst** | Run up the Anthropic bill. Invite-only access, plus a dedicated `overload` Anthropic workspace with a $10/month hard limit (workspace limits verified 2026-09-21). Add a per-user daily label cap before the first invitee joins. Keys, roles, backups, audit trail and the incident plan: `13` |
+| **Second worst** | Run up the Anthropic bill. Invite-only access, plus a dedicated `overload` Anthropic workspace with a $10/month hard limit (workspace limits verified 2026-09-21). Add a per-user daily cap on model calls (label reads and meal estimates together, `model_cap_reached`) before the first invitee joins. Keys, roles, backups, audit trail and the incident plan: `13` |
 
 ---
 

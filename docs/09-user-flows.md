@@ -54,7 +54,7 @@ Vocabulary is `CONTEXT.md`'s: **workout** (not session), **confirm**, **pending*
 
 | Step | Goes wrong | User sees |
 | --- | --- | --- |
-| 2 | Save fails, API unreachable | Inline message on the routine screen, routine kept in the form. Routines are not queued offline; only the gym session is (`06`, offline scope) |
+| 2 | Save fails, API unreachable | Inline message on the routine screen, routine kept in the form. Routines are not queued offline; only the open workout is (`06`, offline scope) |
 | 2 | 422, e.g. rep low > rep high | The field is marked; nothing is saved |
 
 **Abandon:** a routine is saved only on **Save**. Leaving the form discards it.
@@ -80,7 +80,7 @@ Works identically offline. Every write below goes to the IndexedDB set store fir
 
 | Case | Rule |
 | --- | --- |
-| **No Finish tapped** | A workout with no new set for **3 hours** counts as ended, with `ended_at` = the last set's `performed_at`. The phone writes it the next time the app opens, offline or not. The next open shows "Push A ended at 10:14" and nothing more. Until the phone writes it, the server treats such a workout as ended for display |
+| **No Finish tapped** | A workout with no new set for **3 hours** counts as ended, with `ended_at` = the last set's `performed_at`. The phone writes it the next time the app opens, offline or not. The next open shows "Push A ended at 10:14" and nothing more. Until the phone writes it, the server returns `endedAt: null`, and another device shows the workout as in progress |
 | **Start while one is open** | A dialog: "Finish Push A first?" — **Finish** or **Resume**. One workout in progress per user. Enforced on the phone only; the server accepts what sync sends, because refusing it would refuse sets |
 | **Finish with zero ticked sets** | The workout is deleted (a delete in the sync batch), not kept. A mis-tap on Start leaves nothing in history |
 
@@ -88,7 +88,7 @@ Planned sets that were never ticked are not stored. Only ticked sets become `set
 
 | Step | Goes wrong | User sees |
 | --- | --- | --- |
-| 1 | No cached last time (first run offline, or a new exercise) | The row shows "first session" (PRD empty state) |
+| 1 | No cached last time (first run offline, or a new exercise) | The row shows "first workout" (PRD empty state) |
 | 2 | No signal | Nothing different. The data-state slot shows the pending count (`10` §7.4) |
 | 2 | Double tap on the tick | One set: the tick is disabled until the local write returns, and the id makes a repeat harmless anyway |
 | 2 | Tab killed or phone locked with sets pending | Nothing lost; they upload on the next open (S1) |
@@ -145,7 +145,7 @@ sees when it does not simply succeed.
 3. **Revoke:** tap an invite → confirm. The four steps in `08` §8 run: `revoked_at` set, sessions
    deleted, ingest tokens revoked, data kept.
 4. **Re-invite:** a revoked row offers **Restore**, which clears `revoked_at`. Their data is back on
-   their next sign-in.
+   their next sign-in. Their ingest tokens stay revoked, so Health Auto Export needs a new one (`08` §8).
 
 | Step | Goes wrong | User sees |
 | --- | --- | --- |
@@ -202,7 +202,7 @@ The order is the PRD's (S12): search, then barcode, then label photo, then manua
 | 2 | 404 `not_found` | "Not in Open Food Facts" with **Photograph the label** and **Enter by hand** |
 | 2 | 429 or 502 (Open Food Facts limit or down) | Inline message offering label photo or manual (`03` §4) |
 | 3 | 422 `unreadable_label` | "Couldn't read the label", **Retake** or **Enter by hand** |
-| 3 | 429 `label_cap_reached` | "Photo reads used up for today", manual form opens |
+| 3 | 429 `model_cap_reached` | "Photo reads used up for today", manual form opens |
 | 3 | 502 (Anthropic down) | The manual form opens, pre-filled with anything already read |
 | 3 | 413 | "Photo too large" — the client resizes before upload, so this means a client bug |
 | 5 | A field the label does not print | Left `null` on the candidate, shown empty, never guessed |
@@ -213,8 +213,10 @@ cap, because the model call happened.
 
 ### F10. Plan setup
 
-Three independent saves. Today shows the first one missing as its empty state, in this order:
+Four independent saves, the four prerequisites `setup_incomplete` names (`07` §1.3). Today shows the
+first one missing as its empty state, in this order:
 
+0. **Profile** — bodyweight and height, which the goal-phase defaults need. Asked for first.
 1. **Food list** — "Add foods, starting with a protein source" (PRD empty state) → F9.
 2. **Goal phase** — type, start date, target rate; protein g/kg and fat %. Every default shows its
    source (S14). Calories come from the formula and are labelled provisional. Save → `POST
@@ -222,12 +224,12 @@ Three independent saves. Today shows the first one missing as its empty state, i
 3. **Day routine** — for training and rest days: wake, work hours, training time, bed; training
    weekdays on `user_profile` → the app recommends meal count and times, with its reasoning and the
    "meal count doesn't change fat loss" note (S15) → accept or change → save.
-4. With all three present, the client calls `POST /api/plan-days/generate` for the week → Today shows
+4. With all four present, the client calls `POST /api/plan-days/generate` for the week → Today shows
    the plan.
 
 | Step | Goes wrong | User sees |
 | --- | --- | --- |
-| 2 | Defaults need profile data (bodyweight, height) | 422 from `/defaults`; the profile fields are asked for first |
+| 2 | Profile missing anyway (e.g. cleared later) | 422 `setup_incomplete` from `/defaults` with `missing: ["profile"]`; the screen links to step 0 |
 | 2 | A phase is already open | `phase_already_open` → "End the current cut on 11 Nov?" → `endPrevious: true` |
 | 3 | Schedule leaves room for fewer than 4 meals | The recommendation says so and why; protein per meal rises to fit |
 | 4 | Targets cannot be met from the food list | The plan is built anyway and carries `shortfalls` (PRD edge case). Never padded |
@@ -243,10 +245,19 @@ Three independent saves. Today shows the first one missing as its empty state, i
    - **Replaced** — foods from the list, or by hand; in M3 also a photo or text estimate (F15).
    - **Skipped.**
    Confirming again later that day replaces the earlier confirmation (PRD edge case).
-3. **End-of-day check** — appears as a card at the top of Today **60 minutes before the day
-   routine's bedtime**. It lists unconfirmed meals: confirm each, or **Confirm all as planned**.
-4. **Missed check** — the next morning's first open shows "Yesterday: 2 meals unconfirmed" with the
-   same confirm-all. Dismissing it leaves yesterday incomplete, which is a real choice (`CONTEXT.md`).
+3. **End-of-day check** — a card at the top of Today from **60 minutes before the day routine's
+   bedtime** opens screen 4 (`10` §4) for that day: confirm each meal, **Confirm all as planned**, or
+   **Leave day incomplete**.
+4. **Missed check** — the next morning's first open shows a "Yesterday: 2 meals unconfirmed" card,
+   which opens screen 4 for yesterday.
+
+**The two cards** (decided 2026-09-22):
+- A card shows only for a day with at least one unconfirmed meal, so screen 4 is never reached with
+  none.
+- **Leave day incomplete** writes nothing to the server, which already derives the day as
+  incomplete. The phone records the date in IndexedDB, and both cards stay hidden for that date. It
+  is a real choice (`CONTEXT.md`), so it is asked once, not again the next morning. Another device
+  may ask once more.
 
 **Closing a day** (decided 2026-09-21):
 - A plan day stays confirmable for **7 days** after its date, in `user_profile.timezone`, then it is
@@ -285,11 +296,15 @@ values, marked approximate (PRD empty state).
 
 ### F13. Maintenance check → apply by hand
 
-1. Weight screen → the maintenance check card (S18a). With fewer than 14 complete days: how many
-   remain.
-2. With 14: mean intake, trend change and implied maintenance over the trailing 14 days, labelled
-   with its method. Fewer than 5 complete days in the newest 7 adds a "too little recent logging" label.
-3. **Apply to targets** → `PATCH /api/goal-phases/{id}` with `calorieBasis: "measured"` → the client
+1. Weight screen → the maintenance check card (S18a), in one of `07` §5's three statuses:
+   - `collecting` — fewer than 14 complete days in total: how many remain.
+   - `needs_weigh_in` — fewer than 3 weigh-ins in the window, or none in its newest 7 days:
+     "Weigh in to see this", with the window and its counts but no figures.
+   - `ready` — mean intake, trend change and implied maintenance over the trailing 14 calendar days,
+     complete days only, labelled with its method. The header gives both (`LAST 14 DAYS · 12
+     COMPLETE`, `10` §6). Fewer than 5 complete days in the newest 7 adds a "too little recent
+     logging" label.
+2. **Apply to targets** (`ready` only) → `PATCH /api/goal-phases/{id}` with `calorieBasis: "measured"` → the client
    regenerates the unconfirmed plan days. Never automatic.
 
 **A target set by hand wins until next Monday** (decided 2026-09-21, and applies equally to plain
@@ -297,6 +312,10 @@ manual edits in F10): `plan_day` takes the newer of the newest applied `expendit
 `goal_phase.calorie_target_set_at`. The next Monday's estimate is clamped to ±150 kcal of the
 hand-set number, so it adjusts from there instead of snapping back. Without this, M3's first applied
 estimate would make every later hand edit a no-op.
+
+| Step | Goes wrong | User sees |
+| --- | --- | --- |
+| 1 | Stopped weighing | `needs_weigh_in`; the card points to the weigh-in on the same screen. Complete days keep counting |
 
 **Abandon:** nothing changes until **Apply**.
 
@@ -311,7 +330,7 @@ estimate would make every later hand edit a no-op.
 3. In Health Auto Export: the three automations with the URL, header and settings in `03` §9.
 4. **Decided by default, not asked:** the screen shows "Waiting for first data" until any
    `health_sync_state` row exists, and tells the user to run HAE's manual export once rather than wait
-   an hour.
+   up to 3 hours (`03` §9).
 5. First data → the dashboard with per-metric "last synced" (S19).
 
 | Step | Goes wrong | User sees |
@@ -333,7 +352,7 @@ estimate would make every later hand edit a no-op.
 | Step | Goes wrong | User sees |
 | --- | --- | --- |
 | 2 | 502 (Anthropic down) | The manual replaced form opens (`03` §4) |
-| 2 | 429 cap reached | Same, with the reason |
+| 2 | 429 `model_cap_reached` | Same, with the reason. Label reads and estimates share one daily cap (`07` §1.3) |
 | 2 | 413 | As F9 |
 | 3 | 422 | Field marked, estimate kept |
 
@@ -355,7 +374,7 @@ provider (`07` §5). The plan meal stays unconfirmed.
 | Step | Goes wrong | User sees |
 | --- | --- | --- |
 | 1 | The cron missed Monday | The first request that needs targets runs the job inline; the card appears on that open |
-| 3 | Answered differently on two devices | 409 on the second; it shows the recorded answer |
+| 3 | Answered differently on two devices | 409 `already_answered` on the second (`07` §5); it shows the recorded answer |
 
 **Abandon:** an unanswered protocol stays offered.
 
@@ -367,3 +386,7 @@ provider (`07` §5). The plan meal stays unconfirmed.
   applied estimate.
 - `07`: `POST /api/plan-meals/{id}/confirm` and `/plan-days/{date}/confirm-all` can return 409
   `day_locked`.
+- *Review group 6, 2026-09-22:* `03` §6 gains the device-only list of days left incomplete, and `08`
+  §7's sign-out wipe clears it. `10` §4 is reached from the two cards and never with zero unconfirmed
+  meals. `07` §1.3 and §5, `03` §10, `13` §9 and `CONTEXT.md`: `label_cap_reached` becomes
+  `model_cap_reached`, one cap on label reads and meal estimates.

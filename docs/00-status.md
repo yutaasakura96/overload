@@ -32,9 +32,20 @@ one if a later fix changes it. `06` is the reference for every group, not a grou
   deletion failed, tested on PG 18), `set.position` replaces `set_number`, sync state gains `body_mass`
   and `workouts` and moves to M2, eight wording fixes (`06` entries of that date). Also edited `02`,
   `03` §9, `07` §3.3–3.4 and `11` §2
-- [ ] 5. **Next:** `07` API + `08` auth
-- [ ] 6. `09` user flows
-- [ ] 7. `11` testing + `12` deploy + `13` security
+- [x] 5. `07` API + `08` auth — 2026-09-22, nine findings: referenced ids resolved as the caller's
+  (plus a cross-user test), maintenance-check contract rewritten to S18a, missing error codes and
+  `setup_incomplete`, Better Auth's `/api/auth/*` as the one non-RFC 9457 exception plus its
+  `rateLimit` table, Hono `csrf()` on our routes, restore leaves ingest tokens revoked, export
+  completeness test, sync-state wording, four wording fixes (`06` entries of that date). Also edited
+  `09` F6 and `11` §2 (their groups re-check them) and `CLAUDE.md`. `04` gained one line, Better
+  Auth's `rateLimit` table, reviewed here; group 4 stays ticked
+- [x] 6. `09` user flows — 2026-09-22, five findings: end-of-day check is screen 4 behind two cards,
+  "leave incomplete" remembered on the device; one model-call cap (`model_cap_reached`) covers label
+  reads and meal estimates; the server does not derive an ended workout; F13 gains `needs_weigh_in`;
+  five wording fixes (`06` entries of that date). Also edited `03` §6 and §10, `07` §1.3 and §5,
+  `08` §7, `10` §4, `13` §9 and `CONTEXT.md` to match. Groups 2, 3 and 5 stay ticked: each edit applies
+  a decision made here and was checked against its section
+- [ ] 7. **Next:** `11` testing + `12` deploy + `13` security. `13` §9's cap item was widened in group 6
 
 Findings Yuta leaves as they are go under **Reviewed, kept** below, one line each.
 
@@ -43,9 +54,8 @@ local files; the repo is public), then `/grill-with-docs` for the first feature.
 clears the polish gate in `CLAUDE.md`.
 
 ### Carried to a later group
-- Group 6 (`09`): F3's step-1 row says the empty state reads "first session"; the PRD says "first workout".
-- Group 5 (`07`): §3.3 says an exercise never logged shows "first session"; same wording issue.
-- Group 6 (`09`): F-health step 4 says "rather than wait an hour"; HAE now syncs every 3 hours.
+- Group 7 (`11`): no test yet for the model-call cap counting label reads and meal estimates together,
+  or for the end-of-day cards not re-asking a day left incomplete.
 
 ### Reviewed, kept
 - `10` §7.3 scroll and sticky for screens 3–6: left open for each screen's M2 `/grill-with-docs` (2026-09-22).

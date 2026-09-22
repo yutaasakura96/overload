@@ -49,7 +49,10 @@ Native-ready rule 4 (`03` §1) says every write is safe to retry. This is how ea
 
 ### 1.3 Errors
 
-Every error is an RFC 9457 problem detail, `Content-Type: application/problem+json`:
+Every error is an RFC 9457 problem detail, `Content-Type: application/problem+json`, **except on
+Better Auth's own `/api/auth/*` routes**, which answer in Better Auth's `{ "code": "…", "message": "…" }`
+(Better Auth docs v1.6.23, checked 2026-09-22). Rewriting its bodies was rejected: its client expects
+that shape. Its rate limiter's 429 and our `beforeDelete` refusal arrive in that format too.
 
 ```json
 {
@@ -67,6 +70,9 @@ Every error is an RFC 9457 problem detail, `Content-Type: application/problem+js
   `detail`.
 - `errors[]` is present only for `validation_failed`.
 - `type` is `urn:overload:problem:<code>`. It is an identifier, not a link: there is no domain to host documentation on.
+- **An id in a body that is not the caller's** (another user's food, exercise, routine…) is
+  refused as if it did not exist: 422 `validation_failed` on that field, or `parent_missing` in a
+  sync batch (`08` §4).
 - The detail never contains a food, weight or health value (`03` §7). It names the field, not what
   was in it.
 
@@ -74,26 +80,31 @@ Every error is an RFC 9457 problem detail, `Content-Type: application/problem+js
 | --- | --- | --- |
 | 400 | `bad_request` | Malformed JSON, or a query parameter of the wrong type |
 | 401 | `unauthenticated` | No session, an expired session, or a bad ingest or cron token |
+| 403 | `cross_origin` | Hono's `csrf()` refused a form-type POST from another origin (`08` §2). Its error is mapped to a problem detail in the app's error handler |
 | 404 | `not_found` | No such route, or no row with that id **belonging to the caller** |
 | 404 | `not_found` | A member calling `/api/admin/*` (`08` §4) |
 | 409 | `id_conflict` | A create reused an id that exists with different content |
 | 409 | `exercise_has_history` | Deleting a custom exercise that has sets. Hide it instead |
 | 409 | `exercise_in_routine` | Deleting an exercise used by a routine. The body lists `routines: [{id, name}]` |
 | 409 | `phase_already_open` | Opening a goal phase with `endPrevious: false` while one is open |
-| 409 | `admin_account` | Revoking, or deleting the account of, `ADMIN_EMAIL` |
+| 409 | `admin_account` | Revoking the invite of `ADMIN_EMAIL`. On account deletion the same refusal is a Better Auth `APIError` thrown in `beforeDelete`, in Better Auth's format |
 | 409 | `invite_exists` | Inviting an email that already has a row. Restore it instead |
 | 409 | `managed_by_apple_health` | Deleting a weigh-in that came from Apple Health |
+| 409 | `day_locked` | Confirming a plan meal or day more than 7 days after its date (§4) |
+| 409 | `already_answered` | Answering a protocol suggestion that already has a different response |
 | 413 | `payload_too_large` | Over our own photo limit (§1.5). Vercel's own 4.5 MB cap answers with its own 413 before our code runs |
 | 422 | `validation_failed` | The Zod schema refused the body |
+| 422 | `setup_incomplete` | A prerequisite is missing. The body lists `missing: ["profile" \| "foods" \| "day_routine" \| "goal_phase"]`, so the screen links to that step |
 | 422 | `unreadable_label` | The label photo had no nutrition table the model could read |
-| 429 | `rate_limited` | Better Auth's limiter, or Open Food Facts' 15 reads a minute passed through |
-| 429 | `label_cap_reached` | The per-user daily label-read cap (`03` §10; set before the first invitee) |
+| 429 | `rate_limited` | Open Food Facts' 15 reads a minute passed through. Better Auth's limiter answers `/api/auth/*` in its own format |
+| 429 | `model_cap_reached` | The per-user daily cap on model calls, label reads and meal estimates counted together (`03` §10; set before the first invitee). *Renamed 2026-09-22* from `label_cap_reached` |
 | 502 | `upstream_failed` | Open Food Facts or Anthropic returned an error |
 | 503 | `database_unavailable` | Neon still unreachable after the one retry (`03` §4) |
 | 500 | `internal` | Anything else. Logged with a stack trace and sent to Sentry |
 
 Refusals inside a sync batch or an ingest payload do not fail the request. They appear per item in
-a 200 (§3.4, §6.1).
+a 200 (§3.4, §6.1). A sync row also has `parent_missing`: its parent was refused, is unknown, or is
+not the caller's.
 
 ### 1.4 Lists, filtering and sorting
 
@@ -143,14 +154,14 @@ only.
 
 | Method | Path | Auth | Purpose | Success | Failures |
 | --- | --- | --- | --- | --- | --- |
-| `*` | `/api/auth/*` | — | Better Auth: Google sign-in, callback, `get-session`, `sign-out`, `list-sessions`, `revoke-other-sessions`, `delete-user` | Better Auth's | Better Auth's |
+| `*` | `/api/auth/*` | — | Better Auth: Google sign-in, callback, `get-session`, `sign-out`, `list-sessions`, `revoke-other-sessions`, `revoke-sessions` (sign out everywhere, `08` §7), `delete-user` | Better Auth's | Better Auth's |
 | GET | `/api/me` | M | The signed-in user, their profile, and `isAdmin` | 200 | 401 |
 | PATCH | `/api/me/profile` | M | Timezone, height, sex, birth date, training weekdays | 200 profile | 401, 422 |
 | GET | `/api/me/export` | M | One section of the export (S10), paged | 200 | 401, 422 |
 | GET | `/api/admin/invites` | A | Every invite, newest first | 200 | 401, 404 |
 | POST | `/api/admin/invites` | A | Invite an email | 201 | 401, 404, 409 `invite_exists`, 422 |
 | POST | `/api/admin/invites/{id}/revoke` | A | Revoke (`08` §8). Idempotent: revoking a revoked invite returns it unchanged | 200 | 401, 404, 409 `admin_account` |
-| POST | `/api/admin/invites/{id}/restore` | A | Clear `revoked_at` | 200 | 401, 404 |
+| POST | `/api/admin/invites/{id}/restore` | A | Clear `revoked_at`. Ingest tokens stay revoked; the member makes a new one (`08` §8) | 200 | 401, 404 |
 
 **Account deletion** is Better Auth's `POST /api/auth/delete-user`, behind its fresh-session check,
 with our `beforeDelete` (`08` §6). There is no route of our own for it.
@@ -180,11 +191,19 @@ training day for the planner (S15).
 plans and health samples can pass that. The client fetches every section page by page and builds
 the file in the browser as `overload-export-2026-11-04.json`.
 
-- `?section=` one of `profile`, `exercises`, `routines`, `workouts`, `foods`, `batches`, `phases`,
+- `?section=` one of `profile`, `exercises`, `routines`, `workouts`, `foods`, `rotationGroups`, `batches`, `phases`,
   `dayRoutines`, `planDays`, `weighIns`, `healthSamples`, `appleWorkouts`, `expenditureEstimates`,
   `mealEstimates`, `protocolSuggestions`, `ingestTokens` (labels and dates only, never hashes).
 - Paged as in §1.4. Each item is the row as the API's normal read returns it, with its children
   nested (a workout carries its exercises and sets).
+- `exercises` returns what `GET /api/exercises?includeHidden=true` returns: hidden ones included,
+  each with the caller's settings and `overrides`.
+- **Every table that holds a user's rows is in some section**, directly or nested. The exceptions
+  are listed in the code beside the section map: Better Auth's tables, `invite`, `audit_event`,
+  `sync_tombstone` and `health_sync_state`, which are access or bookkeeping, not the user's data. A
+  test reads every table with a `user_id` column from `information_schema` and fails if one is in
+  neither the map nor the exceptions, so a new table cannot be left out of S10 quietly. *Added
+  2026-09-22.*
 
 ```http
 GET /api/me/export?section=workouts&limit=100
@@ -273,7 +292,7 @@ GET /api/training/last-time  →  200
 ```
 
 `sets` holds working sets only; `workingSet` is derived, 1…n in `position` order (`04`). `suggestion.rule` is `top_of_range_hit` or `repeat`. An exercise never logged is absent, and the
-screen shows "first session".
+screen shows "first workout".
 
 ### 3.4 Sync — the only write path for workouts, workout exercises and sets
 
@@ -331,7 +350,8 @@ POST /api/workouts/sync
   reported `deleted`. Without this, a stale copy from a second tab or a late request would bring a
   deleted set back. *Added 2026-09-22.*
 - **Ownership:** a row whose id exists under another user is refused as `not_found`, like any
-  other cross-user access.
+  other cross-user access. A row whose `routineId`, `workoutId`, `workoutExerciseId` or
+  `exerciseId` is not the caller's is refused as `parent_missing` (`08` §4).
 - **Limit:** 500 rows a request. The uploader splits larger queues.
 
 **Response.** Always 200 when authenticated, with one entry for every id sent:
@@ -411,7 +431,7 @@ GET /api/exercises/0192a001-…/progress?span=12w&overlays=intake,trend,sleep,hr
 | DELETE | `/api/foods/{id}` | M | Archive (`archivedAt` set). Unconfirmed future plan days are regenerated without it | 204 | 401 |
 | GET | `/api/reference-foods?q=` | M | Search the MEXT table (八訂 増補2023). At least 1 character, 20 results, best match first | 200 | 401, 422 |
 | GET | `/api/barcodes/{code}` | M | Look up Open Food Facts. Returns a **candidate**, not a saved food, plus `existingFoodId` if the list already has that barcode | 200, 404 `not_found` | 401, 429, 502 |
-| POST | `/api/label-reads` | M | Photo of a 栄養成分表示 → candidate values and their basis (multipart) | 200 | 401, 413, 422 `unreadable_label`, 429 `label_cap_reached`, 502 |
+| POST | `/api/label-reads` | M | Photo of a 栄養成分表示 → candidate values and their basis (multipart) | 200 | 401, 413, 422 `unreadable_label`, 429 `model_cap_reached`, 502 |
 
 The three lookups never save. The user confirms the candidate on the confirmation screen and the
 client then calls `POST /api/foods`. That is S12's "shown for confirmation before saving".
@@ -471,10 +491,10 @@ A stored food is always per 100 g. The response has no `basis`.
 | GET | `/api/goal-phases` | M | Every phase, newest first; the open one has `endedOn: null` | 200 | 401 |
 | POST | `/api/goal-phases` | M | Open a phase. `endPrevious: true` closes the open one on the day before, in the same transaction | 201 / 200 | 401, 409 `phase_already_open`, 422 |
 | PATCH | `/api/goal-phases/{id}` | M | Edit targets, or apply the maintenance check by hand (`calorieTargetKcal` plus `calorieBasis: "measured"`) | 200 | 401, 404, 422 |
-| GET | `/api/goal-phases/defaults?type=cut` | M | The defaults with their sources (S14): rate, protein, fat, provisional calories | 200 | 401, 422 (profile incomplete) |
+| GET | `/api/goal-phases/defaults?type=cut` | M | The defaults with their sources (S14): rate, protein, fat, provisional calories | 200 | 401, 422 `setup_incomplete` |
 | GET | `/api/day-routines` | M | Both day types with their meal slots | 200 | 401 |
 | PUT | `/api/day-routines/{dayType}` | M | Replace one day type's routine and its meal slots | 200 | 401, 422 |
-| GET | `/api/day-routines/{dayType}/recommendation` | M | The recommended meal count and times, with the explanation and sources (S15) | 200 | 401, 422 (routine or phase missing) |
+| GET | `/api/day-routines/{dayType}/recommendation` | M | The recommended meal count and times, with the explanation and sources (S15) | 200 | 401, 422 `setup_incomplete` |
 | GET | `/api/targets/current` | M | The targets in force today, and where they came from | 200 | 401 |
 
 `GET /api/targets/current` is the **inline fallback** of the daily job (`03` §8.4). If the caller's
@@ -495,7 +515,7 @@ puts the "provisional" label on screen (S14).
 | Method | Path | Auth | Purpose | Success | Failures |
 | --- | --- | --- | --- | --- | --- |
 | GET | `/api/plan-days?from=&to=` | M | Plan days in a range (at most 31), meals and items included. **Read-only**: dates with no plan are listed in `missing` | 200 | 401, 422 |
-| POST | `/api/plan-days/generate` | M | Generate `{ from, to }`. Days that have no confirmed meal are generated, or regenerated from current inputs; days with any confirmed meal are left alone | 200 with the days | 401, 422 (no foods, no routine, no phase) |
+| POST | `/api/plan-days/generate` | M | Generate `{ from, to }`. Days that have no confirmed meal are generated, or regenerated from current inputs; days with any confirmed meal are left alone | 200 with the days | 401, 422 `setup_incomplete` |
 | POST | `/api/plan-meals/{id}/confirm` | M | Confirm one meal (below). Repeating it replaces the earlier confirmation, never adds to it | 200 with the meal | 401, 404, 409 `day_locked`, 422 |
 | POST | `/api/plan-days/{date}/confirm-all` | M | The end-of-day check: every `planned` meal on that day becomes `as_planned` | 200 with the day | 401, 404, 409 `day_locked` |
 | GET | `/api/prep-plan?weekStart=` | M | Prep plan and grocery list for the week (S17), derived | 200 | 401, 422 |
@@ -567,11 +587,11 @@ confirm endpoints return 409 `day_locked` (`docs/09` F11). A `PATCH /api/goal-ph
 | GET | `/api/weigh-ins?from=&to=` | M | Weigh-ins in a range, plus the derived daily weights and trend (S11) | 200 | 401, 422 |
 | POST | `/api/weigh-ins` | M | Weigh-in by hand `{ id, measuredAt, weightKg, bodyFatPct, leanMassKg }` | 201 / 200 | 401, 409, 422 |
 | DELETE | `/api/weigh-ins/{id}` | M | Delete a hand-typed weigh-in | 204 | 401, 409 `managed_by_apple_health` |
-| GET | `/api/maintenance-check` | M | S18a over the newest 14 complete days | 200 | 401 |
+| GET | `/api/maintenance-check` | M | S18a over the trailing 14 calendar days, complete days only (`03` §8.3) | 200 | 401 |
 | GET | `/api/expenditure-estimates` | M | Weekly estimates, newest `weekStart` first, paged (S21) | 200 | 401 |
 | GET | `/api/protocol-suggestions?status=offered` | M | Suggestions, newest first, with the catalogue entry and sources (S23) | 200 | 401 |
-| POST | `/api/protocol-suggestions/{id}/respond` | M | `{ "response": "accepted" \| "dismissed" }`. Idempotent for the same response | 200 | 401, 404, 409 (already answered differently), 422 |
-| POST | `/api/meal-estimates` | M | S22: a photo (multipart, with a `planMealId` part) or text (JSON `{ id, planMealId, text }`) → an unsaved estimate | 201 | 401, 404, 413, 422, 429, 502 |
+| POST | `/api/protocol-suggestions/{id}/respond` | M | `{ "response": "accepted" \| "dismissed" }`. Idempotent for the same response | 200 | 401, 404, 409 `already_answered`, 422 |
+| POST | `/api/meal-estimates` | M | S22: a photo (multipart, with a `planMealId` part) or text (JSON `{ id, planMealId, text }`) → an unsaved estimate | 201 | 401, 404, 413, 422, 429 `model_cap_reached`, 502 |
 | POST | `/api/meal-estimates/{id}/confirm` | M | Save it, edited or not: writes the plan item and marks the meal `replaced` | 200 with the meal | 401, 404, 422 |
 | GET | `/api/meal-estimates` | M | Past estimates with raw and saved values, paged. For judging provider accuracy (`04`) | 200 | 401 |
 
@@ -595,18 +615,33 @@ days, and every `trendKg` is then `null` (PRD empty state).
 
 ```json
 GET /api/maintenance-check  →  200
-{ "ready": true, "completeDays": 14, "remaining": 0,
-  "from": "2026-10-21", "to": "2026-11-09",
+{ "status": "ready",
+  "from": "2026-10-27", "to": "2026-11-09",
+  "completeDaysTotal": 31, "remaining": 0,
+  "completeDaysInWindow": 12, "lowRecentLogging": false,
   "meanIntakeKcal": 2450, "trendChangeKgPerWeek": -0.10, "maintenanceKcal": 2560,
   "method": "weight_trend_balance_v1" }
 ```
 
-With fewer than 14 complete days: `{ "ready": false, "completeDays": 9, "remaining": 5 }`, with the
-rest `null`.
+The window is the trailing 14 calendar days, the same one S21 uses. Only complete
+days in it feed the mean. `status` is one of three:
+
+| `status` | When | Filled | `null` |
+| --- | --- | --- | --- |
+| `collecting` | Fewer than 14 complete days in total | `completeDaysTotal`, `remaining` | Everything else |
+| `needs_weigh_in` | Fewer than 3 weigh-ins in the window, or none in its newest 7 days. Screen 6 shows `Weigh in to see this` | Window, counts, `lowRecentLogging` | The three figures |
+| `ready` | Otherwise | Everything | — |
+
+- `completeDaysInWindow` is the header's count (`LAST 14 DAYS · 12 COMPLETE`, `10` §6).
+  `completeDaysTotal` is the gate.
+- `lowRecentLogging` is true when fewer than 5 of the window's newest 7 days are complete. The figure
+  is then labelled as resting on too little recent logging (S18a).
+
+*Rewritten 2026-09-22* from "the newest 14 complete days", which contradicted S18a and `03` §8.3.
 
 ---
 
-## 6. Health (M3)
+## 6. Health (M3; ingest, tokens and sync state in M2 if Health Auto Export carries weight)
 
 | Method | Path | Auth | Purpose | Success | Failures |
 | --- | --- | --- | --- | --- | --- |
@@ -621,8 +656,9 @@ rest `null`.
 - `POST /api/ingest-tokens` is the one create that is **not** retry-safe by repeat: a repeat with the
   same `id` returns 200 with the row and **no token**, because the token was never stored. The setup
   screen tells the user to revoke and create again if the token was lost before it was copied.
-- `GET /api/health/sync-state` lists every metric in the vocabulary. A metric with no row is
-  returned with `lastSyncedAt: null`, which is "never synced" (`04`).
+- `GET /api/health/sync-state` lists every metric in the vocabulary plus the two reserved series,
+  `body_mass` (the weight automation) and `workouts` (`04`, `health_sync_state`). A series with no
+  row is returned with `lastSyncedAt: null`, which is "never synced".
 
 ### 6.1 `POST /api/ingest/health-auto-export`
 
@@ -642,7 +678,8 @@ rest `null`.
 { "metrics": { "received": 7, "stored": 7, "ignoredUnknown": 0 },
   "points": { "received": 49, "upserted": 49, "skipped": 0 },
   "weighIns": { "received": 3, "upserted": 3 },
-  "workouts": { "received": 2, "upserted": 2, "linked": 1 } }
+  "workouts": { "received": 2, "upserted": 2, "linked": 1 },
+  "syncState": { "upserted": 9 } }
 ```
 
 **Unverified:** that HAE's Batch Requests keep each request under Vercel's 4.5 MB. At daily
@@ -685,3 +722,6 @@ payload sizes.
 - Whether iOS Safari's camera capture hands the page HEIC, and whether the client-side resize
   converts it. The API accepts HEIC as a fallback either way.
 - Which OpenAPI breaking-change checker to run in CI. Picked in `docs/11`.
+- That an `APIError` thrown in `beforeDelete` carries our own `code` (`admin_account`) to the
+  client. Better Auth's source builds errors as `APIError.from(status, { message, code })`, so it
+  looks supported; confirm on the pinned version.

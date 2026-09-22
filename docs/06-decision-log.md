@@ -1584,3 +1584,138 @@ id (`07` §1), with `uuidv7()` for server-made rows; the conventions' exceptions
 `plan_day.target_*` copy the targets in force, not the phase; `exercise`'s name rule is a unique index,
 since it has an expression; `CONTEXT.md` gains **Tombstone** and the daily job's 30-day purge; the
 maintenance check names group 3's weigh-in gate.
+
+### [2026-09-22] Phase 6 review, group 5 (API + auth): a referenced id must be the caller's too
+
+**Decided (asked).** Every id a request body refers to (`exerciseId`, `routineId`, `foodId`,
+`foodIds[]`, `batchId`, `appleWorkoutId`, `planMealId`, a synced row's parent) is resolved through the
+caller's data layer before the write; a seeded exercise counts as the caller's. An id that is not the
+caller's is refused as if it did not exist: 422 `validation_failed` on the field, `parent_missing` in
+sync. A second cross-user test covers it. Extends the 2026-09-21 auth entry's "own is enforced in the
+data layer". Changed in `07` §1.3 and §3.4, `08` §4 and §10, `11` §2.
+
+**Why.** `08` §10 tested reading, updating and deleting another user's rows by id, not pointing at
+them. Every foreign key in `04` references `id` alone, so the database accepts B's routine slot on A's
+custom exercise, or B's workout linked to A's Apple workout, and joins then show B A's exercise name
+or heart-rate data. `03` §10 names that as the worst thing an attacker could do.
+
+**Alternatives considered.** Composite foreign keys on `(user_id, id)`: enforced by the database, but
+every child table would need `user_id`, every key would change, and seeded exercises have no owner.
+
+**Revisit if:** a query layer bug is ever found that the test did not catch. Then composite keys.
+
+### [2026-09-22] Phase 6 review, group 5: the maintenance-check contract matches S18a
+
+**Decided (asked).** `GET /api/maintenance-check` reads the trailing 14 calendar days, complete days
+only, and answers `status: collecting | needs_weigh_in | ready`, with `completeDaysTotal`,
+`remaining`, `completeDaysInWindow` and `lowRecentLogging`. Changed in `07` §5.
+
+**Why.** `07` said "the newest 14 complete days", which group 3 and S18a had replaced with the S21
+window, and its example spanned 20 days. The response could not express the weigh-in gate (`03`
+§8.3, screen 6's `Weigh in to see this`), the low-recent-logging label, or the header's in-window
+count as distinct from the 14-day gate.
+
+### [2026-09-22] Phase 6 review, group 5: every refusal has a code, and Better Auth's routes are the exception
+
+**Decided (asked).**
+1. New codes in `07` §1.3: 409 `day_locked` and `already_answered`, 422 `setup_incomplete` with
+   `missing: [...]`, and `parent_missing` for sync. The cron 401 is a normal problem detail.
+2. **Better Auth's own `/api/auth/*` answer in its `{ code, message }` format**, not RFC 9457. The
+   `admin_account` refusal on account deletion is an `APIError` thrown in `beforeDelete`, and arrives
+   in that format. Stated in `07` §1.3, `08` §2 and §6, and the binding rule in `CLAUDE.md`.
+3. `04` lists Better Auth's `rateLimit` table, which `rateLimit.storage: "database"` needs.
+
+**Why.** Clients switch on `code`, and five refusals had none. Better Auth's error body and its need
+for a `rateLimit` table were verified in its v1.6.23 docs (Context7, 2026-09-22); the docs assumed
+both away.
+
+**Alternatives considered.** Hono middleware rewriting Better Auth's error bodies into problem
+details: a translation layer over a library whose client expects the original shape.
+
+### [2026-09-22] Phase 6 review, group 5: Hono's `csrf()` on our own routes
+
+**Decided (asked).** Hono's built-in `csrf()` on `/api/*` except `/api/auth/*`, ingest and cron,
+with `origin` set to `BETTER_AUTH_URL` (the web origin). Its refusal maps to 403 `cross_origin`. A
+test sends a cross-origin multipart POST with a valid cookie. Changed in `07` §1.3, `08` §2 and §10,
+`11` §2.
+
+**Why.** `08` §2 credited Better Auth's `Origin` check to routes it never sees. `SameSite=Lax` was the
+only guard on the two `multipart/form-data` routes, which an HTML form can post cross-site. Hono's
+docs (checked 2026-09-22): it checks unsafe methods with form-sendable content types only, and passes
+if `Origin` or `Sec-Fetch-Site` passes. Behind the rewrite the API sees its own host, so the default
+origin would refuse the app itself.
+
+**Revisit if:** never, unless the API gains a route meant to be posted from another origin.
+
+### [2026-09-22] Phase 6 review, group 5: restoring an invite leaves ingest tokens revoked
+
+**Decided (asked).** Restore clears `invite.revoked_at` only. Ingest tokens stay revoked, and the
+member makes a new one. Changed in `07` §2, `08` §8, `09` F6. Corrects `08` §8's "restores everything"
+(2026-09-21 auth entry).
+
+**Why.** A token sat in an app that had lost access, and it was shown once, so un-revoking it would
+revive a secret nobody can see. The doc promised a full restore that silently left Health Auto
+Export on 401.
+
+**Alternatives considered.** Un-revoking the tokens with the invite: HAE resumes silently, but a
+revoke stops being final for a token that may have leaked.
+
+### [2026-09-22] Phase 6 review, group 5: export completeness, sync-state wording, four wording fixes
+
+**Decided (asked).**
+- The export gains `rotationGroups`. `exercises` includes hidden ones with settings. A test fails if a
+  table with a `user_id` column is in neither the section map nor its listed exceptions (`07` §2,
+  `11` §2).
+- `07` §6 catches up with group 4: sync state and ingest are M2 if HAE carries weight, and sync state
+  lists `body_mass` and `workouts`. Ingest counts gain `syncState`.
+- "first workout", not "first session", in `07` §3.3. "Sign out everywhere" is Better Auth's
+  `revoke-sessions` (verified v1.6.23). `list-sessions` possibly needing a fresh session is added to
+  `08`'s unverified list, and the `APIError` code line now cites the source.
+
+### [2026-09-22] Phase 6 review, group 6: the end-of-day check is screen 4, and "leave incomplete" is asked once
+
+**Supersedes** item 4 of the 2026-09-21 user-flows entry ("Dismissing it leaves the day incomplete").
+
+**Context.** `09` F11 made the check a card on Today that could be dismissed. `10` §4, reviewed later,
+made it a full screen with an explicit **Leave day incomplete**, "a real choice, not a dismissal", and
+said the screen writes nothing. Nothing recorded the choice, so the next morning's "Yesterday" card
+would ask about the same day again. `10` §4 also left zero unconfirmed meals open.
+
+**Decided (asked).** The evening card (60 minutes before bedtime) and the "Yesterday" card open screen 4
+for their day. A card shows only for a day with at least one unconfirmed meal, so screen 4 is never
+reached with none. **Leave day incomplete** stores the date in IndexedDB on the device (`03` §6),
+cleared by the sign-out wipe (`08` §7), and both cards stay hidden for that date. The server derives
+incomplete days already and is not told.
+
+**Alternatives considered.** `plan_day.left_incomplete_at`: syncs the choice across devices, but it
+adds a column and an endpoint for a UI reminder. With one user on one phone, the cost of the device-only
+list is a second device asking once more.
+
+### [2026-09-22] Phase 6 review, group 6: one daily cap on model calls, label reads and meal estimates together
+
+**Supersedes** the label-only cap in the 2026-09-21 infrastructure and security entry.
+
+**Context.** `09` F15 showed a 429 for meal estimates, but only label reads had a cap (`07` §1.3,
+`13` §9, `03` §10). `13` ranks the Anthropic bill as threat #2. A photo estimate is the same kind of
+call and costs more, and running out the $10 workspace would stop label reads for everyone.
+
+**Decided (asked).** One per-user daily cap counts both. The code is renamed `label_cap_reached` →
+`model_cap_reached` (no code exists yet). The number is still set before the first invitee (proposed
+20/day). A label read leaves no row, so the counter needs its own store, which is decided with the cap.
+
+**Alternatives considered.** A separate `estimate_cap_reached`: finer control, but two counters to tune
+for a handful of users, and neither one protects the shared $10 limit.
+
+### [2026-09-22] Phase 6 review, group 6: flows match what the other docs implement
+
+**Decided (asked).**
+- **The server does not derive an ended workout.** `09` F3 claimed the server treats a workout idle
+  for 3 hours as ended for display, but no query or response does. The sentence now says what is true:
+  `endedAt` stays `null` until the phone writes it, and another device shows the workout as in
+  progress. Rejected: deriving `endedAt` on read in `07`, which is correct on every device but puts the
+  3-hour rule in two places.
+- **F13 follows `07` §5's three statuses**, adding `needs_weigh_in` and a "stopped weighing" row.
+  **Apply** is `ready`-only. The gate is 14 complete days in total, not 14 in the window.
+- **Five wording fixes:** "first workout" in F3; HAE "up to 3 hours" in F14; "open workout", not "gym
+  session", in F2; F10 has four prerequisites, profile first, matching `setup_incomplete`; F16 names
+  409 `already_answered`.

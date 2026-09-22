@@ -28,8 +28,10 @@ plus the security roles and `audit_event` from `docs/13`, which ship with M1.
 
 ## Tables owned by Better Auth
 
-`user`, `session`, `account`, `verification` (core schema, checked 2026-09-19). We do not design
-them. `advanced.database.generateId: "uuid"` makes `user.id` a `uuid` column, which every
+`user`, `session`, `account`, `verification` (core schema, checked 2026-09-19), and `rateLimit`
+(`id`, `key`, `count`, `lastRequest`), which `rateLimit.storage: "database"` needs (`docs/08` §2;
+Better Auth docs v1.6.23, checked 2026-09-22). We do not design them. Their SQL comes from Better
+Auth's schema `generate` and ships as a dbmate migration like every other table. `advanced.database.generateId: "uuid"` makes `user.id` a `uuid` column, which every
 `user_id` below references. Deleting a `user` row cascades through everything here.
 
 ---

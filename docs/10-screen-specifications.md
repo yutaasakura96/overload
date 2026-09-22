@@ -193,8 +193,11 @@ this screen has the same scroll gap as 3, 5 and 6 (§7.3).
 - **Per-meal actions are all secondary** here, unlike screen 3, because the screen has one primary.
 - **Leaving the day incomplete is a real choice**, not a dismissal. It is offered at equal
   prominence in tertiary weight, and the consequence is stated above the fold.
-- **Zero unconfirmed meals** has no artboard. The screen should not be reachable, or should state
-  the day is complete and show the same "if confirmed" figures as a summary.
+- **Reached from a card on Today**: the evening card, 60 minutes before bedtime, or the next
+  morning's "Yesterday" card (`09` F11). **Leave day incomplete** writes nothing to the server; the
+  phone remembers the date so neither card asks again.
+- **Zero unconfirmed meals** is unreachable: a card shows only for a day with at least one
+  unconfirmed meal (decided 2026-09-22, `09` F11). No artboard needed.
 
 ---
 

@@ -40,7 +40,7 @@ deletion). Append-only, kept a year, never holds health or food values.
 _Avoid_: log, activity, history
 
 **Before the first invitee**:
-The gate between Yuta as the only user and a friend signing in. Label cap, compliance and the
+The gate between Yuta as the only user and a friend signing in. Model-call cap, compliance and the
 Anthropic key split wait for it (`docs/13` §9). Nothing on that list blocks M1.
 _Avoid_: launch, go-live, production (production exists from M1)
 

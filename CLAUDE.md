@@ -47,7 +47,8 @@ A linter won't catch these:
 - Never log or send to Sentry: food, weight or health values, photos, tokens, emails. Ids and error
   codes only.
 - `/api/health` must not touch the database. Otherwise the uptime check keeps Neon awake.
-- Errors are RFC 9457 problem details with our `code`.
+- Errors are RFC 9457 problem details with our `code`. The one exception is Better Auth's own
+  `/api/auth/*`, which answers `{ code, message }` (`docs/07` §1.3).
 
 ## Workflow
 

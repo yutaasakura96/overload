@@ -57,12 +57,22 @@ on that date.
 - **No JWTs.** Nothing needs stateless verification: the API and the database are in one region,
   and a session lookup is one indexed read.
 - **No separate refresh token.** The sliding `updateAge` is the refresh.
-- **CSRF:** Better Auth checks `Origin` against `trustedOrigins`, which holds the web origin only.
-  `SameSite=Lax` stops cross-site POSTs from carrying the cookie. Every state-changing route is a
-  non-GET method.
+- **CSRF**, by layer:
+  - **`SameSite=Lax`** stops a cross-site POST from carrying the cookie, on every route. Every
+    state-changing route is a non-GET method.
+  - **`/api/auth/*`:** Better Auth also checks `Origin` against `trustedOrigins`, which holds the
+    web origin only. This covers its own routes and nothing else.
+  - **Every other cookie route:** Hono's built-in `csrf()` middleware, on all of `/api/*` except
+    `/api/auth/*`, `/api/ingest/*` and `/api/cron/*`. It checks only unsafe methods with a
+    form-sendable content type (`multipart/form-data` for `label-reads` and `meal-estimates`), and
+    passes a request whose `Origin` or `Sec-Fetch-Site` passes, so JSON calls and the native app's
+    bearer calls are unaffected (Hono docs, checked 2026-09-22). `origin` is set to
+    `BETTER_AUTH_URL`, the web origin: behind the rewrite the API sees its own host, so the default
+    would refuse the app itself. *Added 2026-09-22.*
 - **Rate limiting** on `/api/auth/*`: Better Auth's limiter, `enabled: true` stated explicitly, with
   `storage: "database"`. Its default in-memory store is per instance, which on Vercel Functions
-  means per cold start, so it limits nothing.
+  means per cold start, so it limits nothing. Database storage needs Better Auth's `rateLimit` table
+  (`04`).
 
 ---
 
@@ -122,6 +132,14 @@ on that date.
   the caller's user id as its first argument and filters on it (`03` §10). Child rows (`set`,
   `plan_meal_item`) are reached by joining to a parent that carries `user_id`, never fetched by id
   alone.
+- **Every id a request body refers to is resolved the same way.** `exerciseId`, `routineId`,
+  `foodId`, `foodIds[]`, `batchId`, `appleWorkoutId`, `planMealId` and a synced row's parent id are
+  each looked up through the caller's data layer before the write, and a seeded exercise also
+  counts as the caller's. The foreign keys in `04` point at `id` alone, so the database would accept
+  another user's id, and a join would then show that user's exercise name or Apple workout. An id
+  that is not the caller's is refused exactly like one that does not exist: 422
+  `validation_failed` on that field's path, `parent_missing` inside a sync batch. *Added
+  2026-09-22.*
 - **Someone else's row gives 404, not 403.** A 403 would confirm the id exists.
 - **The daily job runs for every user**, and it is the only code path that is not scoped to one
   caller. It loops over users and calls the same per-user functions.
@@ -144,7 +162,7 @@ on that date.
 | --- | --- | --- |
 | `/api/auth/*` | Better Auth's own | Better Auth's responses |
 | `/api/ingest/health-auto-export` | Ingest token | 401 problem detail. HAE records it in its Activity Logs |
-| `/api/cron/*` | `CRON_SECRET` | 401, with no body detail |
+| `/api/cron/*` | `CRON_SECRET` | 401 `unauthenticated` problem detail, with a generic `detail` |
 | `/api/admin/*` | Admin | 404 to a member, 401 to a visitor |
 | Everything else under `/api/` | Member | 401 |
 
@@ -185,8 +203,9 @@ The endpoint list is `docs/07`.
   is no longer invited, and keeping the address after the account is gone would keep personal data
   that the user asked to remove. To come back, they need a new invite.
 - **The admin cannot delete their own account** while the `ADMIN_EMAIL` env var names them. The API
-  refuses with `code: "admin_account"`. This stops the only admin from locking themselves out by
-  accident. Deleting it on purpose means changing the env var first.
+  refuses by throwing a Better Auth `APIError` in `beforeDelete`, so the refusal arrives in Better
+  Auth's `{ code, message }` format, not as a problem detail (`07` §1.3). This stops the only
+  admin from locking themselves out by accident. Deleting it on purpose means changing the env var first.
 - On the device, deletion runs the sign-out wipe in §7.
 
 ---
@@ -194,7 +213,7 @@ The endpoint list is `docs/07`.
 ## 7. Sign-out
 
 - **With nothing pending:** end the session, clear the TanStack Query cache and its IndexedDB copy,
-  clear the stored signed-in user, and go to `/sign-in`.
+  clear the stored signed-in user and the days left incomplete (`03` §6), and go to `/sign-in`.
 - **With pending or refused sets:** first a dialog, "*N* sets not uploaded yet", with two actions:
   - **Upload now**, when online. Sign-out continues only when nothing pending is left. Refused sets
     still need the second choice.
@@ -205,7 +224,9 @@ The endpoint list is `docs/07`.
 - **Why the cache is cleared:** weight, food and health numbers should not stay readable on a phone
   after its user signs out.
 - Sign-out ends that login session only. "Sign out everywhere" is a separate action on the account
-  screen and ends every login session of the user.
+  screen: Better Auth's `POST /api/auth/revoke-sessions`, which ends every login session of the
+  user, this one included (Better Auth docs v1.6.23, checked 2026-09-22). It then runs the same
+  sign-out steps as above on this device.
 
 ---
 
@@ -216,7 +237,11 @@ When the admin revokes an invite:
 2. Every `session` row for that user is deleted, so every device and a future native app is signed
    out on its next request.
 3. Every `ingest_token` of theirs gets `revoked_at`, so Health Auto Export starts receiving 401.
-4. **Their data stays.** Re-inviting the same email (clearing `revoked_at`) restores everything.
+4. **Their data stays.** Restoring the invite (clearing `revoked_at`) brings back sign-in and every
+   row. **Ingest tokens stay revoked:** the member creates a new one on the health setup screen and
+   pastes it into Health Auto Export. A token sat in an app that had lost access, and it was shown
+   once, so un-revoking it would revive a secret nobody can see again. *Changed 2026-09-22* from
+   "restores everything".
 
 A revoked member cannot reach export or delete. If they ask for their data, the admin re-invites
 them for the export. That is the revisit condition already written in `06` (2026-09-20). A separate
@@ -245,6 +270,9 @@ Every one of these is a test, not a code-review item:
 - **Cross-user, on every resource:** user B reading, updating and deleting user A's rows by id gets
   404, and A's rows are unchanged afterwards. Child rows are included (a set id, a plan meal item
   id).
+- **Cross-user references, on every body field that holds an id:** user B creating or updating a
+  row that points at A's id (an exercise, routine, food, batch, Apple workout, plan meal, or a
+  synced row's parent) is refused as in §4, and no row of B's refers to A's afterwards.
 - The gate refuses a non-invited email, a revoked email and an unverified email, each with its own
   error.
 - After revoke, the revoked user's cookie session, bearer session and ingest token each get 401 on
@@ -253,6 +281,8 @@ Every one of these is a test, not a code-review item:
 - An ingest token sent to a member route gets 401. A session cookie sent to the ingest route gets
   401.
 - `/api/cron/*` without the secret, or with a wrong one, gets 401.
+- A cross-origin `multipart/form-data` POST to `/api/label-reads` with a valid cookie gets 403, and
+  the same request from the web origin passes.
 - Account deletion with a session older than `freshAge` is refused, and after deletion no row with
   that `user_id` remains in any table except `audit_event`, whose rows are kept for a year (S10).
 - Offline: an expired session with pending sets keeps them pending, and they upload after
@@ -267,3 +297,6 @@ Every one of these is a test, not a code-review item:
 - Whether Better Auth's rate limiter is enabled by default in production. It is set explicitly, so
   this only matters if that setting is ever removed.
 - Better Auth's default cookie attributes on this version, checked in the browser once deployed.
+- Whether `list-sessions` sits behind Better Auth's fresh-session middleware on the pinned version,
+  as it does in current source. If so, the account screen's session list needs a sign-in less than a
+  day old, like deletion (§6).
