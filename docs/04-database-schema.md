@@ -250,6 +250,29 @@ One logged set. The row the whole offline path exists to protect (S1).
 
 ---
 
+## sync_tombstone
+
+The id of a `workout`, `workout_exercise` or `set` deleted through sync, kept so that a stale copy
+arriving later is not inserted again (`docs/03` §8.1). An id and a time, no content. *Added
+2026-09-22.*
+
+| Column | Type | Null | Default | Notes |
+| --- | --- | --- | --- | --- |
+| `id` | uuid | no | — | PK. **The deleted row's own id**, not a new one |
+| `user_id` | uuid | no | — | → `user.id`, `ON DELETE CASCADE`. Account deletion removes these too |
+| `table_name` | text | no | — | `CHECK (table_name IN ('workout', 'workout_exercise', 'set'))` |
+| `deleted_at` | timestamptz | no | — | The phone's `deletedAt`, or the parent's for a cascaded id |
+| `created_at` | timestamptz | no | `now()` | Server clock. The purge reads this |
+
+- Written in the same transaction as the delete. Deleting a workout also writes its
+  `workout_exercise` and `set` ids, which the server knows at that moment.
+- No `updated_at`: a tombstone is never updated. The second exception to the conventions, after
+  `audit_event`.
+- `INDEX (created_at)` for the purge. The daily job deletes rows older than 30 days.
+- One PK serves all three tables: UUIDv7 ids carry 74 random bits, so a collision across tables is negligible.
+
+---
+
 ## Queries the indexes are for
 
 | Query | Path |
@@ -257,7 +280,7 @@ One logged set. The row the whole offline path exists to protect (S1).
 | **Last time** (S2): last session's weight × reps per set number | `workout (user_id, started_at DESC)` → `workout_exercise (exercise_id)` → `set (workout_exercise_id, set_number)` |
 | **Suggestion** (S3): did every working set hit the top of the range last time | Same rows, plus `workout_exercise.rep_high` copied at start |
 | **Chart** (S7): best working set per workout over a span, Epley `weight × (1 + reps / 30)` | `workout (user_id, started_at DESC)` filtered by span → the same join, `is_warmup = false` |
-| **Upload a set** (S1) | `INSERT … ON CONFLICT (id) DO UPDATE … WHERE set.client_updated_at < EXCLUDED.client_updated_at` on the PK. *Changed 2026-09-21* from `DO NOTHING`, so offline edits and deletes use the same path (`docs/07` §3.4) |
+| **Upload a set** (S1) | `INSERT … ON CONFLICT (id) DO UPDATE … WHERE set.client_updated_at < EXCLUDED.client_updated_at` on the PK. *Changed 2026-09-21* from `DO NOTHING`, so offline edits and deletes use the same path (`docs/07` §3.4). Skipped when `sync_tombstone` holds the row's id or its parent's |
 | **Exercise picker** (S8) | `exercise (owner_user_id)`, left joined to `exercise_setting` to drop `hidden_at` rows |
 | **Export** (S10) | Every table by `user_id`, or by join for the child tables |
 
@@ -743,10 +766,12 @@ actually run on.
 | `user_id` | uuid | no | — | → `user.id`, `ON DELETE CASCADE` |
 | `goal_phase_id` | uuid | no | — | → `goal_phase.id`, `ON DELETE CASCADE` |
 | `week_start` | date | no | — | Local Monday, per `user_profile.timezone` |
-| `estimated_tdee_kcal` | integer | no | — | |
+| `estimated_tdee_kcal` | integer | yes | — | `NULL` when there were too few weigh-ins to estimate (`docs/03` §8.3) |
 | `previous_tdee_kcal` | integer | yes | — | `NULL` on the first estimate of a phase |
 | `window_days` | smallint | no | `14` | Span the estimate was computed over, ending the day before `week_start` |
-| `trend_weight_delta_kg` | numeric(5,3) | no | — | Change in the *smoothed* trend across the window, not raw weights |
+| `trend_weight_delta_kg` | numeric(5,3) | yes | — | `trend_end − trend_start` of the *smoothed* trend, not raw weights. `NULL` with no estimate |
+| `trend_span_days` | smallint | yes | — | Days between the two trend points. `window_days` normally; fewer when the first weigh-in falls inside the window. `NULL` with no estimate |
+| `weigh_in_count` | smallint | no | — | Weighed days in the window. Under 3, or none in the newest 7, means no estimate |
 | `mean_intake_kcal` | integer | no | — | Over complete days in the window only |
 | `complete_day_count` | smallint | no | — | Complete days in the whole window |
 | `week_complete_day_count` | smallint | no | — | Complete days in the newest 7. `≥ 5` is the condition for applying (`docs/03` §8.3) |
@@ -759,6 +784,8 @@ actually run on.
 | `created_at` / `updated_at` | timestamptz | no | `now()` | |
 
 - `UNIQUE (user_id, week_start)`, `INDEX (user_id, week_start DESC)`.
+- `CHECK (estimated_tdee_kcal IS NOT NULL OR applied_at IS NULL)`: a week without an estimate is
+  never applied. Its `target_*` columns copy the targets in force, so the row still reads whole.
 - **`plan_day` copies from the newest *applied* estimate of the day's phase**, falling back to
   `goal_phase.calorie_target_kcal` when there is none. `goal_phase` keeps its meaning — what you
   decided, and the provisional formula figure you started from — and stops being rewritten by a job.

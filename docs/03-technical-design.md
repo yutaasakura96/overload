@@ -32,7 +32,7 @@ each piece run. Open it in draw.io to edit.*
 The native app stays cheap only if these hold:
 
 1. REST described by OpenAPI. No TypeScript-only RPC layer.
-2. Planner, progression, expenditure and plateau logic run on the server, in `apps/api/src/domain/`.
+2. Planner, progression, trend, expenditure and plateau logic run on the server, in `apps/api/src/domain/`.
 3. Bearer tokens are accepted alongside cookies (Better Auth bearer plugin).
 4. Rows created on the device carry client-generated UUIDv7 ids, and every write is safe to retry.
 
@@ -87,12 +87,30 @@ database move together. The portability rules in `06` (2026-09-19, Hosting) make
 | **Total** | **$0 + Anthropic cents** | **≈ $40–60/month + Anthropic usage** |
 
 - Vercel and Neon prices were read from vercel.com/pricing and neon.com/pricing on 2026-09-21.
-- **1,000 users assumes:** about 100 requests per user per day (hourly health exports plus app use),
+- **1,000 users assumes:** about 100 requests per user per day (health exports plus app use),
   which is ~3M invocations/month, and ~2 GB of rows after a year.
 - **What breaks first under 10× today:**
-  - Neon's 0.5 GB. Health samples are the largest table. At the daily grouping in §9, one user is
-    roughly 3,000–4,000 rows a year, so Free lasts for a small group but not for a crowd.
+  - **Neon's 100 CU-hours a month.** Out of CU-hours, the Free compute is suspended until the next
+    billing period, so the whole app stops, not one feature. Every branch's compute counts,
+    staging's included (neon.com/docs/introduction/plans, checked 2026-09-22).
   - Hobby's non-commercial clause, the moment any money changes hands.
+  - Not storage. At the daily grouping in §9 one user is about 4,400 health rows a year (twelve
+    metric values a day), so 0.5 GB lasts well past the compute limit.
+
+**Compute budget.** A wake costs at least 5 minutes at 0.25 CU (≈ 0.021 CU-hours), because Free
+suspends only after 5 idle minutes. Each user's phone wakes the database on its own schedule, so
+ingest cost grows with the number of users.
+
+| | CU-hours a month |
+| --- | --- |
+| Ingest, every 3 hours (§9): 8 wakes a day per user | ≈ 5 per user |
+| App use: a workout, the plan, a look at the charts, ~1.5 h awake a day | ≈ 11 per active user |
+| Staging, during a phone checklist or a debugging week | ≈ 5–10 |
+| **Yuta alone** | **≈ 25** |
+| **Yuta plus five invitees** | **≈ 100 — the limit** |
+
+Hourly ingest would have been ≈ 15 per user from ingest alone. The weekly Neon check (`12` §5) is
+what moves the project to Launch (≈ $19/month) before the limit, not after.
 
 ---
 
@@ -142,12 +160,19 @@ design/  docs/  CONTEXT.md
 | State | Lives in | Rule |
 | --- | --- | --- |
 | API data | TanStack Query, persisted to IndexedDB | Screens render the last loaded data offline, with its age |
-| Unsent and refused sets | Our IndexedDB store, one record per set keyed by its id, `durability: "strict"` | Written the moment the set is logged. Deleted only after the server confirms |
-| Active gym session | One Zustand store, in memory | The rest timer stores when rest *started* (the last set's timestamp), never a countdown |
+| Pending and refused sets, and the workout rows they belong to | The set store: our IndexedDB store, one record per `workout`, `workout_exercise` or `set` row keyed by its id, `durability: "strict"` | Written the moment the row is created or changed. Deleted only after the server acknowledges it. **Rows of the open workout stay, marked acknowledged, until the workout ends** (Finish, or the 3-hour rule in `docs/09` F3) |
+| Active gym session | One Zustand store, in memory, **rebuilt from the set store on every launch** | The rest timer stores when rest *started* (the last set's timestamp), never a countdown |
 | One screen's inputs, open tab | React state, plus the URL for anything worth linking | — |
 | Server truth | Postgres | — |
 
 **One copy per fact.** Server data never goes into Zustand.
+
+**Why the open workout's rows outlive their acknowledgement.** iOS can end a home-screen app at any
+time (§11), and the Zustand store goes with it. On reopening, the set store alone must be enough to
+rebuild the open workout, show Resume (`docs/09` F3) and restart the rest timer from the last
+`performed_at`, offline included. Acknowledged rows kept there count as neither pending nor refused,
+so the data-state slot is unaffected. The TanStack cache is not a substitute: its persister writes
+at most once a second (`06`, 2026-09-19, client state). *Added 2026-09-22.*
 
 ---
 
@@ -193,20 +218,30 @@ The error colour is `error` `#F2555A` (`docs/05` §1.4, added 2026-09-22), alway
    incoming.client_updated_at` and returns a result per row (`docs/07` §3.4). A retry after a lost
    response, or a stale copy, changes nothing. Edits and deletes made offline travel in the same
    batch. *Changed 2026-09-21* from `DO NOTHING`, which could not carry an offline edit.
+   - **A deletion leaves a tombstone.** The guard only works while a row exists, and deletes are
+     hard, so a stale copy arriving after a delete would otherwise be inserted again. Each sync
+     delete writes the id to `sync_tombstone` (`docs/04`) in the same transaction, along with the ids
+     it cascades to. The insert skips any row whose id or parent id has a tombstone, and reports it
+     as `deleted`. Tombstones are purged after 30 days by the daily job (§8.4). *Added 2026-09-22.*
 4. **The local record is deleted only after the server acknowledges the set.** A refusal (kind 3)
-   marks it refused and keeps it.
+   marks it refused and keeps it. While its workout is open, an acknowledged record is marked
+   acknowledged instead, and deleted when the workout ends (§6).
 5. **One tab uploads at a time.** Use the Web Locks API (`navigator.locks.request`) around the
    upload loop.
    - **Unverified:** Safari support. Check it when S1 is built.
-   - A second tab uploading anyway is safe because of step 3; the lock only prevents wasted requests.
+   - A second tab uploading anyway is safe because of step 3 and its tombstones; the lock only
+     prevents wasted requests.
 6. `workout` and `workout_exercise` are created on the phone the same way, and uploaded before
    their sets.
 
 **Tests:** browser tests in airplane mode:
 - log, kill the tab, reopen, then reconnect
+- log and upload three sets, go offline, kill the tab, reopen: all three show, and the next set is
+  number 4
 - the same set sent twice
-- the server returns 422 for one set in a batch
+- one set refused (`validation_failed`) inside a 200 batch: the rest are stored, that one is kept and marked refused
 - two tabs open
+- a stale copy of a set, and of a workout, arriving after its delete: neither comes back
 
 ### 8.2 Meal planner (S16)
 
@@ -247,9 +282,27 @@ confirmed, S18):
 
 ```
 mean_intake   = Σ confirmed kcal on complete days ÷ complete_day_count
-trend_delta   = trend(last day of window) − trend(day before window)       kg
-tdee          = mean_intake − (trend_delta × 7,700) ÷ N                    kcal/day
+trend_start   = trend on the day before the window,
+                or, with no weigh-in by then, trend at the window's first weigh-in
+trend_end     = trend at the window's last weigh-in
+span_days     = days between the two trend points                          (N in the normal case)
+rate          = (trend_end − trend_start) ÷ span_days                     kg/day
+tdee          = mean_intake − rate × 7,700                                 kcal/day
 ```
+
+- **A day's trend** is the trend at the latest weigh-in on or before that day. The trend itself is
+  still computed only on weighed days.
+- In the normal case, a weigh-in before the window and one on its last day, `span_days = N` and
+  this is `mean_intake − (trend_delta × 7,700) ÷ N`. The start fallback exists for a new user whose
+  first weigh-in falls inside their first window. Without it the first maintenance check could not
+  be computed at all.
+- **No estimate** with fewer than 3 weigh-ins in the window, or none in its newest 7 days. Two old
+  readings would otherwise give a confident figure from stale data. S18a shows
+  `Weigh in to see this` in place of the figure. S21 writes the row with the estimate empty and
+  `applied_at = NULL`, and the previous targets stay.
+- **Tests** (`11` §2): a window ending on an unweighed day; a new user whose first weigh-in is
+  inside the window; a window with two weigh-ins, and one with none in the newest 7 days (both
+  give no estimate). *Added 2026-09-22.*
 
 - 7,700 kcal/kg is the conventional energy density of body-mass change. It is an approximation, and
   it is why `method` is versioned.
@@ -278,6 +331,8 @@ of weeks is a property of each protocol in the typed catalogue in `domain/`.
   whose local Monday has begun and who has no `expenditure_estimate` for that `week_start`, it
   computes the estimate, applies it if eligible, and regenerates the week's unconfirmed plan days.
 - `UNIQUE (user_id, week_start)` makes a re-run harmless.
+- The same run purges `audit_event` rows older than a year (`13` §7) and `sync_tombstone` rows older
+  than 30 days (§8.1). A missed purge is harmless.
 - **If the cron is missed,** the first request after the local Monday that needs current targets
   runs the same function inline. The cron is an optimisation, not the only path.
 - On Pro, or on AWS, it can run hourly without any change to the function.
@@ -303,7 +358,7 @@ checked 2026-09-21):
 
 All three automations use:
 - **Format:** JSON, Batch Requests ON
-- **Cadence:** hourly
+- **Cadence:** every 3 hours (Sync Cadence takes any number and interval, checked 2026-09-22)
 - **Request:** `POST https://<web origin>/api/ingest/health-auto-export` with the header
   `Authorization: Bearer <ingest token>`
 
@@ -311,6 +366,10 @@ All three automations use:
 - **Why everything else is daily:** one row per metric per day is what S20 and S24 read. Aggregated
   sleep arrives as one row per night with stages. It also keeps HAE's background run short: iOS gives
   background tasks about 30 s.
+- **Why every 3 hours, not hourly:** each run wakes Neon for at least 5 minutes, and hourly on every
+  user's phone exhausts Free's CU-hours at a handful of users (§3). S19 needs daily values, and each
+  run re-sends a week, so nothing is lost. The morning weight appears within about 3 hours of the
+  weigh-in. iOS chooses the exact run time anyway. *Changed 2026-09-22* from hourly.
 - **Why "Previous 7 Days":** every run re-sends a week. Apple's revisions and missed runs therefore
   arrive on the next successful run, and the upsert makes the repeats harmless.
 - **Changing grouping later is a migration, not a toggle.** It changes what a row means and collides
@@ -337,7 +396,9 @@ All three automations use:
   - Weight: `body_measurement` keyed `(user_id, source, measured_at)`, also `DO UPDATE`
   - Then one `health_sync_state` upsert per metric present in the payload
 - **Validation:**
-  - The payload is Zod-validated like any route, and unknown metric names are ignored and counted.
+  - Only the envelope is validated strictly: a body that is not an HAE export gets a 4xx. Inside
+    it, unknown metric names and malformed points are skipped and counted, never refused, because a
+    4xx makes HAE drop the whole batch (`07` §6.1).
   - The body limit is Vercel's function request limit, 4.5 MB (Vercel functions limits, checked
     2026-09-21). Batch Requests should keep each request well under it; confirm against the first
     real payloads.
@@ -366,7 +427,7 @@ All three automations use:
 
 | Question | Answer |
 | --- | --- |
-| **Where do secrets live?** | Vercel environment variables, with production and preview separate, plus a gitignored `.env.local`. Never in the repo, and nothing beyond public values in the web bundle. Secrets: DB URL, Better Auth secret, Google client secret, Anthropic key, Sentry DSN. Ingest tokens are stored hashed |
+| **Where do secrets live?** | Vercel environment variables, with production and preview separate, plus a gitignored `.env.local`. Never in the repo, and nothing beyond public values in the web bundle. Secrets: the runtime DB URL (`overload_app`), the migration DB URL (`overload_owner`, direct connection, build only, `12` §3), Better Auth secret, Google client secret, Anthropic key, `CRON_SECRET` (`08`). The Sentry DSN is public by design and ships in the web bundle. Ingest tokens are stored hashed |
 | **How is input validated?** | On the server, by the Zod schema on every route (the same schemas that generate OpenAPI). Client checks are only for UX. Label-photo output, Open Food Facts records and HAE payloads are untrusted input and go through the same schemas |
 | **HTTPS everywhere?** | Yes. Vercel serves HTTPS only, and connections to Neon use TLS |
 | **Sensitive data** | Email, bodyweight and composition, the food log, sleep, HRV, heart rate. Neon encrypts data at rest with AES-256 on its NVMe volumes (Neon security overview, checked 2026-09-21). None of it goes to logs or Sentry (§7). Label and meal photos go to Anthropic and are **discarded afterwards**; only confirmed values are stored |

@@ -179,6 +179,7 @@ monitor, with email alerts (Sentry pricing docs, checked 2026-09-21).
 | Health Auto Export stops syncing | No alert. `health_sync_state` on the dashboard (S19) |
 | Anthropic spend | Not alerted: the `overload` workspace's $10/month hard limit caps it (`13` §4) |
 | Nightly backup fails | GitHub's failed-workflow email (`13` §2) |
+| Neon CU-hours running out | No alert on Free. Once the first invitee joins, Yuta checks the month's CU-hours in the Neon console every Monday and moves to Launch before 80 of 100. Out of CU-hours, the compute is suspended until the next billing period (`03` §3) |
 
 - **`/api/health` must not touch the database** (binding). A 5-minute check would keep Neon's compute
   from ever scaling to zero: always-on at 0.25 CU is about 180 CU-hours a month against Free's 100,

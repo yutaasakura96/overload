@@ -232,7 +232,7 @@ The table is `ingest_token`, and the setup is in `03` §9. Rules that concern au
   SHA-256 hash. It can be copied, and it cannot be shown again. A lost token is revoked and a new
   one made.
 - Looked up by hash on every ingest request, then checked `revoked_at IS NULL`. `last_used_at` is
-  updated at most once an hour, so each hourly export does not cost an extra write.
+  updated at most once an hour, so repeated exports do not each cost an extra write.
 - Authorises `POST /api/ingest/health-auto-export` for its own user and nothing else.
 - The token is never logged. Only the `ingest_token.id` is, per `03` §7.
 - A user may hold several, one per phone, told apart by `label`.

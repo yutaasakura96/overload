@@ -325,6 +325,11 @@ POST /api/workouts/sync
   tables.
 - **A deletion** removes the row if the stored `client_updated_at` is older than `deletedAt`, and
   counts as `deleted` if the row is already gone. Deleting a workout cascades (`04`).
+- **A deleted row stays deleted.** Each deletion writes a `sync_tombstone` (`04`) for the row and
+  every row it cascades to. A row whose id, or whose parent's id, has a tombstone is not inserted,
+  and neither is a child of a row reported `deleted` earlier in the same batch. All of these are
+  reported `deleted`. Without this, a stale copy from a second tab or a late request would bring a
+  deleted set back. *Added 2026-09-22.*
 - **Ownership:** a row whose id exists under another user is refused as `not_found`, like any
   other cross-user access.
 - **Limit:** 500 rows a request. The uploader splits larger queues.
@@ -570,7 +575,7 @@ confirm endpoints return 409 `day_locked` (`docs/09` F11). A `PATCH /api/goal-ph
 | POST | `/api/meal-estimates/{id}/confirm` | M | Save it, edited or not: writes the plan item and marks the meal `replaced` | 200 with the meal | 401, 404, 422 |
 | GET | `/api/meal-estimates` | M | Past estimates with raw and saved values, paged. For judging provider accuracy (`04`) | 200 | 401 |
 
-- `DELETE` of an Apple Health weigh-in is refused because the next hourly export would re-send it
+- `DELETE` of an Apple Health weigh-in is refused because the next export would re-send it
   within 7 days. The user deletes it in Apple Health instead.
 - `POST /api/meal-estimates` stores the row with `confirmedAt: null`, so an estimate shown and then
   abandoned is still counted when judging the provider.

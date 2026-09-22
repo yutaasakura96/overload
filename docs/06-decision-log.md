@@ -1414,3 +1414,101 @@ else without a scroll decision.
 
 **Revisit if:** three-warm-up routines are common. Then the expanded state scrolls every time, and a sheet
 may be the better call.
+
+### [2026-09-22] Phase 6 review, group 3 (technical design): a deleted synced row stays deleted
+
+**Decided (asked).** Each sync delete writes the deleted id, and every id it cascades to, into a new
+`sync_tombstone` table in the same transaction. The sync insert skips a row whose id or parent id
+has a tombstone, or whose parent was reported `deleted` earlier in the batch, and reports it as
+`deleted`. The daily job purges tombstones after 30 days. Changed in `03` §8.1 and §8.4, `04`, `07`
+§3.4 and `11` §2.
+
+**Why.** `03` §8.1 said a second uploading tab was safe because of the `client_updated_at` guard.
+The guard only works while a row exists, and deletes are hard (2026-09-20). A stale copy from a
+second tab, or a late request the phone had given up on, would re-insert a deleted set, or an empty
+workout that `09` F3 deleted. Web Locks is still unverified on Safari, so the two-tab case is real.
+A resurrected set skews e1RM and the S3 suggestion, which is the corrupted training record the
+2026-09-19 hardest-problems entry exists to prevent.
+
+**Alternatives considered.** A `deleted_at` column on the three sync tables, which is a soft delete
+and was rejected on 2026-09-20. Keeping the design and removing the "safe" claim, which accepts the
+bug. The tombstone holds an id and a time, no content, so "deleted means deleted" still holds for
+user data.
+
+**Revisit if:** the native app lets one workout be edited from two devices. Then 30 days may be
+too short for a device that stays offline, and the purge age is the only thing to change.
+
+### [2026-09-22] Phase 6 review, group 3: the set store holds the open workout until it ends
+
+**Decided (asked).** The set store holds pending `workout`, `workout_exercise` and `set` rows, not
+only sets. The name stays. Rows of the open workout stay after acknowledgement, marked acknowledged,
+and are deleted when the workout ends (Finish or the 3-hour rule). On every launch the Zustand
+session store is rebuilt from the set store alone. Changed in `03` §6 and §8.1, `CONTEXT.md` and
+`09` F3.
+
+**Why.** `03` §6 and `CONTEXT.md` said one record per set, while `09` F3 and `07` §3.4 already put
+all three row types through the store. Acknowledged rows were deleted at once, so after iOS closed
+the app mid-workout they survived on the device only if the TanStack cache had been refetched and
+persisted. Reopening offline could show set 4 without sets 1–3, invite a second set 2 (refused by
+`UNIQUE (workout_exercise_id, set_number)`), and leave Resume nothing to read.
+
+**Alternatives considered.** Renaming the store (the term is already in four docs). Writing each
+acknowledged row into the TanStack cache before deleting it, which is smaller but leans on the
+throttled persister that the 2026-09-19 client-state entry gave sets their own store to avoid.
+
+**Revisit if:** the native app takes over gym logging (the same rule then applies to its store).
+
+### [2026-09-22] Phase 6 review, group 3: Health Auto Export every 3 hours; Neon compute, not storage, breaks first
+
+**Decided (asked).** All three HAE automations sync every 3 hours instead of hourly. `03` §3 now
+names Neon's 100 CU-hours as what breaks first, with a compute budget, and `12` §5 adds a weekly
+CU-hours check once the first invitee joins, moving to Launch before 80. Supersedes the hourly
+cadence in the 2026-09-21 Health Auto Export entry. Changed in `03` §3 and §9, `07`, `08` and `12`.
+
+**Why.** `03` §3 said Neon's 0.5 GB would break first. Checked on neon.com/docs/introduction/plans
+(2026-09-22): Free has 100 CU-hours a month; the compute suspends only after 5 idle minutes, so a
+wake costs at least ≈ 0.021 CU-hours; every branch's compute counts, staging's included; and running
+out suspends the compute until the next billing period, which stops the whole app. Each user's phone
+wakes the database on its own schedule, so hourly ingest cost ≈ 15 CU-hours per user per month
+before any app use, and five or six users would have used up Free at M3. This is the mechanism `12`
+already banned for the uptime check. Storage is far behind: about 4,400 health rows per user per
+year, not the 3,000–4,000 `03` had estimated. HAE's Sync Cadence takes any number and interval
+(help.healthyapps.dev, REST API automation page, 2026-09-22).
+
+**Alternatives considered.** Keeping hourly and planning on Neon Launch (≈ $19/month) at M3: simpler,
+but the first monthly bill would come from a setting rather than a need. Daily sync: cheapest, but
+the morning weight could arrive the next day.
+
+**Revisit if:** the morning weight arriving up to 3 hours late gets in the way in M2 (try weight
+alone every 2 hours), or the weekly check shows app use, not ingest, is the larger cost.
+
+### [2026-09-22] Phase 6 review, group 3: expenditure as a rate between two trend points
+
+**Decided (asked).** `weight_trend_balance_v1` reads the trend change as a rate. A day's trend is the
+trend at the latest weigh-in on or before it. The start point is the trend on the day before the
+window, or the window's first weigh-in if there is none by then; the end point is the window's last
+weigh-in; `tdee = mean_intake − rate × 7,700`. No estimate with fewer than 3 weigh-ins in the window
+or none in its newest 7 days: S18a shows `Weigh in to see this`, and S21 writes the row with the
+estimate empty and `applied_at = NULL`. `expenditure_estimate` gains `trend_span_days` and
+`weigh_in_count`, and its estimate columns become nullable. Changed in `03` §8.3, `04`, `10` §8 and
+`11` §2. The method name is unchanged: nothing has been computed with the old wording.
+
+**Why.** The formula took the trend "on the last day of the window" and "on the day before the
+window", but the trend only exists on weighed days. It did not say what to do when either day had
+no weigh-in. A new user who starts weighing and logging on the same day reaches S18a's gate with no
+weigh-in before the window, so the first check could not be computed. And two stale weigh-ins would
+have produced a confident figure. In the normal case the new rule is the old formula exactly.
+
+**Alternatives considered.** Requiring a weigh-in before the window, which delays a new user's first
+check for no reason and still leaves the unweighed-last-day case open.
+
+**Revisit if:** the fallback start point makes first estimates swing hard in real use. Then require a
+minimum span (for example 10 days) before showing one.
+
+### [2026-09-22] Phase 6 review, group 3: four wording fixes in `03`, no decision changed
+
+**Decided (asked).** `03` restated four decisions inaccurately and now matches the docs that own them:
+the §8.1 test for one bad set expects a `refused` row inside a 200 batch (`07` §3.4, also `11` §2);
+native-ready rule 2 names trend beside planner, progression, expenditure and plateau (`CLAUDE.md`);
+§10's secrets list adds the migration DB URL and `CRON_SECRET` and drops the Sentry DSN, which is
+public; §9 says ingest validates the envelope strictly and skips bad points (`07` §6.1).

@@ -100,7 +100,9 @@ _Avoid_: 1RM, max (it is an estimate)
 ## Offline
 
 **Set store**:
-The device's own IndexedDB store holding one record per set until the server acknowledges it.
+The device's own IndexedDB store holding one record per set, and per `workout` and `workout_exercise`
+row, until the server acknowledges it. The open workout's rows stay until the workout ends, so the
+workout can be rebuilt after iOS closes the app.
 _Avoid_: queue (in code), cache, outbox
 
 **Pending set**:
@@ -109,7 +111,8 @@ data-state slot shows.
 _Avoid_: unsynced, offline set, draft
 
 **Acknowledged**:
-The server has stored the set and returned it. Only then is the local record deleted.
+The server has stored the set and returned it. Only then is the local record deleted, or, while its
+workout is open, marked acknowledged and deleted when the workout ends.
 _Avoid_: synced (for a single set)
 
 **Refused set**:

@@ -414,5 +414,6 @@ screens and states the PRD requires that Phase 2 did not draw.
 - **Health connection setup and the health dashboard** (S19, S24).
 - **Photo and text meal estimation** (S22) and its confirm-before-save step.
 - **Plateau protocols** (S23) beyond the evidence tag itself.
+- **S18a and S21 with too few weigh-ins to estimate** (`03` §8.3): `Weigh in to see this` in place of the figure. Added by review 2026-09-22.
 - **Every error and failure state except the refused set.** The refused set is drawn
   (`Main-Refused`, 2026-09-22). A rejected save elsewhere, revoked access and the discard confirm are not.

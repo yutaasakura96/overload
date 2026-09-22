@@ -24,8 +24,12 @@ one if a later fix changes it. `06` is the reference for every group, not a grou
   (refused set, warm-ups, four overlays, sources sheet, evidence tags, screen 6 countdown and low logging),
   `05`/`10` re-extracted, canvas republished (v5). Three decisions: warm-ups in place, slot owns the app bar's
   right side, end labels in a right gutter (`06` entry of that date)
-- [ ] 3. **Next:** `03` technical design
-- [ ] 4. `04` schema + `CONTEXT.md`
+- [x] 3. `03` technical design — 2026-09-22, five findings: sync tombstones, the set store holds the
+  open workout, HAE every 3 hours (Neon CU-hours break first), expenditure as a rate between two trend
+  points, four wording fixes (`06` entries of that date). Also edited `04`, `07`, `08`, `09`, `10` §8,
+  `11`, `12`, `CONTEXT.md` to match; their groups re-check those edits
+- [ ] 4. **Next:** `04` schema + `CONTEXT.md` — includes the new `sync_tombstone` and the
+  `expenditure_estimate` columns from group 3
 - [ ] 5. `07` API + `08` auth
 - [ ] 6. `09` user flows
 - [ ] 7. `11` testing + `12` deploy + `13` security
@@ -35,6 +39,9 @@ Findings Yuta leaves as they are go under **Reviewed, kept** below, one line eac
 **Then Phase 7 — Build, M1 first.** Run `/setup-matt-pocock-skills` once (tracker: GitHub Issues or
 local files; the repo is public), then `/grill-with-docs` for the first feature. Each UI feature
 clears the polish gate in `CLAUDE.md`.
+
+### Carried to a later group
+- Group 6 (`09`): F3's step-1 row says the empty state reads "first session"; the PRD says "first workout".
 
 ### Reviewed, kept
 - `10` §7.3 scroll and sticky for screens 3–6: left open for each screen's M2 `/grill-with-docs` (2026-09-22).

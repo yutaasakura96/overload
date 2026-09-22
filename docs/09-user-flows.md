@@ -92,6 +92,7 @@ Planned sets that were never ticked are not stored. Only ticked sets become `set
 | 2 | No signal | Nothing different. The data-state slot shows the pending count (`10` §7.4) |
 | 2 | Double tap on the tick | One set: the tick is disabled until the local write returns, and the id makes a repeat harmless anyway |
 | 2 | Tab killed or phone locked with sets pending | Nothing lost; they upload on the next open (S1) |
+| any | iOS closes the app mid-workout | The next open rebuilds the workout from the set store, uploaded sets included, and offers Resume (`03` §6) |
 | any | Refusal for one set (422) | F4 |
 | any | Session ended while offline | F4 |
 
