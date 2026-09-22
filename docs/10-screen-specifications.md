@@ -276,8 +276,8 @@ slot for the source route.
 | Contested | **needs a colour** / **needs a border** | — | Commonly believed, not supported |
 
 **Three decisions this still needs.**
-1. **A contested colour.** The palette has no fourth accent and no error colour (`docs/05` §7.5).
-   Contested is not an error, so it should not reuse whatever red gets added. A neutral treatment —
+1. **A contested colour.** The palette has no fourth accent. Contested is not an error, so it does
+   not reuse `error` (`docs/05` §1.4). A neutral treatment —
    `text/tertiary` on `line/field` — is the option that needs no new token, and it reads as "noted,
    not endorsed", which is the correct meaning.
 2. **The route to the source.** The tag as drawn is 13px tall and has no touch target. For S23 it
@@ -351,5 +351,5 @@ screens and states the PRD requires that Phase 2 did not draw.
 - **Health connection setup and the health dashboard** (S19, S24).
 - **Photo and text meal estimation** (S22) and its confirm-before-save step.
 - **Plateau protocols** (S23) beyond the evidence tag itself.
-- **Every error and failure state.** The palette has no error colour (`docs/05` §7.5) and no artboard
-  shows a failed save, a refused sync, or revoked access.
+- **Every error and failure state.** The colour exists since 2026-09-22 (`error`, `docs/05` §1.4), but
+  no artboard shows a failed save, a refused sync, or revoked access.

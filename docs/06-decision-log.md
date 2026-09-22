@@ -1262,3 +1262,21 @@ tertiary is carried by size, case and tracking. Instrument's grammar is unchange
 still show the old tones, and `05` supersedes them.
 
 **Revisit if:** the flatter ladder makes dense screens (2, 5) hard to scan once built.
+
+### [2026-09-22] Phase 6 review, group 2: an error colour, for server refusals only
+
+**Decided.** `error` `#F2555A` (5.77:1 on ground), `surface/error` `#170B0C`, `line/error` `#501C1E`. Red
+means that the server refused the data (a refused set, a rejected save, revoked access), and nothing else. No
+signal stays neutral and pending. A service that is down is an inline message in `flag`. An error is never shown by
+colour alone: it always carries the word `REFUSED` and the existing info icon. It is not the evidence tag's
+contested colour. Resolves the "Blocked on design" note in the 2026-09-19 error-handling entry, and in
+`03` §7 and `09` rule 5.
+
+**Why this red.** Seven candidates were checked. This one had the best balance of contrast against separation
+under simulated deuteranopia and protanopia (Machado 2009, OKLab distance): vs `flag` 0.110 / 0.191, vs `done`
+0.100 / 0.227. That is no worse than the existing `flag`–`done` pair (0.112 / 0.107).
+
+**Alternatives considered.** A pinker red (`#EE5F8A`) separates more from `flag` but less from `done` under
+deuteranopia. Using `flag` for refusals too was rejected because it would merge "nothing is lost" with "this was rejected".
+
+**Revisit if:** the refused state is hard to tell from `flag` on a real phone in daylight.

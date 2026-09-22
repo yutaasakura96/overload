@@ -25,6 +25,7 @@ lists four text tones where the files use six, omits two colours, and gives one 
 | `surface/accent` | `#10262E` | Fill behind every accent control: COMPLETE SET, SKIP, active span, active tab, EATEN AS PLANNED, CONFIRM ALL, APPLY TO TARGETS. |
 | `surface/done` | `#15241E` | Completed set check cell (1), completed prep row check cell (5). |
 | `surface/flag` | `#15110A` | Warning panel (4). |
+| `surface/error` | `#170B0C` | Fill behind a refused item. Added 2026-09-22 (§1.4). |
 
 ### 1.2 Lines
 
@@ -38,6 +39,7 @@ lists four text tones where the files use six, omits two colours, and gives one 
 | `line/accent` | `#234A57` | Border of active panels and the suggested-weight chip. |
 | `line/done` | `#2E4A40` | Border of done fills. |
 | `line/flag` | `#4A3A1C` | Border of flag fills and the evidence tag. |
+| `line/error` | `#501C1E` | Border of a refused item. Always beside a label, so it is not held to 3:1. Added 2026-09-22. |
 
 ### 1.3 Text
 
@@ -67,8 +69,18 @@ so do not rely on those two tones alone to separate adjacent items.
 | `flag` | `#E0A83C` | 9.12:1 | Needs attention, not an error. Pending count, weight-trend overlay line, unconfirmed count, `CARBS ↑`. |
 | `flag/dim` | `#947B45` | 4.80:1 | One use: the strength label in the evidence tag (3), at 9px. Raised from `#8A7340` 2026-09-22; 4.64:1 on `surface/flag`. |
 
-There is no error/destructive colour anywhere in the six screens. One will be needed before build —
-see §7.
+| `error` | `#F2555A` | 5.77:1 | **The server refused the data**, and nothing else: a refused set, a rejected save, revoked access. Added 2026-09-22; 5.71:1 on `surface/error`. |
+
+**Rules for `error`.**
+- It never carries meaning alone (WCAG 1.4.1). A refused item always shows the word `REFUSED` and
+  the info icon (§6), so no fifth icon is added.
+- No signal is not an error: it stays neutral and pending (`docs/03` §7, kind 1). A service that is
+  down is an inline message in `flag`, because nothing is lost. Red stays rare enough to mean
+  something.
+- It is not the evidence tag's "contested" colour (`docs/10` §7.1).
+- Colour-vision check (Machado 2009, severity 1.0, OKLab distance), deuteranopia / protanopia:
+  vs `flag` 0.110 / 0.191, vs `done` 0.100 / 0.227. The existing `flag`–`done` pair is 0.112 / 0.107,
+  so the red is no less distinct than a pair the palette already relies on.
 
 ### 1.5 Contrast — measured, not assumed
 
@@ -88,6 +100,7 @@ label passes without a contrasting border (W3C, *Understanding SC 1.4.11*, "Boun
 | `accent` `#3FB6D4` | 8.21 | — | Passes everywhere. |
 | `done` `#57C99A` | 9.48 | — | Passes everywhere. |
 | `flag` `#E0A83C` | 9.12 | — | Passes everywhere. |
+| `error` `#F2555A` | 5.77 | 5.57 on `surface/flag` | Passes everywhere. |
 | `flag/dim` `#947B45` | 4.80 | 4.64 on `surface/flag` | Passes AA. |
 | `line/control` `#55687A` | 3.38 | 3.15 on `surface/active` | Passes 1.4.11 for unlabelled controls and chart observations. |
 | `line/field` `#2A3440` | 1.54 | — | Below 3.0, and allowed: every use is beside a text label or a redundant state cue. Never make it the only thing that shows a control exists. |
@@ -422,9 +435,9 @@ Recorded, not silently resolved. Each needs a decision before or during build.
 3. **The back chevron is a 30px target** (2), below the 44px rule the rest of the app keeps.
 4. **`accent/hover` `#6FCDE3` is declared but unused.** It exists only as `a:hover` in each
    artboard's style block. Either adopt it as the pressed/hover token for accent controls or drop it.
-5. **No error or destructive colour exists.** Six screens, none of which can fail visibly. Revoked
-   access, a refused sync and a failed save are all in the PRD's edge cases and have nowhere to go.
-   A red must be added to the palette and contrast-checked before those states are built.
+5. ~~**No error or destructive colour exists.**~~ **Resolved 2026-09-22:** `error` `#F2555A`, with
+   `surface/error` and `line/error` (§1.1, §1.2, §1.4, `docs/06`). No artboard draws a refused state
+   yet.
 6. ~~**Four tones fail WCAG AA.**~~ **Resolved 2026-09-22:** only the tones carrying information
    were raised; `text/micro` and `text/faintest` merged into `text/quaternary`, `text/placeholder`
    added for the 56px unfilled state, `line/control` added for unlabelled controls (§1.3, §1.5,
@@ -443,6 +456,7 @@ Names for implementation. Values are exactly as extracted.
 --surface-accent:   #10262E;
 --surface-done:     #15241E;
 --surface-flag:     #15110A;
+--surface-error:    #170B0C;
 
 --line-row:         #14191E;
 --line-hairline:    #1A2026;
@@ -452,6 +466,7 @@ Names for implementation. Values are exactly as extracted.
 --line-accent:      #234A57;
 --line-done:        #2E4A40;
 --line-flag:        #4A3A1C;
+--line-error:       #501C1E;
 
 --text-primary:     #E6EDF3;
 --text-secondary:   #A8B4C0;
@@ -464,6 +479,7 @@ Names for implementation. Values are exactly as extracted.
 --done:             #57C99A;
 --flag:             #E0A83C;
 --flag-dim:         #947B45;
+--error:            #F2555A;
 
 --font-mono:        'JetBrains Mono', monospace;
 --font-sans:        'IBM Plex Sans', system-ui, sans-serif;

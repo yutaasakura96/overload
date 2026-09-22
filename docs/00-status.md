@@ -17,11 +17,9 @@
 one if a later fix changes it. `06` is the reference for every group, not a group of its own.
 
 - [x] 1. `01` brief + `02` PRD — 2026-09-22, six fixes (`06` entry of that date)
-- [ ] 2. `05` design system + `10` screens — **in progress.** Finding 1 (contrast) done and logged
-  2026-09-22. Resume at finding 2. Remaining queue, most consequential first:
-  2. **Error colour** — proposed `error` `#F2555A` (5.77:1), `surface/error` `#170B0C`,
-     `line/error` `#501C1E`. CVD-checked against `flag` and `done`. Never colour alone (word + info icon).
-     Red means a server refusal only; no signal = pending, service down = `flag`. **Awaiting Yuta's answer.**
+- [ ] 2. `05` design system + `10` screens — **in progress.** Findings 1 (contrast) and 2 (error colour) done
+  and logged 2026-09-22. Resume at finding 3. Remaining queue, most consequential first:
+  2. ~~Error colour~~ — done: `error` `#F2555A`, server refusals only.
   3. **Overlay colours** for intake, sleep and HRV (S20, M3). Also: weight trend uses `flag`, which means
      "needs attention", so its semantics are overloaded.
   4. **Vocabulary** — `10` says "session" 7× (the PRD says "first workout", not "first session"). §1 also says
@@ -36,6 +34,10 @@ one if a later fix changes it. `06` is the reference for every group, not a grou
   7. **Four small deviations** (`05` §7.1–7.4): two amber fills, 700 vs 600, the 30px chevron, unused hover.
   8. **Evidence tag** (`10` §7.1): the contested colour and the route to source (the 8px label is already fixed).
   9. **Warm-up expand and scroll/sticky** (`10` §7.2–7.3): probably defer to the feature grill; record as kept.
+- [ ] 2b. **Next after group 2: one scoped design pass** after group 2 closes (agreed 2026-09-22 —
+  run it once group 2 is ticked). The scope is to bring the six `.dc.html` files up to the new tokens and to draw the states
+  `10` says need a design pass: the refused state, the data-state slot, the three evidence-tag strengths,
+  and the warm-up expand. This is not a new direction and not the §8 screens. Re-extract the deltas into `05`/`10`.
 - [ ] 3. `03` technical design
 - [ ] 4. `04` schema + `CONTEXT.md`
 - [ ] 5. `07` API + `08` auth
@@ -77,7 +79,7 @@ _(nothing)_
 
 ### Decide before or during build — raised by Phase 3, not resolved
 - ~~**Contrast.**~~ **Resolved 2026-09-22** (`06`). Was: four text tones and the secondary-control border fail WCAG AA at the sizes used: `#5A6673` (3.32:1, used at 10–11px for real content), `#4A5560` (2.56:1, all column heads), `#3C464F` (2.02:1, chart axes), `#8A7340` (4.27:1, evidence tag), `#2A3440` (1.54:1, control boundaries). Raising them softens Instrument toward Quiet, which the decision log forbids doing quietly. **This is Yuta's call.** `docs/05` §1.5 and §7.6 hold the measured numbers and the three options.
-- **No error colour exists.** Six screens, none of which can fail visibly. Revoked access, refused sync and failed save are all PRD edge cases with nowhere to go. A red must be added and contrast-checked. `docs/05` §7.5.
+- ~~**No error colour exists.**~~ **Resolved 2026-09-22** (`error` `#F2555A`, `06`). Was: six screens, none of which can fail visibly. Revoked access, refused sync and failed save are all PRD edge cases with nowhere to go. A red must be added and contrast-checked. `docs/05` §7.5.
 - **Three overlay series have no colours.** Only weight trend is assigned. Intake, sleep and HRV need colours that stay distinguishable from `accent` and each other when several are on. `docs/10` §2.
 - Four smaller extraction deviations (two amber fills, inconsistent active-segment weight, the 30px back chevron, the unused `#6FCDE3`) are listed in `docs/05` §7.
 

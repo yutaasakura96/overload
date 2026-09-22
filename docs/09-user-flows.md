@@ -20,8 +20,8 @@ Vocabulary is `CONTEXT.md`'s: **workout** (not session), **confirm**, **pending*
    colour, to edit or discard.
 4. **A 401 is not a refusal.** It opens a sign-in prompt over the current screen and keeps pending
    work pending (`08` §5).
-5. **Blocked on design:** every refused state below needs the error colour, which the palette does
-   not have yet (`05` §7.5).
+5. Every refused state below uses `error` `#F2555A` (`05` §1.4), always with the word `REFUSED` and
+   the info icon, never colour alone.
 
 ---
 

@@ -163,7 +163,7 @@ design/  docs/  CONTEXT.md
    marked refused in the error colour, and can be edited or discarded. **A set is never dropped
    silently.**
 
-**Blocked on design:** kind 3 needs an error colour, and the palette has none (`docs/05` §7.5).
+The error colour is `error` `#F2555A` (`docs/05` §1.4, added 2026-09-22), always with the word and an icon.
 
 ### API
 
