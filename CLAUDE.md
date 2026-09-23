@@ -60,3 +60,20 @@ A linter won't catch these:
 - A feature with a UI surface clears the polish gate before it's done: `web-design-guidelines`,
   then `design:accessibility-review`, then `emil-design-eng`. It audits against `docs/05`; it doesn't
   reopen it.
+
+## Agent skills
+
+### Issue tracker
+
+GitHub Issues on `yutaasakura96/overload`, via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five canonical names, unmapped — `needs-triage`, `needs-info`, `ready-for-agent`,
+`ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `CONTEXT.md` at the root plus `docs/adr/`. Note that `docs/00-status.md` through
+`docs/13` are this project's real design record — read `docs/00-status.md` first, as `CLAUDE.md`
+says. See `docs/agents/domain.md`.
