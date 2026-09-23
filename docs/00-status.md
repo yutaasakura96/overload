@@ -13,9 +13,16 @@
 - 2026-09-16: Phase 3 — `docs/05-design-system.md` and `docs/10-screen-specifications.md` written from the six `.dc.html` files. Every hex code, size, tracking value and grid measurement lifted from source; contrast ratios computed, not estimated. The canvas's "THE SYSTEM" sticky note was found inaccurate and is superseded by `docs/05`.
 
 ## Next
-**Phase 7 — Build, M1 first.** Run `/setup-matt-pocock-skills` once (tracker: GitHub Issues or local
-files; the repo is public), then `/grill-with-docs` for the first feature. Each UI feature clears the
-polish gate in `CLAUDE.md`.
+**Phase 7 — Build, M1 first.** `/grill-with-docs` for the first feature. Each UI feature clears the
+polish gate in `CLAUDE.md`, and screen 1's grill answers the two gaps under *Raised by the
+pain-point check*.
+
+`/setup-matt-pocock-skills` ran 2026-09-23: **GitHub Issues** on `yutaasakura96/overload` via `gh`,
+the five canonical triage labels kept as-is (the four missing ones were created on the repo),
+single-context domain docs. Written: `docs/agents/{issue-tracker,triage-labels,domain}.md` and an
+`## Agent skills` block in `CLAUDE.md`. Not created: wayfinder's `wayfinder:map` and
+`wayfinder:<type>` labels — make them by hand before the first `/wayfinder` run, since
+`gh issue create --label <missing>` fails outright.
 
 ### Phase 6 — Review, done 2026-09-23
 One group per session, in this order. `06` is the reference for every group, not a group of its own.
@@ -111,12 +118,32 @@ sticky are kept open for M2 (see *Reviewed, kept*).
 - The client IP the API project sees on a rewritten request, for the WAF rule (`13` §10).
 - Whether a Vercel variable can be withheld from the function runtime — if not, the API's runtime
   environment holds `DATABASE_URL_DIRECT` as well (`13` §10, raised 2026-09-23).
+- Whether an installed-to-home-screen PWA on iOS can announce the end of rest — web push permission,
+  `navigator.vibrate`, and the Screen Wake Lock API in Safari. The product half (should it alert at
+  all) is a screen-1 grill question, not this list (`06` 2026-09-23 pain-point entry, raised
+  2026-09-23).
 
 ### Waiting for the first build — raised by group 7
 - `infra/db/bootstrap.sql` does not exist yet. It creates the three roles and is run before the
   first migration, once per environment (`13` §5). The first migration does the grants only.
 - Deployment Protection must be set to None on both Vercel projects when they are created
   (`12` §1 and §6).
+
+### Raised by the pain-point check — decide at each feature's grill (2026-09-23)
+Yuta's four stated pain points read against the docs before the first build. Two are covered as
+written (the short food list: S12, S16, S18; batch prep: S13, S17). Three gaps, full reasoning in
+`06` (2026-09-23, "the four pain points checked against the docs"):
+- **The target set count is stored and never shown.** `04` has `target_sets` and S4 promises it, but
+  screen 1 draws only `SET 3`, so the screen answers "how many have I done" and not "how many are
+  left". Candidate: `SET 3 OF 4` in the active card's label row — horizontal, so the 54px of slack in
+  `10` §1 is untouched. **Screen-1 grill, M1.**
+- **Nothing announces that rest has ended.** The timer starts by itself and survives a lock and a
+  relaunch, but no notification, sound, vibration or wake lock exists in any doc. **Screen-1 grill,
+  M1**, with the iOS feasibility half in *Check when built* above.
+- **No shelf life, and a batch never runs out.** `04` `batch` is the newest row for a food, with no
+  depleting portion count and no keeps-for-N-days, so the prep plan cannot say "cook the fish again
+  on Wednesday" — the very reason those foods were chosen. Candidate: `keeps_days` on `food` plus a
+  second cook day in S17. **S13/S17 grill, M2.**
 
 ### Standing
 - Design risk on record: if the real failure mode turns out to be not logging at all because the app reads as a spreadsheet, Quiet was the better bet. Revisit after M1 is in daily use. Phase 3 did not soften Instrument — the contrast cost is recorded as a measured deviation and left for Yuta.

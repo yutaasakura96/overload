@@ -1821,3 +1821,46 @@ tests only: the schema under test would stop being the schema that ships.
   and `13` §10 carries the open question, with what it costs threat 4 if the answer is no.
 
 **Changed:** `13` §3, §4, §9 and §10, `12` §2, `03` §10.
+
+### [2026-09-23] Phase 7 pre-build: the four pain points checked against the docs, three gaps found
+
+**Raised, not decided.** Before the first M1 feature, Yuta's four stated pain points were read against
+the docs to see whether the thing being built actually answers them. Two are covered; three gaps came
+out, each of which belongs to a specific feature's `/grill-with-docs` rather than to a doc edit now.
+
+- **"Between sets I forget how many sets I made."** Covered as far as *done*: `10` §1 keeps every
+  completed set on screen as its own numbered row, and the active card's label row reads `SET 3`.
+  Not covered for *left*: `target_sets` is in the schema (`04` `routine_exercise`, copied to
+  `workout_exercise` at start) and the PRD promises it (S4), but screen 1 never draws it. The
+  exercise header carries the rep range and increment; UP NEXT lists the next exercises, not the
+  sets remaining in this one. **Gap: the routine's target set count is stored and never shown.**
+  The cheap answer is `SET 3 OF 4` in the label row — a horizontal change that does not touch the
+  54px of vertical slack `10` §1 measured. Decide at the screen-1 grill.
+- **"I forget the timer between set rests."** Covered as far as *starting and surviving*: it starts
+  on the tick (S5), counts from the set's `performed_at` so a locked phone does not stop it
+  (`09` F3.3), is pinned to the bottom of screen 1, and is rebuilt from the set store on relaunch
+  (`03` §8.1). **Gap: nothing announces that rest has ended.** No notification, sound, vibration or
+  screen wake lock appears anywhere in `02`, `03`, `05`, `09` or `10`. A silent countdown on a phone
+  in a pocket leaves the lifter checking manually, which is the pain point. Two halves: whether the
+  app should alert at all (product, screen-1 grill) and whether an installed-to-home-screen PWA on
+  iOS can — web push permission, `navigator.vibrate`, the Screen Wake Lock API in Safari (technical,
+  and unverified as of today). The technical half goes to *Check when built*.
+- **"I eat from a short list and prep a week at a time."** Covered, and deliberately. S12 exists for
+  exactly this — add a food once, never type its macros again — with rotation alternatives as a
+  first-class field; S16 rotates days between the marked alternatives so a short list is not the same
+  plate seven days running; S18 makes confirming the plan the logging step. S13's raw-to-cooked yield
+  is the batch-cooking problem stated directly, and S17 turns the plan into a prep list and a grocery
+  list. Foods eaten uncooked (kimchi, frozen berries, whey, tofu, bread) need no batch: `food` already
+  carries a raw/cooked state.
+- **Gap in the same area: nothing models shelf life or a batch running out.** No shelf, spoil, frozen
+  or leftover concept exists in any doc. `04` `batch` records a raw weight, a cooked weight and a
+  date, and "the current batch" is only ever the newest row for that food — it has no portion count
+  that depletes and no keeps-for-N-days. The criterion Yuta actually selects foods by ("it survives a
+  week of prep") is therefore invisible to the app, so the prep plan cannot say *cook the fish again
+  on Wednesday*. The cheap answer is a `keeps_days` on `food` and a second cook day in S17's prep
+  plan; the expensive one is inventory tracking, which is a different product. Decide at the S13/S17
+  grill, in M2.
+
+**Changed:** `00` only — the three gaps are carried, not resolved. No PRD, schema or screen doc is
+edited here: each gap is a question for the feature that owns it, and answering it early would decide
+it without the grill.
