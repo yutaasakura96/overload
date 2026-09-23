@@ -13,9 +13,29 @@
 - 2026-09-16: Phase 3 — `docs/05-design-system.md` and `docs/10-screen-specifications.md` written from the six `.dc.html` files. Every hex code, size, tracking value and grid measurement lifted from source; contrast ratios computed, not estimated. The canvas's "THE SYSTEM" sticky note was found inaccurate and is superseded by `docs/05`.
 
 ## Next
-**Phase 7 — Build, M1 first.** `/grill-with-docs` for the first feature. Each UI feature clears the
-polish gate in `CLAUDE.md`, and screen 1's grill answers the two gaps under *Raised by the
-pain-point check*.
+**Phase 7 — Build, slice 1.** `/grill-with-docs` ran 2026-09-23 and settled fourteen questions across
+three rounds; all four entries are in `06` under *Phase 7 grill*. M1 is cut into seven slices:
+
+1. **Skeleton + auth + exercise library (S8)** — one vertical cut through every layer, deployed to
+   staging before it merges. Real Better Auth, not a stub.
+2. Routines (S4).
+3. Screen 1 on the real write path — S1's happy path, S2, S3, S5, S6. Answers the two gaps under
+   *Raised by the pain-point check*, and implements the kg/lb toggle.
+4. The hard edges — Web Locks, tombstones for offline deletes, refused-set UI, resume after force-quit.
+5. Progress chart (S7). 6. Invite administration (S9). 7. Export and delete (S10).
+
+Before slice 1 is written: run `/wizard` to generate the provisioning walkthrough (Neon, both Vercel
+projects, `bootstrap.sql`), then open one GitHub issue per slice under an `M1` milestone. Each UI
+feature clears the polish gate in `CLAUDE.md`.
+
+**Seed increments, researched 2026-09-23** against Anytime Fitness Japan's own store pages (all 1,848
+crawled; `06` holds the evidence): barbell 2.5 · dumbbell 1.0 with the suggestion rounded to the rack
+· `machine_plate` 2.5 · `machine_stack` 5.0 · cable 2.5 · bodyweight 0. The dumbbell figure is
+high-confidence, the barbell medium-high, the stacks inferred.
+
+**Yuta confirms at his own gym** — equipment is franchise-chosen and only 5 of 1,848 stores publish
+denominations: does the branch stock **1.25 kg plates**, and do the **stacks have the small adder
+pin**? Neither blocks slice 1; `exercise_setting` overrides per exercise either way.
 
 `/setup-matt-pocock-skills` ran 2026-09-23: **GitHub Issues** on `yutaasakura96/overload` via `gh`,
 the five canonical triage labels kept as-is (the four missing ones were created on the repo),
@@ -147,7 +167,7 @@ written (the short food list: S12, S16, S18; batch prep: S13, S17). Three gaps, 
 
 ### Standing
 - Design risk on record: if the real failure mode turns out to be not logging at all because the app reads as a spreadsheet, Quiet was the better bet. Revisit after M1 is in daily use. Phase 3 did not soften Instrument — the contrast cost is recorded as a measured deviation and left for Yuta.
-- `docs/10` §8 lists everything the PRD requires that no artboard covers — session start, exercise library, food list management, target setup, the grocery list proper, invite admin, health setup, photo estimation, plateau protocols, and every error state.
+- `docs/10` §8 lists everything the PRD requires that no artboard covers — workout start, exercise library, food list management, target setup, the grocery list proper, invite admin, health setup, photo estimation, plateau protocols, and every error state.
 - Auth: Better Auth with Google, invite-only — allowlist support verified 2026-09-17.
 - M3 photo/text meal-estimate provider: not yet chosen. Haiku 4.5 already reads labels in M2, so it is the default candidate. Phase 4.
 - Weekday routine times are set in the app, not fixed in the docs.

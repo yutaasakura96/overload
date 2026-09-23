@@ -1864,3 +1864,215 @@ out, each of which belongs to a specific feature's `/grill-with-docs` rather tha
 **Changed:** `00` only — the three gaps are carried, not resolved. No PRD, schema or screen doc is
 edited here: each gap is a question for the feature that owns it, and answering it early would decide
 it without the grill.
+
+### [2026-09-23] Phase 7 grill: M1 is seven slices, and the skeleton is the first
+
+**Decided (asked).** `/grill-with-docs`, rounds 1 and 2.
+
+- **Slice 1 is a walking skeleton, not a scaffold.** One thin vertical cut through every layer the
+  architecture claims exists — pnpm workspace, a migration, `apps/api/src/db/` taking the session
+  user, a `@hono/zod-openapi` route, generated `api-contract`, the web app rendering it — carrying
+  S8's seeded exercise library as its payload. Rejected: a scaffold-only commit, which nobody can
+  verify; and starting at screen 1, which puts the hardest thing in the project (the set store,
+  exactly-once upload, Web Locks) before anything has proven the boring path works. The exercise
+  library is the smallest real M1 story that still touches every layer, and S4 and S1 both depend
+  on it, so none of it is throwaway.
+- **The slice order.** 1 skeleton + auth + exercise library (S8) · 2 routines (S4) · 3 screen 1 on
+  the real write path, covering S1's happy path, S2, S3, S5, S6 · 4 the hard edges: Web Locks,
+  tombstones for offline deletes, refused-set UI, resume after force-quit · 5 progress chart (S7) ·
+  6 invite administration (S9) · 7 export and delete (S10), last because it touches every table.
+- **Screen 1 is built on the set store from the start**, not online-first. `CLAUDE.md` binds "a
+  logged set is written to IndexedDB before the screen updates", so online-first would write the set
+  path twice. The write *direction* is right from day one; robustness lands in slice 4.
+- **Infrastructure is created before the first merge**, and slice 1 deploys to staging. Three of the
+  riskiest items in `03` §11 are deploy-shaped — `dbmate` inside Vercel's build image, the
+  `vercel.ts` rewrite syntax, and the Safari cookie fix across two `*.vercel.app` projects. Finding
+  any of them broken after five features exist is worse than finding it now. The group-7 ordering
+  constraint is also cheapest to honour while nothing exists: a Neon child branch copies its
+  parent's roles *and passwords*, so staging is branched before `bootstrap.sql` runs.
+- **Provisioning is a generated wizard** (`/wizard`), run by Yuta. The agent cannot reach the Neon
+  or Vercel dashboards, and `bootstrap.sql` needs a 60-bit password that must not enter the repo or
+  a transcript. The wizard sequences the branch-before-bootstrap trap, Deployment Protection set to
+  None on both projects at creation, and a different password per role per environment.
+- **All five CI checks stand up in slice 1**, not a subset. Playwright gets the one real assertion
+  available — sign in, see the seeded list — because the Google round trip through the rewrite is
+  the likeliest thing to break and the hardest to debug later. oasdiff against an absent baseline is
+  a no-op on the first PR and correct from the second.
+- **No new spec document for M1.** `01`–`13` already specify it in more detail than a spec would; a
+  second one would drift, as the canvas's "THE SYSTEM" note already did against `05`. Work goes
+  straight to GitHub issues, one per slice, each citing the doc sections it implements, grouped by a
+  milestone named `M1` rather than an epic issue.
+- **Decisions stay in `06`.** `docs/agents/domain.md` points ADRs at `docs/adr/`, which does not
+  exist and is not being created. Two decision logs is the same drift problem.
+
+**Changed:** `00`. No ADR directory.
+
+### [2026-09-23] Phase 7 grill: the admin bootstraps through the gate
+
+**Decided (asked).** A hole found by reading `08` against `04`, not a change of mind.
+
+`08` §85 identifies the admin as a valid session whose email equals `ADMIN_EMAIL`, and §94 says the
+admin "has an invite row of their own, like everyone else, so the gate needs no special case".
+Nothing in `04`, `08` or `12` said how that row is created. On a fresh database the gate refuses
+every email absent from `invite`, and the only route to inserting one is `/api/admin/invites`, which
+needs a session, which needs to pass the gate. **Yuta could not sign in to his own app**, on any
+environment, including the staging deploy slice 1 depends on.
+
+- **Decided:** the gate lets `ADMIN_EMAIL` through and writes the invite row on first sign-in, as an
+  upsert. One branch in `validateUserInfo`. Every environment then bootstraps itself.
+- **Rejected: seeding the row in a migration.** It puts an email address in a public repo and
+  contradicts "admin is an env var, changing the admin is a redeploy" — a migration cannot follow an
+  env var, so staging and production could not differ.
+- **Rejected: a manual `INSERT` per environment** beside `bootstrap.sql`. It works, and it matches
+  the pattern group 7 accepted for the database roles — but that pattern was forced by Neon's
+  password rule and nothing forces this one. It is a per-environment manual step that stays
+  invisible until a new environment locks everyone out.
+- The "no special case" line in `08` survives: it is about *authorisation* — admin being an env var
+  rather than a role column — not about bootstrap. The existing rule that the API refuses to revoke
+  or delete the invite whose email equals `ADMIN_EMAIL` is unaffected.
+
+**Changed:** `08` §94 and the auth tests in `11` §2 gain this case when slice 1 is written.
+
+### [2026-09-23] Phase 7 grill: the exercise library is hand-written, and no dataset is imported
+
+**Decided (asked).** Yuta pushed back on hand-writing the ~50 seeded exercises, expecting an
+international standard or an accurate public dataset. Researched against primary sources rather than
+answered from memory. The data exists; it does not carry what Overload needs, and the
+permissively-licensed lineage has bad provenance.
+
+- **There is no formal standard for naming or classifying strength exercises.** ISO/TC 83 covers
+  sports *equipment*, and its strength output is ISO 20957-2:2024, machine safety. The best evidence
+  is from the NSCA's own journal: Jackson et al., *Towards Standardization of the Nomenclature of
+  Resistance Training Exercises*, J Strength Cond Res 27(5):1441–1449, 2013
+  (DOI 10.1519/JSC.0b013e318289168d) — 205 professionals shown ten exercises named **all ten**
+  inconsistently, and the paper calls for a standard to be established. A 2013 call is good evidence
+  none existed; nothing since was found.
+- **No dataset carries an increment, a rest default or a rep range.** Checked by enumerating every
+  key on every record across wger (910), free-exercise-db (876), wrkout (873), exercemus (872),
+  longhaul (349), everkinetic (293) and rthepen (248). The count is zero, not sparse. wger *does*
+  model progression, but on the routine, not the exercise. So the three columns that make `exercise`
+  useful here are hand-written whatever is imported; what a dataset saves is ~50 names and an
+  equipment tag.
+- **The clean-looking licences are not clean.** free-exercise-db and its upstream wrkout are
+  Unlicense, but the maintainer wrote on the issue tracker that he has no idea where the images came
+  from, and wrkout's own contributing guide says they were scraped and advises against commercial
+  use. Someone who does not own a work cannot place it in the public domain. exercemus stamps MIT
+  over content it says came from wger and wrkout, which does not launder CC-BY-SA. rthepen
+  re-packages the same suspect lineage under MIT.
+- **wger is the legitimate project and still not importable.** Best maintained by far, but a tally
+  of its live API found ~96% of its text share-alike (CC-BY-SA 4.0 ×1527, 3.0 ×333, against CC0 ×85),
+  and all of its images and videos CC-BY-SA. Share-alike on a seed migration is the one obligation
+  that cannot be quietly dropped later. **Reading wger while typing is fine** — short names and facts
+  are not copyrightable; copying its description prose is not. It also has no Japanese: 33 languages,
+  no `ja`. everkinetic is CC-BY-SA and dead since 2022-02-20; longhaul is cleanly MIT and has no
+  equipment field at all.
+- **Naming convention: specification → equipment → exercise** ("Barbell Bench Press"), which is what
+  `04`'s example rows already use and the one pattern with a citation behind it. Rejected: wrkout's
+  `Name (Equipment)`, which sorts better in a picker — worth more at 900 exercises than at 50.
+  Recorded in `CONTEXT.md` so it is a rule rather than a per-row judgement, and does not become
+  "DB Row" and "Dumbbell Row" as two rows.
+- **The six-value `equipment` enum stands, and is better than any dataset's.** It is a
+  load-increment taxonomy, not an equipment inventory: `machine` means a stack in fixed steps,
+  `cable` a stack in finer ones. No dataset encodes that, because none of them care about load.
+  wger's and exercemus's vocabularies are many-valued and mix the resistance source with the
+  furniture (a barbell bench press carries both `Barbell` and `Bench`), so no single class can be
+  derived. everkinetic's is uncontrolled free text — 33 values including `dumbbell` and `dumbbells`
+  separately, and `dumbell` twice. If a dataset is ever read, map down to the six rather than
+  widening the `CHECK`.
+- **Licence posture, for anything sourced later:** permissive (MIT, Apache-2.0, CC0, public domain)
+  or plain CC-BY with attribution. Non-commercial clauses rejected outright — "I run it for four
+  friends" is arguable, and arguing it later is worse than typing 50 rows now.
+
+**Provisional, not yet verified.** The seeded `default_increment_kg` per equipment class — barbell
+2.5, dumbbell 2.0, machine and cable 5.0, bodyweight 0 — rests on how weight stacks and plate sets
+are built, and **the Japanese smallest-plate convention was not confirmed against a primary source**.
+The US side was: Rogue's own catalogue lists 2.5 lb as the smallest standard plate, and plates load
+in pairs, so the achievable bar step is 5 lb; fractional plates (0.25–1.0 lb) reach a 0.5 lb step.
+The machine and cable figure of 5.0 kg is inference, not a sourced fact. Confirm both against the
+gym before the seed migration is written.
+
+**Also unverified, and deliberately not stated as fact anywhere:** NSCA's full position-statement
+list (403), the exact numbers in ACSM's 2009 *Progression Models in Resistance Training* position
+stand (cookie-walled; a summary was read, the paper was not), whether any national standards body
+has an exercise-naming standard, and the textual provenance of free-exercise-db's instruction prose.
+
+**Changed:** `CONTEXT.md` (Exercise gains the naming convention). `04`'s `equipment` and increment
+columns are unchanged.
+
+### [2026-09-23] Phase 7 grill: kg stays canonical, lbs is a display preference
+
+**Decided (asked).** Yuta asked for a pounds option. Japan is kg-denominated, so this is for
+invitees, but the model is decided now because retrofitting it is expensive.
+
+- **Nothing is ever stored in lbs.** Every weight in the database stays kg, as it already is.
+- **`user_profile.weight_unit`** (`kg` | `lb`, default `kg`) is added in slice 1's migration. Free
+  now, a migration later.
+- **The toggle is implemented in slice 3**, when screen 1 first renders a weight.
+- **The increment is why display-layer conversion alone is not enough.** 2.5 kg is 5.51 lb, which is
+  not a plate anyone owns; a converted suggestion of "125.5 lb" cannot be loaded. `exercise_setting`
+  already solves it: it is per user per exercise, so a pounds lifter's 5 lb step is stored as
+  2.268 kg and displayed as 5. The ~50 **seeded** defaults stay kg-native, because the seed is shared
+  by every user and the app's only user is in Japan.
+- **Lifts only.** Bodyweight (S11) waits for M2: the Eufy scale reports kg and S11's source is not
+  yet decided.
+- **No layout cost.** `05`'s 56px mono figure holds "405.0" and "102.5" identically at five glyphs.
+
+**Changed:** `02` S8's "All weights are in kg" is amended. `04` `user_profile` gains a column when
+slice 1's migration is written.
+
+### [2026-09-23] Phase 7 grill: what an Anytime Fitness Japan rack actually steps in
+
+**Decided (asked).** The seeded increments were provisional, resting on how plate sets are built
+rather than on a source. Researched against Anytime Fitness Japan's own store pages — their sitemap
+was crawled and all 1,848 official `/facility/` pages read for numeric plate, dumbbell, bar and stack
+data, which turns "it varies by store" into something countable. Two findings contradicted decisions
+made earlier today and are applied here.
+
+**What the pages say.**
+
+- **Dumbbells are a two-band rack: 1 kg steps to 10 kg, then 2 kg steps from 12 kg up.** 586 store
+  pages carry numeric dumbbell data; ten state the 刻み outright (荻窪店 `1kg～10kg(1kg刻み)` /
+  `12kg～30kg(2kg刻み)`; 本八幡店 the same shape to 40 kg). Anytime's own magazine confirms the light
+  end. **No store out of 1,848 reports a 2.5 kg step.** Max is 50 kg at 276 stores and 40 kg at 197.
+  High confidence — this is the best-evidenced figure of the three.
+- **Barbell plates step 2.5 kg** (pairs of 1.25 kg). Only 5 stores publish denominations at all, but
+  4 of the 5 list 1.25 kg — 一関店 gives the whole tree, 1.25/2.5/5/10/15/20/25 — and 1.25 kg is a
+  standard Japanese catalogue denomination. One store stops at 5 kg. Medium-high confidence.
+- **The 20 kg Olympic bar is confirmed** on several store pages. Also present: 15 kg Olympic bars and
+  10 kg straight bars, which are a different bar, not a lighter Olympic one. 一関店 lists IVANKO
+  collars at **2.5 kg each**, so a loaded bar there starts at 25 kg, not 20.
+- **Machine stacks are the weak spot.** One store in 1,848 publishes stack ranges (京橋店: chest press
+  5–152.5 kg, cable 1.25–61.75 kg). Life Fitness's own support documentation confirms Insignia stacks
+  ship with two 2.5 kg dial adders, and Hammer Strength Select lists a drop-down incremental system —
+  but **no manufacturer page states the base per-plate step in kg**. The 5 kg figure remains
+  inference from two numbers. Low-medium confidence, and left that way.
+
+**Decided: the dumbbell increment is seeded at 1.0 kg, and the suggestion rounds to the rack.**
+`exercise.default_increment_kg` is one scalar and the rack is not. A flat 2.0 kg is wrong exactly
+where it hurts — lateral raises, rear delts and curls live under 10 kg, and +2 kg on a 6 kg lateral
+raise is a 33% jump nobody makes. A flat 1.0 kg is wrong above 12 kg, where it names a weight the
+rack does not hold. Seeding 1.0 and rounding the *result* up to an achievable weight gets both bands
+right: 30 kg + 1 rounds to the real 32 kg rather than inventing 31. **This changes S3**: the
+progression rule now rounds, and the rounding is a pure function in `apps/api/src/domain/` with the
+rest of the progression logic. Rejected: modelling the two-band rack as data (a per-equipment step
+table) — more faithful, more work, and it buys nothing until a user has a rack that differs.
+
+**Decided: `equipment` splits `machine` into `machine_plate` and `machine_stack`.** Hammer Strength
+plate-loaded units are everywhere in Anytime Japan and load from the same plate pool as the barbells,
+so their real step is 2.5 kg — half what a selectorised stack moves in. The six-value enum defended
+this morning put both in one bucket and would have given plate-loaded machines double the correct
+increment. This is new evidence, not a re-litigation: the enum exists to express load increments, and
+this is a load-increment distinction it could not express. Seven values now. Free today; after slice
+1 it would cost a two-release migration under the add-first rule.
+
+**Seeded defaults, as applied:** barbell 2.5 · dumbbell 1.0 (with rounding) · `machine_plate` 2.5 ·
+`machine_stack` 5.0 · cable 2.5 · bodyweight 0.
+
+**Still unverified, and deliberately left so:** the base per-plate step on the selectorised stacks,
+and whether Yuta's own branch stocks 1.25 kg plates and has the adder pin. Equipment is
+franchise-chosen and Anytime Japan does not publish denominations centrally — 5 of 1,848 stores do so
+voluntarily. Yuta confirms both at his own gym. Because of that variance, barbell and machine
+increments stay user-overridable per exercise through `exercise_setting`, which is what it is for.
+
+**Changed:** `04` (`equipment` CHECK, increment defaults), `02` S3, `CONTEXT.md` (Increment,
+Suggestion), `00`.

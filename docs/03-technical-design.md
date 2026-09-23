@@ -161,7 +161,7 @@ design/  docs/  CONTEXT.md
 | --- | --- | --- |
 | API data | TanStack Query, persisted to IndexedDB | Screens render the last loaded data offline, with its age |
 | Pending and refused sets, and the workout rows they belong to | The set store: our IndexedDB store, one record per `workout`, `workout_exercise` or `set` row keyed by its id, `durability: "strict"` | Written the moment the row is created or changed. Deleted only after the server acknowledges it. **Rows of the open workout stay, marked acknowledged, until the workout ends** (Finish, or the 3-hour rule in `docs/09` F3) |
-| Active gym session | One Zustand store, in memory, **rebuilt from the set store on every launch** | The rest timer stores when rest *started* (the last set's timestamp), never a countdown |
+| Active workout, open on the device | One Zustand store, in memory, **rebuilt from the set store on every launch** | The rest timer stores when rest *started* (the last set's timestamp), never a countdown |
 | Days left incomplete at the end-of-day check | IndexedDB, device only | A list of dates, cleared by the sign-out wipe (`docs/08` §7), so the evening and "Yesterday" cards do not ask twice (`docs/09` F11). Not sent to the server, which derives incomplete days itself |
 | One screen's inputs, open tab | React state, plus the URL for anything worth linking | — |
 | Server truth | Postgres | — |

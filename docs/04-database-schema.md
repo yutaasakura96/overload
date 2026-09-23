@@ -72,8 +72,8 @@ One exercise. Either **seeded** (`owner_user_id IS NULL`, visible to everyone, ~
 | `id` | uuid | no | `uuidv7()` | PK |
 | `owner_user_id` | uuid | yes | — | → `user.id`, `ON DELETE CASCADE`. `NULL` = seeded |
 | `name` | text | no | — | "Barbell Bench Press" |
-| `equipment` | text | no | — | `barbell` \| `dumbbell` \| `machine` \| `cable` \| `bodyweight` \| `other`, enforced by `CHECK` |
-| `default_increment_kg` | numeric(5,2) | no | `2.50` | Fallback when the user has no setting row |
+| `equipment` | text | no | — | `barbell` \| `dumbbell` \| `machine_plate` \| `machine_stack` \| `cable` \| `bodyweight` \| `other`, enforced by `CHECK`. A load-increment taxonomy, not an equipment inventory: plate-loaded machines share the barbell's plates, selectorised stacks do not (`06`, 2026-09-23) |
+| `default_increment_kg` | numeric(5,2) | no | `2.50` | Fallback when the user has no setting row. Seeded per equipment class: barbell 2.5, dumbbell 1.0, `machine_plate` 2.5, `machine_stack` 5.0, cable 2.5, bodyweight 0 (`06`, 2026-09-23) |
 | `default_rest_seconds` | integer | no | `120` | Fallback. S5's 120 s default lives here |
 | `default_rep_low` | smallint | no | `6` | Fallback rep range (S3) |
 | `default_rep_high` | smallint | no | `10` | |
