@@ -1,8 +1,8 @@
 # Project status
 
 **Project:** A weight-training progress tracker combining lift logging, meal planning, Apple Watch/iPhone health data, and bodyweight/diet coaching.
-**Phase:** 6 — Review
-**Updated:** 2026-09-22
+**Phase:** 7 — Build (M1 first). Phase 6 — Review finished 2026-09-23.
+**Updated:** 2026-09-23
 
 ## Done
 - Phase 1 — Brief + PRD: `docs/01-project-brief.md`, `docs/02-product-requirements.md`, `docs/06-decision-log.md`.
@@ -13,8 +13,12 @@
 - 2026-09-16: Phase 3 — `docs/05-design-system.md` and `docs/10-screen-specifications.md` written from the six `.dc.html` files. Every hex code, size, tracking value and grid measurement lifted from source; contrast ratios computed, not estimated. The canvas's "THE SYSTEM" sticky note was found inaccurate and is superseded by `docs/05`.
 
 ## Next
-**Phase 6 — Review.** One group per session, in this order. Tick each group when it is done; untick
-one if a later fix changes it. `06` is the reference for every group, not a group of its own.
+**Phase 7 — Build, M1 first.** Run `/setup-matt-pocock-skills` once (tracker: GitHub Issues or local
+files; the repo is public), then `/grill-with-docs` for the first feature. Each UI feature clears the
+polish gate in `CLAUDE.md`.
+
+### Phase 6 — Review, done 2026-09-23
+One group per session, in this order. `06` is the reference for every group, not a group of its own.
 
 - [x] 1. `01` brief + `02` PRD — 2026-09-22, six fixes (`06` entry of that date)
 - [x] 2. `05` design system + `10` screens — 2026-09-22, nine findings: contrast, `error`, `series/*`
@@ -45,17 +49,22 @@ one if a later fix changes it. `06` is the reference for every group, not a grou
   five wording fixes (`06` entries of that date). Also edited `03` §6 and §10, `07` §1.3 and §5,
   `08` §7, `10` §4, `13` §9 and `CONTEXT.md` to match. Groups 2, 3 and 5 stay ticked: each edit applies
   a decision made here and was checked against its section
-- [ ] 7. **Next:** `11` testing + `12` deploy + `13` security. `13` §9's cap item was widened in group 6
+- [x] 7. `11` testing + `12` deploy + `13` security — 2026-09-23, five findings: the three database
+  roles are bootstrapped, not migrated (dbmate connects as the owner, Neon needs a 60-bit password,
+  child branches copy passwords); Deployment Protection off on both Vercel projects (it would break
+  the rewrite, the ingest route and the installed-app checklist); deferred-FK and race tests opt out
+  of rollback isolation; the idle-workout test moves to the client and the two carried tests land;
+  three wording fixes including "build only", which the docs could not support (`06` entries of that
+  date). Also edited `03` §10 and `04` (Security — Roles): both apply decisions made here and were
+  checked against their sections, so groups 3 and 4 stay ticked
+
+**Review complete.** Every group ticked; no open contradiction between docs.
 
 Findings Yuta leaves as they are go under **Reviewed, kept** below, one line each.
 
-**Then Phase 7 — Build, M1 first.** Run `/setup-matt-pocock-skills` once (tracker: GitHub Issues or
-local files; the repo is public), then `/grill-with-docs` for the first feature. Each UI feature
-clears the polish gate in `CLAUDE.md`.
 
 ### Carried to a later group
-- Group 7 (`11`): no test yet for the model-call cap counting label reads and meal estimates together,
-  or for the end-of-day cards not re-asking a day left incomplete.
+_(nothing — both group 6 items landed in `11` §2 on 2026-09-23.)_
 
 ### Reviewed, kept
 - `10` §7.3 scroll and sticky for screens 3–6: left open for each screen's M2 `/grill-with-docs` (2026-09-22).
@@ -100,6 +109,14 @@ sticky are kept open for M2 (see *Reviewed, kept*).
 - How `@hono/zod-openapi` describes a multipart file part (`07`).
 - `dbmate` running inside Vercel's build image, and the exact `vercel.ts` rewrite syntax (`12` §6).
 - The client IP the API project sees on a rewritten request, for the WAF rule (`13` §10).
+- Whether a Vercel variable can be withheld from the function runtime — if not, the API's runtime
+  environment holds `DATABASE_URL_DIRECT` as well (`13` §10, raised 2026-09-23).
+
+### Waiting for the first build — raised by group 7
+- `infra/db/bootstrap.sql` does not exist yet. It creates the three roles and is run before the
+  first migration, once per environment (`13` §5). The first migration does the grants only.
+- Deployment Protection must be set to None on both Vercel projects when they are created
+  (`12` §1 and §6).
 
 ### Standing
 - Design risk on record: if the real failure mode turns out to be not logging at all because the app reads as a spreadsheet, Quiet was the better bet. Revisit after M1 is in daily use. Phase 3 did not soften Instrument — the contrast cost is recorded as a measured deviation and left for Yuta.

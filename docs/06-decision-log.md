@@ -1719,3 +1719,105 @@ for a handful of users, and neither one protects the shared $10 limit.
 - **Five wording fixes:** "first workout" in F3; HAE "up to 3 hours" in F14; "open workout", not "gym
   session", in F2; F10 has four prerequisites, profile first, matching `setup_incomplete`; F16 names
   409 `already_answered`.
+
+### [2026-09-23] Phase 6 review, group 7 (infrastructure): the database roles are bootstrapped, not migrated
+
+**Supersedes** "three Postgres roles, created by the first migration" in the 2026-09-21
+infrastructure and security entry.
+
+**Context.** `13` §5 and `04` had the first migration create `overload_owner`, `overload_app` and
+`overload_backup`. Three things make that impossible. dbmate connects **as** `overload_owner`, so the
+role has to exist before any migration. Neon requires `CREATE ROLE … LOGIN PASSWORD` with 60 bits of
+entropy (checked 2026-09-23), and a committed migration in a public repo would publish it. And Neon
+copies a parent branch's roles, passwords included, into a child at creation — so roles made on `main`
+before `staging` is branched give both branches the same passwords.
+
+**Decided (asked).** `infra/db/bootstrap.sql` creates the three `LOGIN` roles without passwords and
+grants `overload_owner` `CREATE` on the schema. On Neon it is pasted into the SQL Editor once per
+branch, as the console-created owner role, followed by one `ALTER ROLE … PASSWORD` per role whose
+value is typed straight into Vercel or GitHub. Locally and in CI the same file runs first, with fixed
+development passwords, so a missing grant still fails a test rather than production. The first
+migration keeps only the privileges: the grants, `ALTER DEFAULT PRIVILEGES`, the `audit_event` revoke
+and `purge_audit_events()`. `staging` is branched **before** the bootstrap runs.
+
+**Alternatives considered.** Passwords in the migration, as Vercel build-time substitutions: dbmate
+runs plain SQL files with no templating, and the plaintext would still reach the build log. Creating
+all three roles in the Neon console: console roles are granted `neon_superuser`, which defeats
+`overload_app` having no DDL.
+
+**Changed:** `13` §5 and §9, `04` (Security — Roles), `12` §6, `11` §1.
+
+### [2026-09-23] Phase 6 review, group 7 (deploy): Deployment Protection off on both Vercel projects
+
+**Context.** Neither `12` nor `03` said what Vercel Deployment Protection is set to, so the projects
+would take whatever the account default is. Standard Protection — the recommended setting, on every
+plan — protects every domain except the production one (checked 2026-09-23), which puts Vercel
+Authentication in front of both `…-git-develop-…` URLs. Staging is where the iPhone checklist runs
+(`11` §3), so that matters.
+
+**Decided (asked).** Off (None) on both projects, on the `12` §6 checklist, with the reason in `12`
+§1 and `13` §3. Three things break under protection and none can send a bypass header: the
+`vercel.ts` rewrite proxies server-side with no Vercel cookie (Vercel's token is bound to one URL and
+is not transferable), Health Auto Export posts with an ingest token only, and the installed app would
+have to clear a Vercel login in standalone mode before reaching Better Auth. Staging's real controls
+are Better Auth on every route, the ingest token, a Neon branch holding test data, and a bundle with
+nothing secret. The cost, recorded: anyone with the branch URL reaches the invite-only sign-in screen.
+
+**Alternatives considered.** Protection on with the automation-bypass header: nothing in the path can
+add a header — not a `vercel.ts` rewrite, not Health Auto Export. Protection on the web project only:
+leaves the API preview open anyway and still costs a Vercel login inside the installed app.
+
+**Changed:** `12` §1 and §6, `13` §3.
+
+### [2026-09-23] Phase 6 review, group 7 (testing): two kinds of test opt out of rollback isolation
+
+**Context.** `11` §1 wrapped every API test in a transaction that is rolled back. Two tests the plan
+already requires cannot check anything under that rule. Group 4 made the exercise foreign keys
+`NO ACTION DEFERRABLE INITIALLY DEFERRED` so account deletion works, and a deferred constraint is
+checked at commit — a rolled-back test never commits, so the deletion test that exists *because the
+delete already failed once* would pass green. And the race tests (two tabs uploading, the same set
+sent twice) put both requests on one connection, which serializes them, so the unique-violation and
+`ON CONFLICT` paths never run under a real race.
+
+**Decided (asked).** Rollback stays the default. Deferred-constraint tests issue
+`SET CONSTRAINTS ALL IMMEDIATE` before their assertions, still inside the transaction. Race and
+account-deletion tests run committed against a database truncated between tests, in their own Vitest
+file so the two modes never interleave.
+
+**Alternatives considered.** Committed-and-truncate for everything: correct, and slow enough on every
+run to be worth avoiding for the ~90% that do not need it. Dropping to immediate constraints in
+tests only: the schema under test would stop being the schema that ships.
+
+**Changed:** `11` §1.
+
+### [2026-09-23] Phase 6 review, group 7 (testing): the idle-workout test moves to the client, two carried tests land
+
+**Decided (asked).**
+- **The idle-workout test was on the wrong side.** `11` §2 asked the API to end a workout idle for
+  3 hours, which group 6 decided the server never does. The API row now asserts the opposite —
+  `endedAt` stays `null` until the phone writes it — and the client half (reopen after a 3-hour gap,
+  the device writes `ended_at` = the last set's `performed_at` and uploads it) moves to the offline
+  and sync row, where a Playwright test can actually do it.
+- **Model calls get their own row**, carried from group 6: both kinds of call count against one
+  per-user daily counter and the call past it returns `429 model_cap_reached`. The test lands with
+  the cap, which is set before the first invitee (`13` §9).
+- **End-of-day cards**, carried from group 6: neither card re-asks a day left incomplete, and
+  because the flag is device-only, signing out and back in asks that day again.
+
+**Changed:** `11` §2. Both items are cleared from *Carried to a later group* in `00`.
+
+### [2026-09-23] Phase 6 review, group 7: three wording fixes
+
+**Decided (asked).**
+- **`13` §3's rate-limit row** still said "label reads, per user per day". It now names model calls of
+  both kinds and the `model_cap_reached` code, matching §6 threat 2, §9 and group 6's decision.
+- **`13` §9's cap item** now says one store counts both kinds. A meal estimate leaves a
+  `meal_estimate` row and a label read leaves nothing, so counting rows would miss the label reads —
+  the trap the old wording set for whoever implements it.
+- **"Build only" was a claim the docs cannot support.** `12` §2, `13` §4 and `03` §10 all described
+  `DATABASE_URL_DIRECT` as build-only. Vercel scopes a variable by environment, not by phase, and
+  whether a variable can be withheld from the function runtime could not be confirmed in Vercel's
+  docs on 2026-09-23. The three places now state the intent — only dbmate reads it, in the build —
+  and `13` §10 carries the open question, with what it costs threat 4 if the answer is no.
+
+**Changed:** `13` §3, §4, §9 and §10, `12` §2, `03` §10.

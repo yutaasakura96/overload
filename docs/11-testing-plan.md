@@ -8,9 +8,19 @@ reasoning; each row names its source. Decisions are in `06` (2026-09-21, testing
 | Layer | Tool | Runs against |
 | --- | --- | --- |
 | Domain (`apps/api/src/domain/`) | Vitest | Nothing. Pure functions |
-| API, auth, ingest | Vitest, calling the Hono app in process (`app.request`) | Postgres 18 in Docker: `docker compose` locally, a service container in GitHub Actions. Migrations applied once per run; each test runs in a transaction that is rolled back |
+| API, auth, ingest | Vitest, calling the Hono app in process (`app.request`) | Postgres 18 in Docker: `docker compose` locally, a service container in GitHub Actions. `infra/db/bootstrap.sql` then the migrations, once per run; each test runs in a transaction that is rolled back |
 | Offline and sync | Playwright, Chromium **and** WebKit, `browserContext.setOffline` | The built web app, the API and the same Postgres |
 | Contract | `oasdiff/oasdiff-action/breaking` | `packages/api-contract/openapi.json` on the PR vs `main`. Supports OpenAPI 3.1 (checked 2026-09-21) |
+
+### Isolation, and the two tests it cannot do
+
+Rollback-per-test is the default. Two kinds of test opt out, or they pass without checking anything.
+*Added 2026-09-23 (`06`).*
+
+| Kind | Why rollback fails it | How it runs |
+| --- | --- | --- |
+| Anything asserting on a **deferred** foreign key — account deletion with a custom exercise used in a routine and in a logged workout (`04`, group 4) | `NO ACTION DEFERRABLE INITIALLY DEFERRED` is checked at **commit**. A transaction that is rolled back never reaches one, so a broken delete order still goes green | `SET CONSTRAINTS ALL IMMEDIATE` before the assertions, inside the transaction. The check fires there; the rollback still cleans up |
+| **Race** tests — two tabs uploading, the same set sent twice | Two requests inside one test transaction share a connection and serialize. The unique-violation and `ON CONFLICT` paths are never exercised | **Committed**, against a database truncated between tests, in its own Vitest file so the two modes never interleave |
 
 - **Third parties are stubbed at the HTTP boundary**: Google, Open Food Facts, Anthropic. The ingest
   tests post recorded Health Auto Export payloads.
@@ -22,13 +32,14 @@ reasoning; each row names its source. Decisions are in `06` (2026-09-21, testing
 
 | Area | Tests | Source |
 | --- | --- | --- |
-| **Set upload (S1)** | In airplane mode: log → kill the tab → reopen → reconnect, and every set arrives once. The same set sent twice is stored once. One set refused (`validation_failed`) inside a 200 batch leaves the rest applied and that set refused. Two tabs open upload without duplicates. An offline edit and delete in the same batch apply, and the newer `client_updated_at` wins. A stale copy arriving after a delete does not bring the row back | `03` §8.1, `07` §3.4 |
+| **Set upload (S1)** | In airplane mode: log → kill the tab → reopen → reconnect, and every set arrives once. The same set sent twice is stored once. One set refused (`validation_failed`) inside a 200 batch leaves the rest applied and that set refused. Two tabs open upload without duplicates. An offline edit and delete in the same batch apply, and the newer `client_updated_at` wins. A stale copy arriving after a delete does not bring the row back. Reopening the app after 3 h with no new set writes `ended_at` = the last set's `performed_at` on the device and uploads it, offline or not (`09` F3) | `03` §8.1, `07` §3.4, `09` F3 |
 | **Export** | Every table with a `user_id` column is in an export section or on the listed exceptions (`07` §2) | `07` §2, S10 |
 | **Auth** | Every item in `08` §10: cross-user read, update and delete on every resource including child rows → 404 with A's rows unchanged; B writing a row that refers to A's id (exercise, routine, food, batch, Apple workout, plan meal, sync parent) → refused as not found; the gate's three refusals; after revoke, cookie, bearer and ingest token each 401; member on `/api/admin/*` → 404; token and cookie swapped between routes → 401; cron secret missing or wrong → 401; cross-origin multipart POST with a valid cookie → 403 from `csrf()`; stale-session delete refused and no row left after deletion, including for an account whose custom exercise is used in a routine and in a logged workout; expired session keeps pending sets, which upload after re-sign-in | `08` §10, `03` §10 |
 | **Domain** | Planner: ±5% calories, ±5 g protein, 5 g rounding, whole pieces, protein 0.4–0.55 g/kg per meal, carbohydrate around training, determinism, and a food list that cannot meet a target returns the closest plan with `shortfalls`, never nothing. Progression rule (S3). Epley e1RM with warm-ups excluded (S6, S7). Trend EWMA including gaps via `Δd` and the fewer-than-3-days case. Expenditure: the ≥5/7 apply rule, the ±150 kcal clamp, the first estimate of a phase, a window ending on an unweighed day, a first weigh-in inside the window, and no estimate with fewer than 3 weigh-ins or none in the newest 7 days | `03` §8.2–8.3, PRD |
 | **Ingest** | A repeated or late sample replaces the earlier copy and is never added twice. An unknown metric or bad point is skipped and counted, never a 4xx. Workout matching picks the greatest overlap | `03` §9, `07` §6.1 |
 | **Contract** | A breaking change to `openapi.json` fails CI unless the PR carries the breaking-change label | `07` §1.6 |
-| **Flows** | A workout idle for 3 h ends at its last set's `performed_at`. Finishing with zero ticked sets deletes the workout. Confirming a plan day more than 7 days old returns 409 `day_locked`. A hand-set target newer than the applied estimate is the one in force, and the next estimate clamps ±150 kcal from it | `09` F3, F11, F13 |
+| **Flows** | Until the phone writes it, a workout idle for 3 h still reads `endedAt: null` — the server derives nothing (the client half is in the offline row). Finishing with zero ticked sets deletes the workout. Confirming a plan day more than 7 days old returns 409 `day_locked`. A hand-set target newer than the applied estimate is the one in force, and the next estimate clamps ±150 kcal from it. A day left incomplete is not re-asked by the evening card or the "Yesterday" card; the flag is in IndexedDB only, so signing out and back in asks that day again | `09` F3, F11, F13 |
+| **Model calls** | One per-user daily counter covers label reads and meal estimates together: calls of both kinds count against it, and the one past the cap returns `429 model_cap_reached`. Lands with the cap itself, which is set before the first invitee (`13` §9) | `09` F15, `07` §1.3 |
 
 The planner's tolerance tests are written before the planner, so the solver choice in `03` §8.2 can be
 swapped behind them.

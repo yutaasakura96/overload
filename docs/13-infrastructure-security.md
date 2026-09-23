@@ -66,6 +66,11 @@ A restore that has never run is not a backup. Both tests are on the checklist in
 | --- | --- |
 | S3 backup bucket | Block Public Access; only the backup role can write, only Yuta's IAM user can read |
 
+The staging URLs are reachable on the same terms: Vercel Deployment Protection is off on both
+projects (`12` §1), because it would break the rewrite, the ingest route and the installed-app
+checklist. Staging is defended by the same auth as production, over a branch holding test data.
+*Added 2026-09-23.*
+
 ### DNS
 
 Only the Vercel-assigned `vercel.app` names. No custom domain (`06`, 2026-09-21).
@@ -91,7 +96,7 @@ This is step one of the migration notes, whenever they are written.
 | --- | --- | --- |
 | Vercel WAF, web project, `/api/*` | 300 requests / 60 s per IP, fixed window (Hobby allows one rate-limit rule per project; checked 2026-09-21) | Vercel returns `429` before the function runs |
 | Anthropic workspace | $10/month hard limit (§4) | Anthropic returns `400 invalid_request_error`; the manual form opens (`03` §4) |
-| Label reads, per user per day | **Not in v1.** Added before the first invitee (§9) | `429` problem response; the manual form opens |
+| Model calls — label reads and meal estimates together — per user per day | **Not in v1.** Added before the first invitee (§9) | `429 model_cap_reached`; the manual form opens (`09` F15). *Widened 2026-09-22* |
 | Open Food Facts | Their 15 reads/min per IP (`03` §4) | Inline message |
 
 - 300/min is well above one person's use: a sync batch is one request, and the heaviest screen fires
@@ -107,7 +112,7 @@ This is step one of the migration notes, whenever they are written.
 | Secret | Where it lives | Scope | Cannot |
 | --- | --- | --- | --- |
 | `DATABASE_URL` | Vercel, api | Role `overload_app` (§5) | Change the schema |
-| `DATABASE_URL_DIRECT` | Vercel, api (build only) | Role `overload_owner` | — (it is the owner; only dbmate uses it) |
+| `DATABASE_URL_DIRECT` | Vercel, api | Role `overload_owner` | — (it is the owner). **Only dbmate reads it**, in the build. Whether Vercel can withhold a variable from the function runtime is unverified (§10), so assume the deployed function's environment holds it too: that is what threat 4 costs if the runtime is compromised |
 | `DATABASE_URL_BACKUP` | GitHub Actions secret | Role `overload_backup` | Write anything |
 | `BETTER_AUTH_SECRET` | Vercel, api | Signs sessions | — |
 | `GOOGLE_CLIENT_SECRET` | Vercel, api | The one OAuth client (`12` §1) | — |
@@ -123,8 +128,8 @@ This is step one of the migration notes, whenever they are written.
 ## 5. Database roles
 
 Neon allows limited roles on Free, created by SQL (roles made in the console get
-`neon_superuser`; checked 2026-09-21). Three roles, created by the first migration, identically in
-local Docker, CI and both Neon branches — so a missing grant fails a test, not production.
+`neon_superuser`; checked 2026-09-21). Three roles, the same in local Docker, CI and both Neon
+branches — so a missing grant fails a test, not production.
 
 | Role | Used by | Privileges |
 | --- | --- | --- |
@@ -136,6 +141,24 @@ local Docker, CI and both Neon branches — so a missing grant fails a test, not
   backup privileges on every future table. A table that needs different grants (as `audit_event`
   does) revokes after creating.
 - Better Auth's tables are app tables: its adapter needs full DML on them, nothing more.
+
+### Creating them — bootstrap, not a migration
+
+A migration cannot create these roles: dbmate connects **as** `overload_owner`, so that role has to
+exist before the first migration runs, and Neon requires `CREATE ROLE … LOGIN PASSWORD` with at
+least 60 bits of entropy (Neon docs, checked 2026-09-23) — a password in a committed file would be
+public. So the split is:
+
+| | Creates the roles | Grants their privileges |
+| --- | --- | --- |
+| What | `infra/db/bootstrap.sql` — three `LOGIN` roles, no password, plus `GRANT CREATE ON SCHEMA public TO overload_owner` | The first migration, run as `overload_owner` |
+| Neon | Pasted into the SQL Editor once per branch, as the console-created owner role, then one `ALTER ROLE … PASSWORD '…'` per role with a generated value that is typed into Vercel (or GitHub) and saved nowhere else | dbmate, in the API build (`12` §3) |
+| Local, CI | The same file, from `docker-entrypoint-initdb.d`, with fixed development passwords | dbmate |
+
+**Branch order matters.** Neon copies a parent branch's roles, passwords included, into a child at
+creation (Neon docs, checked 2026-09-23). Create the `staging` branch **before** the bootstrap, and
+run the bootstrap separately on each branch, so a leaked staging password is not production's.
+*Changed 2026-09-23 (`06`).*
 
 ---
 
@@ -219,8 +242,10 @@ Nothing below is needed while Yuta is the only user. All of it is needed before 
 
 - [ ] **Per-user daily model-call cap** in the API (proposed: 20/day), counting label reads and
       meal estimates together, with a `429 model_cap_reached` problem response that opens the manual
-      form. A label read leaves no row (`04`), so the count needs its own store; decide it with the
-      cap. *Widened 2026-09-22* from label reads only (`09` F15).
+      form. **One store counts both kinds.** A meal estimate leaves a `meal_estimate` row and a label
+      read leaves no row at all (`04`), so counting rows would silently miss the label reads; the
+      counter is its own store, decided with the cap. *Widened 2026-09-22* from label reads only
+      (`09` F15).
 - [ ] **Compliance.** Invitees would be mostly in Japan and the Philippines. Deferred by Yuta
       2026-09-21 as too early; what verification already found, so the work starts from here:
   - APPI covers non-profit activity; whether a private app for friends is 事業 is a grey zone the
@@ -240,7 +265,8 @@ Nothing below is needed while Yuta is the only user. All of it is needed before 
 - [ ] Terraform in `infra/aws/` applied: bucket, lifecycle, OIDC provider, backup role.
 - [ ] `age` key pair made; public key committed; private key stored offline.
 - [ ] Anthropic `overload` workspace with a $10/month limit; its key in Vercel.
-- [ ] Three database roles on both Neon branches; `DATABASE_URL` switched to `overload_app`.
+- [ ] `infra/db/bootstrap.sql` run on each Neon branch, in branch order (§5), and a password set per
+      role; `DATABASE_URL` switched to `overload_app`, `DATABASE_URL_DIRECT` to `overload_owner`.
 - [ ] Backup workflow run once by hand; object visible in S3.
 - [ ] S3 restore tested into Docker (§2). Neon restore tested on `staging` (`12` §6).
 - [ ] WAF rule on the web project.
@@ -250,6 +276,10 @@ Nothing below is needed while Yuta is the only user. All of it is needed before 
 ## 10. Unverified, to check when built
 
 - What client IP the API project sees on a request rewritten from the web project (§3).
+- Whether a Vercel variable can be withheld from the function runtime and given only to the build.
+  If it cannot, `DATABASE_URL_DIRECT` (role `overload_owner`) sits in the deployed function's
+  environment, and threat 4's "the runtime URL can't drop tables" holds only for `DATABASE_URL`
+  (§4, §6). *Added 2026-09-23.*
 - Neon's DPA terms, for APPI's cloud exception (§9).
 - Whether Better Auth's adapter works under `overload_app` with no DDL (it should; its tables are
   created by our migrations, not by Better Auth at runtime).

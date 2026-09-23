@@ -975,10 +975,14 @@ _Added 2026-09-21 by `docs/13`. Needed from the first migration, whatever the mi
 
 ## Roles
 
-Created by the first migration, the same everywhere (`docs/13` §5): `overload_owner` (owns
-everything, runs migrations), `overload_app` (DML on app tables, no DDL), `overload_backup`
-(`SELECT` only). `ALTER DEFAULT PRIVILEGES FOR ROLE overload_owner` grants each new table to the
-other two.
+Three roles (`docs/13` §5): `overload_owner` (owns everything, runs migrations), `overload_app` (DML
+on app tables, no DDL), `overload_backup` (`SELECT` only).
+
+The roles themselves are **not** created by a migration — dbmate connects as `overload_owner`, so
+that role exists first, and a password in a committed file would be public. `infra/db/bootstrap.sql`
+creates all three, once per environment (`docs/13` §5). The first migration runs as the owner and does
+the privileges only: grants, `ALTER DEFAULT PRIVILEGES FOR ROLE overload_owner` so each new table
+reaches the other two, and the `audit_event` revoke below. *Changed 2026-09-23.*
 
 ## audit_event
 

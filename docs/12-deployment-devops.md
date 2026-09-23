@@ -16,6 +16,17 @@ are not restated here. Decisions are in `06` (2026-09-21, deployment)._
 | Cron | none; call the route by hand | none (Vercel runs crons on production only) | `0 15 * * *` UTC (`03` §8.4) |
 | Monitoring | none | Sentry events tagged `staging`, no alerts | Everything in §5 |
 
+- **Deployment Protection is off (None) on both projects** (binding). Vercel's Standard Protection —
+  the recommended setting, on every plan — protects every domain except the production one (Vercel
+  docs, checked 2026-09-23), which would put Vercel Authentication in front of both staging URLs.
+  Three things break there, and none of them can send a bypass header: the `vercel.ts` rewrite
+  proxies server-side with no Vercel cookie, so the staging web app gets an auth page instead of the
+  API; Health Auto Export posts with an ingest token and nothing else; and the iPhone checklist
+  (`11` §3) would have to clear a Vercel login inside the installed app before reaching Better Auth.
+  What defends staging is its own: every route needs a session cookie, bearer or ingest token
+  (`08`), the Neon `staging` branch holds test data only, and the bundle has nothing secret (§2).
+  The cost, recorded: anyone with the branch URL reaches the sign-in screen, which is invite-only.
+  *Decided 2026-09-23 (`06`).*
 - **Staging is where the iPhone checklist in `11` §3 runs** — installed to the home screen from the
   `develop` branch URL, before `develop` is merged to `main`. Production holds real training data and
   is never the test bed.
@@ -64,7 +75,7 @@ per app, pointing at Docker Postgres — local never touches Neon.
 | Name | Project | Type | Purpose | Staging vs production |
 | --- | --- | --- | --- | --- |
 | `DATABASE_URL` | api | Secret | Neon **pooled** connection, used at runtime, as role `overload_app` (`13` §5) | `staging` / `main` branch |
-| `DATABASE_URL_DIRECT` | api | Secret | Neon **direct** connection, used only by `dbmate` in the build, as `overload_owner`. The pooler does not keep session state across a migration | `staging` / `main` branch |
+| `DATABASE_URL_DIRECT` | api | Secret | Neon **direct** connection, read only by `dbmate` in the build, as `overload_owner`. The pooler does not keep session state across a migration. Assume the function runtime holds it as well (`13` §10) | `staging` / `main` branch |
 | `BETTER_AUTH_SECRET` | api | Secret | Session signing | **Different** |
 | `BETTER_AUTH_URL` | api | Config | Public origin — the **web** origin, behind the rewrite (`03` §5) | Different |
 | `GOOGLE_CLIENT_ID` | api | Config | Sign-in | Same |
@@ -192,8 +203,11 @@ monitor, with email alerts (Sentry pricing docs, checked 2026-09-21).
 
 ## 6. Before the first production deploy
 
-- [ ] Neon project, branch `staging` off `main`.
+- [ ] Neon project, branch `staging` off `main`, **before** the roles exist (`13` §5).
+- [ ] `infra/db/bootstrap.sql` run on `main` and on `staging`, with a different password per role
+      per branch (`13` §5).
 - [ ] Two Vercel projects, roots `apps/web` and `apps/api`, production branch `main`.
+- [ ] Deployment Protection set to None on both projects (§1) — check the team default first.
 - [ ] Every variable in §2, Secret type where marked, Preview values scoped to `develop`.
 - [ ] Google OAuth client with all three redirect URIs.
 - [ ] `vercel.ts` rewrite verified on the staging URL: sign-in round-trips, cookie set on the web origin.
