@@ -9,12 +9,20 @@ are not restated here. Decisions are in `06` (2026-09-21, deployment)._
 | | Local | Staging | Production |
 | --- | --- | --- | --- |
 | Git branch | any | `develop` | `main` |
-| Web | `vite` dev server | Vercel preview, branch URL `overload-web-git-develop-<scope>.vercel.app` | Vercel production domain of `overload-web` |
-| API | Hono on Node | Vercel preview of `overload-api`, branch `develop` | Vercel production of `overload-api`, `sin1` |
+| Web | `vite` dev server | Vercel preview, branch URL `overload-web-git-develop-yuta-asakuras-projects.vercel.app` | `https://overload-web-pied.vercel.app` |
+| API | Hono on Node | Vercel preview of `overload-api`, branch `develop` | `https://overload-api-mu.vercel.app`, `sin1` |
 | Database | Postgres 18 in Docker (`docker compose`, as in `11`) | Neon branch `staging` | Neon branch `main` (root) |
 | Migrations | `dbmate migrate` by hand | In the API build (§3) | In the API build (§3) |
 | Cron | none; call the route by hand | none (Vercel runs crons on production only) | `0 15 * * *` UTC (`03` §8.4) |
 | Monitoring | none | Sentry events tagged `staging`, no alerts | Everything in §5 |
+
+**Provisioned 2026-09-24.** Team `yuta-asakuras-projects`. Both projects created from the repo with
+their root directories, `main` as the production branch, the API on the **`hono` framework preset**
+(accepted by Vercel, so no `vercel.json` routes) in `sin1`, Node 24.x, and Deployment Protection
+already **None** — set through the API and read back to confirm. The plain `overload-*.vercel.app`
+names were taken, hence the suffixes above. The staging branch URLs are the standard
+`<project>-git-develop-<team>` pattern and are confirmed against the dashboard after the first push
+to `develop`.
 
 - **Deployment Protection is off (None) on both projects** (binding). Vercel's Standard Protection —
   the recommended setting, on every plan — protects every domain except the production one (Vercel
