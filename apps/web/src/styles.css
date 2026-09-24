@@ -1,0 +1,319 @@
+/* docs/05 §8, the token export, exactly as extracted. Nothing here is invented: a value missing from
+   docs/05 is a question for the design system, not a new token. */
+:root {
+  --surface-ground: #0b0d0f;
+  --surface-raised: #12161a;
+  --surface-active: #0f171b;
+  --surface-accent: #10262e;
+  --surface-done: #15241e;
+  --surface-flag: #15110a;
+  --surface-error: #170b0c;
+  --scrim: rgba(11, 13, 15, 0.72);
+
+  --line-row: #14191e;
+  --line-hairline: #1a2026;
+  --line-border: #232b32;
+  --line-field: #2a3440;
+  --line-control: #55687a;
+  --line-accent: #234a57;
+  --line-done: #2e4a40;
+  --line-flag: #4a3a1c;
+  --line-error: #501c1e;
+
+  --text-primary: #e6edf3;
+  --text-secondary: #a8b4c0;
+  --text-tertiary: #8a96a3;
+  --text-quaternary: #738393;
+  --text-placeholder: #5a6673; /* >= 24px only */
+
+  --accent: #3fb6d4;
+  --accent-pressed: #6fcde3;
+  --done: #57c99a;
+  --flag: #e0a83c;
+  --flag-dim: #947b45;
+  --error: #f2555a;
+
+  --font-mono: 'JetBrains Mono', monospace;
+  --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
+
+  --radius: 2px;
+  --gutter: 16px;
+  --content: 358px;
+  --target-min: 44px;
+
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--surface-ground);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  min-height: 100dvh;
+  /* The installed app draws under the status bar (black-translucent). */
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* 4.1 App bar */
+.app-bar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px var(--gutter) 13px;
+  border-bottom: 1px solid var(--line-hairline);
+}
+.app-bar__title {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+}
+.app-bar__subline {
+  margin-top: 3px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  color: var(--text-quaternary);
+}
+
+/* 4.2 Data-state slot, resting form */
+.data-state {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-quaternary);
+  white-space: nowrap;
+}
+.data-state__dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--done);
+}
+
+/* 4.3 Section label */
+.section-label {
+  margin: 0 0 8px;
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-quaternary);
+}
+
+/* 4.4 Data table: the exercise library */
+.library {
+  padding-top: 18px;
+}
+.library__head,
+.library__row {
+  display: grid;
+  grid-template-columns: 1fr 40px 48px 44px;
+  gap: 8px;
+  align-items: baseline;
+  padding: 9px var(--gutter);
+}
+.library__head {
+  padding-top: 0;
+  padding-bottom: 6px;
+  margin: 0 var(--gutter);
+  padding-left: 0;
+  padding-right: 0;
+  border-bottom: 1px solid var(--line-hairline);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-quaternary);
+}
+.library__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.library__row + .library__row {
+  border-top: 1px solid var(--line-row);
+}
+.library__name {
+  font-size: 12px;
+  color: var(--text-secondary);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.library__figure {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-tertiary);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.library__unit {
+  color: var(--text-quaternary);
+}
+.library__head > :not(:first-child) {
+  text-align: right;
+}
+
+/* Inline messages: `flag` for "nothing is lost, try again", `error` for a refusal (docs/05 §1.4). */
+.notice {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin: 16px var(--gutter);
+  padding: 10px 11px;
+  border-radius: var(--radius);
+  font-size: 11px;
+  line-height: 1.55;
+}
+.notice--flag {
+  border: 1px solid var(--line-flag);
+  background: var(--surface-flag);
+  color: var(--text-secondary);
+}
+.notice--error {
+  border: 1px solid var(--line-error);
+  background: var(--surface-error);
+  color: var(--text-secondary);
+}
+.notice__word {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.notice--flag .notice__word {
+  color: var(--flag);
+}
+.notice--error .notice__word {
+  color: var(--error);
+}
+.notice__icon {
+  flex: none;
+  margin-top: 2px;
+}
+
+/* 4.6 Buttons */
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 11px;
+  min-height: var(--target-min);
+  padding: 0 14px;
+  border-radius: var(--radius);
+  text-transform: uppercase;
+}
+.button--primary {
+  width: 100%;
+  min-height: 52px;
+  border: 1px solid var(--accent);
+  background: var(--surface-accent);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+}
+.button--primary:active {
+  border-color: var(--accent-pressed);
+  color: var(--accent-pressed);
+}
+.button--primary:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+.button--tertiary {
+  border: 1px solid var(--line-hairline);
+  color: var(--text-quaternary);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+
+/* Sign-in */
+.sign-in {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+}
+.sign-in__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 14px;
+  padding: 22px var(--gutter) 30px;
+}
+.sign-in__lede {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+.sign-in__body .notice {
+  margin: 0;
+}
+
+.footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-top: 22px;
+  padding: 12px var(--gutter) 18px;
+  border-top: 1px solid var(--line-hairline);
+}
+.footer__account {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-quaternary);
+}
+
+.app {
+  max-width: 480px;
+  margin: 0 auto;
+}

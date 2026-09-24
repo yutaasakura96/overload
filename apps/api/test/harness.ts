@@ -4,21 +4,11 @@ import { Pool } from 'pg';
 import { afterAll, afterEach, beforeAll, beforeEach } from 'vitest';
 import { createApp } from '../src/app';
 import { createAuth } from '../src/auth/auth';
-import type { Config } from '../src/config';
 import { createDatabase } from '../src/db/connection';
 import { testDatabaseUrl } from './database-urls';
+import { WEB_ORIGIN, testConfig } from './harness-config';
 
-export const WEB_ORIGIN = 'http://localhost:5173';
-export const ADMIN_EMAIL = 'admin@example.test';
-
-export const testConfig: Config = {
-  databaseUrl: testDatabaseUrl,
-  webOrigin: WEB_ORIGIN,
-  authSecret: 'test-secret-that-is-at-least-32-characters-long',
-  googleClientId: 'test-google-client',
-  googleClientSecret: 'test-google-secret',
-  adminEmail: ADMIN_EMAIL,
-};
+export { ADMIN_EMAIL, WEB_ORIGIN, testConfig } from './harness-config';
 
 /** What Google would assert about a user. The stub below reads it back out of the "id token". */
 export type GoogleIdentity = { sub: string; email: string; emailVerified: boolean; name?: string };

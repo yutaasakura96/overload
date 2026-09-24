@@ -69,6 +69,12 @@ importers:
 
   apps/web:
     dependencies:
+      '@fontsource/ibm-plex-sans':
+        specifier: 5.3.0
+        version: 5.3.0
+      '@fontsource/jetbrains-mono':
+        specifier: 5.3.0
+        version: 5.3.0
       '@overload/api-contract':
         specifier: workspace:*
         version: link:../../packages/api-contract
@@ -127,6 +133,9 @@ importers:
       vite-plugin-pwa:
         specifier: 1.3.0
         version: 1.3.0(vite@8.3.1(@types/node@24.13.6)(esbuild@0.28.2)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))(workbox-build@7.4.1)(workbox-window@7.4.1)
+      workbox-window:
+        specifier: 7.4.1
+        version: 7.4.1
 
   packages/api-contract:
     devDependencies:
@@ -920,6 +929,12 @@ packages:
     engines: {node: '>=18'}
     cpu: [x64]
     os: [win32]
+
+  '@fontsource/ibm-plex-sans@5.3.0':
+    resolution: {integrity: sha512-CbE4CbbEEZJX860XyUiRpsksXIQR8Rp2XDva2VO53NJox9tVNtusrysd2x5YkUEY3ErQ66W1IiiQL8/wihhw5w==}
+
+  '@fontsource/jetbrains-mono@5.3.0':
+    resolution: {integrity: sha512-fqDfB5I9f1p1TV486aUgB9t8zP84P0O1FtQR5Ol9vjwPy+S+EIGlVYm1cvj2W5shcZMTg2nZFdVMoH5wFu8a1A==}
 
   '@hono/node-server@2.1.1':
     resolution: {integrity: sha512-ELuehkj5VCBdgEw9zs+ivkKwyzzUCSQuE96YmiPvn1ECBoZCczbFXJLeEGMTYjphP6gydh4pHMqEYPVMYUVgQg==}
@@ -4186,6 +4201,10 @@ snapshots:
 
   '@esbuild/win32-x64@0.28.2':
     optional: true
+
+  '@fontsource/ibm-plex-sans@5.3.0': {}
+
+  '@fontsource/jetbrains-mono@5.3.0': {}
 
   '@hono/node-server@2.1.1(hono@4.13.9)':
     dependencies:

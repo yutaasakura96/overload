@@ -19,7 +19,13 @@
     "typescript/no-misused-promises": "error",
     "typescript/await-thenable": "error",
     "typescript/no-unnecessary-type-assertion": "warn",
-    "react/react-in-jsx-scope": "off"
+    "react/react-in-jsx-scope": "off",
+    "import/no-unassigned-import": [
+      "warn",
+      {
+        "allow": ["**/*.css"]
+      }
+    ]
   },
   "ignorePatterns": [
     "packages/api-contract/src/schema.ts",
