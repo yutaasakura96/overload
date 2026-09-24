@@ -38,7 +38,8 @@ $$;
 GRANT CREATE ON SCHEMA public TO overload_owner;
 GRANT USAGE  ON SCHEMA public TO overload_owner, overload_app, overload_backup;
 
--- On Neon, the console-created role is a member of neon_superuser and owns the
--- database; make overload_owner the owner of the public schema so its objects
--- are unambiguously its own.
-ALTER SCHEMA public OWNER TO overload_owner;
+-- Deliberately NOT here: ALTER SCHEMA public OWNER TO overload_owner. On Neon
+-- the console-created role cannot SET ROLE overload_owner, so Postgres refuses
+-- to hand it ownership (SQLSTATE 42501). It is also unnecessary — dbmate
+-- connects as overload_owner, so every table it creates is owned by it, and
+-- GRANT CREATE above is all it needs. Found 2026-09-24, first run.
