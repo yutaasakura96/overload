@@ -79,8 +79,8 @@ on that date.
     would refuse the app itself. *Added 2026-09-22.*
 - **Rate limiting** on `/api/auth/*`: Better Auth's limiter, `enabled: true` stated explicitly, with
   `storage: "database"`. Its default in-memory store is per instance, which on Vercel Functions
-  means per cold start, so it limits nothing. Database storage needs Better Auth's `rateLimit` table
-  (`04`).
+  means per cold start, so it limits nothing. Database storage needs Better Auth's `rateLimit` model,
+  mapped to the `rate_limit` table (`04`).
 
 ---
 
@@ -311,19 +311,27 @@ Every one of these is a test, not a code-review item:
 
 ## Unverified, to check when built
 
-- The exact error shape `validateUserInfo` returns to the web client on the redirect flow, and how
-  the sign-in page reads `error` from it.
-- Whether Better Auth's rate limiter is enabled by default in production. It is set explicitly, so
-  this only matters if that setting is ever removed. **Storage is `database`** — the default is
+- The error shape `validateUserInfo` returns on the redirect flow, **read from 1.7.5's callback
+  source 2026-09-25**: a refusal becomes a redirect to the sign-in call's `errorCallbackURL` with
+  `?error=<our code>&error_description=<our text>`. The sign-in page maps `error` to its own wording
+  and ignores the description. Slice 1 tests the page with the query string and the gate's `403` on
+  the programmatic path; the Google round trip itself is only observed on staging (`11` §3 item 2).
+- ~~Whether Better Auth's rate limiter is enabled by default in production.~~ **Answered 2026-09-25**
+  from 1.7.5's source: `enabled` defaults to "is production", so it is on in production and off in
+  development and test. We set `enabled: true` regardless. **Storage is `database`** — the default is
   in-memory, which a Vercel function does not keep between invocations (`06`, 2026-09-24).
+- The limiter keys each bucket by client IP, read from `x-forwarded-for` only, and **only when the
+  header holds exactly one address**. Anything else falls into one shared bucket per path and logs a
+  warning once. What the API sees behind the rewrite is `13` §10's open question.
 - Better Auth's default cookie attributes, **read from 1.7.5's source 2026-09-24**: `httpOnly`,
   `sameSite: 'lax'`, `path: '/'`, `secure` derived from the `baseURL` protocol, and a `__Secure-`
   name prefix when secure. Still worth confirming in the browser once deployed. The `session_token`
   value is the session token HMAC-signed with `BETTER_AUTH_SECRET`, in the form `token.signature` —
   so a session row inserted by hand will not authenticate.
-- **Whether `database: { casing: 'snake' }` renames Better Auth's tables as well as its columns.**
-  Columns are what we need in snake_case to match `04`; checked against a real database when slice 1
-  is written.
+- ~~Whether `database: { casing: 'snake' }` renames Better Auth's tables as well as its columns.~~
+  **Answered building slice 1** (`06`, 2026-09-24): it renames nothing, because nothing in 1.7.5 reads
+  it. snake_case comes from per-model `modelName` and `fields` options instead (`04`), and a Vitest
+  sign-in fails if any mapping is missing.
 - Whether `list-sessions` sits behind Better Auth's fresh-session middleware on the pinned version,
   as it does in current source. If so, the account screen's session list needs a sign-in less than a
   day old, like deletion (§6).

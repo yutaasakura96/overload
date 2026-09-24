@@ -125,15 +125,23 @@ No deploy script. Vercel's Git integration builds both projects on every push.
 
 ### Migrations run inside the API build
 
-The API project's build command:
+The API project's build is `apps/api/scripts/vercel-build.sh`, run as the package's `vercel-build`
+script:
 
 ```sh
-if [ "$VERCEL_GIT_COMMIT_REF" = "main" ] || [ "$VERCEL_GIT_COMMIT_REF" = "develop" ]; then
-  dbmate --url "$DATABASE_URL_DIRECT" --migrations-dir ./migrations --no-dump-schema migrate
-fi
-pnpm build
+case "${VERCEL_GIT_COMMIT_REF:-}" in
+  main | develop)
+    dbmate --url "$DATABASE_URL_DIRECT" --migrations-dir ./migrations --no-dump-schema migrate
+    ;;
+esac
 ```
 
+- **It lives in the repo, not in the dashboard.** The Hono preset's Build Command is *None*, and
+  Vercel's Hono builder then runs the first of `vercel-build`, `now-build` or `build` from
+  `package.json` before bundling `src/index.ts` itself (read from `@vercel/hono` and `@vercel/node`
+  source, 2026-09-25). So nothing is set in the project settings, and a Build Command override there
+  would replace this script. The command first written here ended in `pnpm build`, which fails: the
+  API has no `build` script, and the preset needs none.
 - **dbmate** (npm `dbmate`, 2.36.0): plain SQL files, timestamp-versioned, each run in a transaction,
   its own `schema_migrations` table. It fits `04`'s "versioned SQL in `migrations/`" rule and ties
   nothing to the query layer, which is **Kysely** (`03` §2, decided 2026-09-24). The same command runs
@@ -141,8 +149,12 @@ pnpm build
 - **Verified 2026-09-24** (`06`): the npm wrapper downloads nothing at install time — per-platform
   binaries ship as optional dependencies, and `@dbmate/linux-x64` exists. Global flags must come
   **before** the subcommand, as the command above already has them. A missing `pg_dump` makes dbmate
-  *silently* skip its schema dump, which `--no-dump-schema` sidesteps. Open until the first deploy:
-  whether pnpm's lockfile, generated on macOS, carries `@dbmate/linux-x64` into the Linux build.
+  *silently* skip its schema dump, which `--no-dump-schema` sidesteps.
+- **The lockfile carries `@dbmate/linux-x64`** (checked 2026-09-25). `pnpm-lock.yaml`, written on
+  macOS, lists all seven platform packages; a `pnpm install --frozen-lockfile` in a `linux/amd64`
+  `node:24` container installed `@dbmate/linux-x64@2.36.0`, and `pnpm vercel-build` with
+  `VERCEL_GIT_COMMIT_REF=develop` migrated an empty Postgres 18 from nothing. That container is
+  Debian, not Vercel's Amazon Linux build image, so the first deploy is still the real proof.
 - **Node is pinned to 24** in `engines.node` and `packageManager` pins pnpm, in both apps and in CI.
   Vercel's default is already Node 24 and it honours `engines.node` over the dashboard setting; the
   pin is what stops laptop, CI and Vercel from diverging silently.
@@ -250,7 +262,8 @@ monitor, with email alerts (Sentry pricing docs, checked 2026-09-21).
 - [ ] `vercel.ts` rewrite verified on the staging URL: sign-in round-trips, cookie set on the web origin.
 - [ ] Sentry: two projects (web, api), new-issue alert on production, uptime monitor, cron monitor.
 - [ ] A Neon restore from history, tried on `staging`.
-- [ ] `dbmate` confirmed to run inside Vercel's build image (its npm package ships platform binaries;
-      not yet tried there).
+- [ ] `dbmate` confirmed to run inside Vercel's build image. Its npm package ships platform
+      binaries, and the linux-x64 one installs and migrates in a Linux x64 container from our
+      lockfile (§3, 2026-09-25); not yet tried in Vercel's own image.
 - [ ] `11` §3 checklist passed on staging.
 - [ ] The security and backup items in `13` §9, "Before M1 ships".
