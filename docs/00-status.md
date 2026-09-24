@@ -49,11 +49,14 @@ with GitHub's native dependencies. `#1` carries the full slice-1 specification a
 `ready-for-agent`; `#3` carries the three questions its own `/grill-with-docs` must settle first.
 Each UI feature clears the polish gate in `CLAUDE.md`.
 
-**Still to do before slice 1 is written:** run `/wizard` for the provisioning walkthrough — Neon
-project, `staging` branched **before** `bootstrap.sql` runs, both Vercel projects with Deployment
-Protection None, every variable in `12` §2, the Google OAuth client with three redirect URIs. Yuta
-runs it: the agent cannot reach those dashboards, and the role passwords must not enter the repo or
-a transcript.
+**Provisioning walkthrough written 2026-09-24: `scripts/provision.sh`.** Fourteen stages, run it
+from the repo root with `bash scripts/provision.sh`. It generates the role passwords, shows them
+once and writes none of them to disk; `.provision.local` holds the non-secret values so a re-run can
+resume. It stops at the two ordering traps — the staging branch before the roles exist, and
+Deployment Protection off on both Vercel projects.
+
+**Yuta runs it** — the agent cannot reach the Neon, Vercel, Google or Sentry dashboards, and the
+role passwords must not enter the repo or a transcript.
 
 **Seed increments, researched 2026-09-23** against Anytime Fitness Japan's own store pages (all 1,848
 crawled; `06` holds the evidence): barbell 2.5 · dumbbell 1.0 with the suggestion rounded to the rack
@@ -177,8 +180,10 @@ sticky are kept open for M2 (see *Reviewed, kept*).
   grill's question.
 
 ### Waiting for the first build — raised by group 7
-- `infra/db/bootstrap.sql` does not exist yet. It creates the three roles and is run before the
-  first migration, once per environment (`13` §5). The first migration does the grants only.
+- ~~`infra/db/bootstrap.sql` does not exist yet.~~ **Written 2026-09-24**, with
+  `infra/db/local-passwords.sql` beside it for Docker. It creates the three roles with no passwords
+  and is run before the first migration, once per environment (`13` §5). The first migration does the
+  grants only.
 - Deployment Protection must be set to None on both Vercel projects when they are created
   (`12` §1 and §6).
 

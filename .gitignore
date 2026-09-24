@@ -3,3 +3,22 @@ design/overload.html
 
 # Per-machine Claude Code overrides
 .claude/settings.local.json
+
+# Secrets — never committed
+.env
+.env.*
+!.env.example
+
+# Provisioning scratch (captured non-secret values; see scripts/provision.sh)
+.provision.local
+
+# Dependencies and build output
+node_modules/
+dist/
+.vercel/
+*.tsbuildinfo
+
+# Test and tool output
+coverage/
+playwright-report/
+test-results/
