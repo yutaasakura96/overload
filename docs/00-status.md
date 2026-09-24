@@ -50,37 +50,46 @@ label is **off** until provisioning is finished (below). `#3` carries the three 
 `/grill-with-docs` must settle first.
 Each UI feature clears the polish gate in `CLAUDE.md`.
 
-### Provisioning — one script left to run (2026-09-25)
+### Provisioning — done (2026-09-25)
 
-**Done:** the Neon project with `main` and `staging` (branched before the roles existed), the three
-roles on both branches, and both Vercel projects — `overload-web` (`apps/web`, vite) and
-`overload-api` (`apps/api`, the **`hono` preset**, `sin1`), Deployment Protection **None** on both,
-Node 24.x, git-connected with `main` as the production branch. Production domains are
-`overload-web-pied.vercel.app` and `overload-api-mu.vercel.app`; the plain names were taken.
+Verified by reading Vercel back, not by trusting the writes: `node scripts/vercel-verify.mjs`
+exits 0, every variable `12` §2 requires present on both projects across production, preview scoped
+to `develop`, and unscoped preview.
 
-**Left:** `bash scripts/provision-secrets.sh` — a new Google OAuth client, the six database
-passwords, and every variable in `12` §2 on both Vercel projects. It ends by reading Vercel back
-(`scripts/vercel-verify.mjs`) and fails loudly if anything is missing.
+- **Neon** — project with `main` and `staging` (branched before the roles existed), the three roles
+  bootstrapped separately on each branch, passwords rotated and held only in Vercel.
+- **Vercel** — `overload-web` (`apps/web`, vite) and `overload-api` (`apps/api`, the **`hono`
+  preset**, `sin1`), Deployment Protection **None** on both, Node 24.x, git-connected with `main` as
+  the production branch. Production domains `overload-web-pied.vercel.app` and
+  `overload-api-mu.vercel.app`; the plain names were taken.
+- **Google** — a new OAuth client with the three redirect URIs. The original client's secret was
+  lost, and Google shows a secret once with no way to add a second, so the old client is superseded.
+  **Delete it once sign-in works on staging, not before.**
+- **GitHub** — `DATABASE_URL_BACKUP` secret set.
 
-**Sentry is deliberately skipped.** A `sentry-cli login` token is scoped `org:ci`, which uploads
-source maps but cannot create projects. Create the two projects in the browser whenever, then re-run
-the script — it upserts. **Before slice 1 ships:** set those three variables, swap the CI token for
-an *organization* auth token rather than a personal one, and add the uptime and cron monitors in
-`12` §5 (the uptime check needs `/api/health`, so it cannot exist until slice 1 deploys).
+**Deliberately unset, none blocking:** `SENTRY_DSN`, `VITE_SENTRY_DSN`, `SENTRY_AUTH_TOKEN` (a
+`sentry-cli login` token is scoped `org:ci` and cannot create projects — make them in the browser,
+then re-run the script, which upserts), and `ANTHROPIC_API_KEY` (M2). **Before slice 1 ships:** set
+the Sentry three, use an *organization* auth token for CI rather than a personal one, and add the
+uptime and cron monitors in `12` §5 — the uptime check needs `/api/health`, so it cannot exist until
+slice 1 deploys.
 
-`ready-for-agent` is **off** issue `#1` until the script reports every variable set.
+Issue `#1` is `ready-for-agent` again. Both Vercel projects show failed deployments until `apps/web`
+and `apps/api` exist; the first real deploy is slice 1.
 
-#### What went wrong, so it is not repeated
+#### What the three failed attempts taught, kept so it is not repeated
 
 - The first two walkthroughs cleared the screen between stages, which hid the errors from the Vercel
-  writes. Nothing landed and nothing said so. The current script never clears, and verifies at the
-  end instead of trusting the writes.
-- They also rotated the database passwords several stages before using them, so an abandoned run
-  left the database with passwords nobody held. The current script asks for everything human first,
-  rotates second, and writes in the same breath.
-- **Google shows a client secret once and cannot add a second one to an existing client.** A lost
-  secret means a new client, which is why the script creates one rather than asking you to find it.
-- Both Vercel projects show failed deployments. Expected: `apps/web` and `apps/api` do not exist.
+  writes: nothing landed and nothing said so. A provisioning script must **verify by reading back**,
+  never by reporting its own writes.
+- They rotated database passwords several stages before using them, so an abandoned run left the
+  database with passwords nobody held. Ask for everything human **first**, mutate **second**, write
+  in the same breath.
+- **A Google client secret is shown once and cannot be reissued**; a lost one means a new client.
+- Vercel hides `sensitive` variable values in listings, so a variable's *presence* is checkable but
+  its value is not. An empty-looking `ANTHROPIC_API_KEY` was removed rather than left: absent is
+  safer than present-and-wrong.
+- The Vercel CLI token expires daily. Every script that touches the API refreshes it first.
 
 **Seed increments, researched 2026-09-23** against Anytime Fitness Japan's own store pages (all 1,848
 crawled; `06` holds the evidence): barbell 2.5 · dumbbell 1.0 with the suggestion rounded to the rack
