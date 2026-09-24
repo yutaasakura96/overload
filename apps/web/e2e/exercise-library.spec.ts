@@ -102,7 +102,9 @@ test('the installed shell opens offline with the last loaded library', async ({
   await context.setOffline(false);
 });
 
-test('a refused sign-in shows the gate’s reason', async ({ page }) => {
+test('a refused sign-in shows the gate’s reason', async ({ context, page }) => {
+  // The gate refused, so there is no session. With one, /sign-in sends the user on.
+  await context.clearCookies();
   await page.goto('/sign-in?error=not_invited');
   await expect(page.getByRole('alert')).toContainText('This Google account hasn’t been invited.');
 });
