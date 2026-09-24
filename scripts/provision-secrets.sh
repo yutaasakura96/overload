@@ -187,8 +187,8 @@ finish() {
 TOTAL_STAGES=4
 ENV_FILE=".provision.local"
 
-# Deliberately no screen clearing. The previous script cleared between stages,
-# which hid the errors from the Vercel writes and is why none of them landed.
+# No screen clearing: an earlier version cleared between stages and hid the
+# errors from the Vercel writes, which is why none of them landed.
 _clear() { :; }
 
 WEB_ORIGIN="https://overload-web-pied.vercel.app"
@@ -199,40 +199,76 @@ API_STAGING="https://overload-api-git-develop-${VERCEL_SCOPE}.vercel.app"
 NEON_SUFFIX=".ap-southeast-1.aws.neon.tech"
 
 gen() { LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c "${1:-32}"; printf '\n'; }
-sql() { printf '    %sALTER ROLE %-17s PASSWORD %s'"'"'%s'"'"';%s\n' "$BOLD" "$1" "$RESET" "$2" ""; }
+sql() { printf '    %sALTER ROLE %-17s PASSWORD %s'"'"'%s'"'"';\n' "$BOLD" "$1" "$RESET" "$2"; }
 
-banner "Overload — the values that never landed"
+banner "Overload — Google, the database passwords, and every Vercel variable"
 
 # ── 1 ─────────────────────────────────────────────────────────────────────
-stage "What this fixes"
-say "The previous run rotated the database passwords and then failed to write"
-say "anything to Vercel, so those passwords are lost and both projects still"
-say "have zero variables. This script rotates them once more and pushes every"
-say "value in the same run, then reads Vercel back to prove it worked."
+stage "Before we start"
+say "Order matters here, and it is the opposite of the last version:"
+note "  Google first, database passwords second."
 say ""
-say "Already done and not touched: Neon, the roles, both Vercel projects,"
-say "your Google OAuth client, the admin email and the OFF contact."
+say "The reason: a Google client secret is shown once and can never be read"
+say "again, so fetching it mid-run is what tempted a restart — and a restart"
+say "after the rotation means six more ALTER ROLE pastes. Nothing in stage 2"
+say "changes any existing state, so abandoning it costs nothing."
 say ""
-for f in scripts/vercel-env.mjs .provision.local; do
-  [[ -f "$f" ]] || { warn "missing $f — run from the repo root"; exit 1; }
+for f in scripts/vercel-env.mjs scripts/vercel-verify.mjs .provision.local; do
+  [[ -f "$f" ]] || { warn "missing $f — run this from the repo root"; exit 1; }
 done
 # shellcheck disable=SC1091
 set -a; . ./.provision.local; set +a
 : "${NEON_MAIN_POOLED_HOST:?not in .provision.local}"
 : "${NEON_STAGING_POOLED_HOST:?not in .provision.local}"
-: "${GOOGLE_CLIENT_ID:?not in .provision.local}"
-note "read hosts, client id, admin email and OFF contact from .provision.local"
+: "${ADMIN_EMAIL:?not in .provision.local}"
+note "hosts, admin email and OFF contact read from .provision.local"
 if ! npx --yes vercel@latest whoami >/dev/null 2>&1; then
-  warn "Vercel auth expired. Run 'npx vercel login', then restart this script."
+  warn "Vercel auth expired. Run 'npx vercel login', then start this script again."
   exit 1
 fi
 note "Vercel auth OK"
 pause "Ready?"
 
 # ── 2 ─────────────────────────────────────────────────────────────────────
+stage "Google — a new OAuth client"
+say "Google shows a client secret once, at creation, and has no way to add a"
+say "second secret to an existing client. A lost secret therefore means a new"
+say "client, not a recovered one."
+say ""
+open_url "https://console.cloud.google.com/apis/credentials"
+step "Credentials → Create Credentials → OAuth client ID → Web application."
+step "Name it something you will recognise, e.g. 'Overload web'."
+step "Add all three Authorised redirect URIs, exactly:"
+say ""
+note "  ${WEB_ORIGIN}/api/auth/callback/google"
+note "  ${WEB_STAGING}/api/auth/callback/google"
+note "  http://localhost:5173/api/auth/callback/google"
+say ""
+warn "All three point at the WEB origin, never the API. Better Auth's baseURL is"
+warn "the web origin, so the callback returns through the rewrite (docs/03 §5)."
+say ""
+step "Create. Copy BOTH values off the dialog before closing it."
+warn "Do not close that dialog until you have pasted the secret below."
+ask GOOGLE_CLIENT_ID "Google client ID:"
+[[ -n "$GOOGLE_CLIENT_ID" ]] || { warn "required — nothing has changed, just start again"; exit 1; }
+ask_secret GOOGLE_CLIENT_SECRET "Google client secret:"
+[[ -n "$GOOGLE_CLIENT_SECRET" ]] || { warn "required — nothing has changed, just start again"; exit 1; }
+write_env GOOGLE_CLIENT_ID "$GOOGLE_CLIENT_ID"
+ask_secret ANTHROPIC_API_KEY "Anthropic API key (Enter to skip until M2):"
+say ""
+note "Delete the old OAuth client in Google once sign-in works on staging."
+note "Sentry stays unset: the sentry-cli login token is scoped org:ci and cannot"
+note "create projects. Create the projects whenever, then re-run this — it upserts."
+pause "Continue to the database passwords?"
+
+# ── 3 ─────────────────────────────────────────────────────────────────────
 stage "Rotate the six database passwords"
 MAIN_OWNER_PW=$(gen 32);    MAIN_APP_PW=$(gen 32);    MAIN_BACKUP_PW=$(gen 32)
 STAGING_OWNER_PW=$(gen 32); STAGING_APP_PW=$(gen 32); STAGING_BACKUP_PW=$(gen 32)
+BETTER_AUTH_SECRET_PROD=$(gen 48); BETTER_AUTH_SECRET_STAGING=$(gen 48)
+CRON_SECRET_PROD=$(gen 48);        CRON_SECRET_STAGING=$(gen 48)
+warn "From here on, do not restart — these passwords exist only in this terminal"
+warn "until stage 4 writes them to Vercel."
 open_url "https://console.neon.tech/app/projects"
 say ""
 step "SQL Editor, branch selector on 'main'. Run these three:"
@@ -243,43 +279,24 @@ sql overload_backup "$MAIN_BACKUP_PW"
 say ""
 pause "Run them on main, then press Enter."
 say ""
-step "Now switch the branch selector to 'staging' and run these three:"
+step "Switch the branch selector to 'staging'. Run these three:"
 say ""
 sql overload_owner  "$STAGING_OWNER_PW"
 sql overload_app    "$STAGING_APP_PW"
 sql overload_backup "$STAGING_BACKUP_PW"
 say ""
-warn "Do not close this terminal until stage 4 says every variable is set."
 pause "Run them on staging, then press Enter."
-
-# ── 3 ─────────────────────────────────────────────────────────────────────
-stage "The Google client secret, and the generated secrets"
-say "Google Cloud console → Credentials → your OAuth client → the client secret"
-say "is shown there, and can be downloaded again if you closed it."
-open_url "https://console.cloud.google.com/apis/credentials"
-ask_secret GOOGLE_CLIENT_SECRET "Google client secret:"
-[[ -n "$GOOGLE_CLIENT_SECRET" ]] || { warn "required — restart when you have it"; exit 1; }
-ask_secret ANTHROPIC_API_KEY "Anthropic API key (Enter to skip until M2):"
-BETTER_AUTH_SECRET_PROD=$(gen 48); BETTER_AUTH_SECRET_STAGING=$(gen 48)
-CRON_SECRET_PROD=$(gen 48);        CRON_SECRET_STAGING=$(gen 48)
-note "session-signing and cron secrets generated, different per environment"
-say ""
-say "Sentry is skipped: the login token is scoped org:ci and cannot create"
-say "projects. Create the two projects whenever you like and re-run this script;"
-say "it upserts, so nothing else is disturbed."
 
 # ── 4 ─────────────────────────────────────────────────────────────────────
 stage "Write everything, then read it back"
-DB_PROD="postgresql://overload_app:${MAIN_APP_PW}@${NEON_MAIN_POOLED_HOST}${NEON_SUFFIX}/${NEON_DB}?sslmode=require"
-DBD_PROD="postgresql://overload_owner:${MAIN_OWNER_PW}@${NEON_MAIN_DIRECT_HOST}${NEON_SUFFIX}/${NEON_DB}?sslmode=require"
-DB_STG="postgresql://overload_app:${STAGING_APP_PW}@${NEON_STAGING_POOLED_HOST}${NEON_SUFFIX}/${NEON_DB}?sslmode=require"
-DBD_STG="postgresql://overload_owner:${STAGING_OWNER_PW}@${NEON_STAGING_DIRECT_HOST}${NEON_SUFFIX}/${NEON_DB}?sslmode=require"
-
-export V_DB_PROD="$DB_PROD" V_DBD_PROD="$DBD_PROD" V_DB_STG="$DB_STG" V_DBD_STG="$DBD_STG"
+export V_DB_PROD="postgresql://overload_app:${MAIN_APP_PW}@${NEON_MAIN_POOLED_HOST}${NEON_SUFFIX}/${NEON_DB}?sslmode=require"
+export V_DBD_PROD="postgresql://overload_owner:${MAIN_OWNER_PW}@${NEON_MAIN_DIRECT_HOST}${NEON_SUFFIX}/${NEON_DB}?sslmode=require"
+export V_DB_STG="postgresql://overload_app:${STAGING_APP_PW}@${NEON_STAGING_POOLED_HOST}${NEON_SUFFIX}/${NEON_DB}?sslmode=require"
+export V_DBD_STG="postgresql://overload_owner:${STAGING_OWNER_PW}@${NEON_STAGING_DIRECT_HOST}${NEON_SUFFIX}/${NEON_DB}?sslmode=require"
 export V_BAS_PROD="$BETTER_AUTH_SECRET_PROD" V_BAS_STG="$BETTER_AUTH_SECRET_STAGING"
 export V_CRON_PROD="$CRON_SECRET_PROD" V_CRON_STG="$CRON_SECRET_STAGING"
 export V_GID="$GOOGLE_CLIENT_ID" V_GSEC="$GOOGLE_CLIENT_SECRET"
-export V_ADMIN="$ADMIN_EMAIL" V_OFF="$OFF_CONTACT" V_ANTH="${ANTHROPIC_API_KEY:-}"
+export V_ADMIN="$ADMIN_EMAIL" V_OFF="${OFF_CONTACT:-$ADMIN_EMAIL}" V_ANTH="${ANTHROPIC_API_KEY:-}"
 export V_WEB="$WEB_ORIGIN" V_WEB_STG="$WEB_STAGING"
 export V_API="$API_ORIGIN_PROD" V_API_STG="$API_STAGING"
 
@@ -316,9 +333,7 @@ say ""
 say "overload-web:"
 node -e '
 const E = process.env;
-const out = [
-  { key: "API_ORIGIN", value: E.V_API, type: "plain", target: "production" },
-];
+const out = [{ key: "API_ORIGIN", value: E.V_API, type: "plain", target: "production" }];
 for (const b of ["develop", null]) {
   const g = b ? { gitBranch: b } : {};
   out.push({ key: "API_ORIGIN", value: E.V_API_STG, type: "plain", target: "preview", ...g });
@@ -333,9 +348,9 @@ set_secret DATABASE_URL_BACKUP \
 
 say ""
 say "Reading Vercel back:"
-node scripts/vercel-verify.mjs || warn "verification reported gaps — see above"
+node scripts/vercel-verify.mjs || warn "verification found gaps — see above, and re-run this script"
 
 finish
-note "Sentry's three variables are the only ones deliberately unset."
-note "Delete .provision.local when you are done; it holds no secrets."
+note "Sentry's variables are the only ones deliberately unset."
+note "Delete the old Google OAuth client once sign-in works on staging."
 printf '\n'
