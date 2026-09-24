@@ -44,9 +44,16 @@ M1 is cut into seven slices:
 4. The hard edges — Web Locks, tombstones for offline deletes, refused-set UI, resume after force-quit.
 5. Progress chart (S7). 6. Invite administration (S9). 7. Export and delete (S10).
 
-Before slice 1 is written: run `/wizard` to generate the provisioning walkthrough (Neon, both Vercel
-projects, `bootstrap.sql`), then open one GitHub issue per slice under an `M1` milestone. Each UI
-feature clears the polish gate in `CLAUDE.md`.
+**Issues are open.** Milestone `M1`, one issue per slice, `#1`–`#7`, each chained to the one before
+with GitHub's native dependencies. `#1` carries the full slice-1 specification and is labelled
+`ready-for-agent`; `#3` carries the three questions its own `/grill-with-docs` must settle first.
+Each UI feature clears the polish gate in `CLAUDE.md`.
+
+**Still to do before slice 1 is written:** run `/wizard` for the provisioning walkthrough — Neon
+project, `staging` branched **before** `bootstrap.sql` runs, both Vercel projects with Deployment
+Protection None, every variable in `12` §2, the Google OAuth client with three redirect URIs. Yuta
+runs it: the agent cannot reach those dashboards, and the role passwords must not enter the repo or
+a transcript.
 
 **Seed increments, researched 2026-09-23** against Anytime Fitness Japan's own store pages (all 1,848
 crawled; `06` holds the evidence): barbell 2.5 · dumbbell 1.0 with the suggestion rounded to the rack
