@@ -10,7 +10,8 @@
     "contract": "tsx scripts/generate-openapi.ts",
     "seed:exercises": "tsx seed/exercises.ts",
     "db:migrate": "dbmate --env-file .env.local --env DATABASE_URL_DIRECT --migrations-dir ./migrations --no-dump-schema migrate",
-    "db:types": "kysely-codegen --env-file .env.local --url 'env(DATABASE_URL_DIRECT)' --dialect postgres --camel-case --exclude-pattern schema_migrations --out-file src/db/schema.ts"
+    "db:types": "kysely-codegen --env-file .env.local --url 'env(DATABASE_URL_DIRECT)' --dialect postgres --camel-case --exclude-pattern schema_migrations --out-file src/db/schema.ts",
+    "vercel-build": "sh scripts/vercel-build.sh"
   },
   "dependencies": {
     "@hono/node-server": "2.1.1",
