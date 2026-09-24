@@ -1,0 +1,128 @@
+# The five checks every pull request to develop or main must pass, plus the contract drift check
+# (docs/11 §5). Each is its own job, so each is its own required status.
+name: CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+    # labeled/unlabeled, so adding or removing the breaking-change label reruns oasdiff.
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+  push:
+    branches: [develop, main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # The same URLs the tests default to locally (apps/api/test/database-urls.ts), against the service
+  # container below: the app role runs the tests, the owner role runs the migrations.
+  TEST_DATABASE_URL: postgres://overload_app:overload_app_dev@localhost:5434/overload_test
+  TEST_DATABASE_URL_DIRECT: postgres://overload_owner:overload_owner_dev@localhost:5434/overload_test?sslmode=disable
+
+jobs:
+  typecheck:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: ./.github/actions/setup
+      - run: pnpm typecheck
+
+  lint:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: ./.github/actions/setup
+      - run: pnpm lint
+
+  vitest:
+    runs-on: ubuntu-24.04
+    services:
+      postgres: &postgres
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: overload
+        ports: ['5434:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d overload"
+          --health-interval 2s --health-timeout 3s --health-retries 30
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: ./.github/actions/setup
+      - name: Create the test database and its roles
+        run: &bootstrap |
+          # What docker-compose.yml's init scripts do locally: a service container cannot mount the
+          # repository, because it starts before the checkout. bootstrap.sql's grants are per database,
+          # so it runs in overload_test.
+          psql -v ON_ERROR_STOP=1 "$ADMIN_URL/overload" -c 'CREATE DATABASE overload_test'
+          psql -v ON_ERROR_STOP=1 "$ADMIN_URL/overload_test" \
+            -f infra/db/bootstrap.sql -f infra/db/local-passwords.sql
+        env: &admin
+          ADMIN_URL: postgres://postgres:postgres@localhost:5434
+      - run: pnpm test
+
+  playwright:
+    runs-on: ubuntu-24.04
+    services:
+      postgres: *postgres
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: ./.github/actions/setup
+      - name: Create the test database and its roles
+        run: *bootstrap
+        env: *admin
+      - name: Install Chromium and WebKit
+        run: pnpm --filter @overload/web exec playwright install --with-deps chromium webkit
+      - run: pnpm e2e
+      - uses: actions/upload-artifact@v7.0.1
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            apps/web/playwright-report/
+            apps/web/test-results/
+          retention-days: 7
+
+  contract:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: ./.github/actions/setup
+      - run: pnpm contract
+      - name: Fail if the committed contract differs from the route schemas
+        run: |
+          if [ -n "$(git status --porcelain -- packages/api-contract)" ]; then
+            git --no-pager diff -- packages/api-contract
+            echo "::error::packages/api-contract is stale. Run 'pnpm contract' and commit the result."
+            exit 1
+          fi
+
+  oasdiff:
+    # A breaking change needs a new route (docs/07 §1.6). The label is the deliberate exception.
+    if: >-
+      github.event_name == 'pull_request' &&
+      !contains(github.event.pull_request.labels.*.name, 'breaking-change')
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Take main's contract as the baseline
+        run: |
+          # Until main carries a contract there is nothing to break: the PR is compared with itself.
+          git fetch --depth=1 origin main
+          if ! git show origin/main:packages/api-contract/openapi.json > "$RUNNER_TEMP/base.json"; then
+            cp packages/api-contract/openapi.json "$RUNNER_TEMP/base.json"
+          fi
+          cp "$RUNNER_TEMP/base.json" base-openapi.json
+      - uses: oasdiff/oasdiff-action/breaking@v0.1.17
+        with:
+          base: base-openapi.json
+          revision: packages/api-contract/openapi.json
+          fail-on: ERR
+          # Keep the spec inside CI: no upload to oasdiff.com and no PR comment.
+          review: 'false'
+          github-token: ''
