@@ -163,6 +163,9 @@ _(nothing — both group 6 items landed in `11` §2 on 2026-09-23.)_
 Written: `CLAUDE.md`, `.claude/settings.json`, `.claude/hooks/{pre-edit-branch-guard,stop-branch-drift}.sh`,
 `.gitignore` entry. No `.mcp.json` (Neon and Sentry come from claude.ai connectors). Decision in `06`.
 The pnpm entries in the allowlist are provisional until `package.json` exists.
+`gh api` is allowed, and writes ask: `-X`/`--method` with POST, PATCH, PUT or DELETE, and the
+implicit POST of `-f`, `-F`, `--field`, `--raw-field` and `--input` (a GET with fields asks too).
+Not covered: lowercase methods, `-X "$VAR"`, and combined short flags such as `-iXPOST`.
 
 ### Phase 4 — done 2026-09-21
 Written: `03`, `04`, `CONTEXT.md`, `07`, `08`, `09`, `11`, `12`, `13`, and
