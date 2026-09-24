@@ -44,13 +44,14 @@ M1 is cut into seven slices:
 4. The hard edges — Web Locks, tombstones for offline deletes, refused-set UI, resume after force-quit.
 5. Progress chart (S7). 6. Invite administration (S9). 7. Export and delete (S10).
 
-**Slice 1 is built, 2026-09-25**, on branch `fm/overload-slice1`, not yet deployed. Every piece of
-`#1`'s *In* list is in the repo, and the five CI checks and the contract drift check pass locally
-against Docker Postgres 18: 28 Vitest tests and 7 Playwright tests on Chromium and WebKit (the
-offline-shell test skips on WebKit). The API's migrations run from its `vercel-build` script (`12`
-§3). What remains is `#1`'s *Done when* items 1–3, all Yuta's: the provisioning walkthrough, the
-staging deploy and the iPhone checklist, then `main` and production. Item 4 is answered below and
-in `06` as far as a laptop can answer it.
+**Slice 1 is built, 2026-09-25**, on branch `fm/overload-slice1-pr`, in review against `develop`,
+not yet deployed. Every piece of `#1`'s *In* list is in the repo, and the five CI checks and the
+contract drift check pass locally against Docker Postgres 18: 28 Vitest tests and 7 Playwright tests
+on Chromium and WebKit (the offline-shell test skips on WebKit). The API's migrations run from its
+`vercel-build` script (`12` §3). Provisioning is done (below). What remains of `#1`'s *Done when* is
+Yuta's: the staging deploy that merging to `develop` triggers, the iPhone checklist, then `main` and
+a watched production migration. Item 4 is answered below and in `06` as far as a laptop can answer
+it.
 
 **Issues are open.** Milestone `M1`, one issue per slice, `#1`–`#7`, each chained to the one before
 with GitHub's native dependencies. `#1` carries the full slice-1 specification; its `ready-for-agent`
