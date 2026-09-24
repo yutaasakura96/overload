@@ -49,7 +49,26 @@ with GitHub's native dependencies. `#1` carries the full slice-1 specification a
 `ready-for-agent`; `#3` carries the three questions its own `/grill-with-docs` must settle first.
 Each UI feature clears the polish gate in `CLAUDE.md`.
 
-**Provisioning walkthrough written 2026-09-24: `scripts/provision.sh`.** Fourteen stages, run it
+### Provisioning — half done, and it blocks slice 1 (2026-09-25)
+
+`scripts/provision.sh` was run as far as stage 7 and stopped there. **Done:** the Neon project with
+`main` and `staging` (branched before the roles existed), the three roles on both branches, and both
+Vercel projects — `overload-web` and `overload-api`, Deployment Protection None, api in `sin1`,
+Node 24.x, git-connected with `main` as the production branch.
+
+**Not done, and slice 1 cannot finish without it:** the database passwords need **rotating** (the
+originals were printed once and cleared, and the production three reached a chat transcript), the
+Google OAuth client, the Sentry projects, and **every variable in `12` §2 — none is set on either
+Vercel project**. Without `DATABASE_URL` the API build cannot migrate, so the deploy fails.
+
+**Finish it with `bash scripts/provision-resume.sh`** — nine stages, and it writes the Vercel
+variables through the API instead of by hand. `ready-for-agent` has been taken off issue `#1` until
+this is cleared; put it back afterwards.
+
+Both Vercel projects show failed deployments. That is expected: `apps/web` and `apps/api` do not
+exist yet.
+
+**The original walkthrough, `scripts/provision.sh`.** Fourteen stages, run it
 from the repo root with `bash scripts/provision.sh`. It generates the role passwords, shows them
 once and writes none of them to disk; `.provision.local` holds the non-secret values so a re-run can
 resume. It stops at the two ordering traps — the staging branch before the roles exist, and
