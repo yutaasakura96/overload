@@ -1,0 +1,25 @@
+# Local Postgres 18 for development, Vitest and Playwright. Local never touches Neon.
+# The init scripts run once, on an empty volume: the three roles (docs/13 §5), their development
+# passwords, and a second database for the test suites. `docker compose down -v` starts over.
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: overload
+    ports:
+      - '${OVERLOAD_PG_PORT:-5434}:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql
+      - ./infra/db/bootstrap.sql:/docker-entrypoint-initdb.d/01-bootstrap.sql:ro
+      - ./infra/db/local-passwords.sql:/docker-entrypoint-initdb.d/02-local-passwords.sql:ro
+      - ./infra/db/local-test-database.sql:/docker-entrypoint-initdb.d/03-local-test-database.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d overload']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  pgdata:
