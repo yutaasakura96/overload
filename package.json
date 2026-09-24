@@ -1,0 +1,24 @@
+{
+  "name": "overload",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "pnpm -r --parallel typecheck",
+    "lint": "oxlint --type-aware --deny-warnings && oxfmt --check",
+    "format": "oxfmt",
+    "test": "pnpm --filter @overload/api test",
+    "e2e": "pnpm --filter @overload/web e2e",
+    "contract": "pnpm --filter @overload/api contract && pnpm --filter @overload/api-contract generate",
+    "db:migrate": "pnpm --filter @overload/api db:migrate"
+  },
+  "devDependencies": {
+    "oxfmt": "0.70.0",
+    "oxlint": "1.85.0",
+    "oxlint-tsgolint": "7.0.2002",
+    "typescript": "7.0.2"
+  },
+  "engines": {
+    "node": "24.x"
+  },
+  "packageManager": "pnpm@10.34.5"
+}

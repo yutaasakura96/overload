@@ -275,12 +275,16 @@ Nothing below is needed while Yuta is the only user. All of it is needed before 
 
 ## 10. Unverified, to check when built
 
-- What client IP the API project sees on a request rewritten from the web project (§3).
+- What client IP the API project sees on a request rewritten from the web project (§3). Better Auth's
+  rate limiter depends on it too: it reads `x-forwarded-for` and uses it only when the header holds a
+  single address (1.7.5 source, `08` *Unverified*).
 - Whether a Vercel variable can be withheld from the function runtime and given only to the build.
   If it cannot, `DATABASE_URL_DIRECT` (role `overload_owner`) sits in the deployed function's
   environment, and threat 4's "the runtime URL can't drop tables" holds only for `DATABASE_URL`
   (§4, §6). *Added 2026-09-23.*
 - Neon's DPA terms, for APPI's cloud exception (§9).
-- Whether Better Auth's adapter works under `overload_app` with no DDL (it should; its tables are
-  created by our migrations, not by Better Auth at runtime).
+- ~~Whether Better Auth's adapter works under `overload_app` with no DDL.~~ **Answered 2026-09-25:**
+  it does. Every Vitest and Playwright run signs in, writes sessions and rate-limit rows, and signs
+  out as `overload_app`, which holds only `SELECT, INSERT, UPDATE, DELETE` from the privileges
+  migration; the tables come from dbmate running as `overload_owner`.
 - Sentry auth token scope names at the time of creation.

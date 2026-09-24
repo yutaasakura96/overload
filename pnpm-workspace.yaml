@@ -1,0 +1,11 @@
+packages:
+  - apps/*
+  - packages/*
+
+onlyBuiltDependencies:
+  - esbuild
+
+# openapi-typescript declares typescript@^5 but runs on the TS6 alias (docs/06, 2026-09-24).
+peerDependencyRules:
+  allowedVersions:
+    openapi-typescript>typescript: '6'

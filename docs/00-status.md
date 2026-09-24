@@ -32,7 +32,7 @@ what slice 1 is made of, and the toolchain. Nine entries in `06`, dated those tw
 | Language | **TypeScript 7**, config written 7-clean, with `openapi-typescript` on the TS6 alias |
 | Runtime | Node 24 and pnpm pinned in repo and CI |
 | Browser sign-in | Better Auth's `testUtils()` cookie helper. The real Google round trip is proven by hand on staging |
-| Better Auth | snake_case columns, rate limits in the database |
+| Better Auth | snake_case columns (through per-model `modelName`/`fields`: `casing: 'snake'` turned out to be read by nothing), rate limits in the database |
 
 M1 is cut into seven slices:
 
@@ -43,6 +43,15 @@ M1 is cut into seven slices:
    *Raised by the pain-point check*, and implements the kg/lb toggle.
 4. The hard edges — Web Locks, tombstones for offline deletes, refused-set UI, resume after force-quit.
 5. Progress chart (S7). 6. Invite administration (S9). 7. Export and delete (S10).
+
+**Slice 1 is built, 2026-09-25**, on branch `fm/overload-slice1-pr`, in review against `develop`,
+not yet deployed. Every piece of `#1`'s *In* list is in the repo, and the five CI checks and the
+contract drift check pass locally against Docker Postgres 18: 28 Vitest tests and 7 Playwright tests
+on Chromium and WebKit (the offline-shell test skips on WebKit). The API's migrations run from its
+`vercel-build` script (`12` §3). Provisioning is done (below). What remains of `#1`'s *Done when* is
+Yuta's: the staging deploy that merging to `develop` triggers, the iPhone checklist, then `main` and
+a watched production migration. Item 4 is answered below and in `06` as far as a laptop can answer
+it.
 
 **Issues are open.** Milestone `M1`, one issue per slice, `#1`–`#7`, each chained to the one before
 with GitHub's native dependencies. `#1` carries the full slice-1 specification; its `ready-for-agent`
@@ -163,6 +172,9 @@ _(nothing — both group 6 items landed in `11` §2 on 2026-09-23.)_
 Written: `CLAUDE.md`, `.claude/settings.json`, `.claude/hooks/{pre-edit-branch-guard,stop-branch-drift}.sh`,
 `.gitignore` entry. No `.mcp.json` (Neon and Sentry come from claude.ai connectors). Decision in `06`.
 The pnpm entries in the allowlist are provisional until `package.json` exists.
+`gh api` is allowed, and writes ask: `-X`/`--method` with POST, PATCH, PUT or DELETE, and the
+implicit POST of `-f`, `-F`, `--field`, `--raw-field` and `--input` (a GET with fields asks too).
+Not covered: lowercase methods, `-X "$VAR"`, and combined short flags such as `-iXPOST`.
 
 ### Phase 4 — done 2026-09-21
 Written: `03`, `04`, `CONTEXT.md`, `07`, `08`, `09`, `11`, `12`, `13`, and
@@ -199,9 +211,16 @@ sticky are kept open for M2 (see *Reviewed, kept*).
 - `pg_trgm` on Neon Free, for `reference_food` search (`04`).
 - How `@hono/zod-openapi` describes a multipart file part (`07`).
 - ~~`dbmate` inside Vercel's build image, and the `vercel.ts` rewrite syntax.~~ **Both verified
-  2026-09-24** (`06`, `12` §1 and §3). What remains: whether pnpm's macOS-generated lockfile carries
-  `@dbmate/linux-x64` into the Linux build, and whether `vercel.ts` is honoured alongside a framework
-  preset.
+  2026-09-24** (`06`, `12` §1 and §3). ~~Whether pnpm's macOS-generated lockfile carries
+  `@dbmate/linux-x64` into the Linux build.~~ **It does** — checked in a Linux x64 container,
+  2026-09-25 (`12` §3). **Still unverified, needs the first deploy:** dbmate inside Vercel's own
+  build image, and whether `apps/web/vercel.ts` is honoured alongside a framework preset.
+- ~~Whether `casing: 'snake'` renames Better Auth's tables.~~ **Answered building slice 1**
+  (`06`, 2026-09-24): the option does nothing in 1.7.5. snake_case comes from per-model
+  `modelName` and `fields` options (`04`, `08`).
+- ~~`@types/react` under TypeScript 7.~~ **No problem found**, 2026-09-25: `@types/react` 19.3.0
+  typechecks cleanly under `tsc` 7.0.2 across the whole web app, so the TypeScript 6.0.3 fallback is
+  not needed (`06`).
 - The client IP the API project sees on a rewritten request, for the WAF rule (`13` §10).
 - Whether a Vercel variable can be withheld from the function runtime — if not, the API's runtime
   environment holds `DATABASE_URL_DIRECT` as well (`13` §10, raised 2026-09-23).

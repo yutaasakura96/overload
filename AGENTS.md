@@ -16,11 +16,18 @@ Invite-only, web app first (installed to the iPhone home screen), native iOS lat
 
 ## Commands
 
-The pnpm workspace doesn't exist yet. Add its scripts here once `package.json` lands.
+Root `package.json` scripts, pnpm pinned by `packageManager` (run it through corepack if a version
+manager's `pnpm` shim refuses). Each is a CI job (`.github/workflows/ci.yml`):
 
-- Local Postgres 18: `docker compose up -d`. Local never touches Neon.
-- Migrations: `dbmate --migrations-dir apps/api/migrations migrate`, against Docker only.
-  Staging and production migrate inside the API's Vercel build (`docs/12` §3). Never run by hand.
+- `pnpm typecheck` (TypeScript 7), `pnpm lint` (oxlint type-aware, then `oxfmt --check`; `pnpm format`
+  writes), `pnpm test` (Vitest, API), `pnpm e2e` (Playwright, Chromium and WebKit).
+- `pnpm contract`: regenerates `packages/api-contract` from the route schemas. CI fails on a diff.
+- Local Postgres 18: `docker compose up -d`. Local never touches Neon. The tests migrate and use
+  its `overload_test` database themselves.
+- Dev migrations: `pnpm db:migrate` (reads `apps/api/.env.local`), against Docker only. Staging and
+  production migrate in the API's `vercel-build` script (`docs/12` §3). Never run by hand.
+- A Better Auth upgrade or a new field: `apps/api/scripts/auth-schema.ts` generates the table diff,
+  and the snake_case mapping lives in `apps/api/src/auth/snake-case-schema.ts` (`casing` does nothing).
 
 ## Branches
 
@@ -77,3 +84,10 @@ The five canonical names, unmapped — `needs-triage`, `needs-info`, `ready-for-
 Single-context: `CONTEXT.md` at the root plus `docs/adr/`. Note that `docs/00-status.md` through
 `docs/13` are this project's real design record — read `docs/00-status.md` first, as `CLAUDE.md`
 says. See `docs/agents/domain.md`.
+
+## Maintaining this file
+
+Keep this file for knowledge useful to almost every future agent session in this project.
+Do not repeat what the codebase already shows; point to the authoritative file or command instead.
+Prefer rewriting or pruning existing entries over appending new ones.
+When updating this file, preserve this bar for all agents and keep entries concise.

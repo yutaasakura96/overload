@@ -28,22 +28,25 @@ plus the security roles and `audit_event` from `docs/13`, which ship with M1.
 
 ## Tables owned by Better Auth
 
-`user`, `session`, `account`, `verification`, and `rateLimit` (`id`, `key` unique, `count` integer,
-`lastRequest` bigint epoch ms), which `rateLimit.storage: "database"` needs (`docs/08` §2). We do not
+`user`, `session`, `account`, `verification`, and `rate_limit` (`id`, `key` unique, `count` integer,
+`last_request` bigint epoch ms), which `rateLimit.storage: "database"` needs (`docs/08` §2). We do not
 design them. Their SQL comes from Better Auth's schema `generate` and ships as a dbmate migration like
 every other table. `advanced.database.generateId: "uuid"` makes `user.id` a `uuid` column, which every
 `user_id` below references. Deleting a `user` row cascades through everything here.
 
 **Re-checked against Better Auth 1.7.5 source, 2026-09-24** (was v1.6.23):
 
-- The four core tables are unchanged. `session` carries `token` (unique), `expiresAt`, `ipAddress`,
-  `userAgent`, indexed on `userId` with `ON DELETE CASCADE`. `account` carries `accountId` +
-  `providerId` as the provider-side identity, the OAuth token columns and `idToken`, also cascading.
+- The four core tables are unchanged. `session` carries `token` (unique), `expires_at`, `ip_address`,
+  `user_agent`, indexed on `user_id` with `ON DELETE CASCADE`. `account` carries `account_id` +
+  `provider_id` as the provider-side identity, the OAuth token columns and `id_token`, also cascading.
   Google sign-in adds **no** provider-specific table.
 - **The bearer plugin adds nothing** — no schema at all. Tokens are the existing `session.token`.
-- **`database: { casing: 'snake' }`** keeps the column names in line with the conventions above;
-  Better Auth's default is camelCase. Whether it renames the tables too is checked against a real
-  database when slice 1 is written (`docs/08`, *Unverified*).
+- **snake_case comes from Better Auth's per-model `modelName` and `fields` options**
+  (`apps/api/src/auth/snake-case-schema.ts`), not from `database: { casing: 'snake' }`. That option
+  is declared in 1.7.5's types and read by nothing, at runtime or by `generate` — found building
+  slice 1 (`06`, 2026-09-24). The mapping renames every camelCase column, and `rateLimit` to
+  `rate_limit`; the other four table names are single words and stay as they are. A Better Auth
+  upgrade that adds a field needs a line in that file, and the generated diff shows which.
 - The generator emits a **diff against the connected database**, not a full schema, and writes no
   dbmate markers — so the SQL is pasted into a migration by hand and the down is written by hand.
   `docs/12` §3 holds the procedure. The CLI is the npm package **`auth`**.

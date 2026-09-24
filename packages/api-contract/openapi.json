@@ -1,0 +1,401 @@
+{
+  "openapi": "3.1.0",
+  "security": [
+    {
+      "session": []
+    },
+    {
+      "bearer": []
+    }
+  ],
+  "info": {
+    "title": "Overload API",
+    "version": "1",
+    "description": "Generated from the route schemas in apps/api by `pnpm contract`. Do not edit by hand. Better Auth’s own /api/auth/* routes are not described here."
+  },
+  "components": {
+    "securitySchemes": {
+      "session": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "better-auth.session_token",
+        "description": "Better Auth’s session cookie, set on the web origin. `__Secure-` prefixed over HTTPS."
+      },
+      "bearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "The session token from the `set-auth-token` header, for the native client."
+      }
+    },
+    "schemas": {
+      "Health": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok"
+            ]
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "Me": {
+        "type": "object",
+        "properties": {
+          "user": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+              },
+              "name": {
+                "type": "string"
+              },
+              "email": {
+                "type": "string",
+                "format": "email"
+              },
+              "image": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "email",
+              "image"
+            ]
+          },
+          "isAdmin": {
+            "type": "boolean"
+          },
+          "profile": {
+            "$ref": "#/components/schemas/Profile"
+          }
+        },
+        "required": [
+          "user",
+          "isAdmin",
+          "profile"
+        ]
+      },
+      "Profile": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "properties": {
+          "timezone": {
+            "type": "string",
+            "example": "Asia/Tokyo"
+          },
+          "heightCm": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "sex": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "male",
+              "female",
+              null
+            ]
+          },
+          "birthDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "trainingWeekdays": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 7
+            },
+            "description": "ISO weekdays, 1 = Monday."
+          }
+        },
+        "required": [
+          "timezone",
+          "heightCm",
+          "sex",
+          "birthDate",
+          "trainingWeekdays"
+        ],
+        "description": "Null until the user has set one up."
+      },
+      "Problem": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "example": "urn:overload:problem:unauthenticated"
+          },
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "type": "integer"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string",
+            "description": "Stable and machine-readable. Clients switch on this."
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path",
+                "message"
+              ]
+            },
+            "description": "Present only for `validation_failed`."
+          }
+        },
+        "required": [
+          "type",
+          "title",
+          "status",
+          "code",
+          "requestId"
+        ]
+      },
+      "ExerciseList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Exercise"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "Exercise": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+          },
+          "name": {
+            "type": "string",
+            "example": "Barbell Bench Press"
+          },
+          "equipment": {
+            "$ref": "#/components/schemas/Equipment"
+          },
+          "custom": {
+            "type": "boolean",
+            "description": "True for the caller’s own exercise, false for a seeded one."
+          },
+          "hidden": {
+            "type": "boolean"
+          },
+          "incrementKg": {
+            "type": "number",
+            "example": 2.5
+          },
+          "restSeconds": {
+            "type": "integer",
+            "example": 180
+          },
+          "repLow": {
+            "type": "integer",
+            "example": 6
+          },
+          "repHigh": {
+            "type": "integer",
+            "example": 10
+          },
+          "overrides": {
+            "type": "object",
+            "properties": {
+              "incrementKg": {
+                "type": "boolean"
+              },
+              "restSeconds": {
+                "type": "boolean"
+              },
+              "repLow": {
+                "type": "boolean"
+              },
+              "repHigh": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "incrementKg",
+              "restSeconds",
+              "repLow",
+              "repHigh"
+            ],
+            "description": "Which values are the caller’s own settings rather than defaults."
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "equipment",
+          "custom",
+          "hidden",
+          "incrementKg",
+          "restSeconds",
+          "repLow",
+          "repHigh",
+          "overrides"
+        ]
+      },
+      "Equipment": {
+        "type": "string",
+        "enum": [
+          "barbell",
+          "dumbbell",
+          "machine_plate",
+          "machine_stack",
+          "cable",
+          "bodyweight",
+          "other"
+        ],
+        "description": "A load-increment class, not an equipment inventory (docs/04 `exercise`)."
+      }
+    },
+    "parameters": {}
+  },
+  "paths": {
+    "/api/health": {
+      "get": {
+        "summary": "Liveness. Answers without touching the database",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "The function is running",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/me": {
+      "get": {
+        "summary": "The signed-in user, their profile, and whether they are the admin",
+        "responses": {
+          "200": {
+            "description": "The caller",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Me"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/exercises": {
+      "get": {
+        "summary": "Seeded exercises plus the caller’s own, with the caller’s effective settings, by name",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ],
+              "description": "Include exercises the caller has hidden. Default `false`."
+            },
+            "required": false,
+            "description": "Include exercises the caller has hidden. Default `false`.",
+            "name": "includeHidden",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The library",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExerciseList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A query parameter of the wrong type",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "webhooks": {}
+}

@@ -30,7 +30,7 @@ function auth() {
   } catch {
     console.error('Could not read the Vercel CLI credentials.');
     console.error('Run:  npx vercel login    then try again.');
-    process.exit(1);
+    return process.exit(1);
   }
 }
 

@@ -2322,3 +2322,73 @@ published tarballs and each library's own repository before deciding.
   `tsconfig` options such as `baseUrl`. The two choices point the same way.
 
 **Changed:** `03` §2, `11` §5, `12` §3, `00`.
+
+### [2026-09-24] Slice-1 build: `casing: 'snake'` does nothing, so snake_case comes from `modelName` and `fields`
+
+**Found building slice 1, decided (asked, option A).** The Better Auth grill above chose
+`database: { casing: 'snake' }`. The option is declared in `@better-auth/core` 1.7.5's types and
+**read nowhere**: not by the Kysely adapter at runtime, and not by `auth generate`. A search of every
+published `dist` file found no reader, and `generate` with the option set still emitted
+`emailVerified`, `userId` and a `rateLimit` table. The type is a promise the code doesn't keep yet.
+This also answers the open question: it renames neither tables nor columns.
+
+- **The mechanism instead: Better Auth's per-model `modelName` and `fields` options**, which both
+  the adapter and the generator honour. `apps/api/src/auth/snake-case-schema.ts` maps every
+  camelCase column (`email_verified`, `user_id`, `expires_at`, …) and renames `rateLimit` to
+  `rate_limit`. `user`, `session`, `account` and `verification` are already single words. With the
+  mapping in place, `generate` emits the snake_case SQL that became
+  `20260924000002_better_auth.sql`, and the Kysely types are generated from that database.
+- **The dead option is not kept in the config.** Leaving it would suggest it does something.
+- **A test guards it.** A Vitest Google sign-in (Better Auth's ID-token path, with Google's token
+  check replaced in the test config) must succeed against the snake_case schema and leave rows in `user`, `session`, `account` and `rate_limit`. A missing
+  mapping makes Better Auth write a camelCase column that does not exist, and the test fails.
+- **The cost, accepted:** a Better Auth upgrade that adds a field needs a line in the mapping. The
+  upgrade procedure already runs `generate` for a diff (`12` §3), and that diff shows any
+  camelCase name that slipped through.
+- **Rejected: accepting camelCase for Better Auth's five tables.** It works, but it makes those
+  tables the exception to `04`'s conventions. **Rejected: holding slice 1 until upstream implements
+  `casing`.** Nothing says when that will happen.
+
+**Changed:** `04` (Better Auth tables), `08` (rate limiting, *Unverified*), `00`.
+
+### [2026-09-25] Slice-1 build: the *Check when built* answers a laptop can give
+
+**Verified, locally.** Issue `#1`'s *Done when* item 4 names five checks. Three are answered from
+the built slice. Two need Vercel and stay open until the first deploy. Nothing below was run against
+Neon, Vercel or Google.
+
+- **The pnpm lockfile carries `@dbmate/linux-x64`.** `pnpm-lock.yaml`, written on macOS, lists all
+  seven platform packages. `pnpm install --frozen-lockfile` in a `linux/amd64` `node:24` container
+  installed `@dbmate/linux-x64@2.36.0`. In the same container, `pnpm vercel-build` with
+  `VERCEL_GIT_COMMIT_REF=develop` migrated an empty Postgres 18 database through all four
+  migrations.
+- **`@types/react` under TypeScript 7: no problem.** `@types/react` and `@types/react-dom` 19.3.0
+  typecheck cleanly under `tsc` 7.0.2 (`--checkers 4`) across the whole web app. The
+  TypeScript 6.0.3 fallback isn't needed. The same run covers `@hono/zod-openapi` 1.6.3, whose routes
+  are registered with `.openapiRoutes([...])` batches as planned.
+- **`casing: 'snake'` on tables:** answered in the entry above.
+- **Still unverified — dbmate inside Vercel's build image.** The container was Debian, not Vercel's
+  Amazon Linux image. The first `develop` deploy proves it.
+- **Still unverified — `vercel.ts` beside a framework preset.** `apps/web/vercel.ts` is written as
+  `12` §1 specifies and typechecks, but only a deploy shows whether Vercel reads it. The staging
+  sign-in round trip in `12` §6 proves it.
+
+Two more findings came out of the build:
+
+- **The API's build command was wrong as written, and now lives in the repo.** `12` §3's command
+  ended in `pnpm build`, and the API has no `build` script, so it would have failed. Nothing set the
+  command anywhere either: the provisioning walkthrough does not touch it. Vercel's Hono preset has
+  no Build Command. Its builder (`@vercel/hono` over `@vercel/node`, read from source) runs the first
+  of `vercel-build`, `now-build`, `build` from `package.json`, then bundles `src/index.ts` itself. So
+  the migration step is `apps/api/scripts/vercel-build.sh`, the package's `vercel-build` script, and
+  the project settings stay empty. **Rejected: a dashboard override**, which is invisible in review
+  and was never set. **Rejected: an `apps/api/vercel.ts` `buildCommand`**, because whether
+  `vercel.ts` is honoured beside a preset is the open question above.
+- **Better Auth's adapter needs no DDL.** Every test signs in, writes sessions and rate-limit rows
+  and signs out as `overload_app`, which holds DML only. `13` §10's item is struck.
+- Read from 1.7.5's source while wiring the sign-in page: a gate refusal redirects to the call's
+  `errorCallbackURL` with `?error=<code>&error_description=<text>`. The rate limiter is on by default
+  only in production, and it keys by `x-forwarded-for` only when that header holds one address. That
+  last point joins `13` §10's open question about the IP the API sees behind the rewrite.
+
+**Changed:** `00`, `08` *Unverified*, `12` §3 and §6, `13` §10, `CLAUDE.md` (commands).

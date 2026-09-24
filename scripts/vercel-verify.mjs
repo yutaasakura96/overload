@@ -84,7 +84,9 @@ for (const [project, required] of Object.entries(REQUIRED)) {
   }
   for (const key of OPTIONAL[project] || []) {
     const got = have[key];
-    console.log(`    ${got ? '✓' : '·'} ${key.padEnd(22)} ${got ? [...got].join(' ') : 'not set (optional)'}`);
+    console.log(
+      `    ${got ? '✓' : '·'} ${key.padEnd(22)} ${got ? [...got].join(' ') : 'not set (optional)'}`,
+    );
   }
 }
 
