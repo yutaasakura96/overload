@@ -69,6 +69,13 @@ this is cleared; put it back afterwards.
 Both Vercel projects show failed deployments. That is expected: `apps/web` and `apps/api` do not
 exist yet.
 
+**Sentry may be skipped during provisioning** — it reports errors from running code, and there is
+none yet. If the three Sentry prompts are left empty, `SENTRY_DSN`, `VITE_SENTRY_DSN` and
+`SENTRY_AUTH_TOKEN` are simply not set, and the resume script can be run again later to fill them
+(it upserts). **Before slice 1 ships:** create the two projects, set those three variables, and add
+the uptime and cron monitors in `12` §5 — the uptime check needs `/api/health`, so it cannot exist
+until slice 1 is deployed.
+
 **The original walkthrough, `scripts/provision.sh`.** Fourteen stages, run it
 from the repo root with `bash scripts/provision.sh`. It generates the role passwords, shows them
 once and writes none of them to disk; `.provision.local` holds the non-secret values so a re-run can
