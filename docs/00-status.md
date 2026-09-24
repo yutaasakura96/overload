@@ -2,7 +2,7 @@
 
 **Project:** A weight-training progress tracker combining lift logging, meal planning, Apple Watch/iPhone health data, and bodyweight/diet coaching.
 **Phase:** 7 — Build (M1 first). Phase 6 — Review finished 2026-09-23.
-**Updated:** 2026-09-24
+**Updated:** 2026-09-25
 
 ## Done
 - Phase 1 — Brief + PRD: `docs/01-project-brief.md`, `docs/02-product-requirements.md`, `docs/06-decision-log.md`.
@@ -45,8 +45,9 @@ M1 is cut into seven slices:
 5. Progress chart (S7). 6. Invite administration (S9). 7. Export and delete (S10).
 
 **Issues are open.** Milestone `M1`, one issue per slice, `#1`–`#7`, each chained to the one before
-with GitHub's native dependencies. `#1` carries the full slice-1 specification and is labelled
-`ready-for-agent`; `#3` carries the three questions its own `/grill-with-docs` must settle first.
+with GitHub's native dependencies. `#1` carries the full slice-1 specification; its `ready-for-agent`
+label is **off** until provisioning is finished (below). `#3` carries the three questions its own
+`/grill-with-docs` must settle first.
 Each UI feature clears the polish gate in `CLAUDE.md`.
 
 ### Provisioning — half done, and it blocks slice 1 (2026-09-25)
