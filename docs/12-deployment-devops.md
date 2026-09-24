@@ -60,8 +60,15 @@ export const config: VercelConfig = {
 };
 ```
 
-The exact rewrite syntax is checked when the file is written; the point fixed here is that the
-destination comes from `API_ORIGIN`.
+Verified 2026-09-24 (`06`): the feature is real, announced 2025-12-19; the package is `@vercel/config`
+(0.7.2), imported from `@vercel/config/v1`; the export must be named `config`; and **only one config
+file may exist — `vercel.ts` or `vercel.json`, never both.** `deploymentEnv('VAR')` defers a read to
+deploy time if a build-time read turns out to be wrong. Still to confirm on the first deploy: that
+`vercel.ts` is honoured alongside a framework preset, and its placement when the root directory is
+`apps/web`.
+
+**The API project needs no rewrite config at all.** Vercel has a first-class Hono preset: the app is
+the default export of `apps/api/src/index.ts` and every path reaches it (`03` §5).
 
 ---
 
@@ -119,9 +126,31 @@ fi
 pnpm build
 ```
 
-- **dbmate** (npm `dbmate`): plain SQL files, timestamp-versioned, each run in a transaction, its own
-  `schema_migrations` table. It fits `04`'s "versioned SQL in `migrations/`" rule and ties nothing to
-  the query layer, which is still a build-phase choice. The same command runs locally and in CI.
+- **dbmate** (npm `dbmate`, 2.36.0): plain SQL files, timestamp-versioned, each run in a transaction,
+  its own `schema_migrations` table. It fits `04`'s "versioned SQL in `migrations/`" rule and ties
+  nothing to the query layer, which is **Kysely** (`03` §2, decided 2026-09-24). The same command runs
+  locally and in CI.
+- **Verified 2026-09-24** (`06`): the npm wrapper downloads nothing at install time — per-platform
+  binaries ship as optional dependencies, and `@dbmate/linux-x64` exists. Global flags must come
+  **before** the subcommand, as the command above already has them. A missing `pg_dump` makes dbmate
+  *silently* skip its schema dump, which `--no-dump-schema` sidesteps. Open until the first deploy:
+  whether pnpm's lockfile, generated on macOS, carries `@dbmate/linux-x64` into the Linux build.
+- **Node is pinned to 24** in `engines.node` and `packageManager` pins pnpm, in both apps and in CI.
+  Vercel's default is already Node 24 and it honours `engines.node` over the dashboard setting; the
+  pin is what stops laptop, CI and Vercel from diverging silently.
+
+### Better Auth's tables become a dbmate migration by hand
+
+`npx auth@latest generate --adapter kysely` (the CLI is the npm package **`auth`**, not the stale
+`@better-auth/cli`) emits plain SQL — but it **introspects the configured database and emits a diff**,
+with no `-- migrate:up` markers and no down section. So:
+
+1. Run it against local Docker Postgres at the current migration state.
+2. Review the SQL, paste it into a new dbmate migration, add the markers, hand-write the down.
+3. Repeat on every Better Auth upgrade: the diff becomes the next migration.
+
+This is manual by nature — the two tools know nothing about each other — and it is the only place in
+the project where schema SQL is generated rather than written.
 - **If a migration fails, the build fails** and the previous deployment keeps serving. A migration
   that succeeded before a later build step failed stays applied — which the add-first rule makes
   harmless.

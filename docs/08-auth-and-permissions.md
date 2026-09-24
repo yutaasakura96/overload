@@ -18,6 +18,14 @@ on that date.
 - **The invite gate** is `user.validateUserInfo`. Better Auth runs it when a Google identity is
   first provisioned, when an account is linked, **and on every later sign-in**, using the fresh
   email from Google. So a revoked email is refused the next time it signs in, not only at first use.
+  - **Verified against Better Auth 1.7.5, 2026-09-24.** The option exists (added in 1.7.0) and works
+    as described above. Signature:
+    `(data: { user, source }, context) => Awaitable<void | { error, errorDescription? }>`; returning
+    nothing admits, returning `{ error }` refuses — a redirect to the error URL in the browser flow,
+    a 403 in programmatic ones. `source.action` is `create-user`, `link-account` or `sign-in`, and
+    Google is identified by `source.oauth?.providerId === 'google'`, with the raw claims on
+    `source.oauth?.profile`. Upstream carries a TODO to rename it to `validateUser`, so the version
+    is pinned. `errorDescription` reaches the client — keep it free of anything sensitive.
 - The callback lowercases the email and checks it against `invite.email`:
 
 | Case | Result | Message on the sign-in page |
@@ -92,7 +100,18 @@ on that date.
   brings impersonation, which is a way into members' health data the PRD says the admin must not
   have.
 - **The admin has an invite row of their own**, like everyone else, so the gate needs no special
-  case. The API refuses to revoke or delete the invite whose email equals `ADMIN_EMAIL`.
+  case *for authorisation*. The API refuses to revoke or delete the invite whose email equals
+  `ADMIN_EMAIL`.
+- **How that row first appears (bootstrap).** On a fresh database the gate would refuse everyone,
+  including Yuta, and the only route that writes an invite needs a session (`06`, 2026-09-23). So it
+  is written on first sign-in, across two hooks — **verified 2026-09-24** against Better Auth 1.7.5,
+  whose docs are explicit that `validateUserInfo` is a policy gate and not a write seam:
+  - `user.validateUserInfo` lets `ADMIN_EMAIL` through when no invite row exists.
+  - `databaseHooks.user.create.after` upserts the `invite` row. It fires once, and receives the
+    persisted user with its id.
+
+  This refines the 2026-09-23 decision ("one branch in `validateUserInfo`") without changing it:
+  every environment still bootstraps itself, and no migration or manual `INSERT` holds an email.
 - **Ingest and cron never reach Better Auth's session lookup.** Their routes run their own
   middleware. An ingest token sent to any other route fails the session lookup and gets 401.
 
@@ -295,8 +314,16 @@ Every one of these is a test, not a code-review item:
 - The exact error shape `validateUserInfo` returns to the web client on the redirect flow, and how
   the sign-in page reads `error` from it.
 - Whether Better Auth's rate limiter is enabled by default in production. It is set explicitly, so
-  this only matters if that setting is ever removed.
-- Better Auth's default cookie attributes on this version, checked in the browser once deployed.
+  this only matters if that setting is ever removed. **Storage is `database`** — the default is
+  in-memory, which a Vercel function does not keep between invocations (`06`, 2026-09-24).
+- Better Auth's default cookie attributes, **read from 1.7.5's source 2026-09-24**: `httpOnly`,
+  `sameSite: 'lax'`, `path: '/'`, `secure` derived from the `baseURL` protocol, and a `__Secure-`
+  name prefix when secure. Still worth confirming in the browser once deployed. The `session_token`
+  value is the session token HMAC-signed with `BETTER_AUTH_SECRET`, in the form `token.signature` —
+  so a session row inserted by hand will not authenticate.
+- **Whether `database: { casing: 'snake' }` renames Better Auth's tables as well as its columns.**
+  Columns are what we need in snake_case to match `04`; checked against a real database when slice 1
+  is written.
 - Whether `list-sessions` sits behind Better Auth's fresh-session middleware on the pinned version,
   as it does in current source. If so, the account screen's session list needs a sign-in less than a
   day old, like deletion (§6).

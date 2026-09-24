@@ -10,6 +10,7 @@ reasoning; each row names its source. Decisions are in `06` (2026-09-21, testing
 | Domain (`apps/api/src/domain/`) | Vitest | Nothing. Pure functions |
 | API, auth, ingest | Vitest, calling the Hono app in process (`app.request`) | Postgres 18 in Docker: `docker compose` locally, a service container in GitHub Actions. `infra/db/bootstrap.sql` then the migrations, once per run; each test runs in a transaction that is rolled back |
 | Offline and sync | Playwright, Chromium **and** WebKit, `browserContext.setOffline` | The built web app, the API and the same Postgres |
+| Browser sign-in | Better Auth's `testUtils()` plugin: `test.getCookies({ userId })` → `browserContext.addCookies()` | A **test-only** auth instance. The plugin exposes privileged helpers and stays out of the production config |
 | Contract | `oasdiff/oasdiff-action/breaking` | `packages/api-contract/openapi.json` on the PR vs `main`. Supports OpenAPI 3.1 (checked 2026-09-21) |
 
 ### Isolation, and the two tests it cannot do
@@ -22,8 +23,16 @@ Rollback-per-test is the default. Two kinds of test opt out, or they pass withou
 | Anything asserting on a **deferred** foreign key — account deletion with a custom exercise used in a routine and in a logged workout (`04`, group 4) | `NO ACTION DEFERRABLE INITIALLY DEFERRED` is checked at **commit**. A transaction that is rolled back never reaches one, so a broken delete order still goes green | `SET CONSTRAINTS ALL IMMEDIATE` before the assertions, inside the transaction. The check fires there; the rollback still cleans up |
 | **Race** tests — two tabs uploading, the same set sent twice | Two requests inside one test transaction share a connection and serialize. The unique-violation and `ON CONFLICT` paths are never exercised | **Committed**, against a database truncated between tests, in its own Vitest file so the two modes never interleave |
 
-- **Third parties are stubbed at the HTTP boundary**: Google, Open Food Facts, Anthropic. The ingest
+- **Third parties are stubbed at the HTTP boundary**: Open Food Facts, Anthropic. The ingest
   tests post recorded Health Auto Export payloads.
+- **Google is not stubbed; it is skipped.** A real OAuth round trip cannot run in CI, and Better
+  Auth's Google provider fixes its own token and userinfo endpoints, so only the authorization URL is
+  overridable (verified 1.7.5, 2026-09-24). The browser tests therefore start from an injected
+  session cookie, and **the Google round trip is proven by hand on staging** — §3 item 2, which is
+  where it already lived. The invite gate's own logic is covered in the API tests, which are cheaper
+  than a browser. *Decided 2026-09-24 (`06`); this changes where that assurance comes from, not
+  whether it exists.* Rejected: the `genericOAuth` plugin pointed at a stub issuer — it would exercise
+  the redirect and cookie path but not Google's own provider code.
 - **Rejected:** a Neon branch per CI run (network-dependent, Free-tier limits, slower) and PGlite (not
   Postgres 18, so no `uuidv7()`; the auth tests need a real Postgres).
 - Playwright's WebKit is not iOS Safari. It catches engine differences early; it does not replace §3.
@@ -43,6 +52,25 @@ Rollback-per-test is the default. Two kinds of test opt out, or they pass withou
 
 The planner's tolerance tests are written before the planner, so the solver choice in `03` §8.2 can be
 swapped behind them.
+
+### When each of these lands
+
+A test arrives with the route it covers, not before it. *Added 2026-09-24 (`06`), replacing the
+implication that the whole table is written at once.*
+
+| Slice | Tests from the table above |
+| --- | --- |
+| **1** — skeleton, auth, exercise library | The gate's three refusals · the admin bootstrap on an empty database · cross-user read on `exercise` · cookie and bearer swapped between routes · 401 with no session · the sign-out wipe · one browser test: a signed-in user sees the seeded list |
+| **2** — routines | Hono's `csrf()` against the first write route · cross-user write and delete on `exercise`, `exercise_setting` and `routine` · a routine referring to another user's exercise |
+| **3** — screen 1 | The S1 happy path · progression, e1RM and the resolved-at-start defaults · the 3-hour rule (`09` F3) |
+| **4** — the hard edges | Everything else under **Set upload (S1)** · two tabs · tombstones · the refused set |
+| **5** — progress chart | Epley with warm-ups excluded, across spans |
+| **6** — invite administration | Revoke → cookie, bearer and ingest token each 401 · member on `/api/admin/*` → 404 · restore leaves ingest tokens revoked |
+| **7** — export and delete | Export completeness · stale-session delete · deletion with a custom exercise in a routine and a workout (the deferred-FK case) |
+| **M2 / M3** | Planner, trend and expenditure · ingest · model-call cap · the remaining flows |
+
+The cron-secret test lands with the daily job, and the contract check (oasdiff) runs from slice 1 —
+a no-op against an absent baseline on the first PR, real from the second.
 
 ## 3. Manual checklist — real iPhone, installed app
 
@@ -76,4 +104,13 @@ uploader**. The result goes in the PR as pass/fail per item.
 ## 5. CI
 
 _Decided by default, not asked._ Every pull request to `develop` or `main` runs typecheck, lint, Vitest,
-Playwright and oasdiff. All five must pass to merge.
+Playwright and oasdiff. All five must pass to merge. **All five stand up in slice 1**, not a subset
+(`06`, 2026-09-23).
+
+- **Lint is oxlint** with its type-aware mode, **format is oxfmt**, both pinned to exact versions:
+  Oxc excludes type-aware rules from semver, so a patch release can change what fails
+  (`06`, 2026-09-24).
+- **Typecheck is `tsc --noEmit` on TypeScript 7**, with `--checkers` pinned so CI and a laptop agree —
+  the compiler documents that varying it can surface order-dependent results.
+- A sixth step regenerates `packages/api-contract` and fails if the working tree differs, so the
+  committed `openapi.json` can never drift from the route schemas.

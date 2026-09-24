@@ -2,7 +2,7 @@
 
 **Project:** A weight-training progress tracker combining lift logging, meal planning, Apple Watch/iPhone health data, and bodyweight/diet coaching.
 **Phase:** 7 — Build (M1 first). Phase 6 — Review finished 2026-09-23.
-**Updated:** 2026-09-23
+**Updated:** 2026-09-24
 
 ## Done
 - Phase 1 — Brief + PRD: `docs/01-project-brief.md`, `docs/02-product-requirements.md`, `docs/06-decision-log.md`.
@@ -13,8 +13,28 @@
 - 2026-09-16: Phase 3 — `docs/05-design-system.md` and `docs/10-screen-specifications.md` written from the six `.dc.html` files. Every hex code, size, tracking value and grid measurement lifted from source; contrast ratios computed, not estimated. The canvas's "THE SYSTEM" sticky note was found inaccurate and is superseded by `docs/05`.
 
 ## Next
-**Phase 7 — Build, slice 1.** `/grill-with-docs` ran 2026-09-23 and settled fourteen questions across
-three rounds; all four entries are in `06` under *Phase 7 grill*. M1 is cut into seven slices:
+**Phase 7 — Build, slice 1.** Two grills have run. `/grill-with-docs` on **2026-09-23** settled
+fourteen questions and cut M1 into slices; `/grill-with-docs` on **2026-09-24** settled twelve more —
+what slice 1 is made of, and the toolchain. Nine entries in `06`, dated those two days.
+
+**Settled 2026-09-24, in one place:**
+
+| | Decision |
+| --- | --- |
+| S8's scope | Slice 1 reads the library (`GET /api/exercises`, `/api/me`, `/api/health`). Create, edit, delete and the per-user setting move to slice 2, where S4's picker gives them a screen |
+| Migrations | Slice-scoped, not all of `04` at once. `04` now carries a *when each table is created* table |
+| Auth in slice 1 | Google + gate + admin bootstrap + **bearer**. `csrf()` mounted now, tested in slice 2. `11` §2 gains a per-slice schedule |
+| Profile | `user_profile` created; the setup screen waits for the first reader of a profile field (slice 3) |
+| Install | Manifest + shell-only service worker, so `11` §3 items 1 and 2 can run |
+| How far | Through to `main` and production, after the staging checklist |
+| Query layer | **Kysely**, over the same `pg` Pool Better Auth gets. Closes `12` §3's open choice |
+| Lint / format | **oxlint + oxfmt**, exact-pinned. Not Vite+ until 1.0 (it is MIT and free now; the 2025 paid plan was dropped) |
+| Language | **TypeScript 7**, config written 7-clean, with `openapi-typescript` on the TS6 alias |
+| Runtime | Node 24 and pnpm pinned in repo and CI |
+| Browser sign-in | Better Auth's `testUtils()` cookie helper. The real Google round trip is proven by hand on staging |
+| Better Auth | snake_case columns, rate limits in the database |
+
+M1 is cut into seven slices:
 
 1. **Skeleton + auth + exercise library (S8)** — one vertical cut through every layer, deployed to
    staging before it merges. Real Better Auth, not a stub.
@@ -129,19 +149,25 @@ sticky are kept open for M2 (see *Reviewed, kept*).
 
 ### Check when built — raised by Phase 4
 `docs/03` §11 lists the unverified items. The ones that bite first:
-- Web Locks in Safari, for one uploading tab.
+- Web Locks **inside a standalone home-screen app**, and whether the lock is shared with Safari. The
+  API itself is supported from Safari 15.4 — verified 2026-09-24.
 - Whether Workouts v2 without workout metrics still carries average and max heart rate.
 - The exact names in HAE's body fat and lean mass payloads.
 - `pg_trgm` on Neon Free, for `reference_food` search (`04`).
 - How `@hono/zod-openapi` describes a multipart file part (`07`).
-- `dbmate` running inside Vercel's build image, and the exact `vercel.ts` rewrite syntax (`12` §6).
+- ~~`dbmate` inside Vercel's build image, and the `vercel.ts` rewrite syntax.~~ **Both verified
+  2026-09-24** (`06`, `12` §1 and §3). What remains: whether pnpm's macOS-generated lockfile carries
+  `@dbmate/linux-x64` into the Linux build, and whether `vercel.ts` is honoured alongside a framework
+  preset.
 - The client IP the API project sees on a rewritten request, for the WAF rule (`13` §10).
 - Whether a Vercel variable can be withheld from the function runtime — if not, the API's runtime
   environment holds `DATABASE_URL_DIRECT` as well (`13` §10, raised 2026-09-23).
-- Whether an installed-to-home-screen PWA on iOS can announce the end of rest — web push permission,
-  `navigator.vibrate`, and the Screen Wake Lock API in Safari. The product half (should it alert at
-  all) is a screen-1 grill question, not this list (`06` 2026-09-23 pain-point entry, raised
-  2026-09-23).
+- ~~Whether an installed-to-home-screen PWA on iOS can announce the end of rest.~~ **Answered
+  2026-09-24** (`03` §11, `06`): `navigator.vibrate` does not exist on iOS at all; Web Push works in
+  an installed app from iOS 16.4 but needs a user gesture to ask; the Screen Wake Lock does not work
+  in a standalone app until 18.4. So the screen-1 grill chooses between **push and sound**, with a
+  wake lock as a progressive enhancement. The product half — should it alert at all — is still that
+  grill's question.
 
 ### Waiting for the first build — raised by group 7
 - `infra/db/bootstrap.sql` does not exist yet. It creates the three roles and is run before the

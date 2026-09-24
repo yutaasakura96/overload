@@ -2076,3 +2076,249 @@ increments stay user-overridable per exercise through `exercise_setting`, which 
 
 **Changed:** `04` (`equipment` CHECK, increment defaults), `02` S3, `CONTEXT.md` (Increment,
 Suggestion), `00`.
+
+---
+
+### [2026-09-24] Slice-1 grill: what slice 1 contains, and how far it ships
+
+**Decided (asked).** `/grill-with-docs`, rounds 1 and 2, twelve questions. The 2026-09-23 grill fixed
+*which* slices exist; this one fixes what the first one is made of. Nothing settled on 09-23 was
+reopened.
+
+- **S8 read-only.** Slice 1 ships `GET /api/exercises` and the seed migration, plus `GET /api/me` and
+  `GET /api/health`. The four write routes in `07` §3.2 — create, edit, delete, and the per-user
+  setting — land in **slice 2**, where S4's picker gives each of them a screen. Rejected: shipping all
+  five now. They have no artboard (`10` §8) and no caller until slice 2, and a route with no caller is
+  a route no test exercises honestly. The cross-user test still runs in slice 1: user B's custom
+  exercise is inserted in the fixture and A's `GET` must not see it, which is what proves the
+  `apps/api/src/db/` session-user rule rather than the route.
+- **`/api/health` from the first deploy**, so the Sentry uptime monitor (`12` §5) exists before there
+  is anything to miss. It must not touch the database (`CLAUDE.md`, binding).
+- **Migrations are slice-scoped, not the whole of `04`.** Slice 1 creates Better Auth's four tables
+  plus `rateLimit`, and `invite`, `audit_event`, `user_profile`, `exercise`, `exercise_setting`.
+  Rejected: one migration creating all of `04`. The add-first rule (`12` §3) makes incremental equally
+  safe, `04` has already moved twice under review, and a table that exists before its code has been
+  proven by nothing. **The cost, accepted:** `04` becomes a plan rather than a description until slice
+  7. It gains a *created in* column per table, and each slice's issue names the tables it creates, so
+  the drift is visible rather than silent.
+- **Token login (Better Auth's bearer plugin) lands in slice 1, with its test.** `03` §1 calls the
+  native-ready rules binding from day one, and this is the cheapest of the four: one plugin, no schema
+  change (verified, below). Deferring it means reopening auth during the first native spike, which is
+  the exact cost the rule exists to avoid.
+- **Hono's `csrf()` is mounted in slice 1, tested in slice 2**, when the first write route exists to
+  point it at.
+- **`11` §2's auth list is split across slices.** Slice 1 takes: the gate's three refusals, the admin
+  bootstrap on an empty database, cross-user read on `exercise`, cookie and bearer swapped between
+  routes, 401 with no session, and the sign-out wipe. Revoke, ingest tokens, the cron secret,
+  `/api/admin/*`, cross-origin multipart and account deletion move to the slice that builds their
+  route. `11` §2 gains a slice column so this is a schedule and not a promise.
+- **`user_profile` is created; the setup screen is not.** `/api/me` answers `profile: null`.
+  `PATCH /api/me/profile` and the `setup_incomplete` code land with the first reader of a profile
+  field — the day boundary, slice 3. Rejected: inventing S14/S15's setup flow three slices early with
+  no artboard to build it from.
+- **Slice 1 is installable on the home screen**: a web app manifest and a shell-only precache service
+  worker. `11` §3's items 1 and 2 — `navigator.storage.persist()`, and the Google round trip in
+  standalone mode, which is the Safari cookie fix — cannot be run from a browser tab, and they are two
+  of the three deploy-shaped risks slice 1 exists to find. Items 3 and 7 wait for the set store in
+  slices 3 and 4. The service worker precaches build output only; `/api/*` is excluded
+  (`navigateFallbackDenylist`), which matches every API response already sending
+  `Cache-Control: private, no-store`.
+- **Slice 1 merges to `main` and reaches production**, after the staging checklist. The least tested
+  path in the project is a migration running against production inside a Vercel build, and the
+  cheapest moment to run it is when the blast radius is one table of seeded exercise names, no
+  training data, and a six-hour Neon restore window nothing needs. Waiting means the first production
+  migration also carries five features. This also front-loads `12` §6's open boxes: the restore
+  rehearsal on `staging`, and dbmate inside Vercel's build image.
+
+**Changed:** `00`, `04` (*created in* column), `11` §2 (slice column).
+
+### [2026-09-24] Slice-1 grill: the build toolchain — Kysely, oxlint, oxfmt, Node 24
+
+**Decided (asked).** Researched against primary sources; the linter half corrected a recommendation
+made from memory, after Yuta pushed back that oxlint and the Vite team's tooling had moved.
+
+- **Kysely is the query layer** for `apps/api/src/db/`, closing the "build-phase choice" left open in
+  `12` §3. Three reasons, all verified against Better Auth 1.7.5: it is what Better Auth uses
+  internally, so passing a `pg` `Pool` to `betterAuth({ database })` gives one pool and no second
+  adapter; `auth generate --adapter kysely` emits **plain SQL**, which is the only generator output
+  that can become a dbmate migration; and Kysely's types are generated *from* the database, so they
+  follow the migrations. **Rejected: Drizzle**, whose official adapter exists but whose schema lives in
+  TypeScript — a second source of truth for the schema, against `04`'s rule that versioned SQL is the
+  only way it changes, and whose generator emits `.ts`, not SQL. **Rejected: raw `pg` with
+  hand-written row types**, which is the same SQL with none of the checking.
+- **oxlint 1.85.0 and oxfmt 0.70.0**, both pinned to exact versions. oxlint has been stable since
+  1.0 (2025-06-10): 870 rules, 12–18× faster than ESLint. **Type-aware linting went stable
+  2026-07-22**, covering 59 of typescript-eslint's 61 typed rules via tsgolint — including
+  `no-floating-promises`, which was the one rule named as ESLint's remaining advantage when Biome was
+  recommended. That recommendation rested on a wrong belief that neither alternative had type-aware
+  rules; both do. oxfmt passes 100% of Prettier's JS/TS conformance tests and is ~30× faster.
+- **Exact version pins are required, not stylistic.** Oxc's versioning policy excludes type-aware
+  rules, nursery rules and JS plugins from semver: their behaviour may change in a patch release.
+- **Rejected for now: Vite+.** Its October 2025 commercial licence was abandoned — it has been MIT
+  and free since VoidZero joined Cloudflare on 2026-06-04, so cost is not the reason. The reason is
+  maturity and scope: npm `latest` is `1.0.0-rc.0` (2026-09-22), and `vp` wants to own dev, test,
+  build and create as well as lint and format. Vite+ *is* oxlint and oxfmt underneath, so choosing
+  them directly forfeits nothing — adopting Vite+ later moves the config into `vite.config.ts`.
+  **Revisit at 1.0.** Its `vp check` (format + lint + typecheck in one pass, claimed 2× faster) is the
+  thing worth returning for.
+- **Rejected: Biome 2.5.14.** A fair choice — 612 rules, its own inference engine rather than `tsc`,
+  sponsored by Vercel — but its type-aware coverage is still openly "improving" (tracking issue
+  open), against oxlint's 59/61, and it is the only one of the three not built by the team that builds
+  Vite, which this project's web app is built on.
+- **Rejected: ESLint 10 + typescript-eslint 8.70.1.** The rule ecosystem no longer buys anything
+  oxlint lacks, and typescript-eslint's peer range is `<6.1.0`, which excludes TypeScript 7 outright.
+- **Node 24 and pnpm are pinned** in `engines.node`, `packageManager`, and CI. Vercel's default is
+  already Node 24 (the LTS available there), it honours `engines.node` over the dashboard setting, and
+  pinning is what keeps laptop, CI and Vercel from silently diverging.
+
+**Changed:** `03` §2 (query layer row), `12` §3.
+
+### [2026-09-24] Slice-1 grill: Better Auth, verified against 1.7.5
+
+**Verified, and two decisions taken.** Read from the 1.7.5 doc sources and published packages
+(2026-09-14). One premise in our own docs was checked and held; one tooling name had moved.
+
+- **`user.validateUserInfo` is real.** `08`'s invite gate is built on an option that exists, added in
+  Better Auth 1.7.0. Signature: `(data: { user, source }, context) => Awaitable<void |
+  { error, errorDescription? }>`. Returning nothing admits; returning `{ error }` rejects — a redirect
+  to the error URL in browser flows, a 403 for programmatic ones. It fires on `create-user`,
+  `link-account` **and** `sign-in`, and on `sign-in` it receives the *fresh* provider email, so an
+  account whose Google email moved out of bounds is caught on return, not only at signup. Google is
+  identified by `source.oauth?.providerId === 'google'`, with the raw claims on `source.oauth?.profile`.
+  - Upstream carries a TODO to rename it to `validateUser`. Pin the version and expect a rename.
+- **The admin bootstrap splits across two hooks.** `validateUserInfo` is a gate, not a write seam —
+  the docs say so explicitly. The gate lets `ADMIN_EMAIL` through; the `invite` row is upserted in
+  `databaseHooks.user.create.after`, which fires once, with the persisted user's id. This refines the
+  2026-09-23 decision ("one branch in `validateUserInfo`") without changing it.
+- **The CLI is the npm package `auth`**, not `@better-auth/cli`, which is stale at 1.4.21. The
+  command is `npx auth@latest generate --adapter kysely`.
+- **How Better Auth's tables reach a dbmate migration.** `generate` on the Kysely path emits
+  `schema.sql` — but it *introspects the configured database* and emits a **diff**, with no
+  `-- migrate:up` markers and no down section. So the process is: run it against local Docker Postgres
+  at the current migration state, review the SQL, paste it into a dbmate migration, and hand-write the
+  down. On every Better Auth upgrade, repeat: the diff becomes the next migration. This is the bridge
+  between two tools that know nothing about each other, and it is a manual step by nature.
+- **Columns are snake_case** (`database: { casing: 'snake' }`), so the auth tables match every other
+  table in `04`. Better Auth's default is camelCase. **Unverified:** whether `casing` renames tables
+  as well as columns — confirmed against a real database when slice 1 is written, not assumed.
+- **Rate limiting is stored in the database** (`rateLimit: { storage: 'database' }`). The default is
+  in-memory, which on a Vercel function is close to useless: memory does not survive between
+  invocations. `04` already carries the table; this is what makes it do anything. Columns as
+  documented: `id`, `key` (unique), `count` (integer), `lastRequest` (bigint, epoch ms).
+- **The CI browser test signs in with Better Auth's own test helper.** The `testUtils()` plugin's
+  `test.getCookies({ userId })` returns cookie objects made for `context.addCookies()` in Playwright.
+  It must stay out of the production auth config, so the test server builds its own auth instance.
+  - **What this costs, stated plainly:** CI no longer proves the Google round trip, which was the
+    stated reason for having the test on 2026-09-23. It cannot — Google cannot run in CI. So CI proves
+    "a signed-in user sees the seeded list", the gate is tested in Vitest where it is cheaper, and the
+    real Google round trip is proven **by hand on staging**, which is already `11` §3 item 2. The
+    decision changes where that assurance comes from, not whether it exists.
+  - A session row inserted by raw SQL will **not** authenticate: the `session_token` cookie is the
+    token HMAC-signed with `BETTER_AUTH_SECRET`, and the value is `token.signature`. The helper is
+    what mints it. Rejected: the `genericOAuth` plugin pointed at a stub issuer — it would exercise the
+    redirect and cookie path, but not the Google provider's own code, so it proves a different thing
+    at more cost.
+- **The bearer plugin adds no schema.** It reads the `set-auth-token` response header after sign-in,
+  accepts `Authorization: Bearer <token>`, and converts it to the session cookie internally. The token
+  is the same `session.token`; nothing extra is persisted. `requireSignature` defaults to `false`.
+- **Our Safari fix is Better Auth's own documented fix.** Their cookies guide names ITP breaking
+  cross-domain auth and gives a Vercel `rewrites` entry as the remedy, so the API is first-party. That
+  is `03` §5, arrived at independently.
+- **Cookies, as actually computed:** `httpOnly`, `sameSite: 'lax'`, `path: '/'`, `secure` derived from
+  the `baseURL` protocol, and the name gains a `__Secure-` prefix when secure. Worth knowing before
+  debugging a cookie by name.
+
+**Changed:** `04` (auth tables, `rateLimit` columns), `08` (bootstrap hook, gate on `sign-in`),
+`11` §2 and §3, `12` §3.
+
+### [2026-09-24] Slice-1 grill: platform facts verified, and four `03` §11 items closed
+
+**Verified.** Checked against vendor documentation, MDN browser-compat data and WebKit's own posts.
+These were on `03` §11 "unverified, to check when the piece is built"; four can be struck now, and one
+answers a product question early.
+
+- **Web Locks is supported** — Safari and iOS Safari 15.4, widely available since March 2022. `03`
+  §8.1's uploader lock is not a gamble. **Still unverified:** behaviour inside a standalone
+  home-screen app specifically, and whether locks are shared between the installed app and the same
+  origin in Safari. Neither MDN nor WebKit addresses it; `11` §3 item 4 stands.
+- **`navigator.vibrate` does not exist on iOS at all** — not in any version, Safari or iOS Safari.
+  **Screen Wake Lock** works in Safari from 16.4 but **not in standalone home-screen apps until iOS
+  18.4** (WebKit bug 254545); caniuse does not model that carve-out and would have misled us.
+  **Web Push does work** in an installed home-screen app from iOS 16.4, over APNs, with no Apple
+  Developer Program membership — but permission must be requested from a direct user gesture.
+  - **Consequence for the screen-1 grill:** "nothing announces that rest has ended" has two viable
+    answers, push and sound, not three. Vibration is out. A wake lock is available only on 18.4+, so
+    it is a progressive enhancement, never the mechanism. This is evidence for that grill, not a
+    decision taken here.
+- **`vercel.ts` is real** (announced 2025-12-19), package `@vercel/config` 0.7.2, imported from
+  `@vercel/config/v1`, exporting a named `config`. `12` §1's plan holds. The helper is
+  `routes.rewrite(source, destination, opts?)`, and `deploymentEnv('VAR')` defers an env read to
+  deploy time. Only one config file may exist — `vercel.ts` **or** `vercel.json`, not both.
+  **Unverified:** that it is honoured for a project using a backend framework preset, and its exact
+  placement when the root directory is `apps/web`. Both are checked the first time it is deployed.
+- **Vercel now has a first-class Hono preset** (docs updated 2026-08-10): `export default app` from
+  `src/index.ts`, zero config, every path routed to the app, no `hono/vercel` `handle()` and no
+  `vercel.json` routes. `03` §5's "thin entry adapters" survives — `export default app` is the
+  thinnest possible — but the adapter import it implied is no longer the documented path. `hono/vercel`
+  still exists in 4.13.9 and is a three-line wrapper; we do not need it.
+- **Node 24 is Vercel's default runtime**, with 22 and 20 also available, and `engines.node`
+  overrides the dashboard setting.
+- **Limits reconfirmed:** 4.5 MB request body (413 `FUNCTION_PAYLOAD_TOO_LARGE`), Hobby function
+  duration max 300 s, Hobby cron still once per day fired within the scheduled hour, one concurrent
+  build. `03` §9 and §8.4 are unaffected.
+- **dbmate 2.36.0 is safe inside Vercel's build.** The npm wrapper has **no install-time download**:
+  per-platform binaries ship as optional dependencies and `@dbmate/linux-x64` exists. Migrations run
+  in a transaction by default. Global flags must come *before* the subcommand, which `12` §3's build
+  command already does. If `pg_dump` is absent it **silently skips** the schema dump — we pass
+  `--no-dump-schema`, so this cannot bite us. **Unverified:** whether pnpm's lockfile, generated on
+  darwin-arm64, carries `@dbmate/linux-x64` into a Linux build. Checked on the first deploy.
+- **vite-plugin-pwa 1.3.0** generates the manifest, service worker and registration. Its precache is
+  build output only and **cannot** cache an API response; `navigateFallbackDenylist` keeps `/api/*`
+  out of the service worker's navigation handling.
+
+**Changed:** `03` §11 (four items struck, iOS findings recorded), `03` §5, `12` §1 and §3, `00`.
+
+### [2026-09-24] Slice-1 grill: TypeScript 7, with an escape hatch
+
+**Decided (asked).** Yuta raised it; researched against the TypeScript blog, the npm registry, the
+published tarballs and each library's own repository before deciding.
+
+- **TypeScript 7.0.2 is GA** (2026-07-08) and is the Go port. `tsc` *is* the native binary — there is
+  no opt-in, and the npm package ships no JavaScript compiler at all (2.5 MB unpacked, against
+  24 MB for 6.0). Reported in production at Vercel, Sentry, Linear, Figma, Notion and Slack, whose
+  CI type-check went from 7.5 minutes to 1.25. The team's own heading is "Battle-Tested and Ready
+  for Production".
+- **Decided: TypeScript 7, with `openapi-typescript` pinned to an older TypeScript.** The config is
+  written TS7-clean from the first commit — no `baseUrl`, none of the options 6.0 deprecated and 7.0
+  hard-errors on, and 7.0's defaults (`strict`, `module: esnext`, `rootDir: ./`, `types: []`)
+  accepted rather than fought.
+- **The one real blocker, and why it is survivable.** TypeScript 7.0 **ships no programmatic API**;
+  `import ts from "typescript"` yields `{ version, versionMajorMinor }` and nothing else. The
+  replacement arrives in 7.1, an out-of-process client, with no announced date. That breaks
+  `openapi-typescript` outright — it calls `ts.factory` at runtime (issue #2841, open) — and
+  `openapi-typescript` generates `packages/api-contract`'s types, which `CLAUDE.md` makes binding.
+  The documented workaround is the official alias `@typescript/typescript6`, which is what VS Code
+  itself does. The maintainer has posted a rewrite removing the TypeScript dependency entirely; when
+  it lands, the alias goes.
+- **Two risks accepted, both with mitigations already in hand.**
+  - `@hono/zod-openapi` 1.6.3 dev-depends on the TS6 alias and is **not** CI-tested against 7. Open
+    issue #1918 reports that chaining `.openapi(route, handler)` accumulates generics quadratically,
+    which the new compiler exposes rather than causes. The fix is the `.openapiRoutes([...])` batch
+    API (1.3.0+): 24.8M → 7.1M instantiations, 41.5 s → 10.2 s. **Routes are registered in batches
+    from the first one**, which is better practice regardless of compiler.
+  - `@types/react` has no `ts7.0` dist-tag and the enabling PR is open. If it bites, the fallback is
+    TypeScript 6.0.3 — **a one-line change, because the config is already 7-clean.** Slice 1 is one
+    route and one page, which is the cheapest place in the project to discover it.
+- **What we lose, stated:** language-service plugins do not exist in 7 yet, so the editor stays on
+  TypeScript 6 until VS Code bundles the new service. This costs us nothing — the stacks that need
+  plugins are Vue, Svelte, Astro, MDX and Angular, and we use none of them.
+- **`--checkers` is pinned in CI.** The team documents that varying it "may surface order-dependent
+  results", and `stableTypeOrdering` is forced on in 7.0 and cannot be disabled. Both are reasons to
+  fix the number rather than take the default.
+- **Rejected: staying on TypeScript 5.** It is two migrations behind, and the real cliff is 5 → 6,
+  not 6 → 7 — 7.0 simply adopts 6.0's defaults and turns its deprecations into errors. Paying that
+  cost on an empty repo is free; paying it at M2 is not.
+- **This settles with Q7:** oxlint's type-aware linting requires TypeScript 7.0+ and rejects legacy
+  `tsconfig` options such as `baseUrl`. The two choices point the same way.
+
+**Changed:** `03` §2, `11` §5, `12` §3, `00`.

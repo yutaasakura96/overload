@@ -28,11 +28,44 @@ plus the security roles and `audit_event` from `docs/13`, which ship with M1.
 
 ## Tables owned by Better Auth
 
-`user`, `session`, `account`, `verification` (core schema, checked 2026-09-19), and `rateLimit`
-(`id`, `key`, `count`, `lastRequest`), which `rateLimit.storage: "database"` needs (`docs/08` §2;
-Better Auth docs v1.6.23, checked 2026-09-22). We do not design them. Their SQL comes from Better
-Auth's schema `generate` and ships as a dbmate migration like every other table. `advanced.database.generateId: "uuid"` makes `user.id` a `uuid` column, which every
+`user`, `session`, `account`, `verification`, and `rateLimit` (`id`, `key` unique, `count` integer,
+`lastRequest` bigint epoch ms), which `rateLimit.storage: "database"` needs (`docs/08` §2). We do not
+design them. Their SQL comes from Better Auth's schema `generate` and ships as a dbmate migration like
+every other table. `advanced.database.generateId: "uuid"` makes `user.id` a `uuid` column, which every
 `user_id` below references. Deleting a `user` row cascades through everything here.
+
+**Re-checked against Better Auth 1.7.5 source, 2026-09-24** (was v1.6.23):
+
+- The four core tables are unchanged. `session` carries `token` (unique), `expiresAt`, `ipAddress`,
+  `userAgent`, indexed on `userId` with `ON DELETE CASCADE`. `account` carries `accountId` +
+  `providerId` as the provider-side identity, the OAuth token columns and `idToken`, also cascading.
+  Google sign-in adds **no** provider-specific table.
+- **The bearer plugin adds nothing** — no schema at all. Tokens are the existing `session.token`.
+- **`database: { casing: 'snake' }`** keeps the column names in line with the conventions above;
+  Better Auth's default is camelCase. Whether it renames the tables too is checked against a real
+  database when slice 1 is written (`docs/08`, *Unverified*).
+- The generator emits a **diff against the connected database**, not a full schema, and writes no
+  dbmate markers — so the SQL is pasted into a migration by hand and the down is written by hand.
+  `docs/12` §3 holds the procedure. The CLI is the npm package **`auth`**.
+
+## When each table is created
+
+Migrations are slice-scoped: a table is created by the slice whose code first uses it, not all at
+once (`06`, 2026-09-24). Under the add-first rule (`docs/12` §3) this is as safe as one big
+migration, and it keeps the schema to what has been exercised. **This document is therefore a plan
+ahead of the current slice, not a description of the database.**
+
+| Slice | Tables created |
+| --- | --- |
+| **1** | Better Auth's five · `invite` · `audit_event` · `user_profile` · `exercise` · `exercise_setting` |
+| **2** | `routine` · `routine_exercise` |
+| **3** | `workout` · `workout_exercise` · `set` |
+| **4** | `sync_tombstone` |
+| **M2** | Everything under *M2 — meal plan + weight* |
+| **M3** | Everything under *M3 — health + coaching*, and `ingest_token` |
+
+Each slice's GitHub issue names the tables it creates, so the gap between this document and the
+database stays visible.
 
 ---
 
