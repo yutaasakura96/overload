@@ -2392,3 +2392,77 @@ Two more findings came out of the build:
   last point joins `13` §10's open question about the IP the API sees behind the rewrite.
 
 **Changed:** `00`, `08` *Unverified*, `12` §3 and §6, `13` §10, `CLAUDE.md` (commands).
+
+### [2026-09-25] Switching to Drizzle: feasibility checked, and one blocker found
+
+**Asked, and held at the feasibility check.** Yuta chose Drizzle ORM and drizzle-kit to replace
+Kysely and dbmate, "if we can". This reverses the 2026-09-24 toolchain entry's rejection of Drizzle
+and the 2026-09-21 entry's dbmate, which was decided by default and never asked. What forced the
+question:
+
+- **The first staging deploy after slice 1 merged failed in `vercel-build`:** `pq: SCRAM-SHA-256
+  error: server sent an invalid SCRAM-SHA-256 iteration count: "i=1"`. It is not a credential
+  problem. dbmate 2.36.0, like every recent release, ships Go `lib/pq` v1.12.3. That parser
+  (`scram/scram.go`, `len(fields[2]) < 6`) rejects any iteration count shorter than four digits, and
+  Neon's connection gateway always sends `i=1`. The upstream fix (lib/pq PR #1444) is merged but not
+  released. dbmate cannot reach Neon until it is.
+- The JavaScript `pg` driver has no such check. `pg` 8.23.0's `lib/crypto/sasl.js` caps the
+  iteration count at a maximum, 100000 by default, and sets no minimum. Yuta's other projects (kioku,
+  suburi, track-record) run drizzle-kit on `pg` against Neon without trouble.
+
+**Checked before converting anything** (drizzle-orm 0.45.2, drizzle-kit 0.31.10, pg 8.23.0,
+Better Auth 1.7.5, read from the installed packages and run against local Docker Postgres 18):
+
+- **Better Auth 1.7.5 and Drizzle: fine.** `better-auth` depends on `@better-auth/drizzle-adapter`
+  1.7.5, and its peer range takes `drizzle-orm ^0.45.2` and `drizzle-kit >=0.31.4`. The adapter looks
+  a model up by its key in the Drizzle schema object (`schema.rateLimit`) and a field by the column's
+  JavaScript key (`emailVerified`). The SQL name comes from the Drizzle column, so
+  `emailVerified: boolean('email_verified')` in a `pgTable('rate_limit', …)` keeps every table and
+  column snake_case with no per-model `fields` mapping. Better Auth's own Drizzle schema generator
+  writes exactly that shape by default (`convertToSnakeCase` on table and column names), and with
+  `generateId: 'uuid'` it writes `uuid("id").default(sql\`pg_catalog.gen_random_uuid()\`)`. On `pg`
+  the adapter opens no transaction of its own (`transaction` defaults to `false`), so the tests'
+  one-connection rollback harness still works.
+- **drizzle-kit uses the `pg` driver.** `drizzle-kit migrate` checks for `pg` first ("Using 'pg'
+  driver for database querying") and hands over to `drizzle-orm/node-postgres/migrator`.
+- **Blocker: drizzle-kit's migrate cannot run as `overload_owner` as that role is provisioned.**
+  Before it applies anything, drizzle-orm's migrator (`pg-core/dialect.js`, `migrate()`) always runs
+  `CREATE SCHEMA IF NOT EXISTS <migrations schema>`. The schema is `drizzle` by default and can be
+  configured, but the statement always runs, even for `public`. Postgres checks `CREATE` on the
+  *database* before it checks whether the schema exists, and `infra/db/bootstrap.sql` grants
+  `overload_owner` only `CREATE ON SCHEMA public`. Reproduced on Docker Postgres 18 with the roles
+  from `bootstrap.sql`:
+  - `SET ROLE overload_owner; CREATE SCHEMA IF NOT EXISTS public;` fails with
+    `ERROR: permission denied for database overload`. So does `drizzle`.
+  - `drizzle-kit migrate` connecting as `overload_owner` exits 1 without printing the error, with
+    `migrations.schema` set to `drizzle` or to `public`. The same migrator called directly reports
+    `42501 permission denied for database overload`.
+  - After `GRANT CREATE ON DATABASE overload TO overload_owner`, the same `drizzle-kit migrate` exits
+    0. It creates schema `drizzle`, owned by `overload_owner`, holding `__drizzle_migrations`, and
+    applies the migration. The grant was revoked again afterwards.
+  - Neon is the same case: the roles there come from the same `bootstrap.sql`, and the database is
+    owned by the console-created role, not by `overload_owner`.
+
+**Not decided here. The options:**
+
+- **A. One more grant in `bootstrap.sql`** (recommended): `GRANT CREATE ON DATABASE` on the current
+  database to `overload_owner`, through `format(…, current_database())` because the database name
+  differs between Neon and local. `overload_owner` is already the DDL role, so creating a schema adds
+  little to what it can do. Costs: the grant must be run by hand on Neon `staging` and `main` before
+  the first migration, as the console-created owner role, alongside the password reset that is
+  already needed. Whether that role may grant `CREATE` on a Neon database has not been tried on Neon.
+  The backup role then needs `USAGE` on schema `drizzle` and `SELECT` on `__drizzle_migrations`,
+  which the first migration can grant, as it granted `schema_migrations` before.
+- **B. Keep `bootstrap.sql` as it is, and do not run `drizzle-kit migrate`.** The build would call a
+  small runner of our own that reads drizzle-kit's migration folder with drizzle-orm's
+  `readMigrationFiles` and applies it in one transaction, with the tracking table in `public`. It
+  works with the current grants, but it is our code copying drizzle's journal handling, and it does
+  not use the tool the switch was chosen for.
+- **C. Stay on dbmate** and wait for a `lib/pq` release with PR #1444, then a dbmate release that
+  takes it. Nothing says when. Staging stays undeployable until then.
+
+**Rejected outright:** running migrations by hand or from the function at runtime (`12` §3), and
+connecting drizzle-kit as the console-created owner instead of `overload_owner` (every table would
+then be owned by a role that `ALTER DEFAULT PRIVILEGES FOR ROLE overload_owner` does not cover).
+
+**Changed:** nothing else yet. The conversion waits for the choice between A, B and C.
