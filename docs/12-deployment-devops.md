@@ -171,7 +171,13 @@ esac
    --name=<what>` makes an empty migration with its journal entry; write the SQL into it, with
    `--> statement-breakpoint` between statements. drizzle-kit does not track what a custom migration
    creates, so changing it later is another custom migration.
-3. **There are no down migrations.** Going backwards is §4.
+3. **After a rebase or merge that brings in another migration, delete and regenerate yours** (its
+   SQL, snapshot and journal entry), so its journal `when` is later than every earlier entry.
+   drizzle-orm's migrator does not compare tags: it compares the `created_at` of the last row in
+   `__drizzle_migrations` with each journal entry's `when`, and silently skips any entry that is
+   older. A migration renumbered by hand keeps its old `when`, so staging and production would
+   build green without it.
+4. **There are no down migrations.** Going backwards is §4.
 
 **Better Auth's tables.** `pnpm dlx auth@<pinned version> generate --config scripts/auth-schema.ts
 --output <scratch file>` (the CLI is the npm package **`auth`**, not the stale `@better-auth/cli`)

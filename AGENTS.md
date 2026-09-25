@@ -27,7 +27,10 @@ manager's `pnpm` shim refuses). Each is a CI job (`.github/workflows/ci.yml`):
   database grant: `docker compose down -v` to start over.
 - Schema: Drizzle tables in `apps/api/src/db/schema.ts` (Better Auth's in `auth-schema.ts`).
   `pnpm --filter @overload/api db:generate` writes the SQL migration; grants, functions and seeds are
-  custom migrations. Never `drizzle-kit push` (`docs/12` §3).
+  custom migrations. Never `drizzle-kit push` (`docs/12` §3). After a rebase or merge that brings in
+  another migration, delete and regenerate yours so its journal `when` is later than every earlier
+  entry: the migrator compares the last applied row's `created_at` with each `when` and silently
+  skips older entries.
 - Dev migrations: `pnpm db:migrate` (drizzle-kit, reads `apps/api/.env.local`), against Docker only.
   Staging and production migrate in the API's `vercel-build` script (`docs/12` §3). Never by hand.
   A failed `drizzle-kit migrate` exits 1 without printing why; reproduce against Docker to see it.
