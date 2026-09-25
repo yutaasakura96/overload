@@ -129,7 +129,7 @@ ALTER TABLE "invite" ADD CONSTRAINT "invite_invited_by_user_id_user_id_fk" FOREI
 ALTER TABLE "user_profile" ADD CONSTRAINT "user_profile_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "account" ADD CONSTRAINT "account_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "session" ADD CONSTRAINT "session_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-CREATE INDEX "audit_event_actor_user_id_occurred_at_idx" ON "audit_event" USING btree ("actor_user_id","occurred_at" DESC NULLS LAST);--> statement-breakpoint
+CREATE INDEX "audit_event_actor_user_id_occurred_at_idx" ON "audit_event" USING btree ("actor_user_id","occurred_at" DESC NULLS FIRST);--> statement-breakpoint
 CREATE INDEX "audit_event_occurred_at_idx" ON "audit_event" USING btree ("occurred_at");--> statement-breakpoint
 CREATE INDEX "exercise_owner_user_id_idx" ON "exercise" USING btree ("owner_user_id");--> statement-breakpoint
 CREATE INDEX "account_user_id_idx" ON "account" USING btree ("user_id");--> statement-breakpoint

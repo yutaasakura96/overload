@@ -74,7 +74,10 @@ export const auditEvent = pgTable(
     userAgent: text('user_agent'),
   },
   (t) => [
-    index('audit_event_actor_user_id_occurred_at_idx').on(t.actorUserId, t.occurredAt.desc()),
+    index('audit_event_actor_user_id_occurred_at_idx').on(
+      t.actorUserId,
+      t.occurredAt.desc().nullsFirst(),
+    ),
     index('audit_event_occurred_at_idx').on(t.occurredAt),
     check(
       'audit_event_action_check',
