@@ -330,8 +330,8 @@ Every one of these is a test, not a code-review item:
   so a session row inserted by hand will not authenticate.
 - ~~Whether `database: { casing: 'snake' }` renames Better Auth's tables as well as its columns.~~
   **Answered building slice 1** (`06`, 2026-09-24): it renames nothing, because nothing in 1.7.5 reads
-  it. snake_case comes from per-model `modelName` and `fields` options instead (`04`), and a Vitest
-  sign-in fails if any mapping is missing.
+  it. snake_case comes from the Drizzle columns in `apps/api/src/db/auth-schema.ts` (`04`, `06`
+  2026-09-25), and a Vitest sign-in fails if any column name is wrong.
 - Whether `list-sessions` sits behind Better Auth's fresh-session middleware on the pinned version,
   as it does in current source. If so, the account screen's session list needs a sign-in less than a
   day old, like deletion (§6).

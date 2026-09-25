@@ -99,8 +99,11 @@
       "Bash(gh api *)"
     ],
     "ask": [
-      "Bash(dbmate:*)",
-      "Bash(pnpm exec dbmate:*)",
+      "Bash(drizzle-kit:*)",
+      "Bash(pnpm exec drizzle-kit:*)",
+      "Bash(npx drizzle-kit:*)",
+      "Bash(pnpm db:migrate:*)",
+      "Bash(pnpm --filter * db:migrate:*)",
       "Bash(psql:*)",
       "Bash(pg_dump:*)",
       "Bash(pg_restore:*)",

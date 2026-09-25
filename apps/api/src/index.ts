@@ -8,6 +8,6 @@ import { createDatabase, createPool } from './db/connection';
 const config = readConfig();
 const pool = createPool(config.databaseUrl);
 const db = createDatabase(pool);
-const auth = createAuth({ config, pool, db });
+const auth = createAuth({ config, db });
 
 export default createApp({ auth, config, db });

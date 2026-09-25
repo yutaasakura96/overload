@@ -23,11 +23,16 @@ manager's `pnpm` shim refuses). Each is a CI job (`.github/workflows/ci.yml`):
   writes), `pnpm test` (Vitest, API), `pnpm e2e` (Playwright, Chromium and WebKit).
 - `pnpm contract`: regenerates `packages/api-contract` from the route schemas. CI fails on a diff.
 - Local Postgres 18: `docker compose up -d`. Local never touches Neon. The tests migrate and use
-  its `overload_test` database themselves.
-- Dev migrations: `pnpm db:migrate` (reads `apps/api/.env.local`), against Docker only. Staging and
-  production migrate in the API's `vercel-build` script (`docs/12` §3). Never run by hand.
-- A Better Auth upgrade or a new field: `apps/api/scripts/auth-schema.ts` generates the table diff,
-  and the snake_case mapping lives in `apps/api/src/auth/snake-case-schema.ts` (`casing` does nothing).
+  its `overload_test` database themselves. A volume made before 2026-09-25 lacks `bootstrap.sql`'s
+  database grant: `docker compose down -v` to start over.
+- Schema: Drizzle tables in `apps/api/src/db/schema.ts` (Better Auth's in `auth-schema.ts`).
+  `pnpm --filter @overload/api db:generate` writes the SQL migration; grants, functions and seeds are
+  custom migrations. Never `drizzle-kit push` (`docs/12` §3).
+- Dev migrations: `pnpm db:migrate` (drizzle-kit, reads `apps/api/.env.local`), against Docker only.
+  Staging and production migrate in the API's `vercel-build` script (`docs/12` §3). Never by hand.
+  A failed `drizzle-kit migrate` exits 1 without printing why; reproduce against Docker to see it.
+- A Better Auth upgrade or a new field: `apps/api/scripts/auth-schema.ts` generates its Drizzle
+  schema into a scratch file to diff against `src/db/auth-schema.ts` (`casing` does nothing).
 
 ## Branches
 

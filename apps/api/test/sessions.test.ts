@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { userProfile } from '../src/db/schema';
 import { WEB_ORIGIN, useTestApp } from './harness';
 
 // docs/08 §2 and §10 as scheduled for slice 1 (docs/11 §2): 401 with no session, the cookie and
@@ -105,6 +106,29 @@ describe('GET /api/me', () => {
       user: { id: user.id, name: user.name, email: 'member@example.test', image: null },
       isAdmin: false,
       profile: null,
+    });
+  });
+
+  it('returns the profile with numbers as numbers and the birth date as a local date', async () => {
+    const { user, cookie } = await t.createSignedInUser('profiled@example.test');
+    await t.db.insert(userProfile).values({
+      userId: user.id,
+      heightCm: 172.5,
+      sex: 'female',
+      birthDate: '1990-01-01',
+      trainingWeekdays: [1, 3, 5],
+    });
+
+    const res = await t.app.request('/api/me', { headers: { cookie } });
+
+    expect(await res.json()).toMatchObject({
+      profile: {
+        timezone: 'Asia/Tokyo',
+        heightCm: 172.5,
+        sex: 'female',
+        birthDate: '1990-01-01',
+        trainingWeekdays: [1, 3, 5],
+      },
     });
   });
 });

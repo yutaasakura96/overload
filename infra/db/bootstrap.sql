@@ -33,13 +33,24 @@ BEGIN
 END
 $$;
 
--- overload_owner owns the schema and every table in it. dbmate connects as this
--- role, so it must be able to create objects before the first migration runs.
+-- overload_owner owns the schema and every table in it. drizzle-kit connects as
+-- this role, so it must be able to create objects before the first migration runs.
 GRANT CREATE ON SCHEMA public TO overload_owner;
 GRANT USAGE  ON SCHEMA public TO overload_owner, overload_app, overload_backup;
 
+-- drizzle-orm's migrator runs CREATE SCHEMA IF NOT EXISTS for its bookkeeping
+-- table before every migration, even when that schema is `public`, and Postgres
+-- checks CREATE on the database before it checks whether the schema exists
+-- (SQLSTATE 42501 without this). Found 2026-09-25 (docs/06). The database name
+-- differs between Neon and local, hence current_database().
+DO $$
+BEGIN
+  EXECUTE format('GRANT CREATE ON DATABASE %I TO overload_owner', current_database());
+END
+$$;
+
 -- Deliberately NOT here: ALTER SCHEMA public OWNER TO overload_owner. On Neon
 -- the console-created role cannot SET ROLE overload_owner, so Postgres refuses
--- to hand it ownership (SQLSTATE 42501). It is also unnecessary — dbmate
+-- to hand it ownership (SQLSTATE 42501). It is also unnecessary — drizzle-kit
 -- connects as overload_owner, so every table it creates is owned by it, and
--- GRANT CREATE above is all it needs. Found 2026-09-24, first run.
+-- the grants above are all it needs. Found 2026-09-24, first run.

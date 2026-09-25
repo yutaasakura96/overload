@@ -12,7 +12,7 @@ it('GET /api/health answers without opening a database connection', async () => 
   const pool = new Pool({ connectionString: 'postgres://nobody@127.0.0.1:1/none' });
   const db = createDatabase(pool);
   const app = createApp({
-    auth: createAuth({ config: testConfig, pool, db }),
+    auth: createAuth({ config: testConfig, db }),
     config: testConfig,
     db,
     log: () => {},

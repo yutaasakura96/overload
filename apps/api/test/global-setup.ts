@@ -6,16 +6,9 @@ import { testDatabaseOwnerUrl } from './database-urls';
 // does (docs/12 §3). bootstrap.sql has already run (Docker's init scripts, or CI's first step).
 export default function setup() {
   const apiRoot = fileURLToPath(new URL('..', import.meta.url));
-  execFileSync(
-    'node_modules/.bin/dbmate',
-    [
-      '--url',
-      testDatabaseOwnerUrl,
-      '--migrations-dir',
-      './migrations',
-      '--no-dump-schema',
-      'migrate',
-    ],
-    { cwd: apiRoot, stdio: 'inherit' },
-  );
+  execFileSync('node_modules/.bin/drizzle-kit', ['migrate'], {
+    cwd: apiRoot,
+    stdio: 'inherit',
+    env: { ...process.env, DATABASE_URL_DIRECT: testDatabaseOwnerUrl },
+  });
 }

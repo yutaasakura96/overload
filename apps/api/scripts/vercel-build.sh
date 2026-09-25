@@ -7,7 +7,9 @@ set -eu
 
 case "${VERCEL_GIT_COMMIT_REF:-}" in
   main | develop)
-    dbmate --url "$DATABASE_URL_DIRECT" --migrations-dir ./migrations --no-dump-schema migrate
+    # drizzle.config.ts reads it; fail here, by name, rather than with an empty connection string.
+    : "${DATABASE_URL_DIRECT:?DATABASE_URL_DIRECT is not set}"
+    drizzle-kit migrate
     ;;
   *)
     echo "No migration: '${VERCEL_GIT_COMMIT_REF:-}' is neither main nor develop."

@@ -1,5 +1,6 @@
-import { sql } from 'kysely';
+import { eq, sql } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
+import { invite, rateLimit, user } from '../src/db/schema';
 import { ADMIN_EMAIL, useTestApp } from './harness';
 
 // docs/08 §1 and §10: the gate's three refusals, each with its own error, plus the admin
@@ -14,12 +15,7 @@ const google = (email: string, emailVerified = true) => ({
 });
 
 async function userCount(email: string) {
-  const row = await t.db
-    .selectFrom('user')
-    .select((eb) => eb.fn.countAll<string>().as('n'))
-    .where('email', '=', email)
-    .executeTakeFirstOrThrow();
-  return Number(row.n);
+  return t.db.$count(user, eq(user.email, email));
 }
 
 describe('the invite gate', () => {
@@ -65,10 +61,9 @@ describe('the invite gate', () => {
     expect((await t.signInWithGoogle(google('later@example.test'))).status).toBe(200);
 
     await t.db
-      .updateTable('invite')
+      .update(invite)
       .set({ revokedAt: new Date() })
-      .where('email', '=', 'later@example.test')
-      .execute();
+      .where(eq(invite.email, 'later@example.test'));
     const res = await t.signInWithGoogle(google('later@example.test'));
 
     expect(res.status).toBe(403);
@@ -77,77 +72,73 @@ describe('the invite gate', () => {
 });
 
 describe('Better Auth on the snake_case schema', () => {
-  // `casing: 'snake'` is a no-op in Better Auth 1.7.5; the names come from snake-case-schema.ts
-  // (docs/06, 2026-09-24). If a mapping were missing, Better Auth would write a camelCase column
-  // that does not exist and this sign-in would fail.
+  // The SQL names come from the Drizzle columns in src/db/auth-schema.ts, which the adapter reaches
+  // by their JavaScript keys (docs/06, 2026-09-25). If a column were named in camelCase, or a field
+  // were missing, Better Auth would write a column that does not exist and this sign-in would fail.
   it('signs in and writes every row it needs to the snake_case columns', async () => {
     await t.invite('columns@example.test');
 
     const res = await t.signInWithGoogle(google('columns@example.test'));
     expect(res.status).toBe(200);
 
-    const user = await t.db
-      .selectFrom('user')
-      .select(['id', 'emailVerified', 'createdAt'])
-      .where('email', '=', 'columns@example.test')
-      .executeTakeFirstOrThrow();
-    expect(user.emailVerified).toBe(true);
+    // Raw SQL, so the snake_case names are checked as written, not through the Drizzle columns.
+    const users = await t.db.execute<{ id: string; email_verified: boolean }>(
+      sql`select id, email_verified, created_at from "user" where email = 'columns@example.test'`,
+    );
+    const signedIn = users.rows[0];
+    expect(signedIn?.email_verified).toBe(true);
 
-    const session = await t.db
-      .selectFrom('session')
-      .select(['expiresAt', 'userAgent'])
-      .where('userId', '=', user.id)
-      .executeTakeFirstOrThrow();
-    expect(session.expiresAt.getTime()).toBeGreaterThan(Date.now());
+    const sessions = await t.db.execute<{ expires_at: Date }>(
+      sql`select expires_at, user_agent from session where user_id = ${signedIn?.id}`,
+    );
+    expect(sessions.rows).toHaveLength(1);
+    expect(new Date(sessions.rows[0]!.expires_at).getTime()).toBeGreaterThan(Date.now());
 
-    const account = await t.db
-      .selectFrom('account')
-      .select(['providerId', 'accountId'])
-      .where('userId', '=', user.id)
-      .executeTakeFirstOrThrow();
-    expect(account).toEqual({ providerId: 'google', accountId: 'google-columns@example.test' });
+    const accounts = await t.db.execute(
+      sql`select provider_id, account_id from account where user_id = ${signedIn?.id}`,
+    );
+    expect(accounts.rows).toEqual([
+      { provider_id: 'google', account_id: 'google-columns@example.test' },
+    ]);
 
     // The rate limiter stores to the database (docs/08 §2): the sign-in left a row in rate_limit.
-    const limited = await sql<{ n: string }>`select count(*) as n from rate_limit`.execute(t.db);
-    expect(Number(limited.rows[0]?.n)).toBeGreaterThan(0);
+    expect(await t.db.$count(rateLimit)).toBeGreaterThan(0);
   });
 
   it('left no camelCase column in Better Auth’s tables', async () => {
-    const { rows } = await sql<{ table_name: string; column_name: string }>`
+    const { rows } = await t.db.execute(sql`
       select table_name, column_name from information_schema.columns
       where table_schema = 'public'
         and table_name in ('user', 'session', 'account', 'verification', 'rate_limit')
         and column_name <> lower(column_name)
-    `.execute(t.db);
+    `);
     expect(rows).toEqual([]);
   });
 });
 
 describe('the admin bootstrap', () => {
   it('lets ADMIN_EMAIL in on an empty database and writes their invite row once', async () => {
-    const before = await t.db.selectFrom('invite').select('id').execute();
-    expect(before).toEqual([]);
+    expect(await t.db.$count(invite)).toBe(0);
 
     const first = await t.signInWithGoogle(google('Admin@Example.test'));
     expect(first.status).toBe(200);
 
-    const admin = await t.db
-      .selectFrom('user')
-      .select('id')
-      .where('email', '=', ADMIN_EMAIL)
-      .executeTakeFirstOrThrow();
-    const invites = await t.db.selectFrom('invite').selectAll().execute();
+    const [admin] = await t.db
+      .select({ id: user.id })
+      .from(user)
+      .where(eq(user.email, ADMIN_EMAIL));
+    const invites = await t.db.select().from(invite);
     expect(invites).toHaveLength(1);
     expect(invites[0]).toMatchObject({
       email: ADMIN_EMAIL,
-      invitedByUserId: admin.id,
+      invitedByUserId: admin?.id,
       revokedAt: null,
     });
 
     // A second sign-in passes the gate on the row itself and writes nothing new.
     const second = await t.signInWithGoogle(google(ADMIN_EMAIL));
     expect(second.status).toBe(200);
-    expect(await t.db.selectFrom('invite').select('id').execute()).toHaveLength(1);
+    expect(await t.db.$count(invite)).toBe(1);
 
     const me = await t.app.request('/api/me', {
       headers: { cookie: second.headers.get('set-cookie')?.split(';')[0] ?? '' },
@@ -158,6 +149,6 @@ describe('the admin bootstrap', () => {
   it('still refuses everyone else on an empty database', async () => {
     const res = await t.signInWithGoogle(google('someone@example.test'));
     expect(res.status).toBe(403);
-    expect(await t.db.selectFrom('invite').select('id').execute()).toEqual([]);
+    expect(await t.db.$count(invite)).toBe(0);
   });
 });

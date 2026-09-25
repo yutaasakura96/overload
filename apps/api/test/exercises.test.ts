@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { exercise, exerciseSetting } from '../src/db/schema';
 import { useTestApp } from './harness';
 
 // S8, read-only in slice 1. The cross-user read proves the rule in apps/api/src/db/, not the route:
@@ -27,11 +28,12 @@ async function list(cookie: string, query = '') {
 }
 
 async function addCustomExercise(ownerUserId: string, name: string) {
-  return t.db
-    .insertInto('exercise')
+  const [row] = await t.db
+    .insert(exercise)
     .values({ ownerUserId, name, equipment: 'cable', defaultIncrementKg: 1 })
-    .returning('id')
-    .executeTakeFirstOrThrow();
+    .returning({ id: exercise.id });
+  if (row === undefined) throw new Error('exercise insert returned no row');
+  return row;
 }
 
 describe('GET /api/exercises', () => {
@@ -80,9 +82,8 @@ describe('GET /api/exercises', () => {
     const custom = await addCustomExercise(b.user.id, 'Cable Y-Raise');
     const [bench] = (await list(a.cookie)).filter((item) => item.name === 'Barbell Bench Press');
     await t.db
-      .insertInto('exerciseSetting')
-      .values({ userId: b.user.id, exerciseId: bench!.id, restSeconds: 240 })
-      .execute();
+      .insert(exerciseSetting)
+      .values({ userId: b.user.id, exerciseId: bench!.id, restSeconds: 240 });
 
     const seenByA = await list(a.cookie, '?includeHidden=true');
     expect(seenByA.map((item) => item.id)).not.toContain(custom.id);
@@ -106,9 +107,8 @@ describe('GET /api/exercises', () => {
     const { user, cookie } = await t.createSignedInUser('hider@example.test');
     const [first] = await list(cookie);
     await t.db
-      .insertInto('exerciseSetting')
-      .values({ userId: user.id, exerciseId: first!.id, hiddenAt: new Date() })
-      .execute();
+      .insert(exerciseSetting)
+      .values({ userId: user.id, exerciseId: first!.id, hiddenAt: new Date() });
 
     expect((await list(cookie)).map((item) => item.id)).not.toContain(first!.id);
     expect(

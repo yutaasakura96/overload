@@ -2466,3 +2466,65 @@ connecting drizzle-kit as the console-created owner instead of `overload_owner` 
 then be owned by a role that `ALTER DEFAULT PRIVILEGES FOR ROLE overload_owner` does not cover).
 
 **Changed:** nothing else yet. The conversion waits for the choice between A, B and C.
+
+### [2026-09-25] Drizzle ORM and drizzle-kit replace Kysely and dbmate, with one grant added to the bootstrap
+
+**Decided (asked; firstmate, under Yuta's delegation), and built.** The entry above held the switch at
+its feasibility check. The instruction was to first try keeping drizzle's bookkeeping table in the
+existing `public` schema. That was tried on Docker Postgres 18 as `overload_owner`, with no extra
+grant, and failed the same way (`42501 permission denied for database`). So the decision is
+**option A**: `infra/db/bootstrap.sql` grants `overload_owner` `CREATE` on the database. Options B
+(a migration runner of our own) and C (stay on dbmate) are rejected.
+
+- **Versions** match Yuta's other projects: drizzle-orm 0.45.2, drizzle-kit 0.31.10, pg 8.23.0.
+  Kysely, kysely-codegen and dbmate are gone from `apps/api`.
+- **The schema lives in TypeScript now.** This reverses the reason Drizzle was rejected on
+  2026-09-24, on Yuta's say-so. `04`'s rule is rewritten rather than dropped: the Drizzle tables in
+  `apps/api/src/db/schema.ts` are the source, `drizzle-kit generate` writes each migration's SQL, and
+  that committed, reviewed SQL is still the only thing that changes a database. `drizzle-kit push` is
+  never used. Grants, the `purge_audit_events()` function, the `NULLS NOT DISTINCT` expression index
+  on exercise names and the seed rows are custom migrations, since Drizzle cannot express them.
+- **Migration history starts fresh.** Staging and production were never migrated, so the four dbmate
+  files were replaced, not converted: `0000_privileges` (custom), `0001_slice1_tables` (generated:
+  Better Auth's five tables and slice 1's five), `0002_slice1_sql_only` (custom) and
+  `0003_seed_exercises` (custom, written by `seed/exercises.ts`, still guarded by its drift test).
+  Every table, column, CHECK, index, grant and the 50 seeded exercises carry over. Names that changed
+  are generated ones: unique constraints (`user_email_unique` for `user_email_key`) and foreign keys
+  (`session_user_id_user_id_fk`). There are no down migrations any more.
+- **The bookkeeping table is `public.__drizzle_migrations`**, not drizzle's default `drizzle`
+  schema, so no second schema exists. The first migration grants the backup role `SELECT` on it, as
+  it did for `schema_migrations`. The app role gets nothing on it.
+- **Better Auth runs on its Drizzle adapter** over our Drizzle instance and the same `pg` Pool.
+  `src/db/auth-schema.ts` is what `auth generate` writes for our options, with two edits for `04`:
+  `timestamptz` everywhere (the generator writes `timestamp` without time zone), and snake_case names
+  for the two `user_id` indexes (it writes `session_userId_idx`). `snake-case-schema.ts` is deleted:
+  the Drizzle columns carry the SQL names.
+- **The adapter's schema check is back on.** On Kysely it introspected the database on start, which
+  would have woken Neon from `/api/health`, so it was off. On Drizzle it compares the schema object
+  with the fields Better Auth expects and touches no database: the `/api/health` test still sees no
+  connection open. Dropping `userAgent` from `auth-schema.ts` failed every sign-in with "Drizzle schema
+  mismatch: session.userAgent"; naming a column `ipAddress` failed the snake_case sign-in test.
+- **Known gap, accepted: a failed `drizzle-kit migrate` does not say why.** In 0.31.10, and in
+  0.31.11 (npm `latest`), the migrate command runs inside hanji's `renderWithTask`, which catches the
+  rejection and calls `process.exit(1)` without printing it. A migration failure still fails the
+  Vercel build, but its log shows only `applying migrations...`. The cause is found by running the
+  same migrations against Docker (`pnpm db:migrate`). **Rejected:** a wrapper that re-runs the
+  migrator to print the error, because it would be a second migration path in the build.
+- **Verified locally**, nothing against Neon or Vercel: 29 Vitest tests (one new, `/api/me` with a
+  profile, which checks that numeric columns come back as numbers and `birth_date` as a local date
+  string) and the Playwright suite (7 passed, the WebKit offline test skipped as before), typecheck,
+  lint, and `pnpm contract` with no change to `openapi.json`. In a `linux/amd64` `node:24` container,
+  `pnpm install --frozen-lockfile` installed esbuild's Linux binaries, which drizzle-kit uses to load
+  its TypeScript config, and `pnpm vercel-build` with `VERCEL_GIT_COMMIT_REF=develop` migrated an
+  empty Postgres 18 through all four migrations. A second run applied nothing.
+- **Still unverified:** `drizzle-kit migrate` inside Vercel's own build image (the next `develop`
+  deploy proves it), and whether Neon's console-created owner role may run the new
+  `GRANT CREATE ON DATABASE`. It owns the database, so it should be able to.
+- **Before this merges to `develop`:** run the new grant on Neon `staging` and `main`, reset the
+  staging owner password and Vercel's `DATABASE_URL_DIRECT`. Merging deploys staging and runs its
+  first migration.
+
+**Changed:** `infra/db/bootstrap.sql`, `00`, `03` §2 and §11, `04` (Conventions, Better Auth tables,
+Roles), `08` *Unverified*, `12` §1, §2, §3 and §6, `13` §5 and §10, `AGENTS.md` (commands),
+`.claude/settings.json` (drizzle-kit asks, as dbmate did), `.oxlintrc.json` (`schema.ts` is written
+by hand now, so it is linted).
