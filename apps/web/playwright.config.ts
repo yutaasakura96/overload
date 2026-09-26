@@ -10,6 +10,18 @@ const testDatabaseUrl =
   process.env.TEST_DATABASE_URL ??
   'postgres://overload_app:overload_app_dev@localhost:5434/overload_test';
 
+// The API's environment for the browser tests, shared with `pnpm dev:session`'s spec so the cookie
+// it mints is signed with the secret this API checks.
+export const API_ENV = {
+  DATABASE_URL: testDatabaseUrl,
+  BETTER_AUTH_URL: WEB_ORIGIN,
+  // The same test-only values the fixture signs its cookies with (apps/api/test).
+  BETTER_AUTH_SECRET: 'test-secret-that-is-at-least-32-characters-long',
+  GOOGLE_CLIENT_ID: 'test-google-client',
+  GOOGLE_CLIENT_SECRET: 'test-google-secret',
+  ADMIN_EMAIL: 'admin@example.test',
+};
+
 export default defineConfig({
   testDir: './e2e',
   globalSetup: './e2e/global-setup.ts',
@@ -33,16 +45,7 @@ export default defineConfig({
       command: 'pnpm --filter @overload/api start',
       url: `http://localhost:${API_PORT}/api/health`,
       reuseExistingServer: process.env.CI === undefined,
-      env: {
-        PORT: String(API_PORT),
-        DATABASE_URL: testDatabaseUrl,
-        BETTER_AUTH_URL: WEB_ORIGIN,
-        // The same test-only values the fixture signs its cookies with (apps/api/test).
-        BETTER_AUTH_SECRET: 'test-secret-that-is-at-least-32-characters-long',
-        GOOGLE_CLIENT_ID: 'test-google-client',
-        GOOGLE_CLIENT_SECRET: 'test-google-secret',
-        ADMIN_EMAIL: 'admin@example.test',
-      },
+      env: { PORT: String(API_PORT), ...API_ENV },
     },
     {
       command: 'pnpm build && pnpm preview',

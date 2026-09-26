@@ -19,6 +19,7 @@ dist/
 *.tsbuildinfo
 
 # Test and tool output
+.dev-session/
 coverage/
 playwright-report/
 test-results/

@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { API_ENV } from '../playwright.config';
 
 // The browser tests reach the database only through apps/api's fixture script, run as a process:
 // apps/web never imports apps/api (CLAUDE.md).
@@ -24,4 +25,13 @@ export function migrateTestDatabase() {
     stdio: 'inherit',
     env: { ...process.env, DATABASE_URL_DIRECT: url },
   });
+}
+
+/** `pnpm dev:session` pointed at the browser tests' API, database and secret. Prints its handoff. */
+export function devSession(email: string, out: string): string {
+  return execFileSync(
+    'node_modules/.bin/tsx',
+    ['scripts/dev-session.ts', '--email', email, '--out', out],
+    { cwd: apiRoot, encoding: 'utf8', env: { ...process.env, ...API_ENV } },
+  );
 }
