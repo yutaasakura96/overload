@@ -9,24 +9,23 @@
     "test": "vitest run",
     "contract": "tsx scripts/generate-openapi.ts",
     "seed:exercises": "tsx seed/exercises.ts",
-    "db:migrate": "dbmate --env-file .env.local --env DATABASE_URL_DIRECT --migrations-dir ./migrations --no-dump-schema migrate",
-    "db:types": "kysely-codegen --env-file .env.local --url 'env(DATABASE_URL_DIRECT)' --dialect postgres --camel-case --exclude-pattern schema_migrations --out-file src/db/schema.ts",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "node --env-file=.env.local node_modules/drizzle-kit/bin.cjs migrate",
     "vercel-build": "sh scripts/vercel-build.sh"
   },
   "dependencies": {
     "@hono/node-server": "2.1.1",
     "@hono/zod-openapi": "1.6.3",
     "better-auth": "1.7.5",
+    "drizzle-orm": "0.45.2",
     "hono": "4.13.9",
-    "kysely": "0.29.6",
     "pg": "8.23.0",
     "zod": "4.6.5"
   },
   "devDependencies": {
     "@types/node": "24.13.6",
     "@types/pg": "8.23.1",
-    "dbmate": "2.36.0",
-    "kysely-codegen": "0.20.0",
+    "drizzle-kit": "0.31.10",
     "tsx": "4.23.15",
     "typescript": "7.0.2",
     "vitest": "5.0.1"

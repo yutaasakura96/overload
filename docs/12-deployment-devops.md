@@ -12,7 +12,7 @@ are not restated here. Decisions are in `06` (2026-09-21, deployment)._
 | Web | `vite` dev server | Vercel preview, branch URL `overload-web-git-develop-yuta-asakuras-projects.vercel.app` | `https://overload-web-pied.vercel.app` |
 | API | Hono on Node | Vercel preview of `overload-api`, branch `develop` | `https://overload-api-mu.vercel.app`, `sin1` |
 | Database | Postgres 18 in Docker (`docker compose`, as in `11`) | Neon branch `staging` | Neon branch `main` (root) |
-| Migrations | `dbmate migrate` by hand | In the API build (§3) | In the API build (§3) |
+| Migrations | `pnpm db:migrate` (`drizzle-kit migrate`) by hand | In the API build (§3) | In the API build (§3) |
 | Cron | none; call the route by hand | none (Vercel runs crons on production only) | `0 15 * * *` UTC (`03` §8.4) |
 | Monitoring | none | Sentry events tagged `staging`, no alerts | Everything in §5 |
 
@@ -90,7 +90,7 @@ per app, pointing at Docker Postgres — local never touches Neon.
 | Name | Project | Type | Purpose | Staging vs production |
 | --- | --- | --- | --- | --- |
 | `DATABASE_URL` | api | Secret | Neon **pooled** connection, used at runtime, as role `overload_app` (`13` §5) | `staging` / `main` branch |
-| `DATABASE_URL_DIRECT` | api | Secret | Neon **direct** connection, read only by `dbmate` in the build, as `overload_owner`. The pooler does not keep session state across a migration. Assume the function runtime holds it as well (`13` §10) | `staging` / `main` branch |
+| `DATABASE_URL_DIRECT` | api | Secret | Neon **direct** connection, read only by `drizzle-kit migrate` in the build, as `overload_owner`. The pooler does not keep session state across a migration. Assume the function runtime holds it as well (`13` §10) | `staging` / `main` branch |
 | `BETTER_AUTH_SECRET` | api | Secret | Session signing | **Different** |
 | `BETTER_AUTH_URL` | api | Config | Public origin — the **web** origin, behind the rewrite (`03` §5) | Different |
 | `GOOGLE_CLIENT_ID` | api | Config | Sign-in | Same |
@@ -131,7 +131,8 @@ script:
 ```sh
 case "${VERCEL_GIT_COMMIT_REF:-}" in
   main | develop)
-    dbmate --url "$DATABASE_URL_DIRECT" --migrations-dir ./migrations --no-dump-schema migrate
+    : "${DATABASE_URL_DIRECT:?DATABASE_URL_DIRECT is not set}"
+    drizzle-kit migrate
     ;;
 esac
 ```
@@ -142,41 +143,56 @@ esac
   source, 2026-09-25). So nothing is set in the project settings, and a Build Command override there
   would replace this script. The command first written here ended in `pnpm build`, which fails: the
   API has no `build` script, and the preset needs none.
-- **dbmate** (npm `dbmate`, 2.36.0): plain SQL files, timestamp-versioned, each run in a transaction,
-  its own `schema_migrations` table. It fits `04`'s "versioned SQL in `migrations/`" rule and ties
-  nothing to the query layer, which is **Kysely** (`03` §2, decided 2026-09-24). The same command runs
-  locally and in CI.
-- **Verified 2026-09-24** (`06`): the npm wrapper downloads nothing at install time — per-platform
-  binaries ship as optional dependencies, and `@dbmate/linux-x64` exists. Global flags must come
-  **before** the subcommand, as the command above already has them. A missing `pg_dump` makes dbmate
-  *silently* skip its schema dump, which `--no-dump-schema` sidesteps.
-- **The lockfile carries `@dbmate/linux-x64`** (checked 2026-09-25). `pnpm-lock.yaml`, written on
-  macOS, lists all seven platform packages; a `pnpm install --frozen-lockfile` in a `linux/amd64`
-  `node:24` container installed `@dbmate/linux-x64@2.36.0`, and `pnpm vercel-build` with
-  `VERCEL_GIT_COMMIT_REF=develop` migrated an empty Postgres 18 from nothing. That container is
-  Debian, not Vercel's Amazon Linux build image, so the first deploy is still the real proof.
+- **drizzle-kit** (0.31.10, with drizzle-orm 0.45.2 on the JavaScript `pg` 8.23.0 driver) reads
+  `apps/api/drizzle.config.ts`, which takes `DATABASE_URL_DIRECT`. It applies every pending migration
+  in `apps/api/migrations/` in **one transaction** and records each in `public.__drizzle_migrations`.
+  The same command runs locally (`pnpm db:migrate`), in the Vitest and Playwright setups, and here.
+  It replaced dbmate on 2026-09-25 (`06`): dbmate's Go `lib/pq` rejects the SCRAM iteration count
+  `i=1` that Neon's gateway sends, so the first staging build could not connect.
+- **`overload_owner` needs `CREATE` on the database.** drizzle-orm's migrator runs
+  `CREATE SCHEMA IF NOT EXISTS` before every run, even for `public`, and Postgres checks the database
+  privilege first. `infra/db/bootstrap.sql` grants it (`06`, 2026-09-25).
+- **A failed migration prints no reason.** drizzle-kit 0.31.10 (and 0.31.11) wraps `migrate` in a
+  progress spinner that calls `process.exit(1)` on a rejection without printing the error, so the
+  build log shows only `applying migrations...` and exit 1. The failure still fails the build. To
+  find the cause, run the same migrations against Docker (`pnpm db:migrate`), which reproduces
+  anything that is not specific to the environment.
 - **Node is pinned to 24** in `engines.node` and `packageManager` pins pnpm, in both apps and in CI.
   Vercel's default is already Node 24 and it honours `engines.node` over the dashboard setting; the
   pin is what stops laptop, CI and Vercel from diverging silently.
 
-### Better Auth's tables become a dbmate migration by hand
+### Writing a migration
 
-`npx auth@latest generate --adapter kysely` (the CLI is the npm package **`auth`**, not the stale
-`@better-auth/cli`) emits plain SQL — but it **introspects the configured database and emits a diff**,
-with no `-- migrate:up` markers and no down section. So:
+1. **A table or column change:** edit `apps/api/src/db/schema.ts` (or `auth-schema.ts`), run
+   `pnpm --filter @overload/api db:generate`, and review the SQL it writes into `migrations/` with its
+   snapshot and journal entry. Commit all three. Never `drizzle-kit push`.
+2. **Anything Drizzle cannot express** (grants, functions, an expression index with `NULLS NOT
+   DISTINCT`, seed rows): `pnpm --filter @overload/api exec drizzle-kit generate --custom
+   --name=<what>` makes an empty migration with its journal entry; write the SQL into it, with
+   `--> statement-breakpoint` between statements. drizzle-kit does not track what a custom migration
+   creates, so changing it later is another custom migration.
+3. **After a rebase or merge that brings in another migration, delete and regenerate yours** (its
+   SQL, snapshot and journal entry), so its journal `when` is later than every earlier entry.
+   drizzle-orm's migrator does not compare tags: it compares the `created_at` of the last row in
+   `__drizzle_migrations` with each journal entry's `when`, and silently skips any entry that is
+   older. A migration renumbered by hand keeps its old `when`, so staging and production would
+   build green without it.
+4. **There are no down migrations.** Going backwards is §4.
 
-1. Run it against local Docker Postgres at the current migration state.
-2. Review the SQL, paste it into a new dbmate migration, add the markers, hand-write the down.
-3. Repeat on every Better Auth upgrade: the diff becomes the next migration.
-
-This is manual by nature — the two tools know nothing about each other — and it is the only place in
-the project where schema SQL is generated rather than written.
+**Better Auth's tables.** `pnpm dlx auth@<pinned version> generate --config scripts/auth-schema.ts
+--output <scratch file>` (the CLI is the npm package **`auth`**, not the stale `@better-auth/cli`)
+writes the whole Drizzle schema for the configured options, with no database. On every Better Auth
+upgrade, generate into a scratch file, carry the difference into `src/db/auth-schema.ts` (keeping its
+two edits: `timestamptz`, and snake_case index names), then step 1. If a field is missed, the
+adapter's schema check fails the first auth call with "Drizzle schema mismatch", and the API tests
+sign in, so CI catches it.
 - **If a migration fails, the build fails** and the previous deployment keeps serving. A migration
   that succeeded before a later build step failed stays applied — which the add-first rule makes
   harmless.
 - **Seed data is migrations too** (decided by default): the ~50 seeded exercises and the MEXT
-  `reference_food` import are generated SQL files in `migrations/`, so every environment gets them the
-  same way. A correction is a new migration. `apps/api/seed/` holds the generator, not a runner.
+  `reference_food` import are custom migrations whose SQL is generated (`pnpm --filter @overload/api
+  seed:exercises` writes `0003_seed_exercises.sql`), so every environment gets them the same way. A
+  correction is a new migration. `apps/api/seed/` holds the generator, not a runner.
 
 ### The add-first rule (binding)
 
@@ -189,8 +205,7 @@ for the minutes between migration and promotion, and again after any rollback.
   Release 1 stops the code using it; release 2, after release 1 has been live, removes it.
 - **Before a destructive migration reaches `main`:** take a manual Neon snapshot of `main`. Free
   keeps **one** snapshot, so it replaces the previous one.
-- dbmate's `-- migrate:down` sections are written but **never run against staging or production**.
-  Going backwards is §4.
+- drizzle-kit has no down migrations. Going backwards is §4.
 
 ---
 
@@ -254,7 +269,8 @@ monitor, with email alerts (Sentry pricing docs, checked 2026-09-21).
 
 - [ ] Neon project, branch `staging` off `main`, **before** the roles exist (`13` §5).
 - [ ] `infra/db/bootstrap.sql` run on `main` and on `staging`, with a different password per role
-      per branch (`13` §5).
+      per branch (`13` §5). Its `GRANT CREATE ON DATABASE` for `overload_owner`, added 2026-09-25,
+      is applied on both before their first migration.
 - [ ] Two Vercel projects, roots `apps/web` and `apps/api`, production branch `main`.
 - [ ] Deployment Protection set to None on both projects (§1) — check the team default first.
 - [ ] Every variable in §2, Secret type where marked, Preview values scoped to `develop`.
@@ -262,8 +278,8 @@ monitor, with email alerts (Sentry pricing docs, checked 2026-09-21).
 - [ ] `vercel.ts` rewrite verified on the staging URL: sign-in round-trips, cookie set on the web origin.
 - [ ] Sentry: two projects (web, api), new-issue alert on production, uptime monitor, cron monitor.
 - [ ] A Neon restore from history, tried on `staging`.
-- [ ] `dbmate` confirmed to run inside Vercel's build image. Its npm package ships platform
-      binaries, and the linux-x64 one installs and migrates in a Linux x64 container from our
-      lockfile (§3, 2026-09-25); not yet tried in Vercel's own image.
+- [ ] `drizzle-kit migrate` confirmed to run inside Vercel's build image, as `overload_owner`, on
+      `staging` (§3). dbmate never did: its Go `lib/pq` refused Neon's SCRAM `i=1` (`06`,
+      2026-09-25).
 - [ ] `11` §3 checklist passed on staging.
 - [ ] The security and backup items in `13` §9, "Before M1 ships".

@@ -19,9 +19,9 @@ export function migrateTestDatabase() {
   const url =
     process.env.TEST_DATABASE_URL_DIRECT ??
     'postgres://overload_owner:overload_owner_dev@localhost:5434/overload_test?sslmode=disable';
-  execFileSync(
-    'node_modules/.bin/dbmate',
-    ['--url', url, '--migrations-dir', './migrations', '--no-dump-schema', 'migrate'],
-    { cwd: apiRoot, stdio: 'inherit' },
-  );
+  execFileSync('node_modules/.bin/drizzle-kit', ['migrate'], {
+    cwd: apiRoot,
+    stdio: 'inherit',
+    env: { ...process.env, DATABASE_URL_DIRECT: url },
+  });
 }

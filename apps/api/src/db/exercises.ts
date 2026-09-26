@@ -1,24 +1,8 @@
-import { sql } from 'kysely';
+import { and, asc, eq, isNull, or, sql } from 'drizzle-orm';
 import type { Database } from './connection';
-
-const equipmentValues = [
-  'barbell',
-  'dumbbell',
-  'machine_plate',
-  'machine_stack',
-  'cable',
-  'bodyweight',
-  'other',
-] as const;
+import { exercise, exerciseSetting, type equipmentValues } from './schema';
 
 export type Equipment = (typeof equipmentValues)[number];
-
-// The column's CHECK allows exactly these, so a miss means the schema and this list disagree.
-function toEquipment(value: string): Equipment {
-  const known = equipmentValues.find((candidate) => candidate === value);
-  if (known === undefined) throw new Error(`exercise.equipment outside its CHECK: ${value}`);
-  return known;
-}
 
 /** One exercise as one user sees it: their setting where they have one, else its default. */
 export type UserExercise = {
@@ -44,38 +28,41 @@ export async function listExercises(
   options: { includeHidden: boolean },
 ): Promise<UserExercise[]> {
   const rows = await db
-    .selectFrom('exercise as e')
-    .leftJoin('exerciseSetting as s', (join) =>
-      join.onRef('s.exerciseId', '=', 'e.id').on('s.userId', '=', userId),
+    .select({
+      id: exercise.id,
+      name: exercise.name,
+      equipment: exercise.equipment,
+      ownerUserId: exercise.ownerUserId,
+      defaultIncrementKg: exercise.defaultIncrementKg,
+      defaultRestSeconds: exercise.defaultRestSeconds,
+      defaultRepLow: exercise.defaultRepLow,
+      defaultRepHigh: exercise.defaultRepHigh,
+      incrementKg: exerciseSetting.incrementKg,
+      restSeconds: exerciseSetting.restSeconds,
+      repLow: exerciseSetting.repLow,
+      repHigh: exerciseSetting.repHigh,
+      hiddenAt: exerciseSetting.hiddenAt,
+    })
+    .from(exercise)
+    .leftJoin(
+      exerciseSetting,
+      and(eq(exerciseSetting.exerciseId, exercise.id), eq(exerciseSetting.userId, userId)),
     )
-    .select([
-      'e.id',
-      'e.name',
-      'e.equipment',
-      'e.ownerUserId',
-      'e.defaultIncrementKg',
-      'e.defaultRestSeconds',
-      'e.defaultRepLow',
-      'e.defaultRepHigh',
-      's.incrementKg',
-      's.restSeconds',
-      's.repLow',
-      's.repHigh',
-      's.hiddenAt',
-    ])
-    .where((eb) => eb.or([eb('e.ownerUserId', 'is', null), eb('e.ownerUserId', '=', userId)]))
-    .$if(!options.includeHidden, (qb) => qb.where('s.hiddenAt', 'is', null))
-    .orderBy(sql`lower(e.name)`)
-    .orderBy('e.id')
-    .execute();
+    .where(
+      and(
+        or(isNull(exercise.ownerUserId), eq(exercise.ownerUserId, userId)),
+        options.includeHidden ? undefined : isNull(exerciseSetting.hiddenAt),
+      ),
+    )
+    .orderBy(sql`lower(${exercise.name})`, asc(exercise.id));
 
   return rows.map((row) => ({
     id: row.id,
     name: row.name,
-    equipment: toEquipment(row.equipment),
+    equipment: row.equipment,
     custom: row.ownerUserId !== null,
     hidden: row.hiddenAt !== null,
-    incrementKg: Number(row.incrementKg ?? row.defaultIncrementKg),
+    incrementKg: row.incrementKg ?? row.defaultIncrementKg,
     restSeconds: row.restSeconds ?? row.defaultRestSeconds,
     repLow: row.repLow ?? row.defaultRepLow,
     repHigh: row.repHigh ?? row.defaultRepHigh,

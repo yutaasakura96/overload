@@ -1,4 +1,6 @@
+import { eq } from 'drizzle-orm';
 import type { Database } from '../db/connection';
+import { invite } from '../db/schema';
 
 // The invite gate (docs/08 §1) and the admin bootstrap (§3). These queries sit outside
 // `src/db/` on purpose: they run before any session exists, so there is no session user to take.
@@ -38,18 +40,17 @@ export async function checkInvite(
   }
   const email = identity.email.toLowerCase();
 
-  const invite = await db
-    .selectFrom('invite')
-    .select('revokedAt')
-    .where('email', '=', email)
-    .executeTakeFirst();
+  const [row] = await db
+    .select({ revokedAt: invite.revokedAt })
+    .from(invite)
+    .where(eq(invite.email, email));
 
-  if (invite === undefined) {
+  if (row === undefined) {
     // On a fresh database nobody is invited, the admin included. The admin is let through, and
     // their invite row is written once the user exists (bootstrapAdminInvite).
     return email === adminEmail ? undefined : refusals.not_invited;
   }
-  return invite.revokedAt === null ? undefined : refusals.access_revoked;
+  return row.revokedAt === null ? undefined : refusals.access_revoked;
 }
 
 /**
@@ -63,8 +64,7 @@ export async function bootstrapAdminInvite(
 ): Promise<void> {
   if (user.email.toLowerCase() !== adminEmail) return;
   await db
-    .insertInto('invite')
+    .insert(invite)
     .values({ email: adminEmail, invitedByUserId: user.id, note: 'admin' })
-    .onConflict((oc) => oc.column('email').doNothing())
-    .execute();
+    .onConflictDoNothing({ target: invite.email });
 }

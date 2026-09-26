@@ -1,10 +1,11 @@
 import { testUtils, type TestHelpers } from 'better-auth/plugins';
-import { sql } from 'kysely';
+import { sql } from 'drizzle-orm';
 import { Pool } from 'pg';
 import { afterAll, afterEach, beforeAll, beforeEach } from 'vitest';
 import { createApp } from '../src/app';
 import { createAuth } from '../src/auth/auth';
 import { createDatabase } from '../src/db/connection';
+import { invite, user } from '../src/db/schema';
 import { testDatabaseUrl } from './database-urls';
 import { WEB_ORIGIN, testConfig } from './harness-config';
 
@@ -28,7 +29,6 @@ export function useTestApp() {
   const db = createDatabase(pool);
   const auth = createAuth({
     config: testConfig,
-    pool,
     db,
     google: {
       verifyIdToken: async () => true,
@@ -104,20 +104,19 @@ export function useTestApp() {
      * 1.7.5 runs `validateUserInfo` and refuses outside an endpoint context.
      */
     async createSignedInUser(email: string) {
-      const user = await db
-        .insertInto('user')
+      const [created] = await db
+        .insert(user)
         .values({ email, name: `Test ${email}`, emailVerified: true })
-        .returningAll()
-        .executeTakeFirstOrThrow();
-      const login = await (await helpers()).login({ userId: user.id });
-      return { user, cookie: login.headers.get('cookie') ?? '', token: login.token };
+        .returning();
+      if (created === undefined) throw new Error('user insert returned no row');
+      const login = await (await helpers()).login({ userId: created.id });
+      return { user: created, cookie: login.headers.get('cookie') ?? '', token: login.token };
     },
 
     async invite(email: string, options: { revoked?: boolean } = {}) {
       await db
-        .insertInto('invite')
-        .values({ email, revokedAt: options.revoked === true ? new Date() : null })
-        .execute();
+        .insert(invite)
+        .values({ email, revokedAt: options.revoked === true ? new Date() : null });
     },
   };
 }

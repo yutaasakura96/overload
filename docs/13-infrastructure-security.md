@@ -112,7 +112,7 @@ This is step one of the migration notes, whenever they are written.
 | Secret | Where it lives | Scope | Cannot |
 | --- | --- | --- | --- |
 | `DATABASE_URL` | Vercel, api | Role `overload_app` (§5) | Change the schema |
-| `DATABASE_URL_DIRECT` | Vercel, api | Role `overload_owner` | — (it is the owner). **Only dbmate reads it**, in the build. Whether Vercel can withhold a variable from the function runtime is unverified (§10), so assume the deployed function's environment holds it too: that is what threat 4 costs if the runtime is compromised |
+| `DATABASE_URL_DIRECT` | Vercel, api | Role `overload_owner` | — (it is the owner). **Only `drizzle-kit migrate` reads it**, in the build. Whether Vercel can withhold a variable from the function runtime is unverified (§10), so assume the deployed function's environment holds it too: that is what threat 4 costs if the runtime is compromised |
 | `DATABASE_URL_BACKUP` | GitHub Actions secret | Role `overload_backup` | Write anything |
 | `BETTER_AUTH_SECRET` | Vercel, api | Signs sessions | — |
 | `GOOGLE_CLIENT_SECRET` | Vercel, api | The one OAuth client (`12` §1) | — |
@@ -133,7 +133,7 @@ branches — so a missing grant fails a test, not production.
 
 | Role | Used by | Privileges |
 | --- | --- | --- |
-| `overload_owner` | dbmate, via `DATABASE_URL_DIRECT` | Owns the schema and every table. DDL |
+| `overload_owner` | `drizzle-kit migrate`, via `DATABASE_URL_DIRECT` | Owns every table. DDL. `CREATE` on the `public` schema and on the database: drizzle's migrator runs `CREATE SCHEMA IF NOT EXISTS` before every run (`06`, 2026-09-25) |
 | `overload_app` | The running API, via `DATABASE_URL` | `SELECT, INSERT, UPDATE, DELETE` on app tables. `SELECT, INSERT` only on `audit_event`. `EXECUTE` on `purge_audit_events()`. No DDL |
 | `overload_backup` | GitHub Actions `pg_dump` | `SELECT` on every table, and `USAGE` on the schema |
 
@@ -144,16 +144,16 @@ branches — so a missing grant fails a test, not production.
 
 ### Creating them — bootstrap, not a migration
 
-A migration cannot create these roles: dbmate connects **as** `overload_owner`, so that role has to
+A migration cannot create these roles: drizzle-kit connects **as** `overload_owner`, so that role has to
 exist before the first migration runs, and Neon requires `CREATE ROLE … LOGIN PASSWORD` with at
 least 60 bits of entropy (Neon docs, checked 2026-09-23) — a password in a committed file would be
 public. So the split is:
 
 | | Creates the roles | Grants their privileges |
 | --- | --- | --- |
-| What | `infra/db/bootstrap.sql` — three `LOGIN` roles, no password, plus `GRANT CREATE ON SCHEMA public TO overload_owner` | The first migration, run as `overload_owner` |
-| Neon | Pasted into the SQL Editor once per branch, as the console-created owner role, then one `ALTER ROLE … PASSWORD '…'` per role with a generated value that is typed into Vercel (or GitHub) and saved nowhere else | dbmate, in the API build (`12` §3) |
-| Local, CI | The same file, from `docker-entrypoint-initdb.d`, with fixed development passwords | dbmate |
+| What | `infra/db/bootstrap.sql` — three `LOGIN` roles, no password, plus `CREATE` for `overload_owner` on schema `public` and on the database | The first migration, run as `overload_owner` |
+| Neon | Pasted into the SQL Editor once per branch, as the console-created owner role, then one `ALTER ROLE … PASSWORD '…'` per role with a generated value that is typed into Vercel (or GitHub) and saved nowhere else | `drizzle-kit migrate`, in the API build (`12` §3) |
+| Local, CI | The same file, from `docker-entrypoint-initdb.d`, with fixed development passwords | `drizzle-kit migrate` |
 
 **Branch order matters.** Neon copies a parent branch's roles, passwords included, into a child at
 creation (Neon docs, checked 2026-09-23). Create the `staging` branch **before** the bootstrap, and
@@ -286,5 +286,5 @@ Nothing below is needed while Yuta is the only user. All of it is needed before 
 - ~~Whether Better Auth's adapter works under `overload_app` with no DDL.~~ **Answered 2026-09-25:**
   it does. Every Vitest and Playwright run signs in, writes sessions and rate-limit rows, and signs
   out as `overload_app`, which holds only `SELECT, INSERT, UPDATE, DELETE` from the privileges
-  migration; the tables come from dbmate running as `overload_owner`.
+  migration; the tables come from the migrations running as `overload_owner` (dbmate then, drizzle-kit since 2026-09-25).
 - Sentry auth token scope names at the time of creation.

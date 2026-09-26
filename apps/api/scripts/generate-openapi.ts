@@ -16,7 +16,7 @@ const config = {
 };
 const pool = createPool(config.databaseUrl);
 const db = createDatabase(pool);
-const app = createApp({ auth: createAuth({ config, pool, db }), config, db });
+const app = createApp({ auth: createAuth({ config, db }), config, db });
 
 const target = fileURLToPath(
   new URL('../../../packages/api-contract/openapi.json', import.meta.url),

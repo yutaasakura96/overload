@@ -9,7 +9,9 @@
 // config (docs/11 §1). The real Google round trip is proven by hand on staging (docs/11 §3).
 import { testUtils, type TestHelpers } from 'better-auth/plugins';
 import { createAuth } from '../../src/auth/auth';
+import { eq } from 'drizzle-orm';
 import { createDatabase, createPool } from '../../src/db/connection';
+import { user } from '../../src/db/schema';
 import { testDatabaseUrl } from '../database-urls';
 import { testConfig } from '../harness-config';
 
@@ -21,21 +23,21 @@ const db = createDatabase(pool);
 
 try {
   if (command === 'user' || command === 'delete') {
-    await db.deleteFrom('user').where('email', '=', subject).execute();
+    await db.delete(user).where(eq(user.email, subject));
   }
   if (command === 'user') {
     // Inserted directly: testUtils' saveUser runs validateUserInfo, which Better Auth 1.7.5 refuses
     // outside an endpoint context.
-    const user = await db
-      .insertInto('user')
+    const [created] = await db
+      .insert(user)
       .values({ email: subject, name: 'Playwright', emailVerified: true })
-      .returning('id')
-      .executeTakeFirstOrThrow();
-    process.stdout.write(JSON.stringify({ userId: user.id }));
+      .returning({ id: user.id });
+    if (created === undefined) throw new Error('user insert returned no row');
+    process.stdout.write(JSON.stringify({ userId: created.id }));
   }
   if (command === 'cookies') {
     const config = { ...testConfig, webOrigin: process.env.E2E_WEB_ORIGIN ?? testConfig.webOrigin };
-    const auth = createAuth({ config, pool, db, plugins: [testUtils()] });
+    const auth = createAuth({ config, db, plugins: [testUtils()] });
     // `ctx.test` is typed only when testUtils() is in a static plugin list.
     // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     const { test } = (await auth.$context) as unknown as { test: TestHelpers };

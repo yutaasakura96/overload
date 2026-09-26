@@ -27,12 +27,12 @@ what slice 1 is made of, and the toolchain. Nine entries in `06`, dated those tw
 | Profile | `user_profile` created; the setup screen waits for the first reader of a profile field (slice 3) |
 | Install | Manifest + shell-only service worker, so `11` §3 items 1 and 2 can run |
 | How far | Through to `main` and production, after the staging checklist |
-| Query layer | **Kysely**, over the same `pg` Pool Better Auth gets. Closes `12` §3's open choice |
+| Query layer | ~~Kysely~~ **Drizzle ORM + drizzle-kit** since 2026-09-25 (below), over the same `pg` Pool Better Auth gets |
 | Lint / format | **oxlint + oxfmt**, exact-pinned. Not Vite+ until 1.0 (it is MIT and free now; the 2025 paid plan was dropped) |
 | Language | **TypeScript 7**, config written 7-clean, with `openapi-typescript` on the TS6 alias |
 | Runtime | Node 24 and pnpm pinned in repo and CI |
 | Browser sign-in | Better Auth's `testUtils()` cookie helper. The real Google round trip is proven by hand on staging |
-| Better Auth | snake_case columns (through per-model `modelName`/`fields`: `casing: 'snake'` turned out to be read by nothing), rate limits in the database |
+| Better Auth | snake_case columns (from the Drizzle columns since 2026-09-25: `casing: 'snake'` turned out to be read by nothing), rate limits in the database |
 
 M1 is cut into seven slices:
 
@@ -52,6 +52,13 @@ on Chromium and WebKit (the offline-shell test skips on WebKit). The API's migra
 Yuta's: the staging deploy that merging to `develop` triggers, the iPhone checklist, then `main` and
 a watched production migration. Item 4 is answered below and in `06` as far as a laptop can answer
 it.
+
+**Drizzle replaces Kysely and dbmate, 2026-09-25** (`06`), on branch `fm/overload-drizzle`. The
+first staging deploy after slice 1 merged failed in `vercel-build`: dbmate's Go `lib/pq` refuses the
+SCRAM iteration count `i=1` that Neon sends. Migration history starts fresh (staging and production
+were never migrated). **Before that branch merges,** `bootstrap.sql`'s new `GRANT CREATE ON DATABASE`
+for `overload_owner` must be run on Neon `staging` and `main`, and the staging owner password and
+Vercel's `DATABASE_URL_DIRECT` reset. Merging deploys staging and runs its first migration.
 
 **Issues are open.** Milestone `M1`, one issue per slice, `#1`–`#7`, each chained to the one before
 with GitHub's native dependencies. `#1` carries the full slice-1 specification; its `ready-for-agent`
@@ -210,14 +217,14 @@ sticky are kept open for M2 (see *Reviewed, kept*).
 - The exact names in HAE's body fat and lean mass payloads.
 - `pg_trgm` on Neon Free, for `reference_food` search (`04`).
 - How `@hono/zod-openapi` describes a multipart file part (`07`).
-- ~~`dbmate` inside Vercel's build image, and the `vercel.ts` rewrite syntax.~~ **Both verified
-  2026-09-24** (`06`, `12` §1 and §3). ~~Whether pnpm's macOS-generated lockfile carries
-  `@dbmate/linux-x64` into the Linux build.~~ **It does** — checked in a Linux x64 container,
-  2026-09-25 (`12` §3). **Still unverified, needs the first deploy:** dbmate inside Vercel's own
-  build image, and whether `apps/web/vercel.ts` is honoured alongside a framework preset.
+- ~~`dbmate` inside Vercel's build image.~~ **It ran, and could not connect** (first staging deploy,
+  2026-09-25): its Go `lib/pq` refuses Neon's SCRAM iteration count `i=1`. Replaced by drizzle-kit
+  (`06`, 2026-09-25). **Still unverified, needs the next staging deploy:** `drizzle-kit migrate`
+  inside Vercel's build image, and whether `apps/web/vercel.ts` is honoured alongside a framework
+  preset. The `vercel.ts` rewrite syntax was verified 2026-09-24 (`12` §1).
 - ~~Whether `casing: 'snake'` renames Better Auth's tables.~~ **Answered building slice 1**
-  (`06`, 2026-09-24): the option does nothing in 1.7.5. snake_case comes from per-model
-  `modelName` and `fields` options (`04`, `08`).
+  (`06`, 2026-09-24): the option does nothing in 1.7.5. snake_case comes from the Drizzle columns
+  since 2026-09-25 (`04`, `08`).
 - ~~`@types/react` under TypeScript 7.~~ **No problem found**, 2026-09-25: `@types/react` 19.3.0
   typechecks cleanly under `tsc` 7.0.2 across the whole web app, so the TypeScript 6.0.3 fallback is
   not needed (`06`).
