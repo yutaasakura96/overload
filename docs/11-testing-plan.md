@@ -114,3 +114,4 @@ Playwright and oasdiff. All five must pass to merge. **All five stand up in slic
   the compiler documents that varying it can surface order-dependent results.
 - A sixth step regenerates `packages/api-contract` and fails if the working tree differs, so the
   committed `openapi.json` can never drift from the route schemas.
+- The Vitest job checks migration journal order before running tests (`12` §3).
