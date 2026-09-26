@@ -10,9 +10,8 @@ const testDatabaseUrl =
   process.env.TEST_DATABASE_URL ??
   'postgres://overload_app:overload_app_dev@localhost:5434/overload_test';
 
-// The API's environment for the browser tests, shared with `pnpm dev:session`'s spec so the cookie
-// it mints is signed with the secret this API checks.
-export const API_ENV = {
+// The API's environment for the browser tests.
+const API_ENV = {
   DATABASE_URL: testDatabaseUrl,
   BETTER_AUTH_URL: WEB_ORIGIN,
   // The same test-only values the fixture signs its cookies with (apps/api/test).
