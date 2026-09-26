@@ -1,6 +1,6 @@
 // The one place a session cookie is minted outside a real Google sign-in: Better Auth's testUtils()
 // on a test-only instance, never the production config (docs/11 §1). Used by the browser-test
-// fixture (session.ts) and by `pnpm dev:session` (scripts/dev-session.ts), and by nothing in src.
+// fixture (session.ts) and by `pnpm dev:session` (scripts/dev-session-core.ts), and by nothing in src.
 import { testUtils, type TestHelpers } from 'better-auth/plugins';
 import { eq } from 'drizzle-orm';
 import { createAuth } from '../../src/auth/auth';
