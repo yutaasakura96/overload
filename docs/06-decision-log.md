@@ -2537,27 +2537,28 @@ a test-only instance (2026-09-24, *The CI browser test signs in with Better Auth
 An agent running the app by hand had no equivalent, so it improvised or could not look.
 
 **Decided (asked; firstmate, under Yuta's delegation), and built.** A script outside the app,
-`apps/api/scripts/dev-session.ts`, run as `pnpm dev:session`. It finds or creates a local test user
-(`dev@example.test` by default), mints a session cookie with the same code the Playwright fixture uses
-(`apps/api/test/e2e/test-session.ts`, split out of `session.ts`), and hands it over three ways: the
-cookie printed, a gitignored Playwright storageState file, and a Playwright MCP snippet beside it in
-`.dev-session/`. chrome-devtools-axi gets a `document.cookie` line: page script cannot set `httpOnly`,
-and the API reads the Cookie header either way.
+`apps/api/scripts/dev-session.ts`, run as `pnpm dev:session`. It finds or creates the dedicated local
+test user `dev@example.test`, mints a session cookie with the same code the Playwright fixture uses
+(`apps/api/test/e2e/test-session.ts`, split out of `session.ts`), and writes three gitignored files
+under the repo-root `.dev-session/`: Playwright storageState JSON, a Playwright MCP snippet, and a
+chrome-devtools-axi script. It never prints the token or email. The chrome-devtools-axi script opens
+the local page, sets `document.cookie`, then reopens it; page script cannot set `httpOnly`, but the
+API reads the Cookie header either way.
 
 - **It stays out of the app, as 2026-09-24 kept `testUtils()` out of the production auth config.**
   The staging URLs are public (2026-09-23, Deployment Protection off), and `08` §1 allows Google only,
   so a sign-in route, flag or code path in the deployed API would be a hole. Nothing in `apps/api/src`
   or `apps/web` imports the script; no deployed variable is added.
 - **It refuses anything but local values before it connects** (`scripts/dev-session-guard.ts`):
-  `DATABASE_URL` must name localhost, `127.0.0.1`, `::1` or the compose service `postgres`; `NODE_ENV`
-  must not be production; `VERCEL` and `VERCEL_ENV` must be absent, since Vercel sets them and
-  `vercel env pull` writes them; and `BETTER_AUTH_URL` must be plain-http localhost. A secret's value
-  cannot say where it came from, so the origin it is paired with is the signal. It reads
-  `apps/api/.env.local`, as `pnpm dev` does, so the cookie is signed with the secret the local API
-  checks.
-- **Tests:** Vitest covers the guard and runs the script with a non-local database and a production
-  `NODE_ENV`, expecting exit 1 and no file written. A Playwright spec runs it against the browser
-  tests' API and loads the signed-in library from its storageState file.
+  every value it uses comes from `apps/api/.env.local`, parsed by the script rather than inherited
+  from the shell. Any conflicting exported value is refused by name, without printing its value.
+  `DATABASE_URL` must target localhost or `127.0.0.1`, port 5434, database `overload`, with no query
+  overrides; `BETTER_AUTH_URL` must be plain-http localhost or `127.0.0.1`. `NODE_ENV=production`
+  and the presence of `VERCEL` or `VERCEL_ENV` are refused in both the file and exported environment.
+  A deployed secret deliberately pasted into `.env.local` cannot be detected by these checks.
+- **Tests:** Vitest covers those refusals and checks a refused run writes nothing. A Playwright spec
+  uses a test-only entry against the browser-test database and loads the signed-in library from its
+  storageState file.
 
 **Alternatives considered.** An in-app dev sign-in route or env flag: rejected for the hole above.
 Minting cookies by hand from SQL: a session row alone does not authenticate, the cookie must be

@@ -1,55 +1,72 @@
-// Why `pnpm dev:session` must not run here, checked before it connects or writes anything. Empty
-// means local: the Docker database, a plain-http localhost web origin, and no deployment's variables.
-// Values are never echoed back, only the host or origin at fault: a URL may carry a password.
+const CONFIG_NAMES = [
+  'DATABASE_URL',
+  'BETTER_AUTH_URL',
+  'BETTER_AUTH_SECRET',
+  'GOOGLE_CLIENT_ID',
+  'GOOGLE_CLIENT_SECRET',
+  'ADMIN_EMAIL',
+  'NODE_ENV',
+  'VERCEL',
+  'VERCEL_ENV',
+] as const;
 
-/** The local Docker Postgres, from the host or from inside the compose network (docker-compose.yml). */
-const LOCAL_DATABASE_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]', 'postgres']);
-const LOCAL_WEB_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
-
+const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1']);
 const ENV_HINT = 'copy apps/api/.env.example to apps/api/.env.local and fill it in';
 
-function parse(url: string | undefined) {
-  if (url === undefined || url === '') return null;
+function parse(value: string | undefined): URL | null {
+  if (!value) return null;
   try {
-    return new URL(url);
+    return new URL(value);
   } catch {
     return null;
   }
 }
 
-export function localOnlyRefusals(env: Record<string, string | undefined>): string[] {
+export function localOnlyRefusals(
+  fileValues: Record<string, string | undefined>,
+  exportedEnv: Record<string, string | undefined>,
+  databaseName = 'overload',
+): string[] {
   const refusals: string[] = [];
 
-  if (env.NODE_ENV === 'production') refusals.push('NODE_ENV is production.');
-
-  // Vercel sets these on every deployment, and `vercel env pull` writes them into the file it pulls,
-  // so their presence means the secrets came from a deployment.
-  for (const name of ['VERCEL', 'VERCEL_ENV']) {
-    if (env[name] !== undefined) {
-      refusals.push(`${name} is set: these variables come from a Vercel deployment.`);
+  for (const name of CONFIG_NAMES) {
+    if (exportedEnv[name] !== undefined && exportedEnv[name] !== fileValues[name]) {
+      refusals.push(`${name} differs from apps/api/.env.local.`);
     }
   }
 
-  const database = parse(env.DATABASE_URL);
+  for (const env of [fileValues, exportedEnv]) {
+    if (env.NODE_ENV === 'production') refusals.push('NODE_ENV is production.');
+    for (const name of ['VERCEL', 'VERCEL_ENV']) {
+      if (env[name] !== undefined) refusals.push(`${name} is set.`);
+    }
+  }
+
+  const database = parse(fileValues.DATABASE_URL);
   if (database === null) {
     refusals.push(`DATABASE_URL is missing or not a URL: ${ENV_HINT}.`);
-  } else if (!LOCAL_DATABASE_HOSTS.has(database.hostname)) {
+  } else if (
+    !['postgres:', 'postgresql:'].includes(database.protocol) ||
+    !LOCAL_HOSTS.has(database.hostname) ||
+    database.port !== '5434' ||
+    database.pathname !== `/${databaseName}` ||
+    database.search !== ''
+  ) {
     refusals.push(
-      `DATABASE_URL points at ${database.hostname}, not the local Docker Postgres ` +
-        `(${[...LOCAL_DATABASE_HOSTS].join(', ')}).`,
+      `DATABASE_URL must target local Postgres on port 5434, database ${databaseName}, without query overrides.`,
     );
   }
 
-  // BETTER_AUTH_SECRET signs the cookie. Its value cannot say where it came from, so its pair does:
-  // a deployment's web origin is https on a real host, the local one is http://localhost:5173.
-  const web = parse(env.BETTER_AUTH_URL);
+  const web = parse(fileValues.BETTER_AUTH_URL);
   if (web === null) {
     refusals.push(`BETTER_AUTH_URL is missing or not a URL: ${ENV_HINT}.`);
-  } else if (web.protocol !== 'http:' || !LOCAL_WEB_HOSTS.has(web.hostname)) {
-    refusals.push(
-      `BETTER_AUTH_URL is ${web.origin}, not http://localhost, so BETTER_AUTH_SECRET may be a ` +
-        'deployed one.',
-    );
+  } else if (
+    web.protocol !== 'http:' ||
+    !LOCAL_HOSTS.has(web.hostname) ||
+    web.username !== '' ||
+    web.password !== ''
+  ) {
+    refusals.push('BETTER_AUTH_URL must be plain-http localhost or 127.0.0.1.');
   }
 
   return refusals;

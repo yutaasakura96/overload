@@ -35,8 +35,9 @@ manager's `pnpm` shim refuses). Each is a CI job (`.github/workflows/ci.yml`):
   Staging and production migrate in the API's `vercel-build` script (`docs/12` §3). Never by hand.
   A failed `drizzle-kit migrate` exits 1 without printing why; reproduce against Docker to see it.
 - Signed-in screens locally: with the API and web dev servers on `apps/api/.env.local`, run
-  `pnpm dev:session`. It prints how to load a local test user's session cookie into Playwright MCP or
-  chrome-devtools-axi, and refuses non-local values (`docs/06`, 2026-09-26).
+  `pnpm dev:session`. It reads only `apps/api/.env.local`, requires the local `overload` database,
+  and writes the cookie to three gitignored `.dev-session/` handoff files without printing it:
+  storageState, Playwright MCP, and chrome-devtools-axi (`docs/06`, 2026-09-26).
 - A Better Auth upgrade or a new field: `apps/api/scripts/auth-schema.ts` generates its Drizzle
   schema into a scratch file to diff against `src/db/auth-schema.ts` (`casing` does nothing).
 
