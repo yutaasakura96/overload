@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { readConfig } from '../src/config';
 import { createDatabase, createPool } from '../src/db/connection';
@@ -11,6 +11,11 @@ type Inputs = {
   stateDirectory: string;
   databaseName?: string;
 };
+
+function writePrivate(path: string, content: string) {
+  writeFileSync(path, content, { mode: 0o600 });
+  chmodSync(path, 0o600);
+}
 
 export async function createDevSession(inputs: Inputs) {
   const refusals = localOnlyRefusals(inputs.fileValues, inputs.exportedEnv, inputs.databaseName);
@@ -39,18 +44,15 @@ export async function createDevSession(inputs: Inputs) {
     const documentCookie = `${cookie.name}=${cookie.value}; path=${cookie.path}${expires}`;
 
     mkdirSync(inputs.stateDirectory, { recursive: true, mode: 0o700 });
-    writeFileSync(storageState, `${JSON.stringify({ cookies, origins: [] }, null, 2)}\n`, {
-      mode: 0o600,
-    });
-    writeFileSync(
+    chmodSync(inputs.stateDirectory, 0o700);
+    writePrivate(storageState, `${JSON.stringify({ cookies, origins: [] }, null, 2)}\n`);
+    writePrivate(
       playwrightSnippet,
       `async (page) => { await page.context().addCookies(${JSON.stringify(cookies)}); }\n`,
-      { mode: 0o600 },
     );
-    writeFileSync(
+    writePrivate(
       chromeSnippet,
       `await page.open(${JSON.stringify(`${config.webOrigin}/`)});\nawait page.eval(${JSON.stringify(`document.cookie = ${JSON.stringify(documentCookie)}`)});\nawait page.open(${JSON.stringify(`${config.webOrigin}/`)});\n`,
-      { mode: 0o600 },
     );
 
     return { webOrigin: config.webOrigin, storageState, playwrightSnippet, chromeSnippet };

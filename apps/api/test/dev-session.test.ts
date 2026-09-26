@@ -1,9 +1,19 @@
-import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
+import {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { createDevSession } from '../scripts/dev-session-core';
 import { localOnlyRefusals } from '../scripts/dev-session-guard';
+import { testDatabaseUrl } from './database-urls';
+import { testConfig } from './harness-config';
 
 const local = {
   DATABASE_URL: 'postgres://overload_app:overload_app_dev@localhost:5434/overload',
@@ -59,5 +69,39 @@ describe('the dev:session guard', () => {
     expect(refusal).toContain('BETTER_AUTH_SECRET');
     expect(refusal).not.toContain('deployed-secret');
     expect(refusal).not.toContain(local.BETTER_AUTH_SECRET);
+  });
+});
+
+describe('the dev:session handoff files', () => {
+  it('restricts existing permissive files and directory before writing a new token', async () => {
+    const parent = mkdtempSync(join(tmpdir(), 'dev-session-'));
+    const stateDirectory = join(parent, '.dev-session');
+    const names = ['storage-state.json', 'playwright-mcp.js', 'chrome-devtools-axi.js'];
+    try {
+      mkdirSync(stateDirectory);
+      chmodSync(stateDirectory, 0o755);
+      for (const name of names) writeFileSync(join(stateDirectory, name), 'old', { mode: 0o644 });
+
+      await createDevSession({
+        fileValues: {
+          DATABASE_URL: testDatabaseUrl,
+          BETTER_AUTH_URL: testConfig.webOrigin,
+          BETTER_AUTH_SECRET: testConfig.authSecret,
+          GOOGLE_CLIENT_ID: testConfig.googleClientId,
+          GOOGLE_CLIENT_SECRET: testConfig.googleClientSecret,
+          ADMIN_EMAIL: testConfig.adminEmail,
+        },
+        exportedEnv: {},
+        stateDirectory,
+        databaseName: 'overload_test',
+      });
+
+      expect(statSync(stateDirectory).mode & 0o777).toBe(0o700);
+      for (const name of names) {
+        expect(statSync(join(stateDirectory, name)).mode & 0o777).toBe(0o600);
+      }
+    } finally {
+      rmSync(parent, { recursive: true, force: true });
+    }
   });
 });
