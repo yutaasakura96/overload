@@ -9,7 +9,8 @@
     "test": "pnpm --filter @overload/api test",
     "e2e": "pnpm --filter @overload/web e2e",
     "contract": "pnpm --filter @overload/api contract && pnpm --filter @overload/api-contract generate",
-    "db:migrate": "pnpm --filter @overload/api db:migrate"
+    "db:migrate": "pnpm --filter @overload/api db:migrate",
+    "db:check-order": "pnpm --filter @overload/api db:check-order"
   },
   "devDependencies": {
     "oxfmt": "0.70.0",

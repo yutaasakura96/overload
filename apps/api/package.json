@@ -10,6 +10,7 @@
     "contract": "tsx scripts/generate-openapi.ts",
     "seed:exercises": "tsx seed/exercises.ts",
     "db:generate": "drizzle-kit generate",
+    "db:check-order": "tsx scripts/check-migration-order.ts",
     "db:migrate": "node --env-file=.env.local node_modules/drizzle-kit/bin.cjs migrate",
     "vercel-build": "sh scripts/vercel-build.sh"
   },

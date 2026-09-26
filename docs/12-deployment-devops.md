@@ -177,6 +177,7 @@ esac
    `__drizzle_migrations` with each journal entry's `when`, and silently skips any entry that is
    older. A migration renumbered by hand keeps its old `when`, so staging and production would
    build green without it.
+   CI enforces the order: `pnpm db:check-order` fails when any `when` is not later than the one before.
 4. **There are no down migrations.** Going backwards is §4.
 
 **Better Auth's tables.** `pnpm dlx auth@<pinned version> generate --config scripts/auth-schema.ts
