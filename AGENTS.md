@@ -30,7 +30,7 @@ manager's `pnpm` shim refuses). Each is a CI job (`.github/workflows/ci.yml`):
   custom migrations. Never `drizzle-kit push` (`docs/12` §3). After a rebase or merge that brings in
   another migration, delete and regenerate yours so its journal `when` is later than every earlier
   entry: the migrator compares the last applied row's `created_at` with each `when` and silently
-  skips older entries.
+  skips older entries. CI enforces it with `pnpm db:check-order`.
 - Dev migrations: `pnpm db:migrate` (drizzle-kit, reads `apps/api/.env.local`), against Docker only.
   Staging and production migrate in the API's `vercel-build` script (`docs/12` §3). Never by hand.
   A failed `drizzle-kit migrate` exits 1 without printing why; reproduce against Docker to see it.

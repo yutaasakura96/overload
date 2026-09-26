@@ -64,6 +64,9 @@ jobs:
             -f infra/db/bootstrap.sql -f infra/db/local-passwords.sql
         env: &admin
           ADMIN_URL: postgres://postgres:postgres@localhost:5434
+      # The migrator silently skips a journal entry older than the last applied one (docs/12 §3).
+      - name: Check the migration journal's order
+        run: pnpm db:check-order
       - run: pnpm test
 
   playwright:
