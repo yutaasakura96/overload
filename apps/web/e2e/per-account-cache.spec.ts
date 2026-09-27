@@ -367,6 +367,7 @@ test('a failed pending remember write cannot stop a confirmed sign-out', async (
     keepBusy();
     transaction.addEventListener('complete', () => db.close());
 
+    // oxlint-disable-next-line typescript/unbound-method -- called with its own store via put.call
     const put = IDBObjectStore.prototype.put;
     IDBObjectStore.prototype.put = function (value: unknown, key?: IDBValidKey) {
       const request = put.call(this, value, key);
