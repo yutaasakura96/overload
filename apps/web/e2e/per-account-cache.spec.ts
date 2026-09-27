@@ -409,7 +409,7 @@ test('a failed pending remember write cannot stop a confirmed sign-out', async (
   expect(await deviceKeys(second)).toEqual([]);
 });
 
-test('a failed wipe cannot stop a confirmed sign-out', async ({ context }) => {
+test('a failed wipe keeps the saved copy closed on an offline reload', async ({ context }) => {
   const first = await context.newPage();
   await openAs(first, context, userA, EMAIL_A);
   const second = await context.newPage();
@@ -419,6 +419,11 @@ test('a failed wipe cannot stop a confirmed sign-out', async ({ context }) => {
 
   const errors: Error[] = [];
   first.on('pageerror', (error) => errors.push(error));
+  await context.addInitScript(() => {
+    IDBObjectStore.prototype.clear = () => {
+      throw new DOMException('The wipe failed.', 'UnknownError');
+    };
+  });
   await first.evaluate(() => {
     IDBObjectStore.prototype.clear = () => {
       throw new DOMException('The wipe failed.', 'UnknownError');
@@ -429,6 +434,14 @@ test('a failed wipe cannot stop a confirmed sign-out', async ({ context }) => {
   await expect(first).toHaveURL('/sign-in');
   await expect(second).toHaveURL('/sign-in?next=%2F');
   await expect(second.getByText(EMAIL_A)).toHaveCount(0);
+  expect(await savedCache(first, userA)).toContain(OWN_A);
+  await first.route('**/api/me', (route) => route.abort('internetdisconnected'));
+  await first.goto('/');
+  await expect(
+    first.getByText('Couldn’t reach Overload. Open the app again when you have signal.'),
+  ).toBeVisible();
+  await expect(first.getByText(EMAIL_A)).toHaveCount(0);
+  await expect(first.getByText(OWN_A)).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 

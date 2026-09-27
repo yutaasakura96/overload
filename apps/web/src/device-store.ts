@@ -10,6 +10,7 @@ const SIGNED_IN_USER = 'signed-in-user';
 // Days left incomplete at the end-of-day check (docs/03 §6) will live here too from M2, and the
 // wipe below already covers them.
 const QUERY_CACHE = 'query-cache';
+const WIPE_PENDING = 'overload:wipe-pending';
 
 export type SignedInUser = Me['user'];
 
@@ -25,9 +26,21 @@ export const deviceStore = {
     removeItem: (key: string) => del(`${QUERY_CACHE}:${key}`, store),
   },
 
+  wipePending: () => {
+    try {
+      return localStorage.getItem(WIPE_PENDING) === '1';
+    } catch {
+      return true;
+    }
+  },
+
   /**
    * Removes everything this store holds: the signed-in user, the incomplete days and the persisted
    * query cache. Weight, food and health numbers must not stay readable after sign-out (docs/08 §7).
    */
-  wipe: () => clear(store),
+  wipe: async () => {
+    localStorage.setItem(WIPE_PENDING, '1');
+    await clear(store);
+    localStorage.removeItem(WIPE_PENDING);
+  },
 };

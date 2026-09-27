@@ -17,9 +17,7 @@ export async function signOut(navigate: (path: string) => void): Promise<boolean
   const pendingRemember = closeAccount();
   queryClient.clear();
   await pendingRemember?.catch(() => undefined);
-  // The server has ended the session, so a failed wipe still finishes signing out here and in
-  // every other tab; staying on this screen would only show an account that is already closed.
-  await deviceStore.wipe().catch(() => undefined);
+  await deviceStore.wipe().catch(() => deviceStore.wipe().catch(() => undefined));
   announceSignOut();
   navigate('/sign-in');
   return true;

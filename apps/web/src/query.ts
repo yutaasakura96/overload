@@ -179,6 +179,10 @@ export function takeSigningIn() {
  * have changed.
  */
 export async function openCache() {
+  if (deviceStore.wipePending()) {
+    await deviceStore.wipe().catch(() => undefined);
+    if (deviceStore.wipePending()) return;
+  }
   // The copy shared by every account before copies were kept per account (docs/08 §7).
   await deviceStore.queryCache.removeItem('overload').catch(() => undefined);
   const remembered = await deviceStore.signedInUser().catch(() => undefined);
