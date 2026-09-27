@@ -341,6 +341,73 @@ test('a successful sign-out wipes before other tabs reopen', async ({ context })
   expect(await deviceKeys(second)).toEqual([]);
 });
 
+test('a failed pending remember write cannot stop a confirmed sign-out', async ({ context }) => {
+  const first = await context.newPage();
+  await openAs(first, context, userA, EMAIL_A);
+  const second = await context.newPage();
+  await second.goto('/');
+  await expect(second.getByText(EMAIL_A)).toBeVisible();
+  await first.bringToFront();
+
+  await first.evaluate(async () => {
+    const opened = indexedDB.open('overload');
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      opened.addEventListener('success', () => resolve(opened.result));
+      opened.addEventListener('error', () => reject(opened.error));
+    });
+    const transaction = db.transaction('device', 'readwrite');
+    const store = transaction.objectStore('device');
+    const keepBusy = () => {
+      const request = store.get('remember-write-blocker');
+      request.addEventListener('success', () => {
+        if (document.documentElement.dataset.releaseRemember === '1') return;
+        keepBusy();
+      });
+    };
+    keepBusy();
+    transaction.addEventListener('complete', () => db.close());
+
+    const put = IDBObjectStore.prototype.put;
+    IDBObjectStore.prototype.put = function (value: unknown, key?: IDBValidKey) {
+      const request = put.call(this, value, key);
+      if (key === 'signed-in-user') {
+        document.documentElement.dataset.rememberAttempted = '1';
+        const write = this.transaction;
+        write.addEventListener('abort', () => {
+          document.documentElement.dataset.rememberRejected = '1';
+        });
+        request.addEventListener('success', () => write.abort());
+      }
+      return request;
+    };
+  });
+
+  const { promise: heldSignOut, resolve: releaseSignOut } = Promise.withResolvers<void>();
+  await first.route('**/api/auth/sign-out', async (route) => {
+    await heldSignOut;
+    await route.continue();
+  });
+  const signOutAsked = first.waitForRequest('**/api/auth/sign-out');
+  await first.getByRole('button', { name: 'Sign out' }).click();
+  await signOutAsked;
+
+  const meAsked = first.waitForRequest('**/api/me');
+  await first.evaluate(() => window.dispatchEvent(new Event('visibilitychange')));
+  await meAsked;
+  await first.waitForFunction(() => document.documentElement.dataset.rememberAttempted === '1');
+  const signOutAnswered = first.waitForResponse('**/api/auth/sign-out');
+  releaseSignOut();
+  await signOutAnswered;
+  await first.evaluate(() => {
+    document.documentElement.dataset.releaseRemember = '1';
+  });
+
+  await first.waitForFunction(() => document.documentElement.dataset.rememberRejected === '1');
+  await expect(first).toHaveURL('/sign-in');
+  await expect(second).toHaveURL('/sign-in?next=%2F');
+  expect(await deviceKeys(second)).toEqual([]);
+});
+
 test('an exercise answer already in flight cannot enter the previous account copy', async ({
   page,
   context,
