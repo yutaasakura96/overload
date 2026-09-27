@@ -227,8 +227,7 @@ export const meQuery = queryOptions({
     stopPersisting = undefined;
     if (account.status === 'confirmed') setAccount({ ...account, status: 'checking' });
     // With a saved copy to fall back on, the check waits 3 s for one answer, then opens offline.
-    const bounded =
-      account.userId !== undefined && queryClient.getQueryData(ME_KEY) !== undefined;
+    const bounded = account.userId !== undefined && queryClient.getQueryData(ME_KEY) !== undefined;
     let me: Me;
     try {
       me = unwrap(

@@ -193,10 +193,10 @@ The endpoint list is `docs/07`.
   keeps the last confirmed signed-in user (id, name, email) in IndexedDB beside the cached API data.
 - **The cached API data is kept per account**, each user's copy under its own IndexedDB key, and
   only one account's copy is ever open. At launch the app loads the last confirmed user's copy and
-  renders nothing until `/api/me` answers. When it names that user, their queries run. When it names
-  another account, the app drops the first copy from memory before that account's data arrives and
-  opens their own copy instead. No other tab keeps showing or saving the previous account: it reopens
-  as the new one. A launch back from sign-in opens no copy until `/api/me` answers.
+  keeps it hidden while `/api/me` checks the account. When it names that user, their queries run.
+  When it names another account, the app drops the first copy from memory before that account's
+  data arrives and opens their own copy instead. No other tab keeps showing or saving the previous
+  account: it reopens as the new one. A launch back from sign-in opens no copy until `/api/me` answers.
 - After switching accounts with the local `pnpm dev:session` helper, reload the open app page.
   A retry before the next account check can still save the new account's response in the previous
   account's copy; the remaining gap is tracked in
@@ -207,9 +207,10 @@ The endpoint list is `docs/07`.
   fetches nothing more until `/api/me` confirms the account, so nothing loaded under another
   account's cookie is saved under this one. With no copy to open (a first sign-in, or after
   sign-out), it waits for the server.
-- After an account has been confirmed in the tab, a later `/api/me` network error or timeout keeps
-  that same account's saved copy visible offline. A 401 still sends the user to sign-in without a
-  wipe; only a successful answer naming another account opens that account's copy.
+- After an account has been confirmed in the tab, later `/api/me` checks use the same 3 s limit. A
+  network error or timeout keeps that same account's saved copy visible offline. A 401 still sends
+  the user to sign-in without a wipe; only a successful answer naming another account opens that
+  account's copy.
 - **Back online**, a 401 from any request means the session has ended, whether it expired, was
   signed out elsewhere, or was revoked. The client cannot tell which from the 401, and it does not
   try:
