@@ -16,6 +16,11 @@ import { localOnlyRefusals } from '../scripts/dev-session-guard';
 import { testDatabaseUrl } from './database-urls';
 import { testConfig } from './harness-config';
 
+vi.mock('node:fs', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs')>();
+  return { ...actual, writeFileSync: vi.fn(actual.writeFileSync) };
+});
+
 const local = {
   DATABASE_URL: 'postgres://overload_app:overload_app_dev@localhost:5434/overload',
   BETTER_AUTH_URL: 'http://localhost:5173',
@@ -86,9 +91,9 @@ describe('the dev:session handoff files', () => {
         chmodSync(join(stateDirectory, name), 0o644);
       }
 
-      const originalWrite = writeFileSync.bind(null);
+      const originalFs = await vi.importActual<typeof import('node:fs')>('node:fs');
       let privateWrites = 0;
-      vi.spyOn(fs, 'writeFileSync').mockImplementation((...args) => {
+      vi.mocked(fs.writeFileSync).mockImplementation((...args) => {
         const [file] = args;
         if (typeof file === 'number') {
           expect(fstatSync(file).mode & 0o777).toBe(0o600);
@@ -97,7 +102,7 @@ describe('the dev:session handoff files', () => {
           expect(statSync(file).mode & 0o777).toBe(0o600);
           privateWrites++;
         }
-        return Reflect.apply(originalWrite, fs, args);
+        return Reflect.apply(originalFs.writeFileSync, originalFs, args);
       });
 
       await createDevSession({

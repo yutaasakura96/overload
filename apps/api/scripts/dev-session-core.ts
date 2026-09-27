@@ -1,4 +1,13 @@
-import { chmodSync, closeSync, constants, fchmodSync, ftruncateSync, mkdirSync, openSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  closeSync,
+  constants,
+  fchmodSync,
+  ftruncateSync,
+  mkdirSync,
+  openSync,
+  writeFileSync,
+} from 'node:fs';
 import { join } from 'node:path';
 import { readConfig } from '../src/config';
 import { createDatabase, createPool } from '../src/db/connection';
