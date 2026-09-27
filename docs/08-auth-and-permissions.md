@@ -197,6 +197,10 @@ The endpoint list is `docs/07`.
   another account, the app drops the first copy from memory before that account's data arrives and
   opens their own copy instead. No other tab keeps showing or saving the previous account: it reopens
   as the new one. A launch back from sign-in opens no copy until `/api/me` answers.
+- After switching accounts with the local `pnpm dev:session` helper, reload the open app page.
+  A retry before the next account check can still save the new account's response in the previous
+  account's copy; the remaining gap is tracked in
+  [#13](https://github.com/yutaasakura96/overload/issues/13).
 - **Offline**, the app opens as that user, and the gym screen works exactly as it does online. New
   sets are pending and carry that user's id in the set store. With a copy to open, the launch waits
   3 s for `/api/me`, once, then treats a timeout or network error as offline: it shows that copy and

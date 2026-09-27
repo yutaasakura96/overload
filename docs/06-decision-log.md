@@ -2545,6 +2545,11 @@ chrome-devtools-axi script. It never prints the token or email. The chrome-devto
 the local page, sets `document.cookie`, then reopens it; page script cannot set `httpOnly`, but the
 API reads the Cookie header either way.
 
+After switching accounts with `pnpm dev:session`, reload every open app page before using it. A
+request retried in an already-open tab can still put the new account's response in the previous
+account's saved copy; that remaining gap is tracked in
+[#13](https://github.com/yutaasakura96/overload/issues/13).
+
 - **It stays out of the app, as 2026-09-24 kept `testUtils()` out of the production auth config.**
   The staging URLs are public (2026-09-23, Deployment Protection off), and `08` §1 allows Google only,
   so a sign-in route, flag or code path in the deployed API would be a hole. Nothing in `apps/api/src`

@@ -165,6 +165,24 @@ test('a network error at launch opens the saved copy; a later answer runs its qu
   await expect(page.getByRole('listitem')).toHaveCount(50);
 });
 
+test('a failed Google sign-in preserves the saved account for an offline reload', async ({
+  page,
+  context,
+}) => {
+  await openAs(page, context, userA, EMAIL_A);
+  await context.clearCookies();
+  await page.goto('/sign-in');
+  await page.route('**/api/auth/sign-in/social', (route) => route.abort('internetdisconnected'));
+  await page.getByRole('button', { name: 'Sign in with Google' }).click();
+  await expect(
+    page.getByText('Sign-in didn’t finish. Check your connection and try again.'),
+  ).toBeVisible();
+  await page.route('**/api/me', (route) => route.abort('internetdisconnected'));
+  await page.goto('/');
+  await expect(page.getByText(EMAIL_A)).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText(OWN_A)).toBeVisible();
+});
+
 test('with no saved copy, a slow /api/me still signs in', async ({ page, context }) => {
   // A first sign-in, or one after sign-out: past the 3 s limit, as a cold server can be.
   await useCookie(context, userA);

@@ -164,7 +164,7 @@ export function markSigningIn() {
   }
 }
 
-function takeSigningIn() {
+export function takeSigningIn() {
   try {
     const marked = sessionStorage.getItem(SIGNING_IN) !== null;
     sessionStorage.removeItem(SIGNING_IN);

@@ -40,7 +40,9 @@ manager's `pnpm` shim refuses). Each is a CI job (`.github/workflows/ci.yml`):
 - Signed-in screens locally: with the API and web dev servers on `apps/api/.env.local`, run
   `pnpm dev:session`. It reads only `apps/api/.env.local`, requires the local `overload` database,
   and writes the cookie to three gitignored `.dev-session/` handoff files without printing it:
-  storageState, Playwright MCP, and chrome-devtools-axi (`docs/06`, 2026-09-26).
+  storageState, Playwright MCP, and chrome-devtools-axi (`docs/06`, 2026-09-26). Reload the page
+  after switching accounts with `dev:session`; the remaining same-tab gap is tracked in
+  [#13](https://github.com/yutaasakura96/overload/issues/13).
 - A Better Auth upgrade or a new field: `apps/api/scripts/auth-schema.ts` generates its Drizzle
   schema into a scratch file to diff against `src/db/auth-schema.ts` (`casing` does nothing).
 
