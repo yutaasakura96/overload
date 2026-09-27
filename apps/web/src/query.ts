@@ -1,5 +1,13 @@
+import type { Me } from '@overload/api-contract';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
 import { QueryClient, queryOptions } from '@tanstack/react-query';
+import {
+  persistQueryClientRestore,
+  persistQueryClientSubscribe,
+  type PersistedClient,
+  type Persister,
+} from '@tanstack/react-query-persist-client';
+import { useSyncExternalStore } from 'react';
 import { api, isUnauthenticated, unwrap } from './api';
 import { deviceStore } from './device-store';
 
@@ -12,31 +20,201 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  */
 export const CACHE_MAX_AGE_MS = 7 * DAY_MS;
 
+/** How long a launch with a saved copy waits for /api/me before it opens offline on that copy. */
+const LAUNCH_CHECK_MS = 3000;
+
+/** The launch check with a saved copy to fall back on failed: open offline, and do not retry. */
+class LaunchCheckFailed extends Error {
+  constructor(cause: unknown) {
+    super('/api/me did not answer at launch', { cause });
+    this.name = 'LaunchCheckFailed';
+  }
+}
+
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       gcTime: CACHE_MAX_AGE_MS,
       staleTime: 60 * 1000,
       // A 401 means the session has ended; retrying cannot change that (docs/08 §5).
-      retry: (failureCount, error) => !isUnauthenticated(error) && failureCount < 2,
+      retry: (failureCount, error) =>
+        !isUnauthenticated(error) && !(error instanceof LaunchCheckFailed) && failureCount < 2,
     },
   },
 });
 
-export const persister = createAsyncStoragePersister({
-  storage: deviceStore.queryCache,
-  key: 'overload',
+// Each account's copy of the cache is saved under its own key, and only one account's copy is ever
+// open: the one /api/me confirms, or offline the last one it confirmed on this device (docs/08 §5).
+// Weight, food and health numbers are never readable by a different account (docs/08 §7).
+
+type Account = {
+  /** Whose copy the cache holds: the remembered user from launch, then whoever /api/me confirms. */
+  userId: string | undefined;
+  /**
+   * `checking` until /api/me answers this launch; `confirmed` once it names `userId`;
+   * `unconfirmed` when it failed and the saved copy opens as offline.
+   */
+  status: 'checking' | 'confirmed' | 'unconfirmed';
+};
+
+let account: Account = { userId: undefined, status: 'checking' };
+const listeners = new Set<() => void>();
+
+function setAccount(next: Account) {
+  account = next;
+  for (const listener of listeners) listener();
+}
+
+function subscribeAccount(onChange: () => void) {
+  listeners.add(onChange);
+  return () => {
+    listeners.delete(onChange);
+  };
+}
+
+export function useAccount(): Account {
+  return useSyncExternalStore(subscribeAccount, () => account);
+}
+
+const ME_KEY = ['me'];
+const ownerOf = (client: PersistedClient) => {
+  const me = client.clientState.queries.find((query) => query.queryKey[0] === 'me');
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- meQuery caches a Me
+  return (me?.state.data as Me | undefined)?.user.id;
+};
+
+/** The persister for one account's copy. It reads and writes that account's data only. */
+function accountPersister(userId: string): Persister {
+  const persister = createAsyncStoragePersister({
+    storage: {
+      ...deviceStore.queryCache,
+      // Checked when the throttled write lands, so nothing is written once the account is closed.
+      setItem: async (key, value) => {
+        if (account.userId === userId) await deviceStore.queryCache.setItem(key, value);
+      },
+    },
+    key: `user:${userId}`,
+  });
+  return {
+    ...persister,
+    persistClient: (client) =>
+      ownerOf(client) === userId ? persister.persistClient(client) : undefined,
+    restoreClient: async () => {
+      const client = await persister.restoreClient();
+      return client !== undefined && ownerOf(client) === userId ? client : undefined;
+    },
+  };
+}
+
+let stopPersisting: (() => void) | undefined;
+
+function restore(userId: string) {
+  return persistQueryClientRestore({
+    queryClient,
+    persister: accountPersister(userId),
+    maxAge: CACHE_MAX_AGE_MS,
+  }).catch(() => undefined);
+}
+
+// Other tabs of the app on this device: when one of them changes account or signs out, this tab
+// drops what it holds and opens again as the new account.
+const tabs = typeof BroadcastChannel === 'undefined' ? undefined : new BroadcastChannel('overload');
+// oxlint-disable-next-line unicorn/require-post-message-target-origin -- a BroadcastChannel, not a window
+const announceTo = (userId: string | null) => tabs?.postMessage({ userId });
+tabs?.addEventListener('message', (event: MessageEvent<{ userId: string | null }>) => {
+  if (event.data.userId === account.userId) return;
+  closeAccount();
+  queryClient.clear();
+  window.location.reload();
 });
 
+/** Stops saving and forgets whose copy is open; `announce` tells the other tabs (sign-out). */
+export function closeAccount({ announce = false } = {}) {
+  stopPersisting?.();
+  stopPersisting = undefined;
+  setAccount({ userId: undefined, status: 'checking' });
+  if (announce) announceTo(null);
+}
+
+const SIGNING_IN = 'overload:signing-in';
+
+/** Marks a sign-in in progress, so the launch it returns to does not open the previous copy. */
+export function markSigningIn() {
+  try {
+    sessionStorage.setItem(SIGNING_IN, '1');
+  } catch {
+    // Private mode can refuse it; that launch then treats the saved copy as usual.
+  }
+}
+
+function takeSigningIn() {
+  try {
+    const marked = sessionStorage.getItem(SIGNING_IN) !== null;
+    sessionStorage.removeItem(SIGNING_IN);
+    return marked;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Before the first render: loads the remembered user's saved copy, which renders only once /api/me
+ * confirms them or fails (see App). A launch back from sign-in loads nothing, since the account may
+ * have changed.
+ */
+export async function openCache() {
+  // The copy shared by every account before copies were kept per account (docs/08 §7).
+  await deviceStore.queryCache.removeItem('overload').catch(() => undefined);
+  const remembered = await deviceStore.signedInUser().catch(() => undefined);
+  if (takeSigningIn() || remembered === undefined) return;
+  setAccount({ userId: remembered.id, status: 'checking' });
+  await restore(remembered.id);
+}
+
+/** /api/me named this user: open their copy, dropping any other account's data from memory first. */
+async function confirm(me: Me) {
+  const { id } = me.user;
+  const switched = account.userId !== id;
+  if (switched) {
+    stopPersisting?.();
+    stopPersisting = undefined;
+    setAccount({ userId: id, status: 'confirmed' });
+    queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== 'me' });
+    queryClient.setQueryData(ME_KEY, me);
+    await restore(id);
+  } else if (account.status !== 'confirmed') {
+    setAccount({ userId: id, status: 'confirmed' });
+  }
+  stopPersisting ??= persistQueryClientSubscribe({ queryClient, persister: accountPersister(id) });
+  await deviceStore.rememberUser(me.user);
+  if (switched) announceTo(id);
+}
+
 export const meQuery = queryOptions({
-  queryKey: ['me'],
+  queryKey: ME_KEY,
+  // Asked at every launch, focus and reconnect, however fresh: it is the account check, and nothing
+  // renders until it answers or fails.
+  staleTime: 0,
   queryFn: async () => {
-    const me = unwrap(await api.GET('/api/me'));
-    await deviceStore.rememberUser(me.user);
+    // With a saved copy to fall back on, the launch waits 3 s for one answer, then opens offline.
+    const bounded =
+      account.status !== 'confirmed' && queryClient.getQueryData(ME_KEY) !== undefined;
+    let me: Me;
+    try {
+      me = unwrap(
+        await api.GET('/api/me', bounded ? { signal: AbortSignal.timeout(LAUNCH_CHECK_MS) } : {}),
+      );
+    } catch (error) {
+      if (!bounded || isUnauthenticated(error)) throw error;
+      setAccount({ ...account, status: 'unconfirmed' });
+      throw new LaunchCheckFailed(error);
+    }
+    await confirm(me);
     return me;
   },
 });
 
+/** One account's data: enable it only once /api/me has confirmed the account (`useAccount`). */
 export const exercisesQuery = queryOptions({
   queryKey: ['exercises'],
   queryFn: async () => unwrap(await api.GET('/api/exercises')).items,

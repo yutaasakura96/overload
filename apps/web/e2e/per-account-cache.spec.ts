@@ -1,0 +1,239 @@
+import { expect, test, type BrowserContext, type Page } from '@playwright/test';
+import { cacheKey, deviceKeys, putDeviceValue, savedCache } from './device-store';
+import { apiFixture } from './fixture';
+
+type Cookies = Parameters<BrowserContext['addCookies']>[0];
+
+// The saved query cache is kept per account, and only the account /api/me confirms is loaded, or
+// offline the last one it confirmed on this device. Weight, food and health numbers must never be
+// readable by a different account in the same browser (docs/08 §5, §7). The cookie is replaced
+// without a sign-out here, as session expiry followed by another account's sign-in leaves it, or as
+// `pnpm dev:session` does when handed a different identity.
+
+const EMAIL_A = 'per-account-a@example.test';
+const EMAIL_B = 'per-account-b@example.test';
+/** A library row renamed in one account's responses, standing in for that account's own data. */
+const OWN_A = 'Only A’s exercise';
+const OWN_B = 'Only B’s exercise';
+
+// page.route cannot hold a request a service worker forwards (WebKit); the cache under test lives in
+// IndexedDB, not in the worker.
+test.use({ serviceWorkers: 'block' });
+
+let userA = '';
+let userB = '';
+
+function createUser(email: string) {
+  const created: { userId: string } = JSON.parse(apiFixture('user', email));
+  return created.userId;
+}
+
+test.beforeEach(() => {
+  userA = createUser(EMAIL_A);
+  userB = createUser(EMAIL_B);
+});
+
+test.afterAll(() => {
+  apiFixture('delete', EMAIL_A);
+  apiFixture('delete', EMAIL_B);
+});
+
+async function useCookie(context: BrowserContext, userId: string) {
+  await context.clearCookies();
+  const cookies: Cookies = JSON.parse(apiFixture('cookies', userId, 'localhost'));
+  await context.addCookies(cookies);
+}
+
+/** Renames the first library row in every /api/exercises answer on this page. */
+async function markLibrary(page: Page, name: string) {
+  await page.route('**/api/exercises', async (route) => {
+    const response = await route.fetch();
+    const { items }: { items: { name: string }[] } = await response.json();
+    const [first, ...rest] = items;
+    await route.fulfill({ response, json: { items: [{ ...first, name }, ...rest] } });
+  });
+}
+
+/** Signs in as the user, with their marked library, and waits until it is saved on the device. */
+async function openAs(page: Page, context: BrowserContext, userId: string, email: string) {
+  const own = userId === userA ? OWN_A : OWN_B;
+  await useCookie(context, userId);
+  await markLibrary(page, own);
+  await page.goto('/');
+  await expect(page.getByText(email)).toBeVisible();
+  await expect(page.getByText(own)).toBeVisible();
+  // The persister writes at most once a second.
+  await expect.poll(() => savedCache(page, userId)).toContain(own);
+  await page.unrouteAll({ behavior: 'wait' });
+}
+
+/** Moves the clock past the one-minute staleTime, so a confirmed launch would refetch the library. */
+const staleCache = (context: BrowserContext) => context.clock.fastForward('01:01');
+
+/** Counts the library requests the page makes from now on. */
+function countLibraryRequests(page: Page) {
+  const count = { requests: 0 };
+  page.on('request', (request) => {
+    if (new URL(request.url()).pathname === '/api/exercises') count.requests += 1;
+  });
+  return count;
+}
+
+test('after A, B on the same device never sees A’s data, and each keeps their own copy', async ({
+  page,
+  context,
+}) => {
+  await openAs(page, context, userA, EMAIL_A);
+
+  // B's cookie, and B's /api/me held: the launch must not render A's copy while it waits.
+  await useCookie(context, userB);
+  await markLibrary(page, OWN_B);
+  const { promise: held, resolve: release } = Promise.withResolvers<void>();
+  await page.route('**/api/me', async (route) => {
+    await held;
+    await route.continue();
+  });
+  const meAsked = page.waitForRequest('**/api/me');
+  await page.goto('/');
+  await meAsked;
+  await page.waitForTimeout(1000);
+  await expect(page.getByText(EMAIL_A)).toHaveCount(0);
+  await expect(page.getByText(OWN_A)).toHaveCount(0);
+  release();
+
+  await expect(page.getByText(EMAIL_B)).toBeVisible();
+  await expect(page.getByText(OWN_B)).toBeVisible();
+  await expect(page.getByText(OWN_A)).toHaveCount(0);
+  await expect.poll(() => savedCache(page, userB)).toContain(OWN_B);
+  expect(await savedCache(page, userB)).not.toContain(OWN_A);
+  expect(await savedCache(page, userB)).not.toContain(EMAIL_A);
+  // A's copy is A's alone, untouched by B's session.
+  expect(await savedCache(page, userA)).toContain(OWN_A);
+  expect(await savedCache(page, userA)).not.toContain(OWN_B);
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
+
+test('with no answer from /api/me, the launch opens only the last confirmed account’s copy', async ({
+  page,
+  context,
+}) => {
+  await context.clock.install();
+  await openAs(page, context, userB, EMAIL_B);
+  await openAs(page, context, userA, EMAIL_A);
+  await staleCache(context);
+
+  // A was confirmed last. The cookie is now B's, B's copy is on the device, and /api/me never
+  // answers: past 3 s the launch opens offline as A, fetching nothing under B's cookie.
+  await useCookie(context, userB);
+  await markLibrary(page, OWN_B);
+  await page.route('**/api/me', () => {});
+  const library = countLibraryRequests(page);
+  const started = Date.now();
+  await page.goto('/');
+  await expect(page.getByText(EMAIL_A)).toBeVisible({ timeout: 10_000 });
+  expect(Date.now() - started).toBeGreaterThan(2500);
+  await expect(page.getByText(OWN_A)).toBeVisible();
+  await expect(page.getByText(EMAIL_B)).toHaveCount(0);
+  await expect(page.getByText(OWN_B)).toHaveCount(0);
+
+  // Past the persister's one-second throttle: nothing of B's reached A's copy.
+  await page.waitForTimeout(1500);
+  expect(library.requests).toBe(0);
+  expect(await savedCache(page, userA)).not.toContain(OWN_B);
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
+
+test('a network error at launch opens the saved copy; a later answer runs its queries', async ({
+  page,
+  context,
+}) => {
+  await context.clock.install();
+  await openAs(page, context, userA, EMAIL_A);
+  await staleCache(context);
+
+  await page.route('**/api/me', (route) => route.abort('internetdisconnected'));
+  const library = countLibraryRequests(page);
+  await page.goto('/');
+  await expect(page.getByText(OWN_A)).toBeVisible();
+  await page.waitForTimeout(1000);
+  expect(library.requests).toBe(0);
+
+  // Signal again: the next /api/me, on refocus, confirms A and the library refreshes.
+  await page.unrouteAll({ behavior: 'wait' });
+  await page.evaluate(() => window.dispatchEvent(new Event('visibilitychange')));
+  await expect.poll(() => library.requests).toBeGreaterThan(0);
+  await expect(page.getByRole('listitem')).toHaveCount(50);
+});
+
+test('with no saved copy, a slow /api/me still signs in', async ({ page, context }) => {
+  // A first sign-in, or one after sign-out: past the 3 s limit, as a cold server can be.
+  await useCookie(context, userA);
+  await page.route('**/api/me', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 4500));
+    await route.continue();
+  });
+  await page.goto('/');
+  await expect(page.getByText(EMAIL_A)).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole('listitem')).toHaveCount(50);
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
+
+test('the copy shared by every account before this version is removed and never shown', async ({
+  page,
+  context,
+}) => {
+  await openAs(page, context, userA, EMAIL_A);
+  // The old shared copy, here holding A's data under the old key.
+  const legacy = (await savedCache(page, userA)).replace(OWN_A, 'From the shared copy');
+  await putDeviceValue(page, 'query-cache:overload', legacy);
+
+  await useCookie(context, userB);
+  await page.goto('/');
+  await expect(page.getByText(EMAIL_B)).toBeVisible();
+  await expect(page.getByText('From the shared copy')).toHaveCount(0);
+  expect(await deviceKeys(page)).not.toContain('query-cache:overload');
+});
+
+test('a 401 keeps the account’s saved data for when they sign in again', async ({
+  page,
+  context,
+}) => {
+  await openAs(page, context, userA, EMAIL_A);
+
+  await context.clearCookies();
+  await page.goto('/');
+  await expect(page).toHaveURL('/sign-in?next=%2F');
+  expect(await deviceKeys(page)).toEqual(
+    expect.arrayContaining(['signed-in-user', cacheKey(userA)]),
+  );
+  expect(await savedCache(page, userA)).toContain(OWN_A);
+});
+
+test('sign-out wipes every account’s saved copy', async ({ page, context }) => {
+  await openAs(page, context, userB, EMAIL_B);
+  await openAs(page, context, userA, EMAIL_A);
+
+  await page.getByRole('button', { name: 'Sign out' }).click();
+  await expect(page).toHaveURL('/sign-in');
+  // Past the persister's one-second throttle: no write lands after the wipe.
+  await page.waitForTimeout(1500);
+  expect(await deviceKeys(page)).toEqual([]);
+});
+
+test('a second tab drops the previous account once another tab switches', async ({ context }) => {
+  const first = await context.newPage();
+  await openAs(first, context, userA, EMAIL_A);
+
+  // Tab 2 opens as B. Both tabs then save B's copy, so it carries no marker.
+  await useCookie(context, userB);
+  const second = await context.newPage();
+  await second.goto('/');
+  await expect(second.getByText(EMAIL_B)).toBeVisible();
+
+  // Tab 1, without any refetch of its own, reopens as B.
+  await expect(first.getByText(EMAIL_B)).toBeVisible();
+  await expect(first.getByText(EMAIL_A)).toHaveCount(0);
+  await expect(first.getByText(OWN_A)).toHaveCount(0);
+  await first.waitForTimeout(1500);
+  expect(await savedCache(first, userB)).not.toContain(OWN_A);
+});

@@ -58,6 +58,8 @@ A linter won't catch these:
   them; never edit them by hand. Breaking changes fail CI (oasdiff) unless the PR carries the label.
 - Every query in `apps/api/src/db/` takes the session user. Routes never filter by user themselves.
   Every resource gets a cross-user test (`docs/08` §10).
+- The web app's persisted cache is kept per account (`docs/08` §5). Every per-user query is
+  `enabled` only once `/api/me` has confirmed the account (`useAccount()` in `apps/web/src/query.ts`).
 - Planner, progression, trend, expenditure and plateau logic are pure functions in
   `apps/api/src/domain/`, never in the web app.
 - Rows created on the device carry a client-made UUIDv7. Every write is safe to retry: a repeat

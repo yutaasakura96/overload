@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { authClient } from '../auth-client';
 import { AppBar, Notice } from '../components';
 import { safeNext } from '../navigation';
+import { markSigningIn } from '../query';
 
 // The gate's refusals, as docs/08 §1 words them. Better Auth redirects a refused sign-in back here
 // with `?error=<code>` (read from its callback source, 1.7.5).
@@ -20,6 +21,7 @@ export function SignIn({ searchParams }: { searchParams: URLSearchParams }) {
   const signIn = async () => {
     setStarting(true);
     setFailed(false);
+    markSigningIn();
     const result = await authClient.signIn
       .social({ provider: 'google', callbackURL: next, errorCallbackURL: '/sign-in' })
       .catch(() => ({ error: true }));

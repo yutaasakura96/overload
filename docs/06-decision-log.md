@@ -2606,3 +2606,36 @@ rules.
 
 **Changed:** `apps/api/src/*` (imports, the rename), `apps/api/scripts/check-vercel-build.ts`,
 `apps/api/package.json`, `.github/workflows/ci.yml`, `12` §3, `00-status`, `AGENTS.md` (commands).
+### [2026-09-27] The persisted query cache is kept per account
+
+**Context.** The web app saved its TanStack Query cache to IndexedDB under one fixed key,
+`overload`, whoever was signed in. When the session cookie changed without a sign-out (A's session
+expired and B signed in, or `pnpm dev:session` was handed another identity), the next launch
+restored A's copy and rendered it to B: A's email and library, until the one-minute staleTime let
+`/api/me` refetch. It was found reviewing `pnpm dev:session` (PR #11). Weight, food and health
+numbers must never be readable by a different account (`08` §7).
+
+**Decided (asked; the captain), and built.** Separate saved data per account, the old shared copy
+dropped once, and the 3-second offline rule kept (`08` §5).
+
+- Each account's copy lives under `query-cache:user:<id>`. A copy is written only under the account
+  its `me` names, and only while that account is open; a write that lands after the account closed
+  is dropped. The shared `query-cache:overload` key is deleted at launch and never read.
+- `/api/me` is the account check at every launch, focus and reconnect (`staleTime: 0`). Nothing
+  renders until it names the open account, or fails and the launch opens offline. Per-user queries
+  are disabled until it confirms, so no response under an unconfirmed cookie reaches the cache.
+- Switching account stops saving, clears memory except `me`, sets `me` to the new account, then
+  loads its own copy. Other tabs hear of it on a `BroadcastChannel` and reload.
+- A 401 wipes nothing: the same user signing in again gets their copy back (`08` §5). Sign-out
+  still wipes every copy.
+
+**Alternatives considered.** Keeping one shared copy and wiping it when `/api/me` names another
+account: rejected by the captain after review kept finding paths around it. A legacy copy could
+already mix two accounts, another tab kept the old account in memory, and every wipe rule had edge
+cases. Keying the persister's `buster` by user id: `persistQueryClientRestore` discards a busted copy,
+so switching accounts would delete the other account's offline data. `PersistQueryClientProvider`:
+it fixes one persister for the app's lifetime, so the app calls `persistQueryClientRestore` and
+`persistQueryClientSubscribe` itself (TanStack Query 5.103.2, source and docs checked 2026-09-27).
+
+**Changed:** `apps/web/src/query.ts`, `main.tsx`, `App.tsx`, `sign-out.ts`,
+`screens/ExerciseLibrary.tsx`, `screens/SignIn.tsx`; `08` §5 and §7; `03` §6.

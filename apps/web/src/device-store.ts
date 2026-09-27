@@ -18,7 +18,7 @@ export const deviceStore = {
   rememberUser: (user: SignedInUser) => set(SIGNED_IN_USER, user, store),
   signedInUser: () => get<SignedInUser>(SIGNED_IN_USER, store),
 
-  // The TanStack Query persister's storage (see query.ts).
+  // The TanStack Query persisters' storage: one copy per account (see query.ts).
   queryCache: {
     getItem: (key: string) => get<string>(`${QUERY_CACHE}:${key}`, store),
     setItem: (key: string, value: string) => set(`${QUERY_CACHE}:${key}`, value, store),
