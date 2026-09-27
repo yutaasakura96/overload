@@ -254,6 +254,10 @@ The endpoint list is `docs/07`.
   go to `/sign-in`. Other open tabs drop what they hold too. A 401 alone clears nothing (§5).
 - If the server cannot end the session, keep the user signed in, clear nothing, notify no other tab,
   and show "Couldn't sign out. Try again."
+- If both the localStorage pending-wipe marker and IndexedDB wipe fail after the server ends the
+  session, sign-out still reaches `/sign-in` and warns "Saved data couldn't be cleared from this
+  device." This is a known limit: without either storage operation, a later offline launch may
+  reopen the retained copy.
 - **With pending or refused sets:** first a dialog, "*N* sets not uploaded yet", with two actions:
   - **Upload now**, when online. Sign-out continues only when nothing pending is left. Refused sets
     still need the second choice.

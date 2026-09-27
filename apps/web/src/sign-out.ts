@@ -17,8 +17,11 @@ export async function signOut(navigate: (path: string) => void): Promise<boolean
   const pendingRemember = closeAccount();
   queryClient.clear();
   await pendingRemember?.catch(() => undefined);
-  await deviceStore.wipe().catch(() => deviceStore.wipe().catch(() => undefined));
+  const wiped = await deviceStore.wipe().then(
+    () => true,
+    () => deviceStore.wipe().then(() => true, () => false),
+  );
   announceSignOut();
-  navigate('/sign-in');
+  navigate(wiped ? '/sign-in' : '/sign-in?wipe=failed');
   return true;
 }

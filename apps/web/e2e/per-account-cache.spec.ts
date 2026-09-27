@@ -431,7 +431,7 @@ test('a failed wipe keeps the saved copy closed on an offline reload', async ({ 
   });
 
   await first.getByRole('button', { name: 'Sign out' }).click();
-  await expect(first).toHaveURL('/sign-in');
+  await expect(first).toHaveURL('/sign-in?wipe=failed');
   await expect(second).toHaveURL('/sign-in?next=%2F');
   await expect(second.getByText(EMAIL_A)).toHaveCount(0);
   expect(await savedCache(first, userA)).toContain(OWN_A);
@@ -443,6 +443,23 @@ test('a failed wipe keeps the saved copy closed on an offline reload', async ({ 
   await expect(first.getByText(EMAIL_A)).toHaveCount(0);
   await expect(first.getByText(OWN_A)).toHaveCount(0);
   expect(errors).toEqual([]);
+});
+
+test('failed marker and wipe show a saved-data notice after sign-out', async ({ page, context }) => {
+  await openAs(page, context, userA, EMAIL_A);
+  await page.evaluate(() => {
+    Storage.prototype.setItem = () => {
+      throw new DOMException('The marker failed.', 'QuotaExceededError');
+    };
+    IDBObjectStore.prototype.clear = () => {
+      throw new DOMException('The wipe failed.', 'UnknownError');
+    };
+  });
+
+  await page.getByRole('button', { name: 'Sign out' }).click();
+  await expect(page).toHaveURL('/sign-in?wipe=failed');
+  await expect(page.getByText("Saved data couldn't be cleared from this device.")).toBeVisible();
+  expect(await savedCache(page, userA)).toContain(OWN_A);
 });
 
 test('an exercise answer already in flight cannot enter the previous account copy', async ({

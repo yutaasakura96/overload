@@ -39,8 +39,12 @@ export const deviceStore = {
    * query cache. Weight, food and health numbers must not stay readable after sign-out (docs/08 §7).
    */
   wipe: async () => {
-    localStorage.setItem(WIPE_PENDING, '1');
+    await Promise.resolve()
+      .then(() => localStorage.setItem(WIPE_PENDING, '1'))
+      .catch(() => undefined);
     await clear(store);
-    localStorage.removeItem(WIPE_PENDING);
+    await Promise.resolve()
+      .then(() => localStorage.removeItem(WIPE_PENDING))
+      .catch(() => undefined);
   },
 };
