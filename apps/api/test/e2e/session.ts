@@ -7,13 +7,10 @@
 //
 // The cookie is minted by Better Auth's testUtils() on a test-only instance, never the production
 // config (docs/11 §1). The real Google round trip is proven by hand on staging (docs/11 §3).
-import { testUtils, type TestHelpers } from 'better-auth/plugins';
-import { createAuth } from '../../src/auth/auth';
-import { eq } from 'drizzle-orm';
 import { createDatabase, createPool } from '../../src/db/connection';
-import { user } from '../../src/db/schema';
 import { testDatabaseUrl } from '../database-urls';
 import { testConfig } from '../harness-config';
+import { deleteUser, insertUser, mintSessionCookies } from './test-session';
 
 const [command, subject, domain] = process.argv.slice(2);
 if (subject === undefined) throw new Error('usage: session.ts user|cookies|delete <subject>');
@@ -23,25 +20,15 @@ const db = createDatabase(pool);
 
 try {
   if (command === 'user' || command === 'delete') {
-    await db.delete(user).where(eq(user.email, subject));
+    await deleteUser(db, subject);
   }
   if (command === 'user') {
-    // Inserted directly: testUtils' saveUser runs validateUserInfo, which Better Auth 1.7.5 refuses
-    // outside an endpoint context.
-    const [created] = await db
-      .insert(user)
-      .values({ email: subject, name: 'Playwright', emailVerified: true })
-      .returning({ id: user.id });
-    if (created === undefined) throw new Error('user insert returned no row');
-    process.stdout.write(JSON.stringify({ userId: created.id }));
+    process.stdout.write(JSON.stringify({ userId: await insertUser(db, subject, 'Playwright') }));
   }
   if (command === 'cookies') {
     const config = { ...testConfig, webOrigin: process.env.E2E_WEB_ORIGIN ?? testConfig.webOrigin };
-    const auth = createAuth({ config, db, plugins: [testUtils()] });
-    // `ctx.test` is typed only when testUtils() is in a static plugin list.
-    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
-    const { test } = (await auth.$context) as unknown as { test: TestHelpers };
-    process.stdout.write(JSON.stringify(await test.getCookies({ userId: subject, domain })));
+    const cookies = await mintSessionCookies({ config, db, userId: subject, domain });
+    process.stdout.write(JSON.stringify(cookies));
   }
 } finally {
   await pool.end();

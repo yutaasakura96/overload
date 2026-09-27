@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { WEB_ORIGIN } from '../playwright.config';
 
 // The browser tests reach the database only through apps/api's fixture script, run as a process:
 // apps/web never imports apps/api (CLAUDE.md).
@@ -11,7 +12,7 @@ export function apiFixture(...args: string[]): string {
   return execFileSync('node_modules/.bin/tsx', ['test/e2e/session.ts', ...args], {
     cwd: apiRoot,
     encoding: 'utf8',
-    env: { ...process.env, E2E_WEB_ORIGIN: 'http://localhost:4174' },
+    env: { ...process.env, E2E_WEB_ORIGIN: WEB_ORIGIN },
   });
 }
 
@@ -23,5 +24,13 @@ export function migrateTestDatabase() {
     cwd: apiRoot,
     stdio: 'inherit',
     env: { ...process.env, DATABASE_URL_DIRECT: url },
+  });
+}
+
+export function devSession(stateDirectory: string): string {
+  return execFileSync('node_modules/.bin/tsx', ['test/e2e/dev-session.ts', stateDirectory], {
+    cwd: apiRoot,
+    encoding: 'utf8',
+    env: { ...process.env, E2E_WEB_ORIGIN: WEB_ORIGIN },
   });
 }
