@@ -44,7 +44,7 @@ export const queryClient = new QueryClient({
 
 // Each account's copy of the cache is saved under its own key, and only one account's copy is ever
 // open: the one /api/me confirms, or offline the last one it confirmed on this device (docs/08 §5).
-// Weight, food and health numbers are never readable by a different account (docs/08 §7).
+// The account gate keeps cached data with its confirmed owner; see docs/08 §5 and §7 for limits.
 
 type Account = {
   /** Whose copy the cache holds: the remembered user from launch, then whoever /api/me confirms. */

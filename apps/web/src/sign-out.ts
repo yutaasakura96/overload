@@ -19,7 +19,11 @@ export async function signOut(navigate: (path: string) => void): Promise<boolean
   await pendingRemember?.catch(() => undefined);
   const wiped = await deviceStore.wipe().then(
     () => true,
-    () => deviceStore.wipe().then(() => true, () => false),
+    () =>
+      deviceStore.wipe().then(
+        () => true,
+        () => false,
+      ),
   );
   announceSignOut();
   navigate(wiped ? '/sign-in' : '/sign-in?wipe=failed');

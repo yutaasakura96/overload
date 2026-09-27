@@ -445,7 +445,10 @@ test('a failed wipe keeps the saved copy closed on an offline reload', async ({ 
   expect(errors).toEqual([]);
 });
 
-test('failed marker and wipe show a saved-data notice after sign-out', async ({ page, context }) => {
+test('failed marker and wipe show a saved-data notice after sign-out', async ({
+  page,
+  context,
+}) => {
   await openAs(page, context, userA, EMAIL_A);
   await page.evaluate(() => {
     Storage.prototype.setItem = () => {
