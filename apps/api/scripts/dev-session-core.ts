@@ -21,6 +21,7 @@ type Inputs = {
   databaseName?: string;
 };
 
+// The open mode applies only on create, so an existing file is restricted before the token lands.
 function writePrivate(path: string, content: string) {
   const fd = openSync(path, constants.O_WRONLY | constants.O_CREAT | constants.O_NOFOLLOW, 0o600);
   try {
