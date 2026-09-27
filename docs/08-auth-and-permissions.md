@@ -207,6 +207,9 @@ The endpoint list is `docs/07`.
   fetches nothing more until `/api/me` confirms the account, so nothing loaded under another
   account's cookie is saved under this one. With no copy to open (a first sign-in, or after
   sign-out), it waits for the server.
+- After an account has been confirmed in the tab, a later `/api/me` network error or timeout keeps
+  that same account's saved copy visible offline. A 401 still sends the user to sign-in without a
+  wipe; only a successful answer naming another account opens that account's copy.
 - **Back online**, a 401 from any request means the session has ended, whether it expired, was
   signed out elsewhere, or was revoked. The client cannot tell which from the 401, and it does not
   try:

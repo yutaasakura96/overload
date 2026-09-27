@@ -8,7 +8,7 @@ import {
   type Persister,
 } from '@tanstack/react-query-persist-client';
 import { useSyncExternalStore } from 'react';
-import { api, isUnauthenticated, unwrap } from './api';
+import { api, ApiError, isUnauthenticated, unwrap } from './api';
 import { deviceStore } from './device-store';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -20,8 +20,8 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  */
 export const CACHE_MAX_AGE_MS = 7 * DAY_MS;
 
-/** How long a launch with a saved copy waits for /api/me before it opens offline on that copy. */
-const LAUNCH_CHECK_MS = 3000;
+/** How long an account check with a saved copy waits before opening offline on that copy. */
+const ACCOUNT_CHECK_MS = 3000;
 
 class AccountCheckFailed extends Error {
   constructor(cause: unknown) {
@@ -60,7 +60,6 @@ let account: Account = { userId: undefined, status: 'checking' };
 let accountGeneration = 0;
 let accountClosed = false;
 let pendingRemember: Promise<unknown> | undefined;
-let confirmedThisLaunch = false;
 const listeners = new Set<() => void>();
 
 function setAccount(next: Account) {
@@ -213,7 +212,6 @@ async function confirm(me: Me, generation: number) {
     if (pendingRemember === remembering) pendingRemember = undefined;
   }
   if (generation !== accountGeneration) throw new AccountCheckFailed('Account closed');
-  confirmedThisLaunch = true;
   if (switched) announceTo(id);
 }
 
@@ -228,19 +226,17 @@ export const meQuery = queryOptions({
     stopPersisting?.();
     stopPersisting = undefined;
     if (account.status === 'confirmed') setAccount({ ...account, status: 'checking' });
-    // With a saved copy to fall back on, the launch waits 3 s for one answer, then opens offline.
+    // With a saved copy to fall back on, the check waits 3 s for one answer, then opens offline.
     const bounded =
-      !confirmedThisLaunch &&
-      account.userId !== undefined &&
-      queryClient.getQueryData(ME_KEY) !== undefined;
+      account.userId !== undefined && queryClient.getQueryData(ME_KEY) !== undefined;
     let me: Me;
     try {
       me = unwrap(
-        await api.GET('/api/me', bounded ? { signal: AbortSignal.timeout(LAUNCH_CHECK_MS) } : {}),
+        await api.GET('/api/me', bounded ? { signal: AbortSignal.timeout(ACCOUNT_CHECK_MS) } : {}),
       );
     } catch (error) {
       if (generation !== accountGeneration) throw new AccountCheckFailed('Account closed');
-      if (!bounded || isUnauthenticated(error)) throw error;
+      if (!bounded || error instanceof ApiError) throw error;
       setAccount({ ...account, status: 'unconfirmed' });
       throw new AccountCheckFailed(error);
     }

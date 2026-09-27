@@ -165,6 +165,29 @@ test('a network error at launch opens the saved copy; a later answer runs its qu
   await expect(page.getByRole('listitem')).toHaveCount(50);
 });
 
+test('a failed focus account check keeps the confirmed account’s library visible', async ({
+  page,
+  context,
+}) => {
+  await openAs(page, context, userA, EMAIL_A);
+  const { promise: held, resolve: release } = Promise.withResolvers<void>();
+  await page.route('**/api/me', async (route) => {
+    await held;
+    await route.abort('internetdisconnected');
+  });
+  const meAsked = page.waitForRequest('**/api/me');
+  const meFailed = page.waitForEvent('requestfailed', {
+    predicate: (request) => new URL(request.url()).pathname === '/api/me',
+  });
+  await page.evaluate(() => window.dispatchEvent(new Event('visibilitychange')));
+  await meAsked;
+  await expect(page.getByText(EMAIL_A)).toHaveCount(0);
+  release();
+  await meFailed;
+  await expect(page.getByText(EMAIL_A)).toBeVisible();
+  await expect(page.getByText(OWN_A)).toBeVisible();
+});
+
 test('a failed Google sign-in preserves the saved account for an offline reload', async ({
   page,
   context,
