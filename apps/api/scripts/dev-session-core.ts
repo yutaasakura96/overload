@@ -1,4 +1,4 @@
-import { chmodSync, mkdirSync, writeFileSync } from 'node:fs';
+import { chmodSync, closeSync, constants, fchmodSync, ftruncateSync, mkdirSync, openSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { readConfig } from '../src/config';
 import { createDatabase, createPool } from '../src/db/connection';
@@ -13,8 +13,14 @@ type Inputs = {
 };
 
 function writePrivate(path: string, content: string) {
-  writeFileSync(path, content, { mode: 0o600 });
-  chmodSync(path, 0o600);
+  const fd = openSync(path, constants.O_WRONLY | constants.O_CREAT | constants.O_NOFOLLOW, 0o600);
+  try {
+    fchmodSync(fd, 0o600);
+    ftruncateSync(fd, 0);
+    writeFileSync(fd, content);
+  } finally {
+    closeSync(fd);
+  }
 }
 
 export async function createDevSession(inputs: Inputs) {

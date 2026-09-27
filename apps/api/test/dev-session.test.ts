@@ -1,5 +1,7 @@
+import * as fs from 'node:fs';
 import {
   chmodSync,
+  fstatSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
@@ -7,9 +9,8 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createDevSession } from '../scripts/dev-session-core';
 import { localOnlyRefusals } from '../scripts/dev-session-guard';
 import { testDatabaseUrl } from './database-urls';
@@ -49,7 +50,7 @@ describe('the dev:session guard', () => {
     ['a different exported secret', {}, { BETTER_AUTH_SECRET: 'deployed-secret' }],
     ['a different exported database URL', {}, { DATABASE_URL: 'postgres://u:p@remote.example/db' }],
   ])('refuses %s without writing artifacts', async (_, fileOverride, exportedEnv) => {
-    const stateDirectory = mkdtempSync(join(tmpdir(), 'dev-session-'));
+    const stateDirectory = mkdtempSync(join(process.cwd(), '.dev-session-test-'));
     try {
       await expect(
         createDevSession({
@@ -74,13 +75,30 @@ describe('the dev:session guard', () => {
 
 describe('the dev:session handoff files', () => {
   it('restricts existing permissive files and directory before writing a new token', async () => {
-    const parent = mkdtempSync(join(tmpdir(), 'dev-session-'));
+    const parent = mkdtempSync(join(process.cwd(), '.dev-session-test-'));
     const stateDirectory = join(parent, '.dev-session');
     const names = ['storage-state.json', 'playwright-mcp.js', 'chrome-devtools-axi.js'];
     try {
       mkdirSync(stateDirectory);
       chmodSync(stateDirectory, 0o755);
-      for (const name of names) writeFileSync(join(stateDirectory, name), 'old', { mode: 0o644 });
+      for (const name of names) {
+        writeFileSync(join(stateDirectory, name), 'old');
+        chmodSync(join(stateDirectory, name), 0o644);
+      }
+
+      const originalWrite = writeFileSync.bind(null);
+      let privateWrites = 0;
+      vi.spyOn(fs, 'writeFileSync').mockImplementation((...args) => {
+        const [file] = args;
+        if (typeof file === 'number') {
+          expect(fstatSync(file).mode & 0o777).toBe(0o600);
+          privateWrites++;
+        } else if (typeof file === 'string' && file.startsWith(stateDirectory)) {
+          expect(statSync(file).mode & 0o777).toBe(0o600);
+          privateWrites++;
+        }
+        return Reflect.apply(originalWrite, fs, args);
+      });
 
       await createDevSession({
         fileValues: {
@@ -100,7 +118,9 @@ describe('the dev:session handoff files', () => {
       for (const name of names) {
         expect(statSync(join(stateDirectory, name)).mode & 0o777).toBe(0o600);
       }
+      expect(privateWrites).toBe(3);
     } finally {
+      vi.restoreAllMocks();
       rmSync(parent, { recursive: true, force: true });
     }
   });
