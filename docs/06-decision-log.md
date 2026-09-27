@@ -2623,12 +2623,12 @@ numbers must never be readable by a different account (`08` §7).
 **Decided (asked; the captain), and built.** Separate saved data per account, the old shared copy
 dropped once, and the 3-second offline rule kept (`08` §5).
 
-- Each account's copy lives under `query-cache:user:<id>`. A copy is written only under the account
-  its `me` names, and only while that account is open; a write that lands after the account closed
-  is dropped. The shared `query-cache:overload` key is deleted at launch and never read.
-- `/api/me` is the account check at every launch, focus and reconnect (`staleTime: 0`). Nothing
-  renders until it names the open account, or fails and the launch opens offline. Per-user queries
-  are disabled until it confirms, so no response under an unconfirmed cookie reaches the cache.
+- Each account's copy lives under `query-cache:user:<id>`. The persister uses its cached `me` to
+  choose that key and drops writes after the account closes. The shared `query-cache:overload` key
+  is deleted at launch and never read. The same-tab cookie-switch gap remains in
+  [#13](https://github.com/yutaasakura96/overload/issues/13).
+- `/api/me` is the account check at every launch, focus and reconnect (`staleTime: 0`). The current
+  rendering and offline rules, including the `dev:session` reload requirement, are in `08` §5.
 - Switching account stops saving, clears memory except `me`, sets `me` to the new account, then
   loads its own copy. Other tabs hear of it on a `BroadcastChannel` and reload.
 - A 401 wipes nothing: the same user signing in again gets their copy back (`08` §5). Sign-out
