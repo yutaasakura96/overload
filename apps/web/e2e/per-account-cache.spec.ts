@@ -409,6 +409,29 @@ test('a failed pending remember write cannot stop a confirmed sign-out', async (
   expect(await deviceKeys(second)).toEqual([]);
 });
 
+test('a failed wipe cannot stop a confirmed sign-out', async ({ context }) => {
+  const first = await context.newPage();
+  await openAs(first, context, userA, EMAIL_A);
+  const second = await context.newPage();
+  await second.goto('/');
+  await expect(second.getByText(EMAIL_A)).toBeVisible();
+  await first.bringToFront();
+
+  const errors: Error[] = [];
+  first.on('pageerror', (error) => errors.push(error));
+  await first.evaluate(() => {
+    IDBObjectStore.prototype.clear = () => {
+      throw new DOMException('The wipe failed.', 'UnknownError');
+    };
+  });
+
+  await first.getByRole('button', { name: 'Sign out' }).click();
+  await expect(first).toHaveURL('/sign-in');
+  await expect(second).toHaveURL('/sign-in?next=%2F');
+  await expect(second.getByText(EMAIL_A)).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
 test('an exercise answer already in flight cannot enter the previous account copy', async ({
   page,
   context,
