@@ -58,6 +58,10 @@ type Account = {
 };
 
 let account: Account = { userId: undefined, status: 'checking' };
+let accountGeneration = 0;
+let accountClosed = false;
+let pendingRemember: Promise<unknown> | undefined;
+let confirmedThisLaunch = false;
 const listeners = new Set<() => void>();
 
 function setAccount(next: Account) {
@@ -84,7 +88,7 @@ const ownerOf = (client: PersistedClient) => {
 };
 
 /** The persister for one account's copy. It reads and writes that account's data only. */
-function accountPersister(userId: string): Persister {
+function accountPersister(userId: string, generation = accountGeneration): Persister {
   const persister = createAsyncStoragePersister({
     storage: {
       ...deviceStore.queryCache,
@@ -101,17 +105,19 @@ function accountPersister(userId: string): Persister {
       ownerOf(client) === userId ? persister.persistClient(client) : undefined,
     restoreClient: async () => {
       const client = await persister.restoreClient();
-      return client !== undefined && ownerOf(client) === userId ? client : undefined;
+      return generation === accountGeneration && client !== undefined && ownerOf(client) === userId
+        ? client
+        : undefined;
     },
   };
 }
 
 let stopPersisting: (() => void) | undefined;
 
-function restore(userId: string) {
+function restore(userId: string, generation = accountGeneration) {
   return persistQueryClientRestore({
     queryClient,
-    persister: accountPersister(userId),
+    persister: accountPersister(userId, generation),
     maxAge: CACHE_MAX_AGE_MS,
   }).catch(() => undefined);
 }
@@ -123,17 +129,23 @@ const tabs = typeof BroadcastChannel === 'undefined' ? undefined : new Broadcast
 const announceTo = (userId: string | null) => tabs?.postMessage({ userId });
 tabs?.addEventListener('message', (event: MessageEvent<{ userId: string | null }>) => {
   if (event.data.userId === account.userId) return;
-  closeAccount();
+  void closeAccount();
   queryClient.clear();
   window.location.reload();
 });
 
-/** Stops saving and forgets whose copy is open; `announce` tells the other tabs (sign-out). */
-export function closeAccount({ announce = false } = {}) {
+/** Stops saving and forgets whose copy is open. */
+export function closeAccount() {
+  accountClosed = true;
+  accountGeneration += 1;
   stopPersisting?.();
   stopPersisting = undefined;
   setAccount({ userId: undefined, status: 'checking' });
-  if (announce) announceTo(null);
+  return pendingRemember;
+}
+
+export function announceSignOut() {
+  announceTo(null);
 }
 
 const SIGNING_IN = 'overload:signing-in';
@@ -172,7 +184,8 @@ export async function openCache() {
 }
 
 /** /api/me named this user: open their copy, dropping any other account's data from memory first. */
-async function confirm(me: Me) {
+async function confirm(me: Me, generation: number) {
+  if (generation !== accountGeneration) throw new LaunchCheckFailed('Account closed');
   const { id } = me.user;
   const switched = account.userId !== id;
   if (switched) {
@@ -181,12 +194,21 @@ async function confirm(me: Me) {
     setAccount({ userId: id, status: 'confirmed' });
     queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== 'me' });
     queryClient.setQueryData(ME_KEY, me);
-    await restore(id);
+    await restore(id, generation);
   } else if (account.status !== 'confirmed') {
     setAccount({ userId: id, status: 'confirmed' });
   }
+  if (generation !== accountGeneration) throw new LaunchCheckFailed('Account closed');
   stopPersisting ??= persistQueryClientSubscribe({ queryClient, persister: accountPersister(id) });
-  await deviceStore.rememberUser(me.user);
+  const remembering = deviceStore.rememberUser(me.user);
+  pendingRemember = remembering;
+  try {
+    await remembering;
+  } finally {
+    if (pendingRemember === remembering) pendingRemember = undefined;
+  }
+  if (generation !== accountGeneration) throw new LaunchCheckFailed('Account closed');
+  confirmedThisLaunch = true;
   if (switched) announceTo(id);
 }
 
@@ -196,20 +218,26 @@ export const meQuery = queryOptions({
   // renders until it answers or fails.
   staleTime: 0,
   queryFn: async () => {
+    if (accountClosed) throw new LaunchCheckFailed('Account closed');
+    const generation = accountGeneration;
+    if (account.status === 'confirmed') setAccount({ ...account, status: 'checking' });
     // With a saved copy to fall back on, the launch waits 3 s for one answer, then opens offline.
     const bounded =
-      account.status !== 'confirmed' && queryClient.getQueryData(ME_KEY) !== undefined;
+      !confirmedThisLaunch &&
+      account.userId !== undefined &&
+      queryClient.getQueryData(ME_KEY) !== undefined;
     let me: Me;
     try {
       me = unwrap(
         await api.GET('/api/me', bounded ? { signal: AbortSignal.timeout(LAUNCH_CHECK_MS) } : {}),
       );
     } catch (error) {
+      if (generation !== accountGeneration) throw new LaunchCheckFailed('Account closed');
       if (!bounded || isUnauthenticated(error)) throw error;
       setAccount({ ...account, status: 'unconfirmed' });
       throw new LaunchCheckFailed(error);
     }
-    await confirm(me);
+    await confirm(me, generation);
     return me;
   },
 });

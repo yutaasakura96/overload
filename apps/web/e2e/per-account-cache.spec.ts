@@ -237,3 +237,43 @@ test('a second tab drops the previous account once another tab switches', async 
   await first.waitForTimeout(1500);
   expect(await savedCache(first, userB)).not.toContain(OWN_A);
 });
+
+test('a focus account check hides the open account until the new identity answers', async ({
+  page,
+  context,
+}) => {
+  await openAs(page, context, userA, EMAIL_A);
+  await useCookie(context, userB);
+  await markLibrary(page, OWN_B);
+  const { promise: held, resolve: release } = Promise.withResolvers<void>();
+  await page.route('**/api/me', async (route) => {
+    await held;
+    await route.continue();
+  });
+  const meAsked = page.waitForRequest('**/api/me');
+  await page.evaluate(() => window.dispatchEvent(new Event('visibilitychange')));
+  await meAsked;
+  await expect(page.getByText(EMAIL_A)).toHaveCount(0);
+  await expect(page.getByText(OWN_A)).toHaveCount(0);
+  release();
+  await expect(page.getByText(EMAIL_B)).toBeVisible();
+  await expect(page.getByText(OWN_B)).toBeVisible();
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
+
+test('an offline sign-out wipes before another tab can reopen its saved copy', async ({
+  context,
+}) => {
+  const first = await context.newPage();
+  await openAs(first, context, userA, EMAIL_A);
+  const second = await context.newPage();
+  await second.goto('/');
+  await expect(second.getByText(EMAIL_A)).toBeVisible();
+  await second.route('**/api/me', (route) => route.abort('internetdisconnected'));
+  await first.route('**/api/auth/sign-out', (route) => route.abort('internetdisconnected'));
+  await first.getByRole('button', { name: 'Sign out' }).click();
+  await expect(first).toHaveURL('/sign-in');
+  await expect(second.getByText(EMAIL_A)).toHaveCount(0);
+  await expect(second.getByText(OWN_A)).toHaveCount(0);
+  expect(await deviceKeys(second)).toEqual([]);
+});

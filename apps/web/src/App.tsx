@@ -20,6 +20,7 @@ export function App() {
     me.data !== undefined &&
     me.data.user.id === account.userId &&
     !signedOut &&
+    !me.isFetching &&
     (account.status !== 'checking' || me.fetchStatus === 'paused');
 
   useEffect(() => {
