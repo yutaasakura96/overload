@@ -18,7 +18,7 @@ import { testConfig } from './harness-config';
 
 vi.mock('node:fs', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:fs')>();
-  return { ...actual, writeFileSync: vi.fn(actual.writeFileSync) };
+  return { ...actual, writeFileSync: vi.fn<typeof actual.writeFileSync>(actual.writeFileSync) };
 });
 
 const local = {
@@ -95,13 +95,12 @@ describe('the dev:session handoff files', () => {
       let privateWrites = 0;
       vi.mocked(fs.writeFileSync).mockImplementation((...args) => {
         const [file] = args;
-        if (typeof file === 'number') {
-          expect(fstatSync(file).mode & 0o777).toBe(0o600);
-          privateWrites++;
-        } else if (typeof file === 'string' && file.startsWith(stateDirectory)) {
-          expect(statSync(file).mode & 0o777).toBe(0o600);
-          privateWrites++;
-        }
+        expect(
+          typeof file === 'number' || (typeof file === 'string' && file.startsWith(stateDirectory)),
+        ).toBe(true);
+        const mode = typeof file === 'number' ? fstatSync(file).mode : statSync(file).mode;
+        expect(mode & 0o777).toBe(0o600);
+        privateWrites++;
         return Reflect.apply(originalFs.writeFileSync, originalFs, args);
       });
 
