@@ -7,14 +7,18 @@ import { announceSignOut, closeAccount, queryClient } from './query';
  * account's IndexedDB copy, clear the stored user and the incomplete days, then go to /sign-in. Pending and
  * refused sets, and the dialog that guards them, arrive with the set store in slice 3.
  */
-export async function signOut(navigate: (path: string) => void) {
-  // The server call may fail offline. The device is wiped either way: nothing of this user's may
-  // stay readable once they asked to leave.
+export async function signOut(navigate: (path: string) => void): Promise<boolean> {
+  try {
+    const result = await authClient.signOut();
+    if (result.error) return false;
+  } catch {
+    return false;
+  }
   const pendingRemember = closeAccount();
   queryClient.clear();
-  await authClient.signOut().catch(() => undefined);
   await pendingRemember;
   await deviceStore.wipe();
   announceSignOut();
   navigate('/sign-in');
+  return true;
 }

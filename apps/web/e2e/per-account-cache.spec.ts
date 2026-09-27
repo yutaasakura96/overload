@@ -242,9 +242,12 @@ test('a focus account check hides the open account until the new identity answer
   page,
   context,
 }) => {
+  await context.clock.install();
   await openAs(page, context, userA, EMAIL_A);
+  await staleCache(context);
   await useCookie(context, userB);
   await markLibrary(page, OWN_B);
+  const library = countLibraryRequests(page);
   const { promise: held, resolve: release } = Promise.withResolvers<void>();
   await page.route('**/api/me', async (route) => {
     await held;
@@ -255,13 +258,16 @@ test('a focus account check hides the open account until the new identity answer
   await meAsked;
   await expect(page.getByText(EMAIL_A)).toHaveCount(0);
   await expect(page.getByText(OWN_A)).toHaveCount(0);
+  await page.waitForTimeout(1500);
+  expect(library.requests).toBe(0);
+  expect(await savedCache(page, userA)).not.toContain(OWN_B);
   release();
   await expect(page.getByText(EMAIL_B)).toBeVisible();
   await expect(page.getByText(OWN_B)).toBeVisible();
   await page.unrouteAll({ behavior: 'ignoreErrors' });
 });
 
-test('an offline sign-out wipes before another tab can reopen its saved copy', async ({
+test('a failed server sign-out keeps the session, cache, and other tab open', async ({
   context,
 }) => {
   const first = await context.newPage();
@@ -269,11 +275,64 @@ test('an offline sign-out wipes before another tab can reopen its saved copy', a
   const second = await context.newPage();
   await second.goto('/');
   await expect(second.getByText(EMAIL_A)).toBeVisible();
-  await second.route('**/api/me', (route) => route.abort('internetdisconnected'));
   await first.route('**/api/auth/sign-out', (route) => route.abort('internetdisconnected'));
   await first.getByRole('button', { name: 'Sign out' }).click();
+  await expect(first.getByText("Couldn't sign out. Try again.")).toBeVisible();
+  await expect(first.getByText(EMAIL_A)).toBeVisible();
+  await expect(second.getByText(EMAIL_A)).toBeVisible();
+  expect(await savedCache(first, userA)).toContain(OWN_A);
+  expect(await deviceKeys(first)).toEqual(
+    expect.arrayContaining(['signed-in-user', cacheKey(userA)]),
+  );
+  expect((await first.request.get('/api/me')).status()).toBe(200);
+});
+
+test('a successful sign-out wipes before other tabs reopen', async ({ context }) => {
+  const first = await context.newPage();
+  await openAs(first, context, userA, EMAIL_A);
+  const second = await context.newPage();
+  await second.goto('/');
+  await expect(second.getByText(EMAIL_A)).toBeVisible();
+  await first.getByRole('button', { name: 'Sign out' }).click();
   await expect(first).toHaveURL('/sign-in');
+  await expect(second).toHaveURL('/sign-in?next=%2F');
   await expect(second.getByText(EMAIL_A)).toHaveCount(0);
-  await expect(second.getByText(OWN_A)).toHaveCount(0);
   expect(await deviceKeys(second)).toEqual([]);
+});
+
+test('an exercise answer already in flight cannot enter the previous account copy', async ({
+  page,
+  context,
+}) => {
+  await useCookie(context, userA);
+  const { promise: heldExercise, resolve: releaseExercise } = Promise.withResolvers<void>();
+  const exerciseAsked = page.waitForRequest('**/api/exercises');
+  await page.route('**/api/exercises', async (route) => {
+    const response = await route.fetch();
+    const { items }: { items: { name: string }[] } = await response.json();
+    const [first, ...rest] = items;
+    await heldExercise;
+    await route
+      .fulfill({ response, json: { items: [{ ...first, name: OWN_B }, ...rest] } })
+      .catch(() => undefined);
+  });
+  await page.goto('/');
+  await exerciseAsked;
+  await expect(page.getByText(EMAIL_A)).toBeVisible();
+  await expect.poll(() => savedCache(page, userA)).toContain(EMAIL_A);
+  await useCookie(context, userB);
+  const { promise: heldMe, resolve: releaseMe } = Promise.withResolvers<void>();
+  await page.route('**/api/me', async (route) => {
+    await heldMe;
+    await route.continue();
+  });
+  const meAsked = page.waitForRequest('**/api/me');
+  await page.evaluate(() => window.dispatchEvent(new Event('visibilitychange')));
+  await meAsked;
+  releaseExercise();
+  await page.waitForTimeout(1500);
+  expect(await savedCache(page, userA)).not.toContain(OWN_B);
+  releaseMe();
+  await expect(page.getByText(EMAIL_B)).toBeVisible();
+  await expect(page.getByText(OWN_B)).toBeVisible();
 });

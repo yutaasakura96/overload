@@ -244,6 +244,8 @@ The endpoint list is `docs/07`.
 - **With nothing pending:** end the session, clear the TanStack Query cache and every account's
   IndexedDB copy of it, clear the stored signed-in user and the days left incomplete (`03` §6), and
   go to `/sign-in`. Other open tabs drop what they hold too. A 401 alone clears nothing (§5).
+- If the server cannot end the session, keep the user signed in, clear nothing, notify no other tab,
+  and show "Couldn't sign out. Try again."
 - **With pending or refused sets:** first a dialog, "*N* sets not uploaded yet", with two actions:
   - **Upload now**, when online. Sign-out continues only when nothing pending is left. Refused sets
     still need the second choice.

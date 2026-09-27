@@ -23,11 +23,10 @@ export const CACHE_MAX_AGE_MS = 7 * DAY_MS;
 /** How long a launch with a saved copy waits for /api/me before it opens offline on that copy. */
 const LAUNCH_CHECK_MS = 3000;
 
-/** The launch check with a saved copy to fall back on failed: open offline, and do not retry. */
-class LaunchCheckFailed extends Error {
+class AccountCheckFailed extends Error {
   constructor(cause: unknown) {
-    super('/api/me did not answer at launch', { cause });
-    this.name = 'LaunchCheckFailed';
+    super('Account check failed', { cause });
+    this.name = 'AccountCheckFailed';
   }
 }
 
@@ -38,7 +37,7 @@ export const queryClient = new QueryClient({
       staleTime: 60 * 1000,
       // A 401 means the session has ended; retrying cannot change that (docs/08 §5).
       retry: (failureCount, error) =>
-        !isUnauthenticated(error) && !(error instanceof LaunchCheckFailed) && failureCount < 2,
+        !isUnauthenticated(error) && !(error instanceof AccountCheckFailed) && failureCount < 2,
     },
   },
 });
@@ -94,7 +93,13 @@ function accountPersister(userId: string, generation = accountGeneration): Persi
       ...deviceStore.queryCache,
       // Checked when the throttled write lands, so nothing is written once the account is closed.
       setItem: async (key, value) => {
-        if (account.userId === userId) await deviceStore.queryCache.setItem(key, value);
+        if (
+          generation === accountGeneration &&
+          account.status === 'confirmed' &&
+          account.userId === userId
+        ) {
+          await deviceStore.queryCache.setItem(key, value);
+        }
       },
     },
     key: `user:${userId}`,
@@ -185,7 +190,7 @@ export async function openCache() {
 
 /** /api/me named this user: open their copy, dropping any other account's data from memory first. */
 async function confirm(me: Me, generation: number) {
-  if (generation !== accountGeneration) throw new LaunchCheckFailed('Account closed');
+  if (generation !== accountGeneration) throw new AccountCheckFailed('Account closed');
   const { id } = me.user;
   const switched = account.userId !== id;
   if (switched) {
@@ -198,7 +203,7 @@ async function confirm(me: Me, generation: number) {
   } else if (account.status !== 'confirmed') {
     setAccount({ userId: id, status: 'confirmed' });
   }
-  if (generation !== accountGeneration) throw new LaunchCheckFailed('Account closed');
+  if (generation !== accountGeneration) throw new AccountCheckFailed('Account closed');
   stopPersisting ??= persistQueryClientSubscribe({ queryClient, persister: accountPersister(id) });
   const remembering = deviceStore.rememberUser(me.user);
   pendingRemember = remembering;
@@ -207,7 +212,7 @@ async function confirm(me: Me, generation: number) {
   } finally {
     if (pendingRemember === remembering) pendingRemember = undefined;
   }
-  if (generation !== accountGeneration) throw new LaunchCheckFailed('Account closed');
+  if (generation !== accountGeneration) throw new AccountCheckFailed('Account closed');
   confirmedThisLaunch = true;
   if (switched) announceTo(id);
 }
@@ -218,8 +223,10 @@ export const meQuery = queryOptions({
   // renders until it answers or fails.
   staleTime: 0,
   queryFn: async () => {
-    if (accountClosed) throw new LaunchCheckFailed('Account closed');
-    const generation = accountGeneration;
+    if (accountClosed) throw new AccountCheckFailed('Account closed');
+    const generation = ++accountGeneration;
+    stopPersisting?.();
+    stopPersisting = undefined;
     if (account.status === 'confirmed') setAccount({ ...account, status: 'checking' });
     // With a saved copy to fall back on, the launch waits 3 s for one answer, then opens offline.
     const bounded =
@@ -232,10 +239,10 @@ export const meQuery = queryOptions({
         await api.GET('/api/me', bounded ? { signal: AbortSignal.timeout(LAUNCH_CHECK_MS) } : {}),
       );
     } catch (error) {
-      if (generation !== accountGeneration) throw new LaunchCheckFailed('Account closed');
+      if (generation !== accountGeneration) throw new AccountCheckFailed('Account closed');
       if (!bounded || isUnauthenticated(error)) throw error;
       setAccount({ ...account, status: 'unconfirmed' });
-      throw new LaunchCheckFailed(error);
+      throw new AccountCheckFailed(error);
     }
     await confirm(me, generation);
     return me;
@@ -245,5 +252,15 @@ export const meQuery = queryOptions({
 /** One account's data: enable it only once /api/me has confirmed the account (`useAccount`). */
 export const exercisesQuery = queryOptions({
   queryKey: ['exercises'],
-  queryFn: async () => unwrap(await api.GET('/api/exercises')).items,
+  refetchOnWindowFocus: false,
+  refetchOnReconnect: false,
+  queryFn: async ({ signal }) => {
+    const generation = accountGeneration;
+    if (account.status !== 'confirmed') throw new AccountCheckFailed('Account unconfirmed');
+    const items = unwrap(await api.GET('/api/exercises', { signal })).items;
+    if (generation !== accountGeneration || account.status !== 'confirmed') {
+      throw new AccountCheckFailed('Account changed');
+    }
+    return items;
+  },
 });
