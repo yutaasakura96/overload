@@ -209,9 +209,9 @@ The endpoint list is `docs/07`.
   account's cookie is saved under this one. With no copy to open (a first sign-in, or after
   sign-out), it waits for the server.
 - After an account has been confirmed in the tab, later `/api/me` checks use the same 3 s limit. A
-  network error or timeout keeps that same account's saved copy visible offline. A 401 still sends
-  the user to sign-in without a wipe; only a successful answer naming another account opens that
-  account's copy.
+  network error or timeout keeps that same account's saved copy visible offline. A 401 still follows
+  the ended-session flow below without a wipe; only a successful answer naming another account
+  opens that account's copy.
 - **Back online**, a 401 from any request means the session has ended, whether it expired, was
   signed out elsewhere, or was revoked. The client cannot tell which from the 401, and it does not
   try:

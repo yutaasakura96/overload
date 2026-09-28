@@ -196,7 +196,7 @@ export async function openCache() {
     await deviceStore.wipe().catch(() => undefined);
     if (deviceStore.wipePending()) return;
   }
-  // The copy shared by every account before copies were kept per account (docs/08 §7).
+  // Discard the old shared copy; it may contain data from more than one account (docs/06, 2026-09-27).
   await deviceStore.queryCache.removeItem('overload').catch(() => undefined);
   const remembered = await deviceStore.signedInUser().catch(() => undefined);
   if (takeSigningIn() || remembered === undefined) return;
