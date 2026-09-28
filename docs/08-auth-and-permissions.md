@@ -195,8 +195,9 @@ The endpoint list is `docs/07`.
   only one account's copy is ever open. At launch the app loads the last confirmed user's copy and
   keeps it hidden while `/api/me` checks the account. When it names that user, their queries run.
   When it names another account, the app drops the first copy from memory before that account's
-  data arrives and opens their own copy instead. No other tab keeps showing or saving the previous
-  account: it reopens as the new one. A launch back from sign-in opens no copy until `/api/me` answers.
+  data arrives and opens their own copy instead. A tab receiving an account-change notice closes
+  its current copy and reloads. Sign-out across tabs and its limits are in §7. A launch back from
+  sign-in opens no copy until `/api/me` answers.
 - After switching accounts with the local `pnpm dev:session` helper, reload the open app page.
   A retry before the next account check can still save the new account's response in the previous
   account's copy; the remaining gap is tracked in

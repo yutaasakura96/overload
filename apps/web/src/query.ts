@@ -137,13 +137,13 @@ const tabs = typeof BroadcastChannel === 'undefined' ? undefined : new Broadcast
 const announceTo = (userId: string | null) => tabs?.postMessage({ userId });
 tabs?.addEventListener('message', (event: MessageEvent<{ userId: string | null }>) => {
   if (event.data.userId === account.userId) return;
-  const pendingRemember = closeAccount();
+  const previousRemember = closeAccount();
   queryClient.clear();
   if (event.data.userId !== null) {
     window.location.reload();
     return;
   }
-  void Promise.resolve(pendingRemember)
+  void Promise.resolve(previousRemember)
     .catch(() => undefined)
     .then(async () => {
       await deviceStore.wipe().catch(() => undefined);

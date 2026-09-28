@@ -445,7 +445,7 @@ test('a failed wipe keeps the saved copy closed on an offline reload', async ({ 
   await expect(first).toHaveURL('/sign-in?wipe=failed');
   await expect(second).toHaveURL('/sign-in?next=%2F');
   await expect(second.getByText(EMAIL_A)).toHaveCount(0);
-  expect(await savedCache(first, userA)).toContain(OWN_A);
+  expect(await savedCache(first, userA)).toBe('');
   await first.route('**/api/me', (route) => route.abort('internetdisconnected'));
   await first.goto('/');
   await expect(
