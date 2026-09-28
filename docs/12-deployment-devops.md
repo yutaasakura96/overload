@@ -263,6 +263,7 @@ monitor, with email alerts (Sentry pricing docs, checked 2026-09-21).
 | API down or unreachable | Sentry uptime check, `GET /api/health`, every **5 min**, 3 consecutive failures → email (about 15 min) |
 | Daily job missed or failed | Sentry cron monitor: the job checks in at start and finish; a missed or failed check-in → email |
 | A deploy fails (build or migration) | Vercel's deploy-failure email |
+| An API preview (staging or a PR) answers sign-in with a 5xx | The `Smoke` workflow fails on the commit: after each ready `Preview – overload-api` deployment it POSTs `/api/auth/sign-in/social`, whose rate limiter queries the database |
 | Health Auto Export stops syncing | No alert. `health_sync_state` on the dashboard (S19) |
 | Anthropic spend | Not alerted: the `overload` workspace's $10/month hard limit caps it (`13` §4) |
 | Nightly backup fails | GitHub's failed-workflow email (`13` §2) |

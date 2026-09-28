@@ -2644,3 +2644,36 @@ it fixes one persister for the app's lifetime, so the app calls `persistQueryCli
 
 **Changed:** `apps/web/src/query.ts`, `main.tsx`, `App.tsx`, `sign-out.ts`,
 `screens/ExerciseLibrary.tsx`, `screens/SignIn.tsx`; `08` §5 and §7; `03` §6.
+
+### [2026-09-28] Staging's auth routes failed with a 500: Vercel's `overload_app` password no longer matched Neon `staging`
+
+**Context.** After the entry fix, `/api/health` answered 200 on staging and every `/api/auth/*` route
+answered 500. The function log said only `Failed query: select … from "rate_limit"`, then the query's
+parameters (the client's IP; for a user lookup it would be an email), and no Postgres cause. The
+`develop` build had migrated successfully as `overload_owner`.
+
+**Found.** A PR preview, which carries staging's Preview variables (`12` §2), logged the cause once
+the logging below was in: `28P01`, password authentication failed for `overload_app`. The unscoped
+Preview `DATABASE_URL` holds a password Neon `staging` no longer accepts; the `develop`-scoped one was
+written in the same minute with the same value (`12` §2), and staging fails at the same query, but its
+log cannot show the cause until `develop` carries this change. `DATABASE_URL_DIRECT` and the owner
+password were reset on 2026-09-26 and work; `DATABASE_URL` was last written on 2026-09-25. The fix is
+outside the repo: reset `overload_app`'s password on the Neon `staging` branch, write the new pooled
+string to Vercel's Preview `DATABASE_URL` (scoped to `develop` and unscoped), and redeploy `develop`.
+
+**Decided (firstmate, under Yuta's delegation), and built.**
+- **The error log names Postgres's reason.** `apps/api/src/lib/error-log.ts` rebuilds a
+  `DrizzleQueryError`'s stack as its SQL without the parameters, and adds the cause: SQLSTATE,
+  message, and the schema, table, column and constraint Postgres names. Classes 22 and 23 keep the
+  code and names only, since their messages can quote the value that failed. A connection-level cause
+  logs its name, message and code.
+- **A `Smoke` workflow** POSTs `/api/auth/sign-in/social` to each ready API preview deployment and
+  fails on a 5xx (`12` §5). `/api/health` cannot catch a bad database credential, by design.
+
+**Alternatives considered.** Logging the Drizzle error's `cause` as it stands: its `message` is fine
+for most classes, but a 22 or 23 can quote a value, so those are trimmed. A smoke check for staging
+only: Vercel sets the GitHub deployment's ref to the commit, not the branch, and PR previews share
+staging's variables, so checking every API preview costs nothing and catches the same fault earlier.
+
+**Changed:** `apps/api/src/lib/error-log.ts`, `apps/api/src/create-app.ts`,
+`apps/api/test/error-log.test.ts`, `.github/workflows/smoke.yml`, `03` §7, `12` §5.
