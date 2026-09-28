@@ -1,0 +1,22 @@
+# no-mistakes gate config. commands/agent/pr.base_branch are read only from the
+# default branch (develop), so this file must exist there too.
+allow_repo_commands: true
+
+# Every command runs pnpm through corepack: the root scripts call `pnpm` again, and a version
+# manager's shim may refuse it (AGENTS.md, Commands). Vitest needs the local Postgres on 5434.
+commands:
+  # The run worktree has tracked files only; copy the API's local, gitignored env file in.
+  prepare: '[ -f "$HOME/Documents/GitHub/overload/apps/api/.env.local" ] && cp "$HOME/Documents/GitHub/overload/apps/api/.env.local" apps/api/; corepack pnpm install --frozen-lockfile --prefer-offline'
+  lint: 'd=$(mktemp -d) && corepack enable pnpm --install-directory "$d" && export PATH="$d:$PATH" && pnpm lint && pnpm typecheck'
+  test: 'd=$(mktemp -d) && corepack enable pnpm --install-directory "$d" && export PATH="$d:$PATH" && pnpm test'
+
+pr:
+  base_branch: develop
+
+test:
+  instructions: |
+    Start local Postgres 18 with `docker compose up -d` (port 5434). Run the API and web dev
+    servers on `apps/api/.env.local`, then `pnpm dev:session` for a signed-in browser, and drive
+    the changed flow the way a user would. Playwright end-to-end tests: `pnpm e2e`. See AGENTS.md.
+  evidence:
+    attach_media: true
