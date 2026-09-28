@@ -334,10 +334,21 @@ test('a successful sign-out wipes before other tabs reopen', async ({ context })
   const second = await context.newPage();
   await second.goto('/');
   await expect(second.getByText(EMAIL_A)).toBeVisible();
+  await second.evaluate(() => {
+    IDBObjectStore.prototype.clear = new Proxy(IDBObjectStore.prototype.clear, {
+      apply(target, thisArg, args) {
+        sessionStorage.setItem('observed-second-wipe', '1');
+        return Reflect.apply(target, thisArg, args);
+      },
+    });
+  });
   await first.getByRole('button', { name: 'Sign out' }).click();
   await expect(first).toHaveURL('/sign-in');
   await expect(second).toHaveURL('/sign-in?next=%2F');
   await expect(second.getByText(EMAIL_A)).toHaveCount(0);
+  await expect
+    .poll(() => second.evaluate(() => sessionStorage.getItem('observed-second-wipe')))
+    .toBe('1');
   expect(await deviceKeys(second)).toEqual([]);
 });
 

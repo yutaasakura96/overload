@@ -137,9 +137,18 @@ const tabs = typeof BroadcastChannel === 'undefined' ? undefined : new Broadcast
 const announceTo = (userId: string | null) => tabs?.postMessage({ userId });
 tabs?.addEventListener('message', (event: MessageEvent<{ userId: string | null }>) => {
   if (event.data.userId === account.userId) return;
-  void closeAccount();
+  const pendingRemember = closeAccount();
   queryClient.clear();
-  window.location.reload();
+  if (event.data.userId !== null) {
+    window.location.reload();
+    return;
+  }
+  void Promise.resolve(pendingRemember)
+    .catch(() => undefined)
+    .then(async () => {
+      await deviceStore.wipe().catch(() => undefined);
+      window.location.reload();
+    });
 });
 
 /** Stops saving and forgets whose copy is open. */

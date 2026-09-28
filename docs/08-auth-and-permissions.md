@@ -261,6 +261,9 @@ The endpoint list is `docs/07`.
   session, sign-out still reaches `/sign-in` and warns "Saved data couldn't be cleared from this
   device." This is a known limit: without either storage operation, a later offline launch may
   reopen the retained copy.
+- A receiving tab wipes again after a sign-out notice to clear writes made after the first tab's
+  wipe. A write that lands after this second wipe can still leave a saved copy; this timing gap is
+  a known limit.
 - **With pending or refused sets:** first a dialog, "*N* sets not uploaded yet", with two actions:
   - **Upload now**, when online. Sign-out continues only when nothing pending is left. Refused sets
     still need the second choice.
