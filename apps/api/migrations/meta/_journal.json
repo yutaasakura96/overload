@@ -29,6 +29,13 @@
       "when": 1790337109273,
       "tag": "0003_seed_exercises",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790600662322,
+      "tag": "0004_backup_reads_migration_sequence",
+      "breakpoints": true
     }
   ]
 }
