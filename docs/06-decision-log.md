@@ -2657,9 +2657,12 @@ the logging below was in: `28P01`, password authentication failed for `overload_
 Preview `DATABASE_URL` holds a password Neon `staging` no longer accepts; the `develop`-scoped one was
 written in the same minute with the same value (`12` §2), and staging fails at the same query, but its
 log cannot show the cause until `develop` carries this change. `DATABASE_URL_DIRECT` and the owner
-password were reset on 2026-09-26 and work; `DATABASE_URL` was last written on 2026-09-25. The fix is
-outside the repo: reset `overload_app`'s password on the Neon `staging` branch, write the new pooled
-string to Vercel's Preview `DATABASE_URL` (scoped to `develop` and unscoped), and redeploy `develop`.
+password were reset on 2026-09-26 and work; `DATABASE_URL` was last written on 2026-09-25. The fix was
+outside the repo, and done the same day with Yuta's approval: `overload_app`'s password reset on Neon
+`staging` only (the Neon API, not `main`), the new pooled string written straight into both Preview
+`DATABASE_URL` entries without being printed, and `develop` redeployed. Staging sign-in then answered
+200. The grant checks ruled out the other suspect, a wrong table owner: all 11 tables are owned by
+`overload_owner`, and `overload_app` holds `SELECT, INSERT, UPDATE` on `rate_limit`.
 
 **Decided (firstmate, under Yuta's delegation), and built.**
 - **The error log names Postgres's reason.** `apps/api/src/lib/error-log.ts` rebuilds a
