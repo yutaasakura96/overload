@@ -1,3 +1,4 @@
+import { sentryVitePlugin } from '@sentry/vite-plugin';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
@@ -7,7 +8,26 @@ import { VitePWA } from 'vite-plugin-pwa';
 const apiTarget = process.env.API_PROXY_TARGET ?? 'http://localhost:8787';
 const proxy = { '/api': { target: apiTarget } };
 
+// Sentry's environment, as the API names it (apps/api/src/lib/error-report.ts): develop's preview is
+// staging, any other preview a pull request's. Vercel sets both variables at build time.
+function sentryEnvironment(env: NodeJS.ProcessEnv): string {
+  if (env.VERCEL_ENV === 'production') return 'production';
+  if (env.VERCEL_ENV === 'preview') {
+    return env.VERCEL_GIT_COMMIT_REF === 'develop' ? 'staging' : 'preview';
+  }
+  return 'development';
+}
+
+// Source maps go to Sentry and nowhere else: made only when a build can upload them, uploaded, then
+// deleted before the output is deployed or precached (docs/12 §2). The org comes from the org token.
+const sentryAuthToken = process.env.SENTRY_AUTH_TOKEN || undefined;
+
 export default defineConfig({
+  define: {
+    'import.meta.env.VITE_SENTRY_ENVIRONMENT': JSON.stringify(sentryEnvironment(process.env)),
+    'import.meta.env.VITE_SENTRY_RELEASE': JSON.stringify(process.env.VERCEL_GIT_COMMIT_SHA ?? ''),
+  },
+  build: { sourcemap: sentryAuthToken === undefined ? false : 'hidden' },
   plugins: [
     react(),
     VitePWA({
@@ -45,6 +65,14 @@ export default defineConfig({
         clientsClaim: true,
       },
     }),
+    sentryAuthToken !== undefined &&
+      sentryVitePlugin({
+        authToken: sentryAuthToken,
+        project: 'overload-web',
+        release: { name: process.env.VERCEL_GIT_COMMIT_SHA },
+        sourcemaps: { filesToDeleteAfterUpload: ['./dist/**/*.map'] },
+        telemetry: false,
+      }),
   ],
   server: { port: 5173, strictPort: true, proxy },
   preview: { port: Number(process.env.PREVIEW_PORT ?? 4173), strictPort: true, proxy },

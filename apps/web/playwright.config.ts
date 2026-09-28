@@ -5,6 +5,9 @@ import { defineConfig, devices } from '@playwright/test';
 export const WEB_PORT = 4174;
 export const API_PORT = 8788;
 export const WEB_ORIGIN = `http://localhost:${WEB_PORT}`;
+// The build under test reports to Sentry on a host that never resolves; e2e/sentry.spec.ts catches
+// what it sends.
+export const SENTRY_DSN_HOST = 'sentry.invalid';
 
 const testDatabaseUrl =
   process.env.TEST_DATABASE_URL ??
@@ -50,7 +53,11 @@ export default defineConfig({
       command: 'pnpm build && pnpm preview',
       url: WEB_ORIGIN,
       reuseExistingServer: process.env.CI === undefined,
-      env: { API_PROXY_TARGET: `http://localhost:${API_PORT}`, PREVIEW_PORT: String(WEB_PORT) },
+      env: {
+        API_PROXY_TARGET: `http://localhost:${API_PORT}`,
+        PREVIEW_PORT: String(WEB_PORT),
+        VITE_SENTRY_DSN: `https://public@${SENTRY_DSN_HOST}/1`,
+      },
     },
   ],
 });

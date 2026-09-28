@@ -6,6 +6,7 @@ import { HTTPException } from 'hono/http-exception';
 import { requestId } from 'hono/request-id';
 import type { AppEnv, RouteDeps } from './app-env.js';
 import type { Auth } from './auth/auth.js';
+import type { ReportError } from './lib/error-report.js';
 import { problem, type ProblemCode } from './lib/problem.js';
 import { exerciseRoutes } from './routes/exercises.js';
 import { healthRoutes } from './routes/health.js';
@@ -15,6 +16,8 @@ export type AppDeps = RouteDeps & {
   auth: Auth;
   /** One JSON line per request (docs/03 §7). Tests pass a no-op. */
   log?: (line: string) => void;
+  /** Sentry, when SENTRY_DSN is set (src/sentry.ts). Awaited, so the event is sent before the 500. */
+  reportError?: ReportError;
 };
 
 const AUTH_PREFIX = '/api/auth/';
@@ -43,7 +46,7 @@ const validationHook: Hook<unknown, AppEnv, string, unknown> = (result, c) => {
   });
 };
 
-export function createApp({ auth, config, db, log = console.log }: AppDeps) {
+export function createApp({ auth, config, db, log = console.log, reportError }: AppDeps) {
   const app = new OpenAPIHono<AppEnv>({ defaultHook: validationHook });
 
   app.use('*', requestId({ generator: () => `req_${crypto.randomUUID().replaceAll('-', '')}` }));
@@ -99,7 +102,7 @@ export function createApp({ auth, config, db, log = console.log }: AppDeps) {
 
   app.notFound((c) => problem(c, 'not_found'));
 
-  app.onError((error, c) => {
+  app.onError(async (error, c) => {
     if (error instanceof HTTPException) {
       const code = httpExceptionCodes[error.status];
       if (code !== undefined) return problem(c, code);
@@ -112,6 +115,11 @@ export function createApp({ auth, config, db, log = console.log }: AppDeps) {
         stack: error.stack,
       }),
     );
+    await reportError?.(error, {
+      requestId: c.get('requestId'),
+      method: c.req.method,
+      route: c.req.routePath,
+    });
     return problem(c, 'internal');
   });
 
