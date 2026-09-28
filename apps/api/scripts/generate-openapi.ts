@@ -2,7 +2,7 @@
 // fails if the committed file differs. Nothing here connects to a database: the Pool is lazy.
 import { writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { createApp, openApiDocument } from '../src/app';
+import { createApp, openApiDocument } from '../src/create-app';
 import { createAuth } from '../src/auth/auth';
 import { createDatabase, createPool } from '../src/db/connection';
 

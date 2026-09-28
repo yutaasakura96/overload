@@ -1,5 +1,5 @@
 import { serve } from '@hono/node-server';
-import app from './index';
+import app from './index.js';
 
 // Local only: `pnpm --filter @overload/api dev`. The web app's dev server proxies /api here, so
 // the browser sees one origin, as it does behind the Vercel rewrite.

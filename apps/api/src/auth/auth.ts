@@ -2,10 +2,10 @@ import { betterAuth, type BetterAuthPlugin } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { bearer } from 'better-auth/plugins';
 import type { GoogleOptions } from 'better-auth/social-providers';
-import type { Config } from '../config';
-import { authSchema } from '../db/auth-schema';
-import type { Database } from '../db/connection';
-import { bootstrapAdminInvite, checkInvite } from './invite-gate';
+import type { Config } from '../config.js';
+import { authSchema } from '../db/auth-schema.js';
+import type { Database } from '../db/connection.js';
+import { bootstrapAdminInvite, checkInvite } from './invite-gate.js';
 
 const DAY_SECONDS = 60 * 60 * 24;
 

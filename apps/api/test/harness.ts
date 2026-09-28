@@ -2,7 +2,7 @@ import { testUtils, type TestHelpers } from 'better-auth/plugins';
 import { sql } from 'drizzle-orm';
 import { Pool } from 'pg';
 import { afterAll, afterEach, beforeAll, beforeEach } from 'vitest';
-import { createApp } from '../src/app';
+import { createApp } from '../src/create-app';
 import { createAuth } from '../src/auth/auth';
 import { createDatabase } from '../src/db/connection';
 import { invite, user } from '../src/db/schema';

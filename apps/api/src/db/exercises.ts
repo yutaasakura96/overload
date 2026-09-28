@@ -1,6 +1,6 @@
 import { and, asc, eq, isNull, or, sql } from 'drizzle-orm';
-import type { Database } from './connection';
-import { exercise, exerciseSetting, type equipmentValues } from './schema';
+import type { Database } from './connection.js';
+import { exercise, exerciseSetting, type equipmentValues } from './schema.js';
 
 export type Equipment = (typeof equipmentValues)[number];
 

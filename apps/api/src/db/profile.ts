@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
-import type { Database } from './connection';
-import { userProfile } from './schema';
+import type { Database } from './connection.js';
+import { userProfile } from './schema.js';
 
 export type Profile = {
   timezone: string;

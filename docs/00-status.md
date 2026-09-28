@@ -60,6 +60,11 @@ were never migrated). **Before that branch merges,** `bootstrap.sql`'s new `GRAN
 for `overload_owner` must be run on Neon `staging` and `main`, and the staging owner password and
 Vercel's `DATABASE_URL_DIRECT` reset. Merging deploys staging and runs its first migration.
 
+**Staging's API crashed on every request, found 2026-09-28** (`06`): Vercel's Hono preset took
+`src/app.ts` as the entry, and its unbundled ESM output could not resolve extensionless imports.
+Fixed on branch `fm/overload-staging-api-crash`, with a CI job that builds the API as Vercel does
+(`12` §3). The iPhone checklist waits for that fix to reach `develop`.
+
 **Issues are open.** Milestone `M1`, one issue per slice, `#1`–`#7`, each chained to the one before
 with GitHub's native dependencies. `#1` carries the full slice-1 specification; its `ready-for-agent`
 label is **off** until provisioning is finished (below). `#3` carries the three questions its own

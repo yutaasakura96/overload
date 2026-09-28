@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
-import type { Database } from '../db/connection';
-import { invite } from '../db/schema';
+import type { Database } from '../db/connection.js';
+import { invite } from '../db/schema.js';
 
 // The invite gate (docs/08 §1) and the admin bootstrap (§3). These queries sit outside
 // `src/db/` on purpose: they run before any session exists, so there is no session user to take.

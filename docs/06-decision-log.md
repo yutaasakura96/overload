@@ -2565,3 +2565,44 @@ Minting cookies by hand from SQL: a session row alone does not authenticate, the
 HMAC-signed (2026-09-24), and it would duplicate the fixture's code.
 
 **Changed:** `AGENTS.md` (commands), `package.json`, `apps/api/package.json`, `.gitignore`.
+
+### [2026-09-28] Staging's API crashed on every request: Vercel's Hono preset took `src/app.ts` as its entry, and Node could not resolve extensionless imports
+
+**Context.** After the Drizzle switch deployed, the staging web app loaded but `/api/health` and
+`/api/me` answered 500 `FUNCTION_INVOCATION_FAILED`, through the web rewrite and on the
+`overload-api` develop URL directly, so the installed app showed *OFFLINE* and blocked the iPhone
+checklist (`11` §3). The runtime logs could not be read (the local Vercel CLI login had expired), so
+the build was reproduced on a laptop with `vercel build` (CLI 60.1.3) and placeholder settings.
+
+**Found, two faults, either one enough to crash every request.**
+
+- **The wrong entry.** The Hono preset takes the first of `app`, `index`, `server`, then `src/app`,
+  `src/index`, `src/server` whose text contains `from 'hono'`. `src/app.ts` came first, so the
+  function's handler was `src/app.js`, which has no default export. `12` §3 had said the preset
+  bundles `src/index.ts`; it never looked at that file.
+- **Unresolvable imports.** The preset does not bundle. It compiles each file to ESM on its own
+  (`"type": "module"`), and Node's ESM loader refuses `import './lib/problem'`: the built
+  `src/app.js` threw `ERR_MODULE_NOT_FOUND` on load. tsx, Vitest and drizzle-kit resolve such
+  imports, which is why nothing local failed.
+
+**Decided (firstmate, under Yuta's delegation), and built.** `src/app.ts` becomes
+`src/create-app.ts`; `src/index.ts` imports `hono` by name (a type, checked against the default
+export with `satisfies`); every relative import under `apps/api/src` ends in `.js`. CI gains a
+`vercel-build` job: `pnpm --filter @overload/api check:vercel-build` runs `vercel build` through
+`pnpm dlx` at a pinned version, requires the handler to be `src/index.js`, copies the function
+outside the repo (recreating pnpm's symlinks from `filePathMap`) and asks it for `/api/health` in
+plain Node. Against the old code it fails on the entry; with one extensionless import it fails with
+`ERR_MODULE_NOT_FOUND`.
+
+**Alternatives considered.** Bundling the API ourselves (esbuild in `vercel-build`, the entry a
+bundle): a second build path next to the preset's, rejected while the preset works with two rules.
+Vercel CLI as a devDependency: pinned in the lockfile, but it adds about 250 packages and moved other
+packages' resolutions, so the check fetches it with `pnpm dlx` instead. A lint rule for the `.js`
+ending: the CI job catches it, and an extra rule would duplicate it.
+
+**Still open.** `/api/me` and sign-in against Neon are proven only once `develop` redeploys; the
+check reaches no database. The new job is not a required status until it is added to the branch
+rules.
+
+**Changed:** `apps/api/src/*` (imports, the rename), `apps/api/scripts/check-vercel-build.ts`,
+`apps/api/package.json`, `.github/workflows/ci.yml`, `12` §3, `00-status`, `AGENTS.md` (commands).

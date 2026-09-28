@@ -1,6 +1,6 @@
 import { Pool } from 'pg';
 import { expect, it } from 'vitest';
-import { createApp } from '../src/app';
+import { createApp } from '../src/create-app';
 import { createAuth } from '../src/auth/auth';
 import { createDatabase } from '../src/db/connection';
 import { testConfig } from './harness';

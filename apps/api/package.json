@@ -12,6 +12,7 @@
     "seed:exercises": "tsx seed/exercises.ts",
     "db:generate": "drizzle-kit generate",
     "db:check-order": "tsx scripts/check-migration-order.ts",
+    "check:vercel-build": "node scripts/check-vercel-build.ts",
     "db:migrate": "node --env-file=.env.local node_modules/drizzle-kit/bin.cjs migrate",
     "vercel-build": "sh scripts/vercel-build.sh"
   },

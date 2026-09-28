@@ -19,9 +19,9 @@ import {
   unique,
   uuid,
 } from 'drizzle-orm/pg-core';
-import { user } from './auth-schema';
+import { user } from './auth-schema.js';
 
-export * from './auth-schema';
+export * from './auth-schema.js';
 
 const instant = (name: string) => timestamp(name, { withTimezone: true });
 

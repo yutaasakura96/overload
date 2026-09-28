@@ -76,7 +76,8 @@ deploy time if a build-time read turns out to be wrong. Still to confirm on the 
 `apps/web`.
 
 **The API project needs no rewrite config at all.** Vercel has a first-class Hono preset: the app is
-the default export of `apps/api/src/index.ts` and every path reaches it (`03` §5).
+the default export of `apps/api/src/index.ts` and every path reaches it (`03` §5). What makes the
+preset take that file is in §3.
 
 ---
 
@@ -139,10 +140,20 @@ esac
 
 - **It lives in the repo, not in the dashboard.** The Hono preset's Build Command is *None*, and
   Vercel's Hono builder then runs the first of `vercel-build`, `now-build` or `build` from
-  `package.json` before bundling `src/index.ts` itself (read from `@vercel/hono` and `@vercel/node`
+  `package.json` before compiling the entry itself (read from `@vercel/hono` and `@vercel/node`
   source, 2026-09-25). So nothing is set in the project settings, and a Build Command override there
   would replace this script. The command first written here ended in `pnpm build`, which fails: the
   API has no `build` script, and the preset needs none.
+- **What the preset builds, and two rules it imposes** (`06`, 2026-09-28). The entry is the first of
+  `app`, `index`, `server`, then `src/app`, `src/index`, `src/server` whose text contains
+  `from 'hono'` (Vercel's Hono docs, and `@vercel/build-utils` 60.1.3 source). It is not bundled:
+  each file is compiled to ESM on its own, so Node's loader resolves the imports at run time. Hence
+  **`src/index.ts` is the only such candidate** (the app factory is `src/create-app.ts`, and
+  `index.ts` imports `hono` by name), and **every relative import under `apps/api/src` ends in
+  `.js`**. Break either and every request fails with `FUNCTION_INVOCATION_FAILED`, `/api/health`
+  included, while Vitest and tsx pass. CI's `vercel-build` job (`pnpm --filter @overload/api
+  check:vercel-build`) runs `vercel build` with placeholder project settings, stages the function
+  outside the repo and asks it for `/api/health`.
 - **drizzle-kit** (0.31.10, with drizzle-orm 0.45.2 on the JavaScript `pg` 8.23.0 driver) reads
   `apps/api/drizzle.config.ts`, which takes `DATABASE_URL_DIRECT`. It applies every pending migration
   in `apps/api/migrations/` in **one transaction** and records each in `public.__drizzle_migrations`.

@@ -4,12 +4,12 @@ import type { Context, Next } from 'hono';
 import { csrf } from 'hono/csrf';
 import { HTTPException } from 'hono/http-exception';
 import { requestId } from 'hono/request-id';
-import type { AppEnv, RouteDeps } from './app-env';
-import type { Auth } from './auth/auth';
-import { problem, type ProblemCode } from './lib/problem';
-import { exerciseRoutes } from './routes/exercises';
-import { healthRoutes } from './routes/health';
-import { meRoutes } from './routes/me';
+import type { AppEnv, RouteDeps } from './app-env.js';
+import type { Auth } from './auth/auth.js';
+import { problem, type ProblemCode } from './lib/problem.js';
+import { exerciseRoutes } from './routes/exercises.js';
+import { healthRoutes } from './routes/health.js';
+import { meRoutes } from './routes/me.js';
 
 export type AppDeps = RouteDeps & {
   auth: Auth;
