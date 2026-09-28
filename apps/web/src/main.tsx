@@ -5,12 +5,12 @@ import '@fontsource/jetbrains-mono/latin-400.css';
 import '@fontsource/jetbrains-mono/latin-500.css';
 import '@fontsource/jetbrains-mono/latin-600.css';
 import './styles.css';
-import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { registerSW } from 'virtual:pwa-register';
 import { App } from './App';
-import { CACHE_MAX_AGE_MS, persister, queryClient } from './query';
+import { openCache, queryClient } from './query';
 
 // The shell-only service worker: the installed app opens without signal (docs/03 §4).
 registerSW({ immediate: true });
@@ -22,15 +22,15 @@ void navigator.storage?.persist?.();
 const root = document.getElementById('root');
 if (root === null) throw new Error('#root is missing from index.html');
 
-createRoot(root).render(
-  <StrictMode>
-    <PersistQueryClientProvider
-      client={queryClient}
-      persistOptions={{ persister, maxAge: CACHE_MAX_AGE_MS }}
-    >
-      <div className="app">
-        <App />
-      </div>
-    </PersistQueryClientProvider>
-  </StrictMode>,
+// The saved copy is loaded before the first render, so no query runs against an empty cache first.
+void openCache().then(() =>
+  createRoot(root).render(
+    <StrictMode>
+      <QueryClientProvider client={queryClient}>
+        <div className="app">
+          <App />
+        </div>
+      </QueryClientProvider>
+    </StrictMode>,
+  ),
 );

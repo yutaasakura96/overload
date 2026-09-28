@@ -2,7 +2,7 @@ import type { Me } from '@overload/api-contract';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { AppBar, Notice, SyncedAt } from '../components';
-import { exercisesQuery } from '../query';
+import { exercisesQuery, useAccount } from '../query';
 import { signOut } from '../sign-out';
 
 // S8, read-only: the seeded library plus the user's own, with their effective settings. docs/10 §8
@@ -11,8 +11,10 @@ import { signOut } from '../sign-out';
 const formatKg = (kg: number) => (Number.isInteger(kg) ? String(kg) : kg.toFixed(1));
 
 export function ExerciseLibrary({ me, navigate }: { me: Me; navigate: (path: string) => void }) {
-  const exercises = useQuery(exercisesQuery);
+  // The saved copy shows until /api/me confirms the account; no fetch runs under an unconfirmed one.
+  const exercises = useQuery({ ...exercisesQuery, enabled: useAccount().status === 'confirmed' });
   const [signingOut, setSigningOut] = useState(false);
+  const [signOutFailed, setSignOutFailed] = useState(false);
   const items = exercises.data ?? [];
 
   return (
@@ -29,6 +31,12 @@ export function ExerciseLibrary({ me, navigate }: { me: Me; navigate: (path: str
           {exercises.data === undefined
             ? 'Try again when you have signal.'
             : 'Showing the last copy.'}
+        </Notice>
+      )}
+
+      {signOutFailed && (
+        <Notice tone="flag" word="Not signed out">
+          Couldn't sign out. Try again.
         </Notice>
       )}
 
@@ -78,7 +86,12 @@ export function ExerciseLibrary({ me, navigate }: { me: Me; navigate: (path: str
           disabled={signingOut}
           onClick={() => {
             setSigningOut(true);
-            void signOut(navigate);
+            setSignOutFailed(false);
+            void signOut(navigate).then((signedOut) => {
+              if (signedOut) return;
+              setSigningOut(false);
+              setSignOutFailed(true);
+            });
           }}
         >
           Sign out

@@ -40,7 +40,9 @@ manager's `pnpm` shim refuses). Each is a CI job (`.github/workflows/ci.yml`):
 - Signed-in screens locally: with the API and web dev servers on `apps/api/.env.local`, run
   `pnpm dev:session`. It reads only `apps/api/.env.local`, requires the local `overload` database,
   and writes the cookie to three gitignored `.dev-session/` handoff files without printing it:
-  storageState, Playwright MCP, and chrome-devtools-axi (`docs/06`, 2026-09-26).
+  storageState, Playwright MCP, and chrome-devtools-axi (`docs/06`, 2026-09-26). Reload the page
+  after switching accounts with `dev:session`; the remaining same-tab gap is tracked in
+  [#13](https://github.com/yutaasakura96/overload/issues/13).
 - A Better Auth upgrade or a new field: `apps/api/scripts/auth-schema.ts` generates its Drizzle
   schema into a scratch file to diff against `src/db/auth-schema.ts` (`casing` does nothing).
 
@@ -58,6 +60,8 @@ A linter won't catch these:
   them; never edit them by hand. Breaking changes fail CI (oasdiff) unless the PR carries the label.
 - Every query in `apps/api/src/db/` takes the session user. Routes never filter by user themselves.
   Every resource gets a cross-user test (`docs/08` §10).
+- The web app's persisted cache is kept per account (`docs/08` §5). Every per-user query is
+  `enabled` only once `/api/me` has confirmed the account (`useAccount()` in `apps/web/src/query.ts`).
 - Planner, progression, trend, expenditure and plateau logic are pure functions in
   `apps/api/src/domain/`, never in the web app.
 - Rows created on the device carry a client-made UUIDv7. Every write is safe to retry: a repeat

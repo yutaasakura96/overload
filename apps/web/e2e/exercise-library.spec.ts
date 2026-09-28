@@ -1,49 +1,17 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
+import { cacheKey, deviceKeys, savedCache } from './device-store';
 import { apiFixture } from './fixture';
 
 type Cookies = Parameters<import('@playwright/test').BrowserContext['addCookies']>[0];
 
 // Signed in through Better Auth's testUtils() cookie helper, not Google (docs/11 §1).
+const userId = process.env.E2E_USER_ID ?? '';
+
 test.beforeEach(async ({ context }) => {
-  const userId = process.env.E2E_USER_ID;
-  if (userId === undefined) throw new Error('global setup did not create the test user');
+  if (userId === '') throw new Error('global setup did not create the test user');
   const cookies: Cookies = JSON.parse(apiFixture('cookies', userId, 'localhost'));
   await context.addCookies(cookies);
 });
-
-/** Everything in the app's own IndexedDB store (device-store.ts), as key → value. */
-function deviceStore(page: Page) {
-  return page.evaluate(
-    () =>
-      new Promise<Record<string, unknown>>((resolve, reject) => {
-        const open = indexedDB.open('overload');
-        open.addEventListener('error', () => reject(open.error));
-        open.addEventListener('success', () => {
-          const store = open.result.transaction('device', 'readonly').objectStore('device');
-          const keys = store.getAllKeys();
-          const values = store.getAll();
-          values.addEventListener('error', () => reject(values.error));
-          values.addEventListener('success', () => {
-            resolve(
-              Object.fromEntries(
-                keys.result.map((key, i) => [
-                  typeof key === 'string' ? key : JSON.stringify(key),
-                  values.result[i],
-                ]),
-              ),
-            );
-            open.result.close();
-          });
-        });
-      }),
-  );
-}
-
-const deviceKeys = async (page: Page) => Object.keys(await deviceStore(page));
-const persistedCache = async (page: Page) => {
-  const value = (await deviceStore(page))['query-cache:overload'];
-  return typeof value === 'string' ? value : '';
-};
 
 test('a signed-in user sees the seeded exercise library', async ({ page }) => {
   await page.goto('/');
@@ -64,7 +32,7 @@ test('sign-out ends the session and wipes the device', async ({ page }) => {
   // The persister writes at most once a second.
   await expect
     .poll(() => deviceKeys(page))
-    .toEqual(expect.arrayContaining(['signed-in-user', 'query-cache:overload']));
+    .toEqual(expect.arrayContaining(['signed-in-user', cacheKey(userId)]));
 
   await page.getByRole('button', { name: 'Sign out' }).click();
 
@@ -92,7 +60,7 @@ test('the installed shell opens offline with the last loaded library', async ({
   // The service worker controls the page, and the library has reached IndexedDB (the persister
   // writes at most once a second).
   await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
-  await expect.poll(() => persistedCache(page)).toContain('Barbell Bench Press');
+  await expect.poll(() => savedCache(page, userId)).toContain('Barbell Bench Press');
 
   await context.setOffline(true);
   await page.reload();

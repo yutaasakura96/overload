@@ -172,10 +172,8 @@ sees when it does not simply succeed.
 
 ### F8. Sign-out
 
-Exactly `08` §7. With nothing pending: wipe the cache and signed-in user, go to `/sign-in`. With
-pending or refused sets: "*N* sets not uploaded yet" → **Upload now** (online only; continues only
-when nothing pending is left) or **Discard and sign out**. **Sign out everywhere** is a separate
-action on the account screen.
+Follow `08` §7 for the server-confirmed sign-out, local wipe, failure state, pending-set dialog,
+and **Sign out everywhere** action.
 
 **Abandon:** closing the dialog cancels the sign-out. Nothing is lost.
 

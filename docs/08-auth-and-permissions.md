@@ -191,8 +191,27 @@ The endpoint list is `docs/07`.
 
 - **The web app is client-only**, so it cannot ask the server for the session while offline. It
   keeps the last confirmed signed-in user (id, name, email) in IndexedDB beside the cached API data.
+- **The cached API data is kept per account**, each user's copy under its own IndexedDB key, and
+  only one account's copy is ever open. At launch the app loads the last confirmed user's copy and
+  keeps it hidden while `/api/me` checks the account. When it names that user, their queries run.
+  When it names another account, the app drops the first copy from memory before that account's
+  data arrives and opens their own copy instead. A tab receiving an account-change notice closes
+  its current copy and reloads. Sign-out across tabs and its limits are in §7. A launch back from
+  sign-in opens no copy until `/api/me` answers.
+- After switching accounts with the local `pnpm dev:session` helper, reload the open app page.
+  A retry before the next account check can still save the new account's response in the previous
+  account's copy; the remaining gap is tracked in
+  [#13](https://github.com/yutaasakura96/overload/issues/13).
 - **Offline**, the app opens as that user, and the gym screen works exactly as it does online. New
-  sets are pending and carry that user's id in the set store.
+  sets are pending and carry that user's id in the set store. With a copy to open, the launch waits
+  3 s for `/api/me`, once, then treats a timeout or network error as offline: it shows that copy and
+  fetches nothing more until `/api/me` confirms the account, so nothing loaded under another
+  account's cookie is saved under this one. With no copy to open (a first sign-in, or after
+  sign-out), it waits for the server.
+- After an account has been confirmed in the tab, later `/api/me` checks use the same 3 s limit. A
+  network error or timeout keeps that same account's saved copy visible offline. A 401 still follows
+  the ended-session flow below without a wipe; only a successful answer naming another account
+  opens that account's copy.
 - **Back online**, a 401 from any request means the session has ended, whether it expired, was
   signed out elsewhere, or was revoked. The client cannot tell which from the 401, and it does not
   try:
@@ -231,8 +250,21 @@ The endpoint list is `docs/07`.
 
 ## 7. Sign-out
 
-- **With nothing pending:** end the session, clear the TanStack Query cache and its IndexedDB copy,
-  clear the stored signed-in user and the days left incomplete (`03` §6), and go to `/sign-in`.
+- **With nothing pending:** end the session, clear the TanStack Query cache and every account's
+  IndexedDB copy of it, clear the stored signed-in user and the days left incomplete (`03` §6), and
+  go to `/sign-in`. Other open tabs drop what they hold too. A 401 alone clears nothing (§5).
+- If the server cannot end the session, keep the user signed in, clear nothing, notify no other tab,
+  and show "Couldn't sign out. Try again."
+- If the pending-wipe marker remains because the IndexedDB wipe failed, retry the wipe at launch.
+  Until it succeeds, do not restore any saved copy, even after `/api/me` confirms an account; load
+  fresh data for that account instead.
+- If both the localStorage pending-wipe marker and IndexedDB wipe fail after the server ends the
+  session, sign-out still reaches `/sign-in` and warns "Saved data couldn't be cleared from this
+  device." This is a known limit: without either storage operation, a later offline launch may
+  reopen the retained copy.
+- A receiving tab wipes again after a sign-out notice to clear writes made after the first tab's
+  wipe. A write that lands after this second wipe can still leave a saved copy; this timing gap is
+  a known limit.
 - **With pending or refused sets:** first a dialog, "*N* sets not uploaded yet", with two actions:
   - **Upload now**, when online. Sign-out continues only when nothing pending is left. Refused sets
     still need the second choice.
@@ -306,6 +338,9 @@ Every one of these is a test, not a code-review item:
   that `user_id` remains in any table except `audit_event`, whose rows are kept for a year (S10).
 - Offline: an expired session with pending sets keeps them pending, and they upload after
   re-sign-in.
+- The saved query cache (§5): after account A, account B on the same device never sees A's data,
+  in that tab or another one. An offline launch opens only the last confirmed account's copy, and
+  sign-out wipes every account's copy.
 
 ---
 

@@ -2545,6 +2545,11 @@ chrome-devtools-axi script. It never prints the token or email. The chrome-devto
 the local page, sets `document.cookie`, then reopens it; page script cannot set `httpOnly`, but the
 API reads the Cookie header either way.
 
+After switching accounts with `pnpm dev:session`, reload every open app page before using it. A
+request retried in an already-open tab can still put the new account's response in the previous
+account's saved copy; that remaining gap is tracked in
+[#13](https://github.com/yutaasakura96/overload/issues/13).
+
 - **It stays out of the app, as 2026-09-24 kept `testUtils()` out of the production auth config.**
   The staging URLs are public (2026-09-23, Deployment Protection off), and `08` §1 allows Google only,
   so a sign-in route, flag or code path in the deployed API would be a hole. Nothing in `apps/api/src`
@@ -2606,3 +2611,36 @@ rules.
 
 **Changed:** `apps/api/src/*` (imports, the rename), `apps/api/scripts/check-vercel-build.ts`,
 `apps/api/package.json`, `.github/workflows/ci.yml`, `12` §3, `00-status`, `AGENTS.md` (commands).
+### [2026-09-27] The persisted query cache is kept per account
+
+**Context.** The web app saved its TanStack Query cache to IndexedDB under one fixed key,
+`overload`, whoever was signed in. When the session cookie changed without a sign-out (A's session
+expired and B signed in, or `pnpm dev:session` was handed another identity), the next launch
+restored A's copy and rendered it to B: A's email and library, until the one-minute staleTime let
+`/api/me` refetch. It was found reviewing `pnpm dev:session` (PR #11). Weight, food and health
+numbers must never be readable by a different account (`08` §7).
+
+**Decided (asked; the captain), and built.** Separate saved data per account, the old shared copy
+dropped once, and the 3-second offline rule kept (`08` §5).
+
+- Each account's copy lives under `query-cache:user:<id>`. The persister uses its cached `me` to
+  choose that key and drops writes after the account closes. The shared `query-cache:overload` key
+  is deleted at launch and never read. The same-tab cookie-switch gap remains in
+  [#13](https://github.com/yutaasakura96/overload/issues/13).
+- `/api/me` is the account check at every launch, focus and reconnect (`staleTime: 0`). The current
+  rendering and offline rules, including the `dev:session` reload requirement, are in `08` §5.
+- Switching account stops saving, clears memory except `me`, sets `me` to the new account, then
+  loads its own copy. Other tabs hear of it on a `BroadcastChannel` and reload.
+- A 401 wipes nothing: the same user signing in again gets their copy back (`08` §5). Sign-out
+  still wipes every copy.
+
+**Alternatives considered.** Keeping one shared copy and wiping it when `/api/me` names another
+account: rejected by the captain after review kept finding paths around it. A legacy copy could
+already mix two accounts, another tab kept the old account in memory, and every wipe rule had edge
+cases. Keying the persister's `buster` by user id: `persistQueryClientRestore` discards a busted copy,
+so switching accounts would delete the other account's offline data. `PersistQueryClientProvider`:
+it fixes one persister for the app's lifetime, so the app calls `persistQueryClientRestore` and
+`persistQueryClientSubscribe` itself (TanStack Query 5.103.2, source and docs checked 2026-09-27).
+
+**Changed:** `apps/web/src/query.ts`, `main.tsx`, `App.tsx`, `sign-out.ts`,
+`screens/ExerciseLibrary.tsx`, `screens/SignIn.tsx`; `08` §5 and §7; `03` §6.
