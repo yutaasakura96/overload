@@ -1,8 +1,8 @@
 import { createRoute, defineOpenAPIRoute } from '@hono/zod-openapi';
-import type { AppEnv, RouteDeps } from '../app-env';
-import { getProfile } from '../db/profile';
-import { problemResponse } from '../lib/problem';
-import { Me } from './schemas';
+import type { AppEnv, RouteDeps } from '../app-env.js';
+import { getProfile } from '../db/profile.js';
+import { problemResponse } from '../lib/problem.js';
+import { Me } from './schemas.js';
 
 const getMe = createRoute({
   method: 'get',

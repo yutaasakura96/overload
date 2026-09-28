@@ -1,5 +1,5 @@
 # The five checks every pull request to develop or main must pass, plus the contract drift check
-# (docs/11 §5). Each is its own job, so each is its own required status.
+# (docs/11 §5) and the API's Vercel build. Each is its own job, so each is its own required status.
 name: CI
 
 on:
@@ -90,6 +90,15 @@ jobs:
             apps/web/playwright-report/
             apps/web/test-results/
           retention-days: 7
+
+  vercel-build:
+    # The API built as Vercel builds it, and the function it made asked for /api/health (docs/12 §3).
+    # Vitest and tsx resolve imports, and pick entries, that the deployed function cannot.
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: ./.github/actions/setup
+      - run: pnpm --filter @overload/api check:vercel-build
 
   contract:
     runs-on: ubuntu-24.04

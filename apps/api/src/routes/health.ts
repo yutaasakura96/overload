@@ -1,6 +1,6 @@
 import { createRoute, defineOpenAPIRoute } from '@hono/zod-openapi';
-import type { AppEnv } from '../app-env';
-import { Health } from './schemas';
+import type { AppEnv } from '../app-env.js';
+import { Health } from './schemas.js';
 
 // The uptime check's target, every 5 minutes (docs/12 §5). It must never touch the database, or
 // the check alone would keep Neon's compute awake all month.

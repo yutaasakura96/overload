@@ -21,6 +21,9 @@ manager's `pnpm` shim refuses). Each is a CI job (`.github/workflows/ci.yml`):
 
 - `pnpm typecheck` (TypeScript 7), `pnpm lint` (oxlint type-aware, then `oxfmt --check`; `pnpm format`
   writes), `pnpm test` (Vitest, API), `pnpm e2e` (Playwright, Chromium and WebKit).
+- `pnpm --filter @overload/api check:vercel-build`: builds the API as Vercel's Hono preset does and
+  asks the function for `/api/health` (`docs/12` §3). Hence `src/index.ts` is the only entry candidate
+  and relative imports under `apps/api/src` end in `.js`.
 - `pnpm contract`: regenerates `packages/api-contract` from the route schemas. CI fails on a diff.
 - Local Postgres 18: `docker compose up -d`. Local never touches Neon. The tests migrate and use
   its `overload_test` database themselves. A volume made before 2026-09-25 lacks `bootstrap.sql`'s

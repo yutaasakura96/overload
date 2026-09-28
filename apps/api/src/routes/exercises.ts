@@ -1,8 +1,8 @@
 import { createRoute, defineOpenAPIRoute, z } from '@hono/zod-openapi';
-import type { AppEnv, RouteDeps } from '../app-env';
-import { listExercises } from '../db/exercises';
-import { problemResponse } from '../lib/problem';
-import { ExerciseList } from './schemas';
+import type { AppEnv, RouteDeps } from '../app-env.js';
+import { listExercises } from '../db/exercises.js';
+import { problemResponse } from '../lib/problem.js';
+import { ExerciseList } from './schemas.js';
 
 // Slice 1 reads the library. Create, edit, delete and the per-user setting land in slice 2
 // (docs/06, 2026-09-24).
