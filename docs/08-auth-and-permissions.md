@@ -254,6 +254,9 @@ The endpoint list is `docs/07`.
   go to `/sign-in`. Other open tabs drop what they hold too. A 401 alone clears nothing (§5).
 - If the server cannot end the session, keep the user signed in, clear nothing, notify no other tab,
   and show "Couldn't sign out. Try again."
+- If the pending-wipe marker remains because the IndexedDB wipe failed, retry the wipe at launch.
+  Until it succeeds, do not restore any saved copy, even after `/api/me` confirms an account; load
+  fresh data for that account instead.
 - If both the localStorage pending-wipe marker and IndexedDB wipe fail after the server ends the
   session, sign-out still reaches `/sign-in` and warns "Saved data couldn't be cleared from this
   device." This is a known limit: without either storage operation, a later offline launch may

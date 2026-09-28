@@ -474,7 +474,10 @@ test('a pending wipe blocks the saved copy after an account check succeeds', asy
     const { items }: { items: { name: string }[] } = await response.json();
     const [first, ...rest] = items;
     await heldExercise;
-    await route.fulfill({ response, json: { items: [{ ...first, name: freshExercise }, ...rest] } });
+    await route.fulfill({
+      response,
+      json: { items: [{ ...first, name: freshExercise }, ...rest] },
+    });
   });
   await page.goto('/');
   await exerciseAsked;
