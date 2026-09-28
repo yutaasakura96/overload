@@ -445,6 +445,45 @@ test('a failed wipe keeps the saved copy closed on an offline reload', async ({ 
   expect(errors).toEqual([]);
 });
 
+test('a pending wipe blocks the saved copy after an account check succeeds', async ({
+  page,
+  context,
+}) => {
+  await openAs(page, context, userA, EMAIL_A);
+  await context.addInitScript(() => {
+    IDBObjectStore.prototype.clear = () => {
+      throw new DOMException('The wipe failed.', 'UnknownError');
+    };
+  });
+  await page.evaluate(() => {
+    IDBObjectStore.prototype.clear = () => {
+      throw new DOMException('The wipe failed.', 'UnknownError');
+    };
+  });
+
+  await page.getByRole('button', { name: 'Sign out' }).click();
+  await expect(page).toHaveURL('/sign-in?wipe=failed');
+  expect(await savedCache(page, userA)).toContain(OWN_A);
+
+  await useCookie(context, userA);
+  const { promise: heldExercise, resolve: releaseExercise } = Promise.withResolvers<void>();
+  const exerciseAsked = page.waitForRequest('**/api/exercises');
+  const freshExercise = 'Fresh exercise after sign-in';
+  await page.route('**/api/exercises', async (route) => {
+    const response = await route.fetch();
+    const { items }: { items: { name: string }[] } = await response.json();
+    const [first, ...rest] = items;
+    await heldExercise;
+    await route.fulfill({ response, json: { items: [{ ...first, name: freshExercise }, ...rest] } });
+  });
+  await page.goto('/');
+  await exerciseAsked;
+  await expect(page.getByText(EMAIL_A)).toBeVisible();
+  await expect(page.getByText(OWN_A)).toHaveCount(0);
+  releaseExercise();
+  await expect(page.getByText(freshExercise)).toBeVisible();
+});
+
 test('failed marker and wipe show a saved-data notice after sign-out', async ({
   page,
   context,

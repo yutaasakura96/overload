@@ -108,8 +108,12 @@ function accountPersister(userId: string, generation = accountGeneration): Persi
     persistClient: (client) =>
       ownerOf(client) === userId ? persister.persistClient(client) : undefined,
     restoreClient: async () => {
+      if (deviceStore.wipePending()) return undefined;
       const client = await persister.restoreClient();
-      return generation === accountGeneration && client !== undefined && ownerOf(client) === userId
+      return !deviceStore.wipePending() &&
+        generation === accountGeneration &&
+        client !== undefined &&
+        ownerOf(client) === userId
         ? client
         : undefined;
     },
