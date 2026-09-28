@@ -210,7 +210,9 @@ The error colour is `error` `#F2555A` (`docs/05` §1.4, added 2026-09-22), alway
 - **Never logged or sent to Sentry:** food, weight or health values, meal or label photos, tokens,
   email addresses. Log ids and error codes only.
 - Sentry: user info off, no HTTP bodies, and `beforeSend` strips any value field. On Vercel,
-  `@sentry/hono` must flush before the function returns.
+  `@sentry/hono` must flush before the function returns. As built (`06`, 2026-09-28): the API's
+  `onError` captures each 500 and awaits the flush; SDK v11's `dataCollection` is set off in both
+  apps, and each app's `sentry-scrub.ts` keeps only what it knows.
 
 ---
 

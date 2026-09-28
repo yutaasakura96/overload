@@ -43,12 +43,32 @@ unrecoverable. So:
 
 Pattern documented by Neon ("Automate pg_dump backups", GitHub Actions → S3), checked 2026-09-21.
 
+**As built (2026-09-28, `06`).** `.github/workflows/backup.yml` runs `infra/backup/dump.sh` in the
+GitHub environment `backup`, which admits `develop` only; the role trusts that environment and no
+other subject. The environment holds the variables `BACKUP_BUCKET` and `BACKUP_ROLE_ARN` (the
+outputs of `infra/aws`). The dump runs from the `postgres:18` image; `age` is the 1.3.2 release,
+checksum-pinned. The workflow fails until a public key is in `infra/backup/age-recipients.txt`.
+
 ### Restore — both paths tested before M1 ships
 
 | Path | Use when | Test |
 | --- | --- | --- |
 | Neon restore from history | Damage under 6 hours old (`12` §4) | Once on `staging`, before M1 |
-| S3 dump | Anything older, or Neon itself is the problem | Download, `age -d`, `pg_restore` into Docker Postgres, run the API's test suite against it. Before M1, then quarterly |
+| S3 dump | Anything older, or Neon itself is the problem | Download, `age -d`, `pg_restore` into Docker Postgres, run the API's test suite against it. Before M1, then quarterly. CI's `backup-restore` job runs the same scripts on every pull request, against the test database |
+
+The S3 path, by hand (Yuta's IAM user reads the bucket; the role cannot):
+
+```sh
+aws s3 ls s3://overload-backups-yutaasakura96/backups/ | tail -1          # the newest dump
+aws s3 cp s3://overload-backups-yutaasakura96/backups/<name> /tmp/
+infra/backup/restore.sh /tmp/<name> <the offline age key file>            # into overload_restore
+TEST_DATABASE_URL=postgres://overload_app:overload_app_dev@localhost:5434/overload_restore \
+TEST_DATABASE_URL_DIRECT='postgres://overload_owner:overload_owner_dev@localhost:5434/overload_restore?sslmode=disable' \
+pnpm --filter @overload/api exec vitest run --exclude test/dev-session.test.ts
+```
+
+If `pg_restore` stops on a role Docker lacks (one of Neon's own), create it there `NOLOGIN` and run
+the restore again; the restore runs in one transaction, so nothing half-restored is left.
 
 A restore that has never run is not a backup. Both tests are on the checklist in §9.
 
@@ -119,7 +139,7 @@ This is step one of the migration notes, whenever they are written.
 | `ANTHROPIC_API_KEY` | Vercel, api | A dedicated **`overload` workspace**, $10/month limit. A key belongs to one workspace and cannot be moved (Anthropic docs, checked 2026-09-21) | Spend past the workspace limit, or touch other workspaces |
 | `CRON_SECRET` | Vercel, api | The cron route only (`08`) | — |
 | `SENTRY_AUTH_TOKEN` | Vercel, web and api | Source-map upload: `project:releases` scope only | Read events or change alerts |
-| GitHub → AWS | None stored: OIDC | `s3:PutObject` on `backups/*` | Read, list, delete |
+| GitHub → AWS | None stored: OIDC, trusted for the `backup` environment only | `s3:PutObject` on `backups/*` | Read, list, delete |
 | Ingest tokens | Hashed in `ingest_token` | One route, one user (`08` §9) | Anything else |
 | `age` private key | Offline, with Yuta | Decrypts backups | — |
 

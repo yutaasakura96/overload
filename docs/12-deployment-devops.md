@@ -101,7 +101,7 @@ per app, pointing at Docker Postgres — local never touches Neon.
 | `ANTHROPIC_API_KEY` | api | Secret | Label reads (M2), estimates (M3) | Same, for now |
 | `SENTRY_DSN` | api | Config | Errors, tagged with `environment` from `VERCEL_ENV` | Same |
 | `VITE_SENTRY_DSN` | web | Config | Browser errors. Public by design: it ends up in the bundle | Same |
-| `SENTRY_AUTH_TOKEN` | web, api | Secret | Source-map upload at build time | Same |
+| `SENTRY_AUTH_TOKEN` | web | Secret | Source-map upload at build time. An **organization** token, which names the org. The API needs none: Vercel compiles it after our build step, so there is nothing of ours to upload (`06`, 2026-09-28) | Same |
 | `API_ORIGIN` | web | Config | Rewrite target in `vercel.ts`, read at build time | Different |
 | `OFF_CONTACT` | api | Config | Contact in the Open Food Facts User-Agent (`03` §4) | Same |
 
@@ -268,6 +268,9 @@ monitor, with email alerts (Sentry pricing docs, checked 2026-09-21).
 | Nightly backup fails | GitHub's failed-workflow email (`13` §2) |
 | Neon CU-hours running out | No alert on Free. Once the first invitee joins, Yuta checks the month's CU-hours in the Neon console every Monday and moves to Launch before 80 of 100. Out of CU-hours, the compute is suspended until the next billing period (`03` §3) |
 
+- Sentry's environment is `production`, `staging` (a preview of `develop`), `preview` (any other
+  branch) or `development`, from `VERCEL_ENV` and `VERCEL_GIT_COMMIT_REF`; the alert filters on
+  `production`. The API sends each 500 from `onError` and waits up to 2 s for it to leave.
 - **`/api/health` must not touch the database** (binding). A 5-minute check would keep Neon's compute
   from ever scaling to zero: always-on at 0.25 CU is about 180 CU-hours a month against Free's 100,
   and the database would stop partway through the month. The route answers `200` if the function

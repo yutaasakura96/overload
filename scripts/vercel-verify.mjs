@@ -46,7 +46,7 @@ const REQUIRED = {
 
 // Not required to deploy slice 1. Reported, never fatal.
 const OPTIONAL = {
-  'overload-api': ['SENTRY_DSN', 'SENTRY_AUTH_TOKEN', 'ANTHROPIC_API_KEY'],
+  'overload-api': ['SENTRY_DSN', 'ANTHROPIC_API_KEY'],
   'overload-web': ['VITE_SENTRY_DSN', 'SENTRY_AUTH_TOKEN'],
 };
 

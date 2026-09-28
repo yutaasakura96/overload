@@ -2644,3 +2644,111 @@ it fixes one persister for the app's lifetime, so the app calls `persistQueryCli
 
 **Changed:** `apps/web/src/query.ts`, `main.tsx`, `App.tsx`, `sign-out.ts`,
 `screens/ExerciseLibrary.tsx`, `screens/SignIn.tsx`; `08` §5 and §7; `03` §6.
+
+### [2026-09-28] Sentry: captured in the API's `onError` and flushed there; SDK v11 collects nothing by default only when told
+
+**Context.** The infrastructure audit found no Sentry code at all (P4). `docs/03` §7 asks for user
+info off, no HTTP bodies and `beforeSend` stripping values, and for the API to flush before the
+function returns.
+
+**Decided (by default, within the brief), and built.**
+- **API: `@sentry/hono/node` 11.0.0, but not its `sentry()` middleware.** The middleware captures
+  after `onError` has already answered and never flushes. Instead `onError`, the one place a 500 is
+  made, calls `reportError`: `captureException` with `requestId`, `method` and the route pattern as
+  tags, then `await flush(2000)`. A 500 waits at most 2 s longer; nothing else does. `index.ts` loads
+  `src/sentry.ts` by dynamic import only when `SENTRY_DSN` is set, so tests and local runs never load
+  the SDK. No tracing, no breadcrumbs, `tracePropagationTargets: []`.
+- **v11 collects headers, cookies, bodies, query strings and stack-frame variables unless each is
+  turned off** (`dataCollection`, which replaced `sendDefaultPii`; read from the 11.0.0 types). Both
+  apps set every category off. The source lines around each frame are kept: they are code.
+- **`beforeSend` keeps only what it knows** (`apps/api/src/lib/sentry-scrub.ts`,
+  `apps/web/src/sentry-scrub.ts`): machine contexts, the request's method and path without its
+  query, no user, no extra. A Drizzle query error becomes `Failed query: <sql>` without its
+  parameters; a Postgres error of class 22 or 23, whose message can quote the failing value, becomes
+  `Postgres error <SQLSTATE>`. The web keeps only fetch, xhr and navigation breadcrumbs, without
+  queries; click and console breadcrumbs can quote a label or a logged value.
+- **Proven against the real SDK**: `apps/api/test/error-report.test.ts` serialises the envelope a
+  failed query would send and finds no email; `apps/web/e2e/sentry.spec.ts` builds the app with a
+  DSN on `sentry.invalid`, catches the envelope in Chromium and WebKit, and finds no email, cookie or
+  query. Both fail with the scrubber removed: v11's `urlQueryParams: false` alone left the query in
+  the fetch breadcrumb.
+- **Environment:** `production`; `staging` for a preview of `develop`; `preview` for any other
+  branch; `development` elsewhere. Release: `VERCEL_GIT_COMMIT_SHA`.
+- **Source maps: web only.** `@sentry/vite-plugin` 5.4.0 runs only when `SENTRY_AUTH_TOKEN` is set,
+  makes `hidden` maps, uploads them to project `overload-web` and deletes them before the output
+  is deployed or precached. An organization token names its org, so none is configured. The API is
+  compiled by Vercel's Hono builder after `vercel-build` has run, so no build step of ours sees its
+  output; its frames show the compiled paths. `SENTRY_AUTH_TOKEN` is therefore a web variable only
+  (`12` §2).
+
+**Alternatives considered.** The SDK's `sentry()` middleware (no flush, captures after the response
+is chosen). Vercel's `waitUntil` for the flush (another dependency, and the send would race the
+function's freeze). `@sentry/browser` rather than `@sentry/react` (loses React 19's
+`onUncaughtError`/`onRecoverableError` hooks, which never reach `window.onerror`).
+
+**Still open.** The two Sentry projects, the organization token and the three variables are Yuta's
+(`00-status`). Whether an event sent during `flush` survives on Vercel is proven by the first real
+500 on staging after the variables are set.
+
+**Changed:** `apps/api/src/{sentry,index,create-app}.ts`, `apps/api/src/lib/{error-report,sentry-scrub}.ts`,
+`apps/api/test/error-report.test.ts`, `apps/api/scripts/check-vercel-build.ts`,
+`apps/web/src/{sentry,sentry-scrub,main}.ts*`, `apps/web/src/vite-env.d.ts`, `apps/web/vite.config.ts`,
+`apps/web/playwright.config.ts`, `apps/web/e2e/sentry.spec.ts`; `03` §7, `12` §2 and §5.
+
+### [2026-09-28] Nightly backup built: the backup role could not dump, and the restore test runs in CI
+
+**Context.** `13` §2 specifies the backup; nothing of it existed (audit P5).
+
+**Found first.** `pg_dump` as `overload_backup` failed on the test database: *failed to get data for
+sequence `__drizzle_migrations_id_seq`*. `0000_privileges` grants the bookkeeping table to the
+backup role but not the sequence behind its id, which the migrator creates before `0000` runs. Every
+nightly dump of production would have failed. Migration `0004` grants `SELECT` on it, and
+`apps/api/test/backup-privileges.test.ts` asserts the role can read every table and sequence in
+`public`.
+
+**Decided (by default, within the brief), and built.**
+- **One script per direction, shared by CI and production.** `infra/backup/dump.sh` runs `pg_dump
+  --format=custom` from the `postgres:18` image (pg_dump must be at least the server's major; Neon is
+  18), checks the dump with `pg_restore --list`, and encrypts it with `age` to
+  `infra/backup/age-recipients.txt`. `infra/backup/restore.sh` decrypts, re-creates a scratch
+  database whose name must start with `overload_restore`, runs `bootstrap.sql` on it as on a Neon
+  branch, and restores in one transaction that stops at the first error.
+- **CI job `backup-restore`** migrates the test database, dumps it as `overload_backup` with a
+  throwaway key, restores it, and runs the API's tests against the restored copy (all but the
+  `dev:session` guard, which insists on `overload_test` by name). This is `13` §2's S3-path restore
+  test on every pull request; the quarterly test on a real dump uses the same script.
+- **`age` 1.3.2 from its release, checked against a pinned SHA-256** (`.github/actions/age`), not
+  Ubuntu's 1.1.1, so the runner and Yuta's Mac run the same version.
+- **OIDC is trusted for one GitHub environment, `backup`, which admits `develop` only** (scheduled
+  runs use the default branch, `develop`). The role's trust policy names
+  `repo:yutaasakura96/overload:environment:backup`, so a pull request or another branch cannot
+  assume it. The bucket name and role ARN are that environment's variables. Created 2026-09-28.
+- **Terraform** in `infra/aws/` (bucket, Block Public Access, owner-enforced, versioning, SSE-S3,
+  lifecycle 30 d / 7 d non-current / 1 d incomplete uploads, a TLS-only bucket policy, the OIDC
+  provider with no thumbprint, the `overload-backup` role with `s3:PutObject` on `backups/*`).
+  State in `overload-tfstate-yutaasakura96`, created by `infra/aws/state/` with local state, and
+  locked by S3 itself (`use_lockfile`, Terraform ≥ 1.10). Provider `~> 6.66`, Terraform 1.16.4.
+  CI's `terraform` job runs `fmt -check` and `validate` with no backend and no credentials.
+- **Until the `age` public key is committed, the workflow fails on purpose**, and GitHub's email is
+  the reminder.
+
+**Alternatives considered.** Installing PGDG's client on the runner (slower, and a second place to
+pin the version). A repository-wide OIDC subject (`repo:…:ref:refs/heads/develop`): any workflow on
+`develop` could then assume the role; the environment narrows it to jobs that declare it. A DynamoDB
+lock table (unneeded since Terraform 1.10).
+
+**Changed:** `apps/api/migrations/0004_*`, `apps/api/test/backup-privileges.test.ts`,
+`infra/backup/*`, `infra/aws/**`, `.github/workflows/{backup,ci}.yml`, `.github/actions/age`,
+`.gitignore`; `13` §2 and §4.
+
+### [2026-09-28] The WAF rule is set through Vercel's API or dashboard, not from the repo
+
+**Context.** `13` §3's rate limit (web project, `/api/*`, 300 requests / 60 s per IP) does not exist:
+the firewall config is `not_found` on both projects (read 2026-09-28).
+
+**Decided (by default).** No script or IaC for it. `13` §1 keeps Vercel in its dashboard, and one
+rule on a Hobby project is not worth a provider. Checked against Vercel's OpenAPI document
+(2026-09-28): `PATCH /v1/security/firewall/config` with `rules.insert` accepts only `deny`,
+`challenge` and `log`; a `rate_limit` rule goes through `PUT` of the whole config, or the dashboard.
+The exact rule is in the pull request that recorded this, applied only on Yuta's go, because it
+changes production's firewall.
