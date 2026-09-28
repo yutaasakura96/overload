@@ -41,7 +41,7 @@ it('names the SQL and the Postgres cause, but no parameter', async () => {
   expect(JSON.stringify(line)).not.toContain('someone@example.test');
 });
 
-it('keeps a data error to its code and constraint, since its message can quote a value', async () => {
+it('keeps a data error to its code, since its message can quote the value', async () => {
   const line = describeError(await failedQuery('select $1::uuid', ['someone@example.test']));
 
   expect(line.cause).toEqual({ code: '22P02' });
@@ -49,10 +49,10 @@ it('keeps a data error to its code and constraint, since its message can quote a
 });
 
 it('logs why an auth route failed when the database refuses it', async () => {
-  // The staging failure's shape (docs/06, 2026-09-28): the app starts, and the first query, the
-  // rate limiter's, fails. Here the database named in DATABASE_URL does not exist.
+  // The staging failure (docs/06, 2026-09-28): DATABASE_URL carries a password the database no
+  // longer accepts, so the app starts and the first query, the rate limiter's, fails.
   const url = new URL(testDatabaseUrl);
-  url.pathname = '/overload_no_such_database';
+  url.password = 'not-the-password';
   const badPool = new Pool({ connectionString: url.href });
   const db = createDatabase(badPool);
   const app = createApp({
@@ -79,7 +79,7 @@ it('logs why an auth route failed when the database refuses it', async () => {
   const logged = String(errorLog.mock.calls[0]?.[0]);
   expect(JSON.parse(logged)).toMatchObject({
     error: 'DrizzleQueryError',
-    cause: { code: '3D000', message: 'database "overload_no_such_database" does not exist' },
+    cause: { code: '28P01', message: `password authentication failed for user "${url.username}"` },
   });
   expect(logged).toContain('from \\"rate_limit\\"');
   expect(logged).not.toContain('203.0.113.7');
