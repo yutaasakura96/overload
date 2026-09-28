@@ -335,6 +335,7 @@ test('a successful sign-out wipes before other tabs reopen', async ({ context })
   await second.goto('/');
   await expect(second.getByText(EMAIL_A)).toBeVisible();
   await second.evaluate(() => {
+    // oxlint-disable-next-line typescript/unbound-method -- Proxy forwards the original store as thisArg
     IDBObjectStore.prototype.clear = new Proxy(IDBObjectStore.prototype.clear, {
       apply(target, thisArg, args) {
         sessionStorage.setItem('observed-second-wipe', '1');
