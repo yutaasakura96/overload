@@ -6,6 +6,7 @@ import { HTTPException } from 'hono/http-exception';
 import { requestId } from 'hono/request-id';
 import type { AppEnv, RouteDeps } from './app-env.js';
 import type { Auth } from './auth/auth.js';
+import { describeError } from './lib/error-log.js';
 import { problem, type ProblemCode } from './lib/problem.js';
 import { exerciseRoutes } from './routes/exercises.js';
 import { healthRoutes } from './routes/health.js';
@@ -104,14 +105,9 @@ export function createApp({ auth, config, db, log = console.log }: AppDeps) {
       const code = httpExceptionCodes[error.status];
       if (code !== undefined) return problem(c, code);
     }
-    // A stack trace and the request id; no request or row values.
-    console.error(
-      JSON.stringify({
-        requestId: c.get('requestId'),
-        error: error.name,
-        stack: error.stack,
-      }),
-    );
+    // A stack trace, the request id and, for a failed query, Postgres's reason; no request or row
+    // values.
+    console.error(JSON.stringify({ requestId: c.get('requestId'), ...describeError(error) }));
     return problem(c, 'internal');
   });
 

@@ -206,7 +206,8 @@ The error colour is `error` `#F2555A` (`docs/05` §1.4, added 2026-09-22), alway
 ### Logging
 
 - One structured JSON line per request in Vercel's function logs, with a request id.
-- Stack traces for kind 3 and for every 5xx.
+- Stack traces for kind 3 and for every 5xx. A failed query logs its SQL and Postgres's `code` and
+  reason, never its parameters (`apps/api/src/lib/error-log.ts`).
 - **Never logged or sent to Sentry:** food, weight or health values, meal or label photos, tokens,
   email addresses. Log ids and error codes only.
 - Sentry: user info off, no HTTP bodies, and `beforeSend` strips any value field. On Vercel,
