@@ -1,6 +1,6 @@
-# no-mistakes gate config. commands/agent/pr.base_branch are read only from the
-# default branch (develop), so this file must exist there too.
-allow_repo_commands: true
+# no-mistakes gate config. commands, agent and pr.base_branch are read only from the
+# default branch (develop), not from pushed branches. This file must exist on the default branch.
+allow_repo_commands: false
 
 # Every command runs pnpm through corepack: the root scripts call `pnpm` again, and a version
 # manager's shim may refuse it (AGENTS.md, Commands). Vitest needs the local Postgres on 5434.
