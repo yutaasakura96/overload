@@ -2788,3 +2788,35 @@ rule on a Hobby project is not worth a provider. Checked against Vercel's OpenAP
 `challenge` and `log`; a `rate_limit` rule goes through `PUT` of the whole config, or the dashboard.
 The exact rule is in the pull request that recorded this, applied only on Yuta's go, because it
 changes production's firewall.
+
+### [2026-09-29] Agent instructions and no-mistakes config aligned with agentic-setup (#21); the Stop hook came back in a form Claude Code shows
+
+**Context.** #21 brought `AGENTS.md` and the repo's no-mistakes setup in line with agentic-setup's
+current conventions.
+
+**Decided.**
+- **Dropped the "grill me first" workflow rule.** Requirements grilling is now agentic-setup's own
+  `/grill-with-docs` flow, not a per-repo instruction.
+- **Polish gate reworded to name review types instead of specific skills.** `web-design-guidelines`
+  (a skill), then a WCAG 2.1 AA accessibility review, then a design critique for hierarchy,
+  consistency and motion — no longer pinned to `design:accessibility-review` and
+  `emil-design-eng`, which agentic-setup no longer ships under those names.
+- **Adopted `.no-mistakes.yaml`** as the no-mistakes gate config (`prepare`, `lint`, `test` commands,
+  PR base branch, manual-test instructions), read from `develop`.
+- **Removed the `Stop` hook (`stop-branch-drift.sh`) from `.claude/settings.json`.** It printed its
+  drift warning to stdout, which Claude Code never surfaces from a successful hook; `main` drifted to
+  27 commits behind `develop` unnoticed. Removing a hook that never fired was correct, but left no
+  replacement.
+
+**Found after #21 merged, and fixed.** #21 also edited three entries above in place (the WAF entry's
+predecessor, the Phase 5 entry, and two design-token entries) to keep them consistent with the new
+wording, which breaks this log's append-only rule — those entries now read as if written on
+2026-09-29 rather than on the dates in their headings. Left as edited: reverting would restore
+references to skill names and a hook that no longer exist. The `Stop` hook is restored here, rewritten
+to return JSON with a `systemMessage` field (`.claude/hooks/stop-branch-drift.sh`,
+`.claude/settings.json`) instead of writing to stdout, per the Claude Code hooks reference
+(code.claude.com/docs/en/hooks): `systemMessage` is shown to the user; a successful hook's stdout is
+not. Same 6-commit threshold, same never-blocks behavior.
+
+**Changed:** `AGENTS.md`, `.no-mistakes.yaml`, `.claude/hooks/stop-branch-drift.sh`,
+`.claude/settings.json`, `06`.
