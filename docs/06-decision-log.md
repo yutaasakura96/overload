@@ -2809,14 +2809,15 @@ current conventions.
   replacement.
 
 **Found after #21 merged, and fixed.** #21 also edited three entries above in place (the Phase 5
-entry and two design-token entries) to keep them consistent with the new
-wording, which breaks this log's append-only rule — those entries now read as if written on
-2026-09-29 rather than on the dates in their headings. Left as edited: reverting would restore
-references to skill names and a hook that no longer exist. The `Stop` hook is restored here, rewritten
+entry and two design-token entries) to keep them consistent with the new wording, which breaks this
+log's append-only rule — those entries now read as if written on 2026-09-29 rather than on the dates
+in their headings. Left as edited: reverting would restore references to skill names that no longer
+exist. The Phase 5 entry's note that the `Stop` hook was removed is superseded by this entry, not
+reverted. The `Stop` hook is restored here, rewritten
 to return JSON with a `systemMessage` field (`.claude/hooks/stop-branch-drift.sh`,
 `.claude/settings.json`) instead of writing to stdout, per the Claude Code hooks reference
 (code.claude.com/docs/en/hooks): `systemMessage` is shown to the user; a successful hook's stdout is
 not. Same 6-commit threshold, same never-blocks behavior.
 
 **Changed:** `AGENTS.md`, `.no-mistakes.yaml`, `.claude/hooks/stop-branch-drift.sh`,
-`.claude/settings.json`, `06`.
+`.claude/settings.json`, `00`, `06`.
