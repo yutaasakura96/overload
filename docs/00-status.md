@@ -183,6 +183,8 @@ _(nothing — both group 6 items landed in `11` §2 on 2026-09-23.)_
 ### Phase 5 — done 2026-09-21
 Written: `CLAUDE.md`, `.claude/settings.json`, `.claude/hooks/pre-edit-branch-guard.sh`,
 `.gitignore` entry. No `.mcp.json` (Neon and Sentry come from claude.ai connectors). Decision in `06`.
+`.claude/hooks/stop-branch-drift.sh` was removed on 2026-09-29 and restored the same day, emitting
+`{"systemMessage": ...}` so the main-behind-develop reminder is shown (`06`, 2026-09-29).
 The pnpm entries in the allowlist are provisional until `package.json` exists.
 `gh api` is allowed, and writes ask: `-X`/`--method` with POST, PATCH, PUT or DELETE, and the
 implicit POST of `-f`, `-F`, `--field`, `--raw-field` and `--input` (a GET with fields asks too).
