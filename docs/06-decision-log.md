@@ -1182,7 +1182,7 @@ One WAF rule, 300 req/60 s per IP on the web project's `/api/*`. `no-store` on e
 **Revisit if:** the first invitee is near (§9 of `13`); the app moves to AWS (IaC for everything,
 domain chosen then); a dump grows past what a GitHub runner handles comfortably.
 
-### [2026-09-21] Repo configuration (Phase 5): mattpocock-skills on, no project MCP, two hooks
+### [2026-09-21] Repo configuration (Phase 5): mattpocock-skills on, no project MCP, hooks
 
 **Decided (approved as proposed).**
 1. **Plugins:** `mattpocock-skills` on (the build phase starts with `/grill-with-docs`);
@@ -1191,12 +1191,12 @@ domain chosen then); a dump grows past what a GitHub runner handles comfortably.
    duplicate every tool. Read-only connector tools are allowed; every write, `run_sql` and
    `get_connection_string` asks.
 3. **Hooks:** `pre-edit-branch-guard.sh` blocks edits on `main` (it deploys production and migrates);
-   `stop-branch-drift.sh` reports when `main` is ≥6 commits behind `develop`. Both copied from lfca-lab.
+   `stop-branch-drift.sh` was intended to report when `main` was ≥6 commits behind `develop`.
+   The Stop hook was removed on 2026-09-29 because its stdout did not reach the model or user.
 4. **Permissions:** `dbmate`, `psql`, `pg_dump`/`pg_restore`, `terraform apply/destroy`, `vercel`,
    `aws`, `age` and every `gh` write ask; `.env`, `.env.local`, `.env.*.local`, `.env.production`
    and `.env.staging` reads are denied (`.env.example` stays readable). The repo is public.
-5. **`CLAUDE.md`** points at `docs/` and holds only the rules a linter cannot catch, plus the
-   hands-off workflow block and the polish gate.
+5. **`CLAUDE.md`** originally held the workflow and polish gate; it now imports `AGENTS.md`.
 
 **Alternatives considered.** A project `.mcp.json` with Neon, Sentry and Playwright, as lfca-lab has
 (duplicates the connectors; Playwright is used as a test runner, not an MCP). Format and commit-gate
@@ -1249,7 +1249,7 @@ Supersedes the 2026-09-16 "six text tones, and the contrast cost left on the rec
 SC 1.4.11* ("Boundaries", checked 2026-09-22) says a control identified by its visible text needs no
 contrasting boundary. `line/field` stays at `#2A3440` and is never the only thing that shows a control exists.
 
-**Why.** Every UI feature would otherwise fail step 2 of the polish gate (`design:accessibility-review`). The
+**Why.** Every UI feature would otherwise fail the WCAG review in the polish gate (`AGENTS.md`). The
 failing tones were also read in the worst conditions: "last time" at 3.32:1, and pre-filled reps at 2.56:1 that
 are saved on COMPLETE SET, both mid-set in gym light.
 
@@ -1355,7 +1355,7 @@ of this date) and not a second flag surface.
 
 **Why.** The app runs from the iPhone home screen, so hover never fires, but `05` defined no pressed
 state, and a touch control with none feels dead. The token already existed in every artboard. Motion and
-timing for the press are left to the polish gate (`emil-design-eng`), which tunes them against this token.
+timing for the press are left to the polish gate (`AGENTS.md`), which tunes them against this token.
 
 **Alternatives considered.** Dropping `#6FCDE3`: this leaves the pressed state undefined until the
 build, when the polish gate would have to invent a token rather than audit one.

@@ -69,7 +69,7 @@ Fixed on branch `fm/overload-staging-api-crash`, with a CI job that builds the A
 with GitHub's native dependencies. `#1` carries the full slice-1 specification; its `ready-for-agent`
 label is **off** until provisioning is finished (below). `#3` carries the three questions its own
 `/grill-with-docs` must settle first.
-Each UI feature clears the polish gate in `CLAUDE.md`.
+Each UI feature clears the polish gate in `AGENTS.md`.
 
 ### Provisioning — done (2026-09-25)
 
@@ -181,7 +181,7 @@ _(nothing — both group 6 items landed in `11` §2 on 2026-09-23.)_
 - `10` §7.3 scroll and sticky for screens 3–6: left open for each screen's M2 `/grill-with-docs` (2026-09-22).
 
 ### Phase 5 — done 2026-09-21
-Written: `CLAUDE.md`, `.claude/settings.json`, `.claude/hooks/{pre-edit-branch-guard,stop-branch-drift}.sh`,
+Written: `CLAUDE.md`, `.claude/settings.json`, `.claude/hooks/pre-edit-branch-guard.sh`,
 `.gitignore` entry. No `.mcp.json` (Neon and Sentry come from claude.ai connectors). Decision in `06`.
 The pnpm entries in the allowlist are provisional until `package.json` exists.
 `gh api` is allowed, and writes ask: `-X`/`--method` with POST, PATCH, PUT or DELETE, and the
