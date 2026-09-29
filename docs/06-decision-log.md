@@ -2808,8 +2808,8 @@ current conventions.
   27 commits behind `develop` unnoticed. Removing a hook that never fired was correct, but left no
   replacement.
 
-**Found after #21 merged, and fixed.** #21 also edited three entries above in place (the WAF entry's
-predecessor, the Phase 5 entry, and two design-token entries) to keep them consistent with the new
+**Found after #21 merged, and fixed.** #21 also edited three entries above in place (the Phase 5
+entry and two design-token entries) to keep them consistent with the new
 wording, which breaks this log's append-only rule — those entries now read as if written on
 2026-09-29 rather than on the dates in their headings. Left as edited: reverting would restore
 references to skill names and a hook that no longer exist. The `Stop` hook is restored here, rewritten
