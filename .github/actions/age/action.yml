@@ -1,0 +1,17 @@
+name: Install age
+description: The age release the backups are encrypted with, checked against its pinned SHA-256 (docs/13 §2).
+runs:
+  using: composite
+  steps:
+    # Ubuntu's own package is 1.1.1; the release binary matches what Yuta installs to decrypt.
+    - shell: bash
+      env:
+        VERSION: v1.3.2
+        SHA256: cbe24006683f8eb669266162894b9a522a1af52f2665fbc63a4bb032ed26ac10
+      run: |
+        archive="$RUNNER_TEMP/age.tar.gz"
+        curl --fail --silent --show-error --location --output "$archive" \
+          "https://github.com/FiloSottile/age/releases/download/$VERSION/age-$VERSION-linux-amd64.tar.gz"
+        echo "$SHA256  $archive" | sha256sum --check --strict
+        tar -xzf "$archive" -C "$RUNNER_TEMP"
+        echo "$RUNNER_TEMP/age" >> "$GITHUB_PATH"

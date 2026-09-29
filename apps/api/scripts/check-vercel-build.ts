@@ -80,6 +80,8 @@ Object.assign(process.env, {
   GOOGLE_CLIENT_ID: 'placeholder',
   GOOGLE_CLIENT_SECRET: 'placeholder',
   ADMIN_EMAIL: 'admin@example.test',
+  // So the function loads @sentry/hono as production does. Nothing is sent: no error is captured.
+  SENTRY_DSN: 'https://public@o0.ingest.sentry.io/0',
 });
 const entry: { default: Pick<Hono, 'fetch'> } = await import(join(deployed, handler));
 const res = await entry.default.fetch(new Request('https://staging.example.test/api/health'));

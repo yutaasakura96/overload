@@ -11,6 +11,10 @@ import { createRoot } from 'react-dom/client';
 import { registerSW } from 'virtual:pwa-register';
 import { App } from './App';
 import { openCache, queryClient } from './query';
+import { initSentry } from './sentry';
+
+// First, so an error anywhere after this is reported (docs/12 §5). A no-op without VITE_SENTRY_DSN.
+const rootOptions = initSentry();
 
 // The shell-only service worker: the installed app opens without signal (docs/03 §4).
 registerSW({ immediate: true });
@@ -24,7 +28,7 @@ if (root === null) throw new Error('#root is missing from index.html');
 
 // The saved copy is loaded before the first render, so no query runs against an empty cache first.
 void openCache().then(() =>
-  createRoot(root).render(
+  createRoot(root, rootOptions).render(
     <StrictMode>
       <QueryClientProvider client={queryClient}>
         <div className="app">

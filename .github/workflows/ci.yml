@@ -1,5 +1,6 @@
 # The five checks every pull request to develop or main must pass, plus the contract drift check
-# (docs/11 §5) and the API's Vercel build. Each is its own job, so each is its own required status.
+# (docs/11 §5), the API's Vercel build, the backup round trip and Terraform validation (docs/13 §2).
+# Each is its own job, so each is its own required status.
 name: CI
 
 on:
@@ -90,6 +91,65 @@ jobs:
             apps/web/playwright-report/
             apps/web/test-results/
           retention-days: 7
+
+  backup-restore:
+    # The nightly backup and the documented restore, end to end (docs/13 §2): the migrated test
+    # database dumped as overload_backup by the backup's own script, encrypted to a throwaway key,
+    # restored by restore.sh, then the API's tests against the restored copy. A grant the backup
+    # role lacks, or a dump that no longer restores, fails here rather than at 03:00 JST.
+    runs-on: ubuntu-24.04
+    services:
+      postgres: *postgres
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: ./.github/actions/setup
+      - uses: ./.github/actions/age
+      - name: Create the test database and its roles
+        run: *bootstrap
+        env: *admin
+      - name: Migrate the test database
+        run: pnpm --filter @overload/api exec drizzle-kit migrate
+        env:
+          DATABASE_URL_DIRECT: ${{ env.TEST_DATABASE_URL_DIRECT }}
+      - name: Dump and encrypt, as the nightly backup does
+        run: |
+          age-keygen --output "$RUNNER_TEMP/identity"
+          age-keygen -y "$RUNNER_TEMP/identity" > "$AGE_RECIPIENTS_FILE"
+          infra/backup/dump.sh "$RUNNER_TEMP/backup.dump.age"
+        env:
+          DATABASE_URL_BACKUP: postgres://overload_backup:overload_backup_dev@localhost:5434/overload_test
+          AGE_RECIPIENTS_FILE: ${{ runner.temp }}/recipients
+      - name: Restore into overload_restore
+        run: infra/backup/restore.sh "$RUNNER_TEMP/backup.dump.age" "$RUNNER_TEMP/identity"
+        env:
+          PG_EXEC: docker exec -i ${{ job.services.postgres.id }}
+      # dev-session's guard insists on overload_test by name, so it has nothing to say here.
+      - name: The API's tests against the restored copy
+        run: pnpm --filter @overload/api exec vitest run --exclude test/dev-session.test.ts
+        env:
+          TEST_DATABASE_URL: postgres://overload_app:overload_app_dev@localhost:5434/overload_restore
+          TEST_DATABASE_URL_DIRECT: postgres://overload_owner:overload_owner_dev@localhost:5434/overload_restore?sslmode=disable
+
+  terraform:
+    # infra/aws is applied by hand from Yuta's machine (docs/13 §1); CI only proves it parses and is
+    # formatted, with no backend and no AWS credentials.
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: infra/aws
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: hashicorp/setup-terraform@v4.0.1
+        with:
+          terraform_version: 1.16.4
+          terraform_wrapper: false
+      - run: terraform fmt -check -recursive
+      - run: terraform init -backend=false -input=false
+      - run: terraform validate
+      - run: terraform init -backend=false -input=false
+        working-directory: infra/aws/state
+      - run: terraform validate
+        working-directory: infra/aws/state
 
   vercel-build:
     # The API built as Vercel builds it, and the function it made asked for /api/health (docs/12 §3).

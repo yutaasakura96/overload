@@ -9,9 +9,14 @@ import { createDatabase, createPool } from './db/connection.js';
 // then under src/) whose text has `from 'hono'`, so this file must say it and no earlier candidate
 // may exist. Vercel compiles each file without bundling, into ESM, so relative imports under src/
 // carry `.js` (docs/12 §3). `pnpm --filter @overload/api check:vercel-build` proves both.
+
+// Sentry only when its DSN is set (docs/12 §2), so local runs and tests never load it.
+const reportError = process.env.SENTRY_DSN
+  ? (await import('./sentry.js')).initSentry(process.env)
+  : undefined;
 const config = readConfig();
 const pool = createPool(config.databaseUrl);
 const db = createDatabase(pool);
 const auth = createAuth({ config, db });
 
-export default createApp({ auth, config, db }) satisfies Pick<Hono, 'fetch'>;
+export default createApp({ auth, config, db, reportError }) satisfies Pick<Hono, 'fetch'>;

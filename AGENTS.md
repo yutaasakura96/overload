@@ -43,6 +43,9 @@ manager's `pnpm` shim refuses). Each is a CI job (`.github/workflows/ci.yml`):
   storageState, Playwright MCP, and chrome-devtools-axi (`docs/06`, 2026-09-26). Reload the page
   after switching accounts with `dev:session`; the remaining same-tab gap is tracked in
   [#13](https://github.com/yutaasakura96/overload/issues/13).
+- Backups: `infra/backup/dump.sh` and `restore.sh` serve both the nightly `backup.yml` and CI's
+  `backup-restore` job (`docs/13` §2). `infra/aws` Terraform is applied by hand from Yuta's machine,
+  never from CI; CI only validates it. Sentry loads only when `SENTRY_DSN` / `VITE_SENTRY_DSN` is set.
 - A Better Auth upgrade or a new field: `apps/api/scripts/auth-schema.ts` generates its Drizzle
   schema into a scratch file to diff against `src/db/auth-schema.ts` (`casing` does nothing).
 
