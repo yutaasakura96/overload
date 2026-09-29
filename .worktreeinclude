@@ -1,2 +1,0 @@
-# Gitignored files treehouse copies from the main checkout into each worktree.
-.env*

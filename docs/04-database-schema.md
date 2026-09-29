@@ -18,12 +18,7 @@ plus the security roles and `audit_event` from `docs/13`, which ship with M1.
 - All instants are `timestamptz`, stored UTC.
 - Weights are kilograms, `numeric(6,2)`. No pounds anywhere (S8).
 - Foreign keys are named `<table>_id` and every one declares a delete behaviour.
-- The schema changes only through versioned SQL migrations in `apps/api/migrations/`, applied by
-  `drizzle-kit migrate` (`docs/12` §3). The tables are written as Drizzle tables in
-  `apps/api/src/db/schema.ts`, and `drizzle-kit generate` writes each migration's SQL from the
-  change; the committed SQL, reviewed like code, is what reaches a database. `drizzle-kit push` is
-  never used. What Drizzle cannot express (grants, functions, an expression index with `NULLS NOT
-  DISTINCT`, seed rows) is a custom migration in the same folder. *Changed 2026-09-25* (`docs/06`).
+- The schema changes only through versioned SQL migrations in `migrations/`.
 - **Exceptions**, each explained at its table:
   - composite or `user_id` primary keys instead of `id`: `exercise_setting`, `user_profile`,
     `day_routine`, `health_sync_state`
@@ -33,49 +28,11 @@ plus the security roles and `audit_event` from `docs/13`, which ship with M1.
 
 ## Tables owned by Better Auth
 
-`user`, `session`, `account`, `verification`, and `rate_limit` (`id`, `key` unique, `count` integer,
-`last_request` bigint epoch ms), which `rateLimit.storage: "database"` needs (`docs/08` §2). We do not
-design them. Better Auth's `generate` writes them as a Drizzle schema (`apps/api/src/db/auth-schema.ts`),
-and drizzle-kit turns that into a migration like every other table. `advanced.database.generateId: "uuid"` makes `user.id` a `uuid` column, which every
+`user`, `session`, `account`, `verification` (core schema, checked 2026-09-19), and `rateLimit`
+(`id`, `key`, `count`, `lastRequest`), which `rateLimit.storage: "database"` needs (`docs/08` §2;
+Better Auth docs v1.6.23, checked 2026-09-22). We do not design them. Their SQL comes from Better
+Auth's schema `generate` and ships as a dbmate migration like every other table. `advanced.database.generateId: "uuid"` makes `user.id` a `uuid` column, which every
 `user_id` below references. Deleting a `user` row cascades through everything here.
-
-**Re-checked against Better Auth 1.7.5 source, 2026-09-24** (was v1.6.23):
-
-- The four core tables are unchanged. `session` carries `token` (unique), `expires_at`, `ip_address`,
-  `user_agent`, indexed on `user_id` with `ON DELETE CASCADE`. `account` carries `account_id` +
-  `provider_id` as the provider-side identity, the OAuth token columns and `id_token`, also cascading.
-  Google sign-in adds **no** provider-specific table.
-- **The bearer plugin adds nothing** — no schema at all. Tokens are the existing `session.token`.
-- **snake_case comes from the Drizzle columns** (`apps/api/src/db/auth-schema.ts`). Better Auth's
-  Drizzle adapter finds a model by its key in the schema object (`rateLimit`) and a field by the
-  column's JavaScript key (`emailVerified`); the name that reaches SQL is the column's own
-  (`rate_limit`, `email_verified`). The generator writes that shape by default, so no per-model
-  `fields` mapping is needed (`06`, 2026-09-25). `database: { casing: 'snake' }` still does nothing
-  (`06`, 2026-09-24). Two edits to the generated file keep `04`'s conventions: timestamps are
-  `timestamptz`, and the `user_id` indexes are named in snake_case.
-- The Drizzle generator writes the **whole schema** from the auth options, with no database. On a
-  Better Auth upgrade it is generated into a scratch file and the difference carried over; the
-  adapter's schema check then fails the first auth call if a field is missing. `docs/12` §3 holds
-  the procedure. The CLI is the npm package **`auth`**.
-
-## When each table is created
-
-Migrations are slice-scoped: a table is created by the slice whose code first uses it, not all at
-once (`06`, 2026-09-24). Under the add-first rule (`docs/12` §3) this is as safe as one big
-migration, and it keeps the schema to what has been exercised. **This document is therefore a plan
-ahead of the current slice, not a description of the database.**
-
-| Slice | Tables created |
-| --- | --- |
-| **1** | Better Auth's five · `invite` · `audit_event` · `user_profile` · `exercise` · `exercise_setting` |
-| **2** | `routine` · `routine_exercise` |
-| **3** | `workout` · `workout_exercise` · `set` |
-| **4** | `sync_tombstone` |
-| **M2** | Everything under *M2 — meal plan + weight* |
-| **M3** | Everything under *M3 — health + coaching*, and `ingest_token` |
-
-Each slice's GitHub issue names the tables it creates, so the gap between this document and the
-database stays visible.
 
 ---
 
@@ -115,8 +72,8 @@ One exercise. Either **seeded** (`owner_user_id IS NULL`, visible to everyone, ~
 | `id` | uuid | no | `uuidv7()` | PK |
 | `owner_user_id` | uuid | yes | — | → `user.id`, `ON DELETE CASCADE`. `NULL` = seeded |
 | `name` | text | no | — | "Barbell Bench Press" |
-| `equipment` | text | no | — | `barbell` \| `dumbbell` \| `machine_plate` \| `machine_stack` \| `cable` \| `bodyweight` \| `other`, enforced by `CHECK`. A load-increment taxonomy, not an equipment inventory: plate-loaded machines share the barbell's plates, selectorised stacks do not (`06`, 2026-09-23) |
-| `default_increment_kg` | numeric(5,2) | no | `2.50` | Fallback when the user has no setting row. Seeded per equipment class: barbell 2.5, dumbbell 1.0, `machine_plate` 2.5, `machine_stack` 5.0, cable 2.5, bodyweight 0 (`06`, 2026-09-23) |
+| `equipment` | text | no | — | `barbell` \| `dumbbell` \| `machine` \| `cable` \| `bodyweight` \| `other`, enforced by `CHECK` |
+| `default_increment_kg` | numeric(5,2) | no | `2.50` | Fallback when the user has no setting row |
 | `default_rest_seconds` | integer | no | `120` | Fallback. S5's 120 s default lives here |
 | `default_rep_low` | smallint | no | `6` | Fallback rep range (S3) |
 | `default_rep_high` | smallint | no | `10` | |
@@ -1021,14 +978,11 @@ _Added 2026-09-21 by `docs/13`. Needed from the first migration, whatever the mi
 Three roles (`docs/13` §5): `overload_owner` (owns everything, runs migrations), `overload_app` (DML
 on app tables, no DDL), `overload_backup` (`SELECT` only).
 
-The roles themselves are **not** created by a migration — drizzle-kit connects as `overload_owner`, so
+The roles themselves are **not** created by a migration — dbmate connects as `overload_owner`, so
 that role exists first, and a password in a committed file would be public. `infra/db/bootstrap.sql`
-creates all three, once per environment (`docs/13` §5), and grants `overload_owner` `CREATE` on the
-schema and on the database: drizzle-kit's migrator runs `CREATE SCHEMA IF NOT EXISTS` before every
-run, which Postgres refuses without it (`docs/06`, 2026-09-25). The first migration runs as the owner
-and does the privileges only: grants, `ALTER DEFAULT PRIVILEGES FOR ROLE overload_owner` so each new
-table reaches the other two, and `SELECT` on `__drizzle_migrations` for the backup role. The
-`audit_event` revoke below comes in the migration after the table. *Changed 2026-09-23, 2026-09-25.*
+creates all three, once per environment (`docs/13` §5). The first migration runs as the owner and does
+the privileges only: grants, `ALTER DEFAULT PRIVILEGES FOR ROLE overload_owner` so each new table
+reaches the other two, and the `audit_event` revoke below. *Changed 2026-09-23.*
 
 ## audit_event
 
@@ -1049,7 +1003,7 @@ Who did what to access and accounts (`docs/13` §7). Append-only.
 - No `created_at` / `updated_at`: `occurred_at` is the creation time and a row is never updated
   (see Conventions, Exceptions).
 - `INDEX (actor_user_id, occurred_at DESC)`, `INDEX (occurred_at)` for the purge.
-- Grants: `overload_app` has `SELECT, INSERT` only. A custom migration revokes `UPDATE, DELETE`
+- Grants: `overload_app` has `SELECT, INSERT` only. The first migration revokes `UPDATE, DELETE`
   after the default privileges apply.
 - `purge_audit_events()`: `SECURITY DEFINER`, owned by `overload_owner`, deletes rows with
   `occurred_at < now() - interval '1 year'`. `overload_app` may `EXECUTE` it; the daily job calls it.

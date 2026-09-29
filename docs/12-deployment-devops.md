@@ -9,20 +9,12 @@ are not restated here. Decisions are in `06` (2026-09-21, deployment)._
 | | Local | Staging | Production |
 | --- | --- | --- | --- |
 | Git branch | any | `develop` | `main` |
-| Web | `vite` dev server | Vercel preview, branch URL `overload-web-git-develop-yuta-asakuras-projects.vercel.app` | `https://overload-web-pied.vercel.app` |
-| API | Hono on Node | Vercel preview of `overload-api`, branch `develop` | `https://overload-api-mu.vercel.app`, `sin1` |
+| Web | `vite` dev server | Vercel preview, branch URL `overload-web-git-develop-<scope>.vercel.app` | Vercel production domain of `overload-web` |
+| API | Hono on Node | Vercel preview of `overload-api`, branch `develop` | Vercel production of `overload-api`, `sin1` |
 | Database | Postgres 18 in Docker (`docker compose`, as in `11`) | Neon branch `staging` | Neon branch `main` (root) |
-| Migrations | `pnpm db:migrate` (`drizzle-kit migrate`) by hand | In the API build (§3) | In the API build (§3) |
+| Migrations | `dbmate migrate` by hand | In the API build (§3) | In the API build (§3) |
 | Cron | none; call the route by hand | none (Vercel runs crons on production only) | `0 15 * * *` UTC (`03` §8.4) |
 | Monitoring | none | Sentry events tagged `staging`, no alerts | Everything in §5 |
-
-**Provisioned 2026-09-24.** Team `yuta-asakuras-projects`. Both projects created from the repo with
-their root directories, `main` as the production branch, the API on the **`hono` framework preset**
-(accepted by Vercel, so no `vercel.json` routes) in `sin1`, Node 24.x, and Deployment Protection
-already **None** — set through the API and read back to confirm. The plain `overload-*.vercel.app`
-names were taken, hence the suffixes above. The staging branch URLs are the standard
-`<project>-git-develop-<team>` pattern and are confirmed against the dashboard after the first push
-to `develop`.
 
 - **Deployment Protection is off (None) on both projects** (binding). Vercel's Standard Protection —
   the recommended setting, on every plan — protects every domain except the production one (Vercel
@@ -68,16 +60,8 @@ export const config: VercelConfig = {
 };
 ```
 
-Verified 2026-09-24 (`06`): the feature is real, announced 2025-12-19; the package is `@vercel/config`
-(0.7.2), imported from `@vercel/config/v1`; the export must be named `config`; and **only one config
-file may exist — `vercel.ts` or `vercel.json`, never both.** `deploymentEnv('VAR')` defers a read to
-deploy time if a build-time read turns out to be wrong. Still to confirm on the first deploy: that
-`vercel.ts` is honoured alongside a framework preset, and its placement when the root directory is
-`apps/web`.
-
-**The API project needs no rewrite config at all.** Vercel has a first-class Hono preset: the app is
-the default export of `apps/api/src/index.ts` and every path reaches it (`03` §5). What makes the
-preset take that file is in §3.
+The exact rewrite syntax is checked when the file is written; the point fixed here is that the
+destination comes from `API_ORIGIN`.
 
 ---
 
@@ -91,7 +75,7 @@ per app, pointing at Docker Postgres — local never touches Neon.
 | Name | Project | Type | Purpose | Staging vs production |
 | --- | --- | --- | --- | --- |
 | `DATABASE_URL` | api | Secret | Neon **pooled** connection, used at runtime, as role `overload_app` (`13` §5) | `staging` / `main` branch |
-| `DATABASE_URL_DIRECT` | api | Secret | Neon **direct** connection, read only by `drizzle-kit migrate` in the build, as `overload_owner`. The pooler does not keep session state across a migration. Assume the function runtime holds it as well (`13` §10) | `staging` / `main` branch |
+| `DATABASE_URL_DIRECT` | api | Secret | Neon **direct** connection, read only by `dbmate` in the build, as `overload_owner`. The pooler does not keep session state across a migration. Assume the function runtime holds it as well (`13` §10) | `staging` / `main` branch |
 | `BETTER_AUTH_SECRET` | api | Secret | Session signing | **Different** |
 | `BETTER_AUTH_URL` | api | Config | Public origin — the **web** origin, behind the rewrite (`03` §5) | Different |
 | `GOOGLE_CLIENT_ID` | api | Config | Sign-in | Same |
@@ -126,85 +110,24 @@ No deploy script. Vercel's Git integration builds both projects on every push.
 
 ### Migrations run inside the API build
 
-The API project's build is `apps/api/scripts/vercel-build.sh`, run as the package's `vercel-build`
-script:
+The API project's build command:
 
 ```sh
-case "${VERCEL_GIT_COMMIT_REF:-}" in
-  main | develop)
-    : "${DATABASE_URL_DIRECT:?DATABASE_URL_DIRECT is not set}"
-    drizzle-kit migrate
-    ;;
-esac
+if [ "$VERCEL_GIT_COMMIT_REF" = "main" ] || [ "$VERCEL_GIT_COMMIT_REF" = "develop" ]; then
+  dbmate --url "$DATABASE_URL_DIRECT" --migrations-dir ./migrations --no-dump-schema migrate
+fi
+pnpm build
 ```
 
-- **It lives in the repo, not in the dashboard.** The Hono preset's Build Command is *None*, and
-  Vercel's Hono builder then runs the first of `vercel-build`, `now-build` or `build` from
-  `package.json` before compiling the entry itself (read from `@vercel/hono` and `@vercel/node`
-  source, 2026-09-25). So nothing is set in the project settings, and a Build Command override there
-  would replace this script. The command first written here ended in `pnpm build`, which fails: the
-  API has no `build` script, and the preset needs none.
-- **What the preset builds, and two rules it imposes** (`06`, 2026-09-28). The entry is the first of
-  `app`, `index`, `server`, then `src/app`, `src/index`, `src/server` whose text contains
-  `from 'hono'` (Vercel's Hono docs, and `@vercel/build-utils` 60.1.3 source). It is not bundled:
-  each file is compiled to ESM on its own, so Node's loader resolves the imports at run time. Hence
-  **`src/index.ts` is the only such candidate** (the app factory is `src/create-app.ts`, and
-  `index.ts` imports `hono` by name), and **every relative import under `apps/api/src` ends in
-  `.js`**. Break either and every request fails with `FUNCTION_INVOCATION_FAILED`, `/api/health`
-  included, while Vitest and tsx pass. CI's `vercel-build` job (`pnpm --filter @overload/api
-  check:vercel-build`) runs `vercel build` with placeholder project settings, stages the function
-  outside the repo and asks it for `/api/health`.
-- **drizzle-kit** (0.31.10, with drizzle-orm 0.45.2 on the JavaScript `pg` 8.23.0 driver) reads
-  `apps/api/drizzle.config.ts`, which takes `DATABASE_URL_DIRECT`. It applies every pending migration
-  in `apps/api/migrations/` in **one transaction** and records each in `public.__drizzle_migrations`.
-  The same command runs locally (`pnpm db:migrate`), in the Vitest and Playwright setups, and here.
-  It replaced dbmate on 2026-09-25 (`06`): dbmate's Go `lib/pq` rejects the SCRAM iteration count
-  `i=1` that Neon's gateway sends, so the first staging build could not connect.
-- **`overload_owner` needs `CREATE` on the database.** drizzle-orm's migrator runs
-  `CREATE SCHEMA IF NOT EXISTS` before every run, even for `public`, and Postgres checks the database
-  privilege first. `infra/db/bootstrap.sql` grants it (`06`, 2026-09-25).
-- **A failed migration prints no reason.** drizzle-kit 0.31.10 (and 0.31.11) wraps `migrate` in a
-  progress spinner that calls `process.exit(1)` on a rejection without printing the error, so the
-  build log shows only `applying migrations...` and exit 1. The failure still fails the build. To
-  find the cause, run the same migrations against Docker (`pnpm db:migrate`), which reproduces
-  anything that is not specific to the environment.
-- **Node is pinned to 24** in `engines.node` and `packageManager` pins pnpm, in both apps and in CI.
-  Vercel's default is already Node 24 and it honours `engines.node` over the dashboard setting; the
-  pin is what stops laptop, CI and Vercel from diverging silently.
-
-### Writing a migration
-
-1. **A table or column change:** edit `apps/api/src/db/schema.ts` (or `auth-schema.ts`), run
-   `pnpm --filter @overload/api db:generate`, and review the SQL it writes into `migrations/` with its
-   snapshot and journal entry. Commit all three. Never `drizzle-kit push`.
-2. **Anything Drizzle cannot express** (grants, functions, an expression index with `NULLS NOT
-   DISTINCT`, seed rows): `pnpm --filter @overload/api exec drizzle-kit generate --custom
-   --name=<what>` makes an empty migration with its journal entry; write the SQL into it, with
-   `--> statement-breakpoint` between statements. drizzle-kit does not track what a custom migration
-   creates, so changing it later is another custom migration.
-3. **After a rebase or merge that brings in another migration, delete and regenerate yours** (its
-   SQL, snapshot and journal entry), so its journal `when` is later than every earlier entry.
-   drizzle-orm's migrator does not compare tags: it compares the `created_at` of the last row in
-   `__drizzle_migrations` with each journal entry's `when`, and silently skips any entry that is
-   older. A migration renumbered by hand keeps its old `when`, so staging and production would
-   build green without it.
-   CI enforces the order: `pnpm db:check-order` fails when any `when` is not later than the one before.
-4. **There are no down migrations.** Going backwards is §4.
-
-**Better Auth's tables.** `pnpm dlx auth@<pinned version> generate --config scripts/auth-schema.ts
---output <scratch file>` (the CLI is the npm package **`auth`**, not the stale `@better-auth/cli`)
-writes the whole Drizzle schema for the configured options, with no database. On every Better Auth
-upgrade, generate into a scratch file, carry the difference into `src/db/auth-schema.ts` (keeping its
-two edits: `timestamptz`, and snake_case index names), then step 1. If a field is missed, the
-adapter's schema check fails the first auth call with "Drizzle schema mismatch", and the API tests
-sign in, so CI catches it.
+- **dbmate** (npm `dbmate`): plain SQL files, timestamp-versioned, each run in a transaction, its own
+  `schema_migrations` table. It fits `04`'s "versioned SQL in `migrations/`" rule and ties nothing to
+  the query layer, which is still a build-phase choice. The same command runs locally and in CI.
 - **If a migration fails, the build fails** and the previous deployment keeps serving. A migration
   that succeeded before a later build step failed stays applied — which the add-first rule makes
   harmless.
 - **Seed data is migrations too** (decided by default): the ~50 seeded exercises and the MEXT
-  `reference_food` import are custom migrations whose SQL is generated (`pnpm --filter @overload/api
-  seed:exercises` writes `0003_seed_exercises.sql`), so every environment gets them the same way. A
-  correction is a new migration. `apps/api/seed/` holds the generator, not a runner.
+  `reference_food` import are generated SQL files in `migrations/`, so every environment gets them the
+  same way. A correction is a new migration. `apps/api/seed/` holds the generator, not a runner.
 
 ### The add-first rule (binding)
 
@@ -217,7 +140,8 @@ for the minutes between migration and promotion, and again after any rollback.
   Release 1 stops the code using it; release 2, after release 1 has been live, removes it.
 - **Before a destructive migration reaches `main`:** take a manual Neon snapshot of `main`. Free
   keeps **one** snapshot, so it replaces the previous one.
-- drizzle-kit has no down migrations. Going backwards is §4.
+- dbmate's `-- migrate:down` sections are written but **never run against staging or production**.
+  Going backwards is §4.
 
 ---
 
@@ -263,7 +187,6 @@ monitor, with email alerts (Sentry pricing docs, checked 2026-09-21).
 | API down or unreachable | Sentry uptime check, `GET /api/health`, every **5 min**, 3 consecutive failures → email (about 15 min) |
 | Daily job missed or failed | Sentry cron monitor: the job checks in at start and finish; a missed or failed check-in → email |
 | A deploy fails (build or migration) | Vercel's deploy-failure email |
-| An API preview (staging or a PR) answers sign-in with a 5xx | The `Smoke` workflow fails on the commit: after each ready `Preview – overload-api` deployment it POSTs `/api/auth/sign-in/social`, whose rate limiter queries the database |
 | Health Auto Export stops syncing | No alert. `health_sync_state` on the dashboard (S19) |
 | Anthropic spend | Not alerted: the `overload` workspace's $10/month hard limit caps it (`13` §4) |
 | Nightly backup fails | GitHub's failed-workflow email (`13` §2) |
@@ -282,8 +205,7 @@ monitor, with email alerts (Sentry pricing docs, checked 2026-09-21).
 
 - [ ] Neon project, branch `staging` off `main`, **before** the roles exist (`13` §5).
 - [ ] `infra/db/bootstrap.sql` run on `main` and on `staging`, with a different password per role
-      per branch (`13` §5). Its `GRANT CREATE ON DATABASE` for `overload_owner`, added 2026-09-25,
-      is applied on both before their first migration.
+      per branch (`13` §5).
 - [ ] Two Vercel projects, roots `apps/web` and `apps/api`, production branch `main`.
 - [ ] Deployment Protection set to None on both projects (§1) — check the team default first.
 - [ ] Every variable in §2, Secret type where marked, Preview values scoped to `develop`.
@@ -291,8 +213,7 @@ monitor, with email alerts (Sentry pricing docs, checked 2026-09-21).
 - [ ] `vercel.ts` rewrite verified on the staging URL: sign-in round-trips, cookie set on the web origin.
 - [ ] Sentry: two projects (web, api), new-issue alert on production, uptime monitor, cron monitor.
 - [ ] A Neon restore from history, tried on `staging`.
-- [ ] `drizzle-kit migrate` confirmed to run inside Vercel's build image, as `overload_owner`, on
-      `staging` (§3). dbmate never did: its Go `lib/pq` refused Neon's SCRAM `i=1` (`06`,
-      2026-09-25).
+- [ ] `dbmate` confirmed to run inside Vercel's build image (its npm package ships platform binaries;
+      not yet tried there).
 - [ ] `11` §3 checklist passed on staging.
 - [ ] The security and backup items in `13` §9, "Before M1 ships".

@@ -31,8 +31,7 @@ As a lifter, I want last workout's weight and reps shown next to each set, so th
 
 **S3. Get a suggested weight — MUST**
 As a lifter, I want the app to suggest today's weight, so that I progress on purpose.
-- Each exercise has a rep range (default 6–10) and a load increment (e.g. 2.5 kg barbell, 1 kg dumbbell).
-- The suggestion is rounded up to a weight the equipment can actually make, so a dumbbell suggestion lands on the rack rather than between two dumbbells.
+- Each exercise has a rep range (default 6–10) and a load increment (e.g. 2.5 kg barbell, 2 kg dumbbell).
 - If every working set last workout reached the top of the range, the suggestion is last weight + increment. Otherwise it is the same weight.
 - The suggestion appears next to last time's numbers and never overwrites a value the user entered.
 
@@ -61,8 +60,7 @@ As a lifter, I want to see how an exercise has progressed over a chosen time spa
 **S8. Exercise library — MUST**
 As a lifter, I want a ready list of common exercises plus my own, so that setup is quick.
 - About 50 seeded barbell, dumbbell, machine and cable exercises are available to every user.
-- Users can create custom exercises visible only to themselves.
-- Weights are stored in kg. A user can display them in kg or lb; the seeded increments are kg-native.
+- Users can create custom exercises visible only to themselves. All weights are in kg.
 
 **S9. Invite-only access — MUST**
 As the admin, I want only people I invite to be able to sign in, so that the app stays private.

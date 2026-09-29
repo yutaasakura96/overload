@@ -18,14 +18,6 @@ on that date.
 - **The invite gate** is `user.validateUserInfo`. Better Auth runs it when a Google identity is
   first provisioned, when an account is linked, **and on every later sign-in**, using the fresh
   email from Google. So a revoked email is refused the next time it signs in, not only at first use.
-  - **Verified against Better Auth 1.7.5, 2026-09-24.** The option exists (added in 1.7.0) and works
-    as described above. Signature:
-    `(data: { user, source }, context) => Awaitable<void | { error, errorDescription? }>`; returning
-    nothing admits, returning `{ error }` refuses — a redirect to the error URL in the browser flow,
-    a 403 in programmatic ones. `source.action` is `create-user`, `link-account` or `sign-in`, and
-    Google is identified by `source.oauth?.providerId === 'google'`, with the raw claims on
-    `source.oauth?.profile`. Upstream carries a TODO to rename it to `validateUser`, so the version
-    is pinned. `errorDescription` reaches the client — keep it free of anything sensitive.
 - The callback lowercases the email and checks it against `invite.email`:
 
 | Case | Result | Message on the sign-in page |
@@ -79,8 +71,8 @@ on that date.
     would refuse the app itself. *Added 2026-09-22.*
 - **Rate limiting** on `/api/auth/*`: Better Auth's limiter, `enabled: true` stated explicitly, with
   `storage: "database"`. Its default in-memory store is per instance, which on Vercel Functions
-  means per cold start, so it limits nothing. Database storage needs Better Auth's `rateLimit` model,
-  mapped to the `rate_limit` table (`04`).
+  means per cold start, so it limits nothing. Database storage needs Better Auth's `rateLimit` table
+  (`04`).
 
 ---
 
@@ -100,18 +92,7 @@ on that date.
   brings impersonation, which is a way into members' health data the PRD says the admin must not
   have.
 - **The admin has an invite row of their own**, like everyone else, so the gate needs no special
-  case *for authorisation*. The API refuses to revoke or delete the invite whose email equals
-  `ADMIN_EMAIL`.
-- **How that row first appears (bootstrap).** On a fresh database the gate would refuse everyone,
-  including Yuta, and the only route that writes an invite needs a session (`06`, 2026-09-23). So it
-  is written on first sign-in, across two hooks — **verified 2026-09-24** against Better Auth 1.7.5,
-  whose docs are explicit that `validateUserInfo` is a policy gate and not a write seam:
-  - `user.validateUserInfo` lets `ADMIN_EMAIL` through when no invite row exists.
-  - `databaseHooks.user.create.after` upserts the `invite` row. It fires once, and receives the
-    persisted user with its id.
-
-  This refines the 2026-09-23 decision ("one branch in `validateUserInfo`") without changing it:
-  every environment still bootstraps itself, and no migration or manual `INSERT` holds an email.
+  case. The API refuses to revoke or delete the invite whose email equals `ADMIN_EMAIL`.
 - **Ingest and cron never reach Better Auth's session lookup.** Their routes run their own
   middleware. An ingest token sent to any other route fails the session lookup and gets 401.
 
@@ -191,27 +172,8 @@ The endpoint list is `docs/07`.
 
 - **The web app is client-only**, so it cannot ask the server for the session while offline. It
   keeps the last confirmed signed-in user (id, name, email) in IndexedDB beside the cached API data.
-- **The cached API data is kept per account**, each user's copy under its own IndexedDB key, and
-  only one account's copy is ever open. At launch the app loads the last confirmed user's copy and
-  keeps it hidden while `/api/me` checks the account. When it names that user, their queries run.
-  When it names another account, the app drops the first copy from memory before that account's
-  data arrives and opens their own copy instead. A tab receiving an account-change notice closes
-  its current copy and reloads. Sign-out across tabs and its limits are in §7. A launch back from
-  sign-in opens no copy until `/api/me` answers.
-- After switching accounts with the local `pnpm dev:session` helper, reload the open app page.
-  A retry before the next account check can still save the new account's response in the previous
-  account's copy; the remaining gap is tracked in
-  [#13](https://github.com/yutaasakura96/overload/issues/13).
 - **Offline**, the app opens as that user, and the gym screen works exactly as it does online. New
-  sets are pending and carry that user's id in the set store. With a copy to open, the launch waits
-  3 s for `/api/me`, once, then treats a timeout or network error as offline: it shows that copy and
-  fetches nothing more until `/api/me` confirms the account, so nothing loaded under another
-  account's cookie is saved under this one. With no copy to open (a first sign-in, or after
-  sign-out), it waits for the server.
-- After an account has been confirmed in the tab, later `/api/me` checks use the same 3 s limit. A
-  network error or timeout keeps that same account's saved copy visible offline. A 401 still follows
-  the ended-session flow below without a wipe; only a successful answer naming another account
-  opens that account's copy.
+  sets are pending and carry that user's id in the set store.
 - **Back online**, a 401 from any request means the session has ended, whether it expired, was
   signed out elsewhere, or was revoked. The client cannot tell which from the 401, and it does not
   try:
@@ -250,21 +212,8 @@ The endpoint list is `docs/07`.
 
 ## 7. Sign-out
 
-- **With nothing pending:** end the session, clear the TanStack Query cache and every account's
-  IndexedDB copy of it, clear the stored signed-in user and the days left incomplete (`03` §6), and
-  go to `/sign-in`. Other open tabs drop what they hold too. A 401 alone clears nothing (§5).
-- If the server cannot end the session, keep the user signed in, clear nothing, notify no other tab,
-  and show "Couldn't sign out. Try again."
-- If the pending-wipe marker remains because the IndexedDB wipe failed, retry the wipe at launch.
-  Until it succeeds, do not restore any saved copy, even after `/api/me` confirms an account; load
-  fresh data for that account instead.
-- If both the localStorage pending-wipe marker and IndexedDB wipe fail after the server ends the
-  session, sign-out still reaches `/sign-in` and warns "Saved data couldn't be cleared from this
-  device." This is a known limit: without either storage operation, a later offline launch may
-  reopen the retained copy.
-- A receiving tab wipes again after a sign-out notice to clear writes made after the first tab's
-  wipe. A write that lands after this second wipe can still leave a saved copy; this timing gap is
-  a known limit.
+- **With nothing pending:** end the session, clear the TanStack Query cache and its IndexedDB copy,
+  clear the stored signed-in user and the days left incomplete (`03` §6), and go to `/sign-in`.
 - **With pending or refused sets:** first a dialog, "*N* sets not uploaded yet", with two actions:
   - **Upload now**, when online. Sign-out continues only when nothing pending is left. Refused sets
     still need the second choice.
@@ -338,35 +287,16 @@ Every one of these is a test, not a code-review item:
   that `user_id` remains in any table except `audit_event`, whose rows are kept for a year (S10).
 - Offline: an expired session with pending sets keeps them pending, and they upload after
   re-sign-in.
-- The saved query cache (§5): after account A, account B on the same device never sees A's data,
-  in that tab or another one. An offline launch opens only the last confirmed account's copy, and
-  sign-out wipes every account's copy.
 
 ---
 
 ## Unverified, to check when built
 
-- The error shape `validateUserInfo` returns on the redirect flow, **read from 1.7.5's callback
-  source 2026-09-25**: a refusal becomes a redirect to the sign-in call's `errorCallbackURL` with
-  `?error=<our code>&error_description=<our text>`. The sign-in page maps `error` to its own wording
-  and ignores the description. Slice 1 tests the page with the query string and the gate's `403` on
-  the programmatic path; the Google round trip itself is only observed on staging (`11` §3 item 2).
-- ~~Whether Better Auth's rate limiter is enabled by default in production.~~ **Answered 2026-09-25**
-  from 1.7.5's source: `enabled` defaults to "is production", so it is on in production and off in
-  development and test. We set `enabled: true` regardless. **Storage is `database`** — the default is
-  in-memory, which a Vercel function does not keep between invocations (`06`, 2026-09-24).
-- The limiter keys each bucket by client IP, read from `x-forwarded-for` only, and **only when the
-  header holds exactly one address**. Anything else falls into one shared bucket per path and logs a
-  warning once. What the API sees behind the rewrite is `13` §10's open question.
-- Better Auth's default cookie attributes, **read from 1.7.5's source 2026-09-24**: `httpOnly`,
-  `sameSite: 'lax'`, `path: '/'`, `secure` derived from the `baseURL` protocol, and a `__Secure-`
-  name prefix when secure. Still worth confirming in the browser once deployed. The `session_token`
-  value is the session token HMAC-signed with `BETTER_AUTH_SECRET`, in the form `token.signature` —
-  so a session row inserted by hand will not authenticate.
-- ~~Whether `database: { casing: 'snake' }` renames Better Auth's tables as well as its columns.~~
-  **Answered building slice 1** (`06`, 2026-09-24): it renames nothing, because nothing in 1.7.5 reads
-  it. snake_case comes from the Drizzle columns in `apps/api/src/db/auth-schema.ts` (`04`, `06`
-  2026-09-25), and a Vitest sign-in fails if any column name is wrong.
+- The exact error shape `validateUserInfo` returns to the web client on the redirect flow, and how
+  the sign-in page reads `error` from it.
+- Whether Better Auth's rate limiter is enabled by default in production. It is set explicitly, so
+  this only matters if that setting is ever removed.
+- Better Auth's default cookie attributes on this version, checked in the browser once deployed.
 - Whether `list-sessions` sits behind Better Auth's fresh-session middleware on the pinned version,
   as it does in current source. If so, the account screen's session list needs a sign-in less than a
   day old, like deletion (§6).
