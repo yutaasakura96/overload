@@ -81,14 +81,12 @@ A linter won't catch these:
 
 ## Workflow
 
-- Before implementing any non-trivial change, grill me on requirements first —
-  one question at a time, recommend an option, wait for my answer.
 - Write tests before implementation where there's a natural seam.
 - Review the diff against repo standards and the original request before saying it's done.
 - For work spanning sessions, write a spec and tickets first.
-- A feature with a UI surface clears the polish gate before it's done: `web-design-guidelines`,
-  then `design:accessibility-review`, then `emil-design-eng`. It audits against `docs/05`; it doesn't
-  reopen it.
+- A feature with a UI surface clears the polish gate before it's done, run against the diff in this
+  order: the `web-design-guidelines` skill, then a WCAG 2.1 AA accessibility review, then a design
+  critique for hierarchy, consistency and motion. It audits against `docs/05`; it doesn't reopen it.
 
 ## Agent skills
 

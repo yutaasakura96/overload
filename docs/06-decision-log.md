@@ -1182,7 +1182,7 @@ One WAF rule, 300 req/60 s per IP on the web project's `/api/*`. `no-store` on e
 **Revisit if:** the first invitee is near (§9 of `13`); the app moves to AWS (IaC for everything,
 domain chosen then); a dump grows past what a GitHub runner handles comfortably.
 
-### [2026-09-21] Repo configuration (Phase 5): mattpocock-skills on, no project MCP, two hooks
+### [2026-09-21] Repo configuration (Phase 5): mattpocock-skills on, no project MCP, hooks
 
 **Decided (approved as proposed).**
 1. **Plugins:** `mattpocock-skills` on (the build phase starts with `/grill-with-docs`);
@@ -1191,12 +1191,12 @@ domain chosen then); a dump grows past what a GitHub runner handles comfortably.
    duplicate every tool. Read-only connector tools are allowed; every write, `run_sql` and
    `get_connection_string` asks.
 3. **Hooks:** `pre-edit-branch-guard.sh` blocks edits on `main` (it deploys production and migrates);
-   `stop-branch-drift.sh` reports when `main` is ≥6 commits behind `develop`. Both copied from lfca-lab.
+   `stop-branch-drift.sh` was intended to report when `main` was ≥6 commits behind `develop`.
+   The Stop hook was removed on 2026-09-29 because its stdout did not reach the model or user.
 4. **Permissions:** `dbmate`, `psql`, `pg_dump`/`pg_restore`, `terraform apply/destroy`, `vercel`,
    `aws`, `age` and every `gh` write ask; `.env`, `.env.local`, `.env.*.local`, `.env.production`
    and `.env.staging` reads are denied (`.env.example` stays readable). The repo is public.
-5. **`CLAUDE.md`** points at `docs/` and holds only the rules a linter cannot catch, plus the
-   hands-off workflow block and the polish gate.
+5. **`CLAUDE.md`** originally held the workflow and polish gate; it now imports `AGENTS.md`.
 
 **Alternatives considered.** A project `.mcp.json` with Neon, Sentry and Playwright, as lfca-lab has
 (duplicates the connectors; Playwright is used as a test runner, not an MCP). Format and commit-gate
@@ -1249,7 +1249,7 @@ Supersedes the 2026-09-16 "six text tones, and the contrast cost left on the rec
 SC 1.4.11* ("Boundaries", checked 2026-09-22) says a control identified by its visible text needs no
 contrasting boundary. `line/field` stays at `#2A3440` and is never the only thing that shows a control exists.
 
-**Why.** Every UI feature would otherwise fail step 2 of the polish gate (`design:accessibility-review`). The
+**Why.** Every UI feature would otherwise fail the WCAG review in the polish gate (`AGENTS.md`). The
 failing tones were also read in the worst conditions: "last time" at 3.32:1, and pre-filled reps at 2.56:1 that
 are saved on COMPLETE SET, both mid-set in gym light.
 
@@ -1355,7 +1355,7 @@ of this date) and not a second flag surface.
 
 **Why.** The app runs from the iPhone home screen, so hover never fires, but `05` defined no pressed
 state, and a touch control with none feels dead. The token already existed in every artboard. Motion and
-timing for the press are left to the polish gate (`emil-design-eng`), which tunes them against this token.
+timing for the press are left to the polish gate (`AGENTS.md`), which tunes them against this token.
 
 **Alternatives considered.** Dropping `#6FCDE3`: this leaves the pressed state undefined until the
 build, when the polish gate would have to invent a token rather than audit one.
@@ -2644,6 +2644,42 @@ it fixes one persister for the app's lifetime, so the app calls `persistQueryCli
 
 **Changed:** `apps/web/src/query.ts`, `main.tsx`, `App.tsx`, `sign-out.ts`,
 `screens/ExerciseLibrary.tsx`, `screens/SignIn.tsx`; `08` §5 and §7; `03` §6.
+
+### [2026-09-28] Staging's auth routes failed with a 500: Vercel's `overload_app` password no longer matched Neon `staging`
+
+**Context.** After the entry fix, `/api/health` answered 200 on staging and every `/api/auth/*` route
+answered 500. The function log said only `Failed query: select … from "rate_limit"`, then the query's
+parameters (the client's IP; for a user lookup it would be an email), and no Postgres cause. The
+`develop` build had migrated successfully as `overload_owner`.
+
+**Found.** A PR preview, which carries staging's Preview variables (`12` §2), logged the cause once
+the logging below was in: `28P01`, password authentication failed for `overload_app`. The unscoped
+Preview `DATABASE_URL` holds a password Neon `staging` no longer accepts; the `develop`-scoped one was
+written in the same minute with the same value (`12` §2), and staging fails at the same query, but its
+log cannot show the cause until `develop` carries this change. `DATABASE_URL_DIRECT` and the owner
+password were reset on 2026-09-26 and work; `DATABASE_URL` was last written on 2026-09-25. The fix was
+outside the repo, and done the same day with Yuta's approval: `overload_app`'s password reset on Neon
+`staging` only (the Neon API, not `main`), the new pooled string written straight into both Preview
+`DATABASE_URL` entries without being printed, and `develop` redeployed. Staging sign-in then answered
+200. The grant checks ruled out the other suspect, a wrong table owner: all 11 tables are owned by
+`overload_owner`, and `overload_app` holds `SELECT, INSERT, UPDATE` on `rate_limit`.
+
+**Decided (firstmate, under Yuta's delegation), and built.**
+- **The error log names Postgres's reason.** `apps/api/src/lib/error-log.ts` rebuilds a
+  `DrizzleQueryError`'s stack as its SQL without the parameters, and adds the cause: SQLSTATE,
+  message, and the schema, table, column and constraint Postgres names. Classes 22 and 23 keep the
+  code and names only, since their messages can quote the value that failed. A connection-level cause
+  logs its name, message and code.
+- **A `Smoke` workflow** POSTs `/api/auth/sign-in/social` to each ready API preview deployment and
+  fails on a 5xx (`12` §5). `/api/health` cannot catch a bad database credential, by design.
+
+**Alternatives considered.** Logging the Drizzle error's `cause` as it stands: its `message` is fine
+for most classes, but a 22 or 23 can quote a value, so those are trimmed. A smoke check for staging
+only: Vercel sets the GitHub deployment's ref to the commit, not the branch, and PR previews share
+staging's variables, so checking every API preview costs nothing and catches the same fault earlier.
+
+**Changed:** `apps/api/src/lib/error-log.ts`, `apps/api/src/create-app.ts`,
+`apps/api/test/error-log.test.ts`, `.github/workflows/smoke.yml`, `03` §7, `12` §5.
 
 ### [2026-09-28] Sentry: captured in the API's `onError` and flushed there; SDK v11 collects nothing by default only when told
 
