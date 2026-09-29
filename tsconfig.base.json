@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  // Written for TypeScript 7 (docs/06, 2026-09-24): no baseUrl, none of the options 6.0
+  // deprecated, and 7.0's defaults (strict, module esnext, rootDir ./, types []) left in place.
+  "compilerOptions": {
+    "noEmit": true,
+    "moduleResolution": "bundler",
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "skipLibCheck": true
+  }
+}

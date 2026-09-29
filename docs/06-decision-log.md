@@ -1182,7 +1182,7 @@ One WAF rule, 300 req/60 s per IP on the web project's `/api/*`. `no-store` on e
 **Revisit if:** the first invitee is near (§9 of `13`); the app moves to AWS (IaC for everything,
 domain chosen then); a dump grows past what a GitHub runner handles comfortably.
 
-### [2026-09-21] Repo configuration (Phase 5): mattpocock-skills on, no project MCP, two hooks
+### [2026-09-21] Repo configuration (Phase 5): mattpocock-skills on, no project MCP, hooks
 
 **Decided (approved as proposed).**
 1. **Plugins:** `mattpocock-skills` on (the build phase starts with `/grill-with-docs`);
@@ -1191,12 +1191,12 @@ domain chosen then); a dump grows past what a GitHub runner handles comfortably.
    duplicate every tool. Read-only connector tools are allowed; every write, `run_sql` and
    `get_connection_string` asks.
 3. **Hooks:** `pre-edit-branch-guard.sh` blocks edits on `main` (it deploys production and migrates);
-   `stop-branch-drift.sh` reports when `main` is ≥6 commits behind `develop`. Both copied from lfca-lab.
+   `stop-branch-drift.sh` was intended to report when `main` was ≥6 commits behind `develop`.
+   The Stop hook was removed on 2026-09-29 because its stdout did not reach the model or user.
 4. **Permissions:** `dbmate`, `psql`, `pg_dump`/`pg_restore`, `terraform apply/destroy`, `vercel`,
    `aws`, `age` and every `gh` write ask; `.env`, `.env.local`, `.env.*.local`, `.env.production`
    and `.env.staging` reads are denied (`.env.example` stays readable). The repo is public.
-5. **`CLAUDE.md`** points at `docs/` and holds only the rules a linter cannot catch, plus the
-   hands-off workflow block and the polish gate.
+5. **`CLAUDE.md`** originally held the workflow and polish gate; it now imports `AGENTS.md`.
 
 **Alternatives considered.** A project `.mcp.json` with Neon, Sentry and Playwright, as lfca-lab has
 (duplicates the connectors; Playwright is used as a test runner, not an MCP). Format and commit-gate
@@ -1249,7 +1249,7 @@ Supersedes the 2026-09-16 "six text tones, and the contrast cost left on the rec
 SC 1.4.11* ("Boundaries", checked 2026-09-22) says a control identified by its visible text needs no
 contrasting boundary. `line/field` stays at `#2A3440` and is never the only thing that shows a control exists.
 
-**Why.** Every UI feature would otherwise fail step 2 of the polish gate (`design:accessibility-review`). The
+**Why.** Every UI feature would otherwise fail the WCAG review in the polish gate (`AGENTS.md`). The
 failing tones were also read in the worst conditions: "last time" at 3.32:1, and pre-filled reps at 2.56:1 that
 are saved on COMPLETE SET, both mid-set in gym light.
 
@@ -1355,7 +1355,7 @@ of this date) and not a second flag surface.
 
 **Why.** The app runs from the iPhone home screen, so hover never fires, but `05` defined no pressed
 state, and a touch control with none feels dead. The token already existed in every artboard. Motion and
-timing for the press are left to the polish gate (`emil-design-eng`), which tunes them against this token.
+timing for the press are left to the polish gate (`AGENTS.md`), which tunes them against this token.
 
 **Alternatives considered.** Dropping `#6FCDE3`: this leaves the pressed state undefined until the
 build, when the polish gate would have to invent a token rather than audit one.
@@ -1821,3 +1821,862 @@ tests only: the schema under test would stop being the schema that ships.
   and `13` §10 carries the open question, with what it costs threat 4 if the answer is no.
 
 **Changed:** `13` §3, §4, §9 and §10, `12` §2, `03` §10.
+
+### [2026-09-23] Phase 7 pre-build: the four pain points checked against the docs, three gaps found
+
+**Raised, not decided.** Before the first M1 feature, Yuta's four stated pain points were read against
+the docs to see whether the thing being built actually answers them. Two are covered; three gaps came
+out, each of which belongs to a specific feature's `/grill-with-docs` rather than to a doc edit now.
+
+- **"Between sets I forget how many sets I made."** Covered as far as *done*: `10` §1 keeps every
+  completed set on screen as its own numbered row, and the active card's label row reads `SET 3`.
+  Not covered for *left*: `target_sets` is in the schema (`04` `routine_exercise`, copied to
+  `workout_exercise` at start) and the PRD promises it (S4), but screen 1 never draws it. The
+  exercise header carries the rep range and increment; UP NEXT lists the next exercises, not the
+  sets remaining in this one. **Gap: the routine's target set count is stored and never shown.**
+  The cheap answer is `SET 3 OF 4` in the label row — a horizontal change that does not touch the
+  54px of vertical slack `10` §1 measured. Decide at the screen-1 grill.
+- **"I forget the timer between set rests."** Covered as far as *starting and surviving*: it starts
+  on the tick (S5), counts from the set's `performed_at` so a locked phone does not stop it
+  (`09` F3.3), is pinned to the bottom of screen 1, and is rebuilt from the set store on relaunch
+  (`03` §8.1). **Gap: nothing announces that rest has ended.** No notification, sound, vibration or
+  screen wake lock appears anywhere in `02`, `03`, `05`, `09` or `10`. A silent countdown on a phone
+  in a pocket leaves the lifter checking manually, which is the pain point. Two halves: whether the
+  app should alert at all (product, screen-1 grill) and whether an installed-to-home-screen PWA on
+  iOS can — web push permission, `navigator.vibrate`, the Screen Wake Lock API in Safari (technical,
+  and unverified as of today). The technical half goes to *Check when built*.
+- **"I eat from a short list and prep a week at a time."** Covered, and deliberately. S12 exists for
+  exactly this — add a food once, never type its macros again — with rotation alternatives as a
+  first-class field; S16 rotates days between the marked alternatives so a short list is not the same
+  plate seven days running; S18 makes confirming the plan the logging step. S13's raw-to-cooked yield
+  is the batch-cooking problem stated directly, and S17 turns the plan into a prep list and a grocery
+  list. Foods eaten uncooked (kimchi, frozen berries, whey, tofu, bread) need no batch: `food` already
+  carries a raw/cooked state.
+- **Gap in the same area: nothing models shelf life or a batch running out.** No shelf, spoil, frozen
+  or leftover concept exists in any doc. `04` `batch` records a raw weight, a cooked weight and a
+  date, and "the current batch" is only ever the newest row for that food — it has no portion count
+  that depletes and no keeps-for-N-days. The criterion Yuta actually selects foods by ("it survives a
+  week of prep") is therefore invisible to the app, so the prep plan cannot say *cook the fish again
+  on Wednesday*. The cheap answer is a `keeps_days` on `food` and a second cook day in S17's prep
+  plan; the expensive one is inventory tracking, which is a different product. Decide at the S13/S17
+  grill, in M2.
+
+**Changed:** `00` only — the three gaps are carried, not resolved. No PRD, schema or screen doc is
+edited here: each gap is a question for the feature that owns it, and answering it early would decide
+it without the grill.
+
+### [2026-09-23] Phase 7 grill: M1 is seven slices, and the skeleton is the first
+
+**Decided (asked).** `/grill-with-docs`, rounds 1 and 2.
+
+- **Slice 1 is a walking skeleton, not a scaffold.** One thin vertical cut through every layer the
+  architecture claims exists — pnpm workspace, a migration, `apps/api/src/db/` taking the session
+  user, a `@hono/zod-openapi` route, generated `api-contract`, the web app rendering it — carrying
+  S8's seeded exercise library as its payload. Rejected: a scaffold-only commit, which nobody can
+  verify; and starting at screen 1, which puts the hardest thing in the project (the set store,
+  exactly-once upload, Web Locks) before anything has proven the boring path works. The exercise
+  library is the smallest real M1 story that still touches every layer, and S4 and S1 both depend
+  on it, so none of it is throwaway.
+- **The slice order.** 1 skeleton + auth + exercise library (S8) · 2 routines (S4) · 3 screen 1 on
+  the real write path, covering S1's happy path, S2, S3, S5, S6 · 4 the hard edges: Web Locks,
+  tombstones for offline deletes, refused-set UI, resume after force-quit · 5 progress chart (S7) ·
+  6 invite administration (S9) · 7 export and delete (S10), last because it touches every table.
+- **Screen 1 is built on the set store from the start**, not online-first. `CLAUDE.md` binds "a
+  logged set is written to IndexedDB before the screen updates", so online-first would write the set
+  path twice. The write *direction* is right from day one; robustness lands in slice 4.
+- **Infrastructure is created before the first merge**, and slice 1 deploys to staging. Three of the
+  riskiest items in `03` §11 are deploy-shaped — `dbmate` inside Vercel's build image, the
+  `vercel.ts` rewrite syntax, and the Safari cookie fix across two `*.vercel.app` projects. Finding
+  any of them broken after five features exist is worse than finding it now. The group-7 ordering
+  constraint is also cheapest to honour while nothing exists: a Neon child branch copies its
+  parent's roles *and passwords*, so staging is branched before `bootstrap.sql` runs.
+- **Provisioning is a generated wizard** (`/wizard`), run by Yuta. The agent cannot reach the Neon
+  or Vercel dashboards, and `bootstrap.sql` needs a 60-bit password that must not enter the repo or
+  a transcript. The wizard sequences the branch-before-bootstrap trap, Deployment Protection set to
+  None on both projects at creation, and a different password per role per environment.
+- **All five CI checks stand up in slice 1**, not a subset. Playwright gets the one real assertion
+  available — sign in, see the seeded list — because the Google round trip through the rewrite is
+  the likeliest thing to break and the hardest to debug later. oasdiff against an absent baseline is
+  a no-op on the first PR and correct from the second.
+- **No new spec document for M1.** `01`–`13` already specify it in more detail than a spec would; a
+  second one would drift, as the canvas's "THE SYSTEM" note already did against `05`. Work goes
+  straight to GitHub issues, one per slice, each citing the doc sections it implements, grouped by a
+  milestone named `M1` rather than an epic issue.
+- **Decisions stay in `06`.** `docs/agents/domain.md` points ADRs at `docs/adr/`, which does not
+  exist and is not being created. Two decision logs is the same drift problem.
+
+**Changed:** `00`. No ADR directory.
+
+### [2026-09-23] Phase 7 grill: the admin bootstraps through the gate
+
+**Decided (asked).** A hole found by reading `08` against `04`, not a change of mind.
+
+`08` §85 identifies the admin as a valid session whose email equals `ADMIN_EMAIL`, and §94 says the
+admin "has an invite row of their own, like everyone else, so the gate needs no special case".
+Nothing in `04`, `08` or `12` said how that row is created. On a fresh database the gate refuses
+every email absent from `invite`, and the only route to inserting one is `/api/admin/invites`, which
+needs a session, which needs to pass the gate. **Yuta could not sign in to his own app**, on any
+environment, including the staging deploy slice 1 depends on.
+
+- **Decided:** the gate lets `ADMIN_EMAIL` through and writes the invite row on first sign-in, as an
+  upsert. One branch in `validateUserInfo`. Every environment then bootstraps itself.
+- **Rejected: seeding the row in a migration.** It puts an email address in a public repo and
+  contradicts "admin is an env var, changing the admin is a redeploy" — a migration cannot follow an
+  env var, so staging and production could not differ.
+- **Rejected: a manual `INSERT` per environment** beside `bootstrap.sql`. It works, and it matches
+  the pattern group 7 accepted for the database roles — but that pattern was forced by Neon's
+  password rule and nothing forces this one. It is a per-environment manual step that stays
+  invisible until a new environment locks everyone out.
+- The "no special case" line in `08` survives: it is about *authorisation* — admin being an env var
+  rather than a role column — not about bootstrap. The existing rule that the API refuses to revoke
+  or delete the invite whose email equals `ADMIN_EMAIL` is unaffected.
+
+**Changed:** `08` §94 and the auth tests in `11` §2 gain this case when slice 1 is written.
+
+### [2026-09-23] Phase 7 grill: the exercise library is hand-written, and no dataset is imported
+
+**Decided (asked).** Yuta pushed back on hand-writing the ~50 seeded exercises, expecting an
+international standard or an accurate public dataset. Researched against primary sources rather than
+answered from memory. The data exists; it does not carry what Overload needs, and the
+permissively-licensed lineage has bad provenance.
+
+- **There is no formal standard for naming or classifying strength exercises.** ISO/TC 83 covers
+  sports *equipment*, and its strength output is ISO 20957-2:2024, machine safety. The best evidence
+  is from the NSCA's own journal: Jackson et al., *Towards Standardization of the Nomenclature of
+  Resistance Training Exercises*, J Strength Cond Res 27(5):1441–1449, 2013
+  (DOI 10.1519/JSC.0b013e318289168d) — 205 professionals shown ten exercises named **all ten**
+  inconsistently, and the paper calls for a standard to be established. A 2013 call is good evidence
+  none existed; nothing since was found.
+- **No dataset carries an increment, a rest default or a rep range.** Checked by enumerating every
+  key on every record across wger (910), free-exercise-db (876), wrkout (873), exercemus (872),
+  longhaul (349), everkinetic (293) and rthepen (248). The count is zero, not sparse. wger *does*
+  model progression, but on the routine, not the exercise. So the three columns that make `exercise`
+  useful here are hand-written whatever is imported; what a dataset saves is ~50 names and an
+  equipment tag.
+- **The clean-looking licences are not clean.** free-exercise-db and its upstream wrkout are
+  Unlicense, but the maintainer wrote on the issue tracker that he has no idea where the images came
+  from, and wrkout's own contributing guide says they were scraped and advises against commercial
+  use. Someone who does not own a work cannot place it in the public domain. exercemus stamps MIT
+  over content it says came from wger and wrkout, which does not launder CC-BY-SA. rthepen
+  re-packages the same suspect lineage under MIT.
+- **wger is the legitimate project and still not importable.** Best maintained by far, but a tally
+  of its live API found ~96% of its text share-alike (CC-BY-SA 4.0 ×1527, 3.0 ×333, against CC0 ×85),
+  and all of its images and videos CC-BY-SA. Share-alike on a seed migration is the one obligation
+  that cannot be quietly dropped later. **Reading wger while typing is fine** — short names and facts
+  are not copyrightable; copying its description prose is not. It also has no Japanese: 33 languages,
+  no `ja`. everkinetic is CC-BY-SA and dead since 2022-02-20; longhaul is cleanly MIT and has no
+  equipment field at all.
+- **Naming convention: specification → equipment → exercise** ("Barbell Bench Press"), which is what
+  `04`'s example rows already use and the one pattern with a citation behind it. Rejected: wrkout's
+  `Name (Equipment)`, which sorts better in a picker — worth more at 900 exercises than at 50.
+  Recorded in `CONTEXT.md` so it is a rule rather than a per-row judgement, and does not become
+  "DB Row" and "Dumbbell Row" as two rows.
+- **The six-value `equipment` enum stands, and is better than any dataset's.** It is a
+  load-increment taxonomy, not an equipment inventory: `machine` means a stack in fixed steps,
+  `cable` a stack in finer ones. No dataset encodes that, because none of them care about load.
+  wger's and exercemus's vocabularies are many-valued and mix the resistance source with the
+  furniture (a barbell bench press carries both `Barbell` and `Bench`), so no single class can be
+  derived. everkinetic's is uncontrolled free text — 33 values including `dumbbell` and `dumbbells`
+  separately, and `dumbell` twice. If a dataset is ever read, map down to the six rather than
+  widening the `CHECK`.
+- **Licence posture, for anything sourced later:** permissive (MIT, Apache-2.0, CC0, public domain)
+  or plain CC-BY with attribution. Non-commercial clauses rejected outright — "I run it for four
+  friends" is arguable, and arguing it later is worse than typing 50 rows now.
+
+**Provisional, not yet verified.** The seeded `default_increment_kg` per equipment class — barbell
+2.5, dumbbell 2.0, machine and cable 5.0, bodyweight 0 — rests on how weight stacks and plate sets
+are built, and **the Japanese smallest-plate convention was not confirmed against a primary source**.
+The US side was: Rogue's own catalogue lists 2.5 lb as the smallest standard plate, and plates load
+in pairs, so the achievable bar step is 5 lb; fractional plates (0.25–1.0 lb) reach a 0.5 lb step.
+The machine and cable figure of 5.0 kg is inference, not a sourced fact. Confirm both against the
+gym before the seed migration is written.
+
+**Also unverified, and deliberately not stated as fact anywhere:** NSCA's full position-statement
+list (403), the exact numbers in ACSM's 2009 *Progression Models in Resistance Training* position
+stand (cookie-walled; a summary was read, the paper was not), whether any national standards body
+has an exercise-naming standard, and the textual provenance of free-exercise-db's instruction prose.
+
+**Changed:** `CONTEXT.md` (Exercise gains the naming convention). `04`'s `equipment` and increment
+columns are unchanged.
+
+### [2026-09-23] Phase 7 grill: kg stays canonical, lbs is a display preference
+
+**Decided (asked).** Yuta asked for a pounds option. Japan is kg-denominated, so this is for
+invitees, but the model is decided now because retrofitting it is expensive.
+
+- **Nothing is ever stored in lbs.** Every weight in the database stays kg, as it already is.
+- **`user_profile.weight_unit`** (`kg` | `lb`, default `kg`) is added in slice 1's migration. Free
+  now, a migration later.
+- **The toggle is implemented in slice 3**, when screen 1 first renders a weight.
+- **The increment is why display-layer conversion alone is not enough.** 2.5 kg is 5.51 lb, which is
+  not a plate anyone owns; a converted suggestion of "125.5 lb" cannot be loaded. `exercise_setting`
+  already solves it: it is per user per exercise, so a pounds lifter's 5 lb step is stored as
+  2.268 kg and displayed as 5. The ~50 **seeded** defaults stay kg-native, because the seed is shared
+  by every user and the app's only user is in Japan.
+- **Lifts only.** Bodyweight (S11) waits for M2: the Eufy scale reports kg and S11's source is not
+  yet decided.
+- **No layout cost.** `05`'s 56px mono figure holds "405.0" and "102.5" identically at five glyphs.
+
+**Changed:** `02` S8's "All weights are in kg" is amended. `04` `user_profile` gains a column when
+slice 1's migration is written.
+
+### [2026-09-23] Phase 7 grill: what an Anytime Fitness Japan rack actually steps in
+
+**Decided (asked).** The seeded increments were provisional, resting on how plate sets are built
+rather than on a source. Researched against Anytime Fitness Japan's own store pages — their sitemap
+was crawled and all 1,848 official `/facility/` pages read for numeric plate, dumbbell, bar and stack
+data, which turns "it varies by store" into something countable. Two findings contradicted decisions
+made earlier today and are applied here.
+
+**What the pages say.**
+
+- **Dumbbells are a two-band rack: 1 kg steps to 10 kg, then 2 kg steps from 12 kg up.** 586 store
+  pages carry numeric dumbbell data; ten state the 刻み outright (荻窪店 `1kg～10kg(1kg刻み)` /
+  `12kg～30kg(2kg刻み)`; 本八幡店 the same shape to 40 kg). Anytime's own magazine confirms the light
+  end. **No store out of 1,848 reports a 2.5 kg step.** Max is 50 kg at 276 stores and 40 kg at 197.
+  High confidence — this is the best-evidenced figure of the three.
+- **Barbell plates step 2.5 kg** (pairs of 1.25 kg). Only 5 stores publish denominations at all, but
+  4 of the 5 list 1.25 kg — 一関店 gives the whole tree, 1.25/2.5/5/10/15/20/25 — and 1.25 kg is a
+  standard Japanese catalogue denomination. One store stops at 5 kg. Medium-high confidence.
+- **The 20 kg Olympic bar is confirmed** on several store pages. Also present: 15 kg Olympic bars and
+  10 kg straight bars, which are a different bar, not a lighter Olympic one. 一関店 lists IVANKO
+  collars at **2.5 kg each**, so a loaded bar there starts at 25 kg, not 20.
+- **Machine stacks are the weak spot.** One store in 1,848 publishes stack ranges (京橋店: chest press
+  5–152.5 kg, cable 1.25–61.75 kg). Life Fitness's own support documentation confirms Insignia stacks
+  ship with two 2.5 kg dial adders, and Hammer Strength Select lists a drop-down incremental system —
+  but **no manufacturer page states the base per-plate step in kg**. The 5 kg figure remains
+  inference from two numbers. Low-medium confidence, and left that way.
+
+**Decided: the dumbbell increment is seeded at 1.0 kg, and the suggestion rounds to the rack.**
+`exercise.default_increment_kg` is one scalar and the rack is not. A flat 2.0 kg is wrong exactly
+where it hurts — lateral raises, rear delts and curls live under 10 kg, and +2 kg on a 6 kg lateral
+raise is a 33% jump nobody makes. A flat 1.0 kg is wrong above 12 kg, where it names a weight the
+rack does not hold. Seeding 1.0 and rounding the *result* up to an achievable weight gets both bands
+right: 30 kg + 1 rounds to the real 32 kg rather than inventing 31. **This changes S3**: the
+progression rule now rounds, and the rounding is a pure function in `apps/api/src/domain/` with the
+rest of the progression logic. Rejected: modelling the two-band rack as data (a per-equipment step
+table) — more faithful, more work, and it buys nothing until a user has a rack that differs.
+
+**Decided: `equipment` splits `machine` into `machine_plate` and `machine_stack`.** Hammer Strength
+plate-loaded units are everywhere in Anytime Japan and load from the same plate pool as the barbells,
+so their real step is 2.5 kg — half what a selectorised stack moves in. The six-value enum defended
+this morning put both in one bucket and would have given plate-loaded machines double the correct
+increment. This is new evidence, not a re-litigation: the enum exists to express load increments, and
+this is a load-increment distinction it could not express. Seven values now. Free today; after slice
+1 it would cost a two-release migration under the add-first rule.
+
+**Seeded defaults, as applied:** barbell 2.5 · dumbbell 1.0 (with rounding) · `machine_plate` 2.5 ·
+`machine_stack` 5.0 · cable 2.5 · bodyweight 0.
+
+**Still unverified, and deliberately left so:** the base per-plate step on the selectorised stacks,
+and whether Yuta's own branch stocks 1.25 kg plates and has the adder pin. Equipment is
+franchise-chosen and Anytime Japan does not publish denominations centrally — 5 of 1,848 stores do so
+voluntarily. Yuta confirms both at his own gym. Because of that variance, barbell and machine
+increments stay user-overridable per exercise through `exercise_setting`, which is what it is for.
+
+**Changed:** `04` (`equipment` CHECK, increment defaults), `02` S3, `CONTEXT.md` (Increment,
+Suggestion), `00`.
+
+---
+
+### [2026-09-24] Slice-1 grill: what slice 1 contains, and how far it ships
+
+**Decided (asked).** `/grill-with-docs`, rounds 1 and 2, twelve questions. The 2026-09-23 grill fixed
+*which* slices exist; this one fixes what the first one is made of. Nothing settled on 09-23 was
+reopened.
+
+- **S8 read-only.** Slice 1 ships `GET /api/exercises` and the seed migration, plus `GET /api/me` and
+  `GET /api/health`. The four write routes in `07` §3.2 — create, edit, delete, and the per-user
+  setting — land in **slice 2**, where S4's picker gives each of them a screen. Rejected: shipping all
+  five now. They have no artboard (`10` §8) and no caller until slice 2, and a route with no caller is
+  a route no test exercises honestly. The cross-user test still runs in slice 1: user B's custom
+  exercise is inserted in the fixture and A's `GET` must not see it, which is what proves the
+  `apps/api/src/db/` session-user rule rather than the route.
+- **`/api/health` from the first deploy**, so the Sentry uptime monitor (`12` §5) exists before there
+  is anything to miss. It must not touch the database (`CLAUDE.md`, binding).
+- **Migrations are slice-scoped, not the whole of `04`.** Slice 1 creates Better Auth's four tables
+  plus `rateLimit`, and `invite`, `audit_event`, `user_profile`, `exercise`, `exercise_setting`.
+  Rejected: one migration creating all of `04`. The add-first rule (`12` §3) makes incremental equally
+  safe, `04` has already moved twice under review, and a table that exists before its code has been
+  proven by nothing. **The cost, accepted:** `04` becomes a plan rather than a description until slice
+  7. It gains a *created in* column per table, and each slice's issue names the tables it creates, so
+  the drift is visible rather than silent.
+- **Token login (Better Auth's bearer plugin) lands in slice 1, with its test.** `03` §1 calls the
+  native-ready rules binding from day one, and this is the cheapest of the four: one plugin, no schema
+  change (verified, below). Deferring it means reopening auth during the first native spike, which is
+  the exact cost the rule exists to avoid.
+- **Hono's `csrf()` is mounted in slice 1, tested in slice 2**, when the first write route exists to
+  point it at.
+- **`11` §2's auth list is split across slices.** Slice 1 takes: the gate's three refusals, the admin
+  bootstrap on an empty database, cross-user read on `exercise`, cookie and bearer swapped between
+  routes, 401 with no session, and the sign-out wipe. Revoke, ingest tokens, the cron secret,
+  `/api/admin/*`, cross-origin multipart and account deletion move to the slice that builds their
+  route. `11` §2 gains a slice column so this is a schedule and not a promise.
+- **`user_profile` is created; the setup screen is not.** `/api/me` answers `profile: null`.
+  `PATCH /api/me/profile` and the `setup_incomplete` code land with the first reader of a profile
+  field — the day boundary, slice 3. Rejected: inventing S14/S15's setup flow three slices early with
+  no artboard to build it from.
+- **Slice 1 is installable on the home screen**: a web app manifest and a shell-only precache service
+  worker. `11` §3's items 1 and 2 — `navigator.storage.persist()`, and the Google round trip in
+  standalone mode, which is the Safari cookie fix — cannot be run from a browser tab, and they are two
+  of the three deploy-shaped risks slice 1 exists to find. Items 3 and 7 wait for the set store in
+  slices 3 and 4. The service worker precaches build output only; `/api/*` is excluded
+  (`navigateFallbackDenylist`), which matches every API response already sending
+  `Cache-Control: private, no-store`.
+- **Slice 1 merges to `main` and reaches production**, after the staging checklist. The least tested
+  path in the project is a migration running against production inside a Vercel build, and the
+  cheapest moment to run it is when the blast radius is one table of seeded exercise names, no
+  training data, and a six-hour Neon restore window nothing needs. Waiting means the first production
+  migration also carries five features. This also front-loads `12` §6's open boxes: the restore
+  rehearsal on `staging`, and dbmate inside Vercel's build image.
+
+**Changed:** `00`, `04` (*created in* column), `11` §2 (slice column).
+
+### [2026-09-24] Slice-1 grill: the build toolchain — Kysely, oxlint, oxfmt, Node 24
+
+**Decided (asked).** Researched against primary sources; the linter half corrected a recommendation
+made from memory, after Yuta pushed back that oxlint and the Vite team's tooling had moved.
+
+- **Kysely is the query layer** for `apps/api/src/db/`, closing the "build-phase choice" left open in
+  `12` §3. Three reasons, all verified against Better Auth 1.7.5: it is what Better Auth uses
+  internally, so passing a `pg` `Pool` to `betterAuth({ database })` gives one pool and no second
+  adapter; `auth generate --adapter kysely` emits **plain SQL**, which is the only generator output
+  that can become a dbmate migration; and Kysely's types are generated *from* the database, so they
+  follow the migrations. **Rejected: Drizzle**, whose official adapter exists but whose schema lives in
+  TypeScript — a second source of truth for the schema, against `04`'s rule that versioned SQL is the
+  only way it changes, and whose generator emits `.ts`, not SQL. **Rejected: raw `pg` with
+  hand-written row types**, which is the same SQL with none of the checking.
+- **oxlint 1.85.0 and oxfmt 0.70.0**, both pinned to exact versions. oxlint has been stable since
+  1.0 (2025-06-10): 870 rules, 12–18× faster than ESLint. **Type-aware linting went stable
+  2026-07-22**, covering 59 of typescript-eslint's 61 typed rules via tsgolint — including
+  `no-floating-promises`, which was the one rule named as ESLint's remaining advantage when Biome was
+  recommended. That recommendation rested on a wrong belief that neither alternative had type-aware
+  rules; both do. oxfmt passes 100% of Prettier's JS/TS conformance tests and is ~30× faster.
+- **Exact version pins are required, not stylistic.** Oxc's versioning policy excludes type-aware
+  rules, nursery rules and JS plugins from semver: their behaviour may change in a patch release.
+- **Rejected for now: Vite+.** Its October 2025 commercial licence was abandoned — it has been MIT
+  and free since VoidZero joined Cloudflare on 2026-06-04, so cost is not the reason. The reason is
+  maturity and scope: npm `latest` is `1.0.0-rc.0` (2026-09-22), and `vp` wants to own dev, test,
+  build and create as well as lint and format. Vite+ *is* oxlint and oxfmt underneath, so choosing
+  them directly forfeits nothing — adopting Vite+ later moves the config into `vite.config.ts`.
+  **Revisit at 1.0.** Its `vp check` (format + lint + typecheck in one pass, claimed 2× faster) is the
+  thing worth returning for.
+- **Rejected: Biome 2.5.14.** A fair choice — 612 rules, its own inference engine rather than `tsc`,
+  sponsored by Vercel — but its type-aware coverage is still openly "improving" (tracking issue
+  open), against oxlint's 59/61, and it is the only one of the three not built by the team that builds
+  Vite, which this project's web app is built on.
+- **Rejected: ESLint 10 + typescript-eslint 8.70.1.** The rule ecosystem no longer buys anything
+  oxlint lacks, and typescript-eslint's peer range is `<6.1.0`, which excludes TypeScript 7 outright.
+- **Node 24 and pnpm are pinned** in `engines.node`, `packageManager`, and CI. Vercel's default is
+  already Node 24 (the LTS available there), it honours `engines.node` over the dashboard setting, and
+  pinning is what keeps laptop, CI and Vercel from silently diverging.
+
+**Changed:** `03` §2 (query layer row), `12` §3.
+
+### [2026-09-24] Slice-1 grill: Better Auth, verified against 1.7.5
+
+**Verified, and two decisions taken.** Read from the 1.7.5 doc sources and published packages
+(2026-09-14). One premise in our own docs was checked and held; one tooling name had moved.
+
+- **`user.validateUserInfo` is real.** `08`'s invite gate is built on an option that exists, added in
+  Better Auth 1.7.0. Signature: `(data: { user, source }, context) => Awaitable<void |
+  { error, errorDescription? }>`. Returning nothing admits; returning `{ error }` rejects — a redirect
+  to the error URL in browser flows, a 403 for programmatic ones. It fires on `create-user`,
+  `link-account` **and** `sign-in`, and on `sign-in` it receives the *fresh* provider email, so an
+  account whose Google email moved out of bounds is caught on return, not only at signup. Google is
+  identified by `source.oauth?.providerId === 'google'`, with the raw claims on `source.oauth?.profile`.
+  - Upstream carries a TODO to rename it to `validateUser`. Pin the version and expect a rename.
+- **The admin bootstrap splits across two hooks.** `validateUserInfo` is a gate, not a write seam —
+  the docs say so explicitly. The gate lets `ADMIN_EMAIL` through; the `invite` row is upserted in
+  `databaseHooks.user.create.after`, which fires once, with the persisted user's id. This refines the
+  2026-09-23 decision ("one branch in `validateUserInfo`") without changing it.
+- **The CLI is the npm package `auth`**, not `@better-auth/cli`, which is stale at 1.4.21. The
+  command is `npx auth@latest generate --adapter kysely`.
+- **How Better Auth's tables reach a dbmate migration.** `generate` on the Kysely path emits
+  `schema.sql` — but it *introspects the configured database* and emits a **diff**, with no
+  `-- migrate:up` markers and no down section. So the process is: run it against local Docker Postgres
+  at the current migration state, review the SQL, paste it into a dbmate migration, and hand-write the
+  down. On every Better Auth upgrade, repeat: the diff becomes the next migration. This is the bridge
+  between two tools that know nothing about each other, and it is a manual step by nature.
+- **Columns are snake_case** (`database: { casing: 'snake' }`), so the auth tables match every other
+  table in `04`. Better Auth's default is camelCase. **Unverified:** whether `casing` renames tables
+  as well as columns — confirmed against a real database when slice 1 is written, not assumed.
+- **Rate limiting is stored in the database** (`rateLimit: { storage: 'database' }`). The default is
+  in-memory, which on a Vercel function is close to useless: memory does not survive between
+  invocations. `04` already carries the table; this is what makes it do anything. Columns as
+  documented: `id`, `key` (unique), `count` (integer), `lastRequest` (bigint, epoch ms).
+- **The CI browser test signs in with Better Auth's own test helper.** The `testUtils()` plugin's
+  `test.getCookies({ userId })` returns cookie objects made for `context.addCookies()` in Playwright.
+  It must stay out of the production auth config, so the test server builds its own auth instance.
+  - **What this costs, stated plainly:** CI no longer proves the Google round trip, which was the
+    stated reason for having the test on 2026-09-23. It cannot — Google cannot run in CI. So CI proves
+    "a signed-in user sees the seeded list", the gate is tested in Vitest where it is cheaper, and the
+    real Google round trip is proven **by hand on staging**, which is already `11` §3 item 2. The
+    decision changes where that assurance comes from, not whether it exists.
+  - A session row inserted by raw SQL will **not** authenticate: the `session_token` cookie is the
+    token HMAC-signed with `BETTER_AUTH_SECRET`, and the value is `token.signature`. The helper is
+    what mints it. Rejected: the `genericOAuth` plugin pointed at a stub issuer — it would exercise the
+    redirect and cookie path, but not the Google provider's own code, so it proves a different thing
+    at more cost.
+- **The bearer plugin adds no schema.** It reads the `set-auth-token` response header after sign-in,
+  accepts `Authorization: Bearer <token>`, and converts it to the session cookie internally. The token
+  is the same `session.token`; nothing extra is persisted. `requireSignature` defaults to `false`.
+- **Our Safari fix is Better Auth's own documented fix.** Their cookies guide names ITP breaking
+  cross-domain auth and gives a Vercel `rewrites` entry as the remedy, so the API is first-party. That
+  is `03` §5, arrived at independently.
+- **Cookies, as actually computed:** `httpOnly`, `sameSite: 'lax'`, `path: '/'`, `secure` derived from
+  the `baseURL` protocol, and the name gains a `__Secure-` prefix when secure. Worth knowing before
+  debugging a cookie by name.
+
+**Changed:** `04` (auth tables, `rateLimit` columns), `08` (bootstrap hook, gate on `sign-in`),
+`11` §2 and §3, `12` §3.
+
+### [2026-09-24] Slice-1 grill: platform facts verified, and four `03` §11 items closed
+
+**Verified.** Checked against vendor documentation, MDN browser-compat data and WebKit's own posts.
+These were on `03` §11 "unverified, to check when the piece is built"; four can be struck now, and one
+answers a product question early.
+
+- **Web Locks is supported** — Safari and iOS Safari 15.4, widely available since March 2022. `03`
+  §8.1's uploader lock is not a gamble. **Still unverified:** behaviour inside a standalone
+  home-screen app specifically, and whether locks are shared between the installed app and the same
+  origin in Safari. Neither MDN nor WebKit addresses it; `11` §3 item 4 stands.
+- **`navigator.vibrate` does not exist on iOS at all** — not in any version, Safari or iOS Safari.
+  **Screen Wake Lock** works in Safari from 16.4 but **not in standalone home-screen apps until iOS
+  18.4** (WebKit bug 254545); caniuse does not model that carve-out and would have misled us.
+  **Web Push does work** in an installed home-screen app from iOS 16.4, over APNs, with no Apple
+  Developer Program membership — but permission must be requested from a direct user gesture.
+  - **Consequence for the screen-1 grill:** "nothing announces that rest has ended" has two viable
+    answers, push and sound, not three. Vibration is out. A wake lock is available only on 18.4+, so
+    it is a progressive enhancement, never the mechanism. This is evidence for that grill, not a
+    decision taken here.
+- **`vercel.ts` is real** (announced 2025-12-19), package `@vercel/config` 0.7.2, imported from
+  `@vercel/config/v1`, exporting a named `config`. `12` §1's plan holds. The helper is
+  `routes.rewrite(source, destination, opts?)`, and `deploymentEnv('VAR')` defers an env read to
+  deploy time. Only one config file may exist — `vercel.ts` **or** `vercel.json`, not both.
+  **Unverified:** that it is honoured for a project using a backend framework preset, and its exact
+  placement when the root directory is `apps/web`. Both are checked the first time it is deployed.
+- **Vercel now has a first-class Hono preset** (docs updated 2026-08-10): `export default app` from
+  `src/index.ts`, zero config, every path routed to the app, no `hono/vercel` `handle()` and no
+  `vercel.json` routes. `03` §5's "thin entry adapters" survives — `export default app` is the
+  thinnest possible — but the adapter import it implied is no longer the documented path. `hono/vercel`
+  still exists in 4.13.9 and is a three-line wrapper; we do not need it.
+- **Node 24 is Vercel's default runtime**, with 22 and 20 also available, and `engines.node`
+  overrides the dashboard setting.
+- **Limits reconfirmed:** 4.5 MB request body (413 `FUNCTION_PAYLOAD_TOO_LARGE`), Hobby function
+  duration max 300 s, Hobby cron still once per day fired within the scheduled hour, one concurrent
+  build. `03` §9 and §8.4 are unaffected.
+- **dbmate 2.36.0 is safe inside Vercel's build.** The npm wrapper has **no install-time download**:
+  per-platform binaries ship as optional dependencies and `@dbmate/linux-x64` exists. Migrations run
+  in a transaction by default. Global flags must come *before* the subcommand, which `12` §3's build
+  command already does. If `pg_dump` is absent it **silently skips** the schema dump — we pass
+  `--no-dump-schema`, so this cannot bite us. **Unverified:** whether pnpm's lockfile, generated on
+  darwin-arm64, carries `@dbmate/linux-x64` into a Linux build. Checked on the first deploy.
+- **vite-plugin-pwa 1.3.0** generates the manifest, service worker and registration. Its precache is
+  build output only and **cannot** cache an API response; `navigateFallbackDenylist` keeps `/api/*`
+  out of the service worker's navigation handling.
+
+**Changed:** `03` §11 (four items struck, iOS findings recorded), `03` §5, `12` §1 and §3, `00`.
+
+### [2026-09-24] Slice-1 grill: TypeScript 7, with an escape hatch
+
+**Decided (asked).** Yuta raised it; researched against the TypeScript blog, the npm registry, the
+published tarballs and each library's own repository before deciding.
+
+- **TypeScript 7.0.2 is GA** (2026-07-08) and is the Go port. `tsc` *is* the native binary — there is
+  no opt-in, and the npm package ships no JavaScript compiler at all (2.5 MB unpacked, against
+  24 MB for 6.0). Reported in production at Vercel, Sentry, Linear, Figma, Notion and Slack, whose
+  CI type-check went from 7.5 minutes to 1.25. The team's own heading is "Battle-Tested and Ready
+  for Production".
+- **Decided: TypeScript 7, with `openapi-typescript` pinned to an older TypeScript.** The config is
+  written TS7-clean from the first commit — no `baseUrl`, none of the options 6.0 deprecated and 7.0
+  hard-errors on, and 7.0's defaults (`strict`, `module: esnext`, `rootDir: ./`, `types: []`)
+  accepted rather than fought.
+- **The one real blocker, and why it is survivable.** TypeScript 7.0 **ships no programmatic API**;
+  `import ts from "typescript"` yields `{ version, versionMajorMinor }` and nothing else. The
+  replacement arrives in 7.1, an out-of-process client, with no announced date. That breaks
+  `openapi-typescript` outright — it calls `ts.factory` at runtime (issue #2841, open) — and
+  `openapi-typescript` generates `packages/api-contract`'s types, which `CLAUDE.md` makes binding.
+  The documented workaround is the official alias `@typescript/typescript6`, which is what VS Code
+  itself does. The maintainer has posted a rewrite removing the TypeScript dependency entirely; when
+  it lands, the alias goes.
+- **Two risks accepted, both with mitigations already in hand.**
+  - `@hono/zod-openapi` 1.6.3 dev-depends on the TS6 alias and is **not** CI-tested against 7. Open
+    issue #1918 reports that chaining `.openapi(route, handler)` accumulates generics quadratically,
+    which the new compiler exposes rather than causes. The fix is the `.openapiRoutes([...])` batch
+    API (1.3.0+): 24.8M → 7.1M instantiations, 41.5 s → 10.2 s. **Routes are registered in batches
+    from the first one**, which is better practice regardless of compiler.
+  - `@types/react` has no `ts7.0` dist-tag and the enabling PR is open. If it bites, the fallback is
+    TypeScript 6.0.3 — **a one-line change, because the config is already 7-clean.** Slice 1 is one
+    route and one page, which is the cheapest place in the project to discover it.
+- **What we lose, stated:** language-service plugins do not exist in 7 yet, so the editor stays on
+  TypeScript 6 until VS Code bundles the new service. This costs us nothing — the stacks that need
+  plugins are Vue, Svelte, Astro, MDX and Angular, and we use none of them.
+- **`--checkers` is pinned in CI.** The team documents that varying it "may surface order-dependent
+  results", and `stableTypeOrdering` is forced on in 7.0 and cannot be disabled. Both are reasons to
+  fix the number rather than take the default.
+- **Rejected: staying on TypeScript 5.** It is two migrations behind, and the real cliff is 5 → 6,
+  not 6 → 7 — 7.0 simply adopts 6.0's defaults and turns its deprecations into errors. Paying that
+  cost on an empty repo is free; paying it at M2 is not.
+- **This settles with Q7:** oxlint's type-aware linting requires TypeScript 7.0+ and rejects legacy
+  `tsconfig` options such as `baseUrl`. The two choices point the same way.
+
+**Changed:** `03` §2, `11` §5, `12` §3, `00`.
+
+### [2026-09-24] Slice-1 build: `casing: 'snake'` does nothing, so snake_case comes from `modelName` and `fields`
+
+**Found building slice 1, decided (asked, option A).** The Better Auth grill above chose
+`database: { casing: 'snake' }`. The option is declared in `@better-auth/core` 1.7.5's types and
+**read nowhere**: not by the Kysely adapter at runtime, and not by `auth generate`. A search of every
+published `dist` file found no reader, and `generate` with the option set still emitted
+`emailVerified`, `userId` and a `rateLimit` table. The type is a promise the code doesn't keep yet.
+This also answers the open question: it renames neither tables nor columns.
+
+- **The mechanism instead: Better Auth's per-model `modelName` and `fields` options**, which both
+  the adapter and the generator honour. `apps/api/src/auth/snake-case-schema.ts` maps every
+  camelCase column (`email_verified`, `user_id`, `expires_at`, …) and renames `rateLimit` to
+  `rate_limit`. `user`, `session`, `account` and `verification` are already single words. With the
+  mapping in place, `generate` emits the snake_case SQL that became
+  `20260924000002_better_auth.sql`, and the Kysely types are generated from that database.
+- **The dead option is not kept in the config.** Leaving it would suggest it does something.
+- **A test guards it.** A Vitest Google sign-in (Better Auth's ID-token path, with Google's token
+  check replaced in the test config) must succeed against the snake_case schema and leave rows in `user`, `session`, `account` and `rate_limit`. A missing
+  mapping makes Better Auth write a camelCase column that does not exist, and the test fails.
+- **The cost, accepted:** a Better Auth upgrade that adds a field needs a line in the mapping. The
+  upgrade procedure already runs `generate` for a diff (`12` §3), and that diff shows any
+  camelCase name that slipped through.
+- **Rejected: accepting camelCase for Better Auth's five tables.** It works, but it makes those
+  tables the exception to `04`'s conventions. **Rejected: holding slice 1 until upstream implements
+  `casing`.** Nothing says when that will happen.
+
+**Changed:** `04` (Better Auth tables), `08` (rate limiting, *Unverified*), `00`.
+
+### [2026-09-25] Slice-1 build: the *Check when built* answers a laptop can give
+
+**Verified, locally.** Issue `#1`'s *Done when* item 4 names five checks. Three are answered from
+the built slice. Two need Vercel and stay open until the first deploy. Nothing below was run against
+Neon, Vercel or Google.
+
+- **The pnpm lockfile carries `@dbmate/linux-x64`.** `pnpm-lock.yaml`, written on macOS, lists all
+  seven platform packages. `pnpm install --frozen-lockfile` in a `linux/amd64` `node:24` container
+  installed `@dbmate/linux-x64@2.36.0`. In the same container, `pnpm vercel-build` with
+  `VERCEL_GIT_COMMIT_REF=develop` migrated an empty Postgres 18 database through all four
+  migrations.
+- **`@types/react` under TypeScript 7: no problem.** `@types/react` and `@types/react-dom` 19.3.0
+  typecheck cleanly under `tsc` 7.0.2 (`--checkers 4`) across the whole web app. The
+  TypeScript 6.0.3 fallback isn't needed. The same run covers `@hono/zod-openapi` 1.6.3, whose routes
+  are registered with `.openapiRoutes([...])` batches as planned.
+- **`casing: 'snake'` on tables:** answered in the entry above.
+- **Still unverified — dbmate inside Vercel's build image.** The container was Debian, not Vercel's
+  Amazon Linux image. The first `develop` deploy proves it.
+- **Still unverified — `vercel.ts` beside a framework preset.** `apps/web/vercel.ts` is written as
+  `12` §1 specifies and typechecks, but only a deploy shows whether Vercel reads it. The staging
+  sign-in round trip in `12` §6 proves it.
+
+Two more findings came out of the build:
+
+- **The API's build command was wrong as written, and now lives in the repo.** `12` §3's command
+  ended in `pnpm build`, and the API has no `build` script, so it would have failed. Nothing set the
+  command anywhere either: the provisioning walkthrough does not touch it. Vercel's Hono preset has
+  no Build Command. Its builder (`@vercel/hono` over `@vercel/node`, read from source) runs the first
+  of `vercel-build`, `now-build`, `build` from `package.json`, then bundles `src/index.ts` itself. So
+  the migration step is `apps/api/scripts/vercel-build.sh`, the package's `vercel-build` script, and
+  the project settings stay empty. **Rejected: a dashboard override**, which is invisible in review
+  and was never set. **Rejected: an `apps/api/vercel.ts` `buildCommand`**, because whether
+  `vercel.ts` is honoured beside a preset is the open question above.
+- **Better Auth's adapter needs no DDL.** Every test signs in, writes sessions and rate-limit rows
+  and signs out as `overload_app`, which holds DML only. `13` §10's item is struck.
+- Read from 1.7.5's source while wiring the sign-in page: a gate refusal redirects to the call's
+  `errorCallbackURL` with `?error=<code>&error_description=<text>`. The rate limiter is on by default
+  only in production, and it keys by `x-forwarded-for` only when that header holds one address. That
+  last point joins `13` §10's open question about the IP the API sees behind the rewrite.
+
+**Changed:** `00`, `08` *Unverified*, `12` §3 and §6, `13` §10, `CLAUDE.md` (commands).
+
+### [2026-09-25] Switching to Drizzle: feasibility checked, and one blocker found
+
+**Asked, and held at the feasibility check.** Yuta chose Drizzle ORM and drizzle-kit to replace
+Kysely and dbmate, "if we can". This reverses the 2026-09-24 toolchain entry's rejection of Drizzle
+and the 2026-09-21 entry's dbmate, which was decided by default and never asked. What forced the
+question:
+
+- **The first staging deploy after slice 1 merged failed in `vercel-build`:** `pq: SCRAM-SHA-256
+  error: server sent an invalid SCRAM-SHA-256 iteration count: "i=1"`. It is not a credential
+  problem. dbmate 2.36.0, like every recent release, ships Go `lib/pq` v1.12.3. That parser
+  (`scram/scram.go`, `len(fields[2]) < 6`) rejects any iteration count shorter than four digits, and
+  Neon's connection gateway always sends `i=1`. The upstream fix (lib/pq PR #1444) is merged but not
+  released. dbmate cannot reach Neon until it is.
+- The JavaScript `pg` driver has no such check. `pg` 8.23.0's `lib/crypto/sasl.js` caps the
+  iteration count at a maximum, 100000 by default, and sets no minimum. Yuta's other projects (kioku,
+  suburi, track-record) run drizzle-kit on `pg` against Neon without trouble.
+
+**Checked before converting anything** (drizzle-orm 0.45.2, drizzle-kit 0.31.10, pg 8.23.0,
+Better Auth 1.7.5, read from the installed packages and run against local Docker Postgres 18):
+
+- **Better Auth 1.7.5 and Drizzle: fine.** `better-auth` depends on `@better-auth/drizzle-adapter`
+  1.7.5, and its peer range takes `drizzle-orm ^0.45.2` and `drizzle-kit >=0.31.4`. The adapter looks
+  a model up by its key in the Drizzle schema object (`schema.rateLimit`) and a field by the column's
+  JavaScript key (`emailVerified`). The SQL name comes from the Drizzle column, so
+  `emailVerified: boolean('email_verified')` in a `pgTable('rate_limit', …)` keeps every table and
+  column snake_case with no per-model `fields` mapping. Better Auth's own Drizzle schema generator
+  writes exactly that shape by default (`convertToSnakeCase` on table and column names), and with
+  `generateId: 'uuid'` it writes `uuid("id").default(sql\`pg_catalog.gen_random_uuid()\`)`. On `pg`
+  the adapter opens no transaction of its own (`transaction` defaults to `false`), so the tests'
+  one-connection rollback harness still works.
+- **drizzle-kit uses the `pg` driver.** `drizzle-kit migrate` checks for `pg` first ("Using 'pg'
+  driver for database querying") and hands over to `drizzle-orm/node-postgres/migrator`.
+- **Blocker: drizzle-kit's migrate cannot run as `overload_owner` as that role is provisioned.**
+  Before it applies anything, drizzle-orm's migrator (`pg-core/dialect.js`, `migrate()`) always runs
+  `CREATE SCHEMA IF NOT EXISTS <migrations schema>`. The schema is `drizzle` by default and can be
+  configured, but the statement always runs, even for `public`. Postgres checks `CREATE` on the
+  *database* before it checks whether the schema exists, and `infra/db/bootstrap.sql` grants
+  `overload_owner` only `CREATE ON SCHEMA public`. Reproduced on Docker Postgres 18 with the roles
+  from `bootstrap.sql`:
+  - `SET ROLE overload_owner; CREATE SCHEMA IF NOT EXISTS public;` fails with
+    `ERROR: permission denied for database overload`. So does `drizzle`.
+  - `drizzle-kit migrate` connecting as `overload_owner` exits 1 without printing the error, with
+    `migrations.schema` set to `drizzle` or to `public`. The same migrator called directly reports
+    `42501 permission denied for database overload`.
+  - After `GRANT CREATE ON DATABASE overload TO overload_owner`, the same `drizzle-kit migrate` exits
+    0. It creates schema `drizzle`, owned by `overload_owner`, holding `__drizzle_migrations`, and
+    applies the migration. The grant was revoked again afterwards.
+  - Neon is the same case: the roles there come from the same `bootstrap.sql`, and the database is
+    owned by the console-created role, not by `overload_owner`.
+
+**Not decided here. The options:**
+
+- **A. One more grant in `bootstrap.sql`** (recommended): `GRANT CREATE ON DATABASE` on the current
+  database to `overload_owner`, through `format(…, current_database())` because the database name
+  differs between Neon and local. `overload_owner` is already the DDL role, so creating a schema adds
+  little to what it can do. Costs: the grant must be run by hand on Neon `staging` and `main` before
+  the first migration, as the console-created owner role, alongside the password reset that is
+  already needed. Whether that role may grant `CREATE` on a Neon database has not been tried on Neon.
+  The backup role then needs `USAGE` on schema `drizzle` and `SELECT` on `__drizzle_migrations`,
+  which the first migration can grant, as it granted `schema_migrations` before.
+- **B. Keep `bootstrap.sql` as it is, and do not run `drizzle-kit migrate`.** The build would call a
+  small runner of our own that reads drizzle-kit's migration folder with drizzle-orm's
+  `readMigrationFiles` and applies it in one transaction, with the tracking table in `public`. It
+  works with the current grants, but it is our code copying drizzle's journal handling, and it does
+  not use the tool the switch was chosen for.
+- **C. Stay on dbmate** and wait for a `lib/pq` release with PR #1444, then a dbmate release that
+  takes it. Nothing says when. Staging stays undeployable until then.
+
+**Rejected outright:** running migrations by hand or from the function at runtime (`12` §3), and
+connecting drizzle-kit as the console-created owner instead of `overload_owner` (every table would
+then be owned by a role that `ALTER DEFAULT PRIVILEGES FOR ROLE overload_owner` does not cover).
+
+**Changed:** nothing else yet. The conversion waits for the choice between A, B and C.
+
+### [2026-09-25] Drizzle ORM and drizzle-kit replace Kysely and dbmate, with one grant added to the bootstrap
+
+**Decided (asked; firstmate, under Yuta's delegation), and built.** The entry above held the switch at
+its feasibility check. The instruction was to first try keeping drizzle's bookkeeping table in the
+existing `public` schema. That was tried on Docker Postgres 18 as `overload_owner`, with no extra
+grant, and failed the same way (`42501 permission denied for database`). So the decision is
+**option A**: `infra/db/bootstrap.sql` grants `overload_owner` `CREATE` on the database. Options B
+(a migration runner of our own) and C (stay on dbmate) are rejected.
+
+- **Versions** match Yuta's other projects: drizzle-orm 0.45.2, drizzle-kit 0.31.10, pg 8.23.0.
+  Kysely, kysely-codegen and dbmate are gone from `apps/api`.
+- **The schema lives in TypeScript now.** This reverses the reason Drizzle was rejected on
+  2026-09-24, on Yuta's say-so. `04`'s rule is rewritten rather than dropped: the Drizzle tables in
+  `apps/api/src/db/schema.ts` are the source, `drizzle-kit generate` writes each migration's SQL, and
+  that committed, reviewed SQL is still the only thing that changes a database. `drizzle-kit push` is
+  never used. Grants, the `purge_audit_events()` function, the `NULLS NOT DISTINCT` expression index
+  on exercise names and the seed rows are custom migrations, since Drizzle cannot express them.
+- **Migration history starts fresh.** Staging and production were never migrated, so the four dbmate
+  files were replaced, not converted: `0000_privileges` (custom), `0001_slice1_tables` (generated:
+  Better Auth's five tables and slice 1's five), `0002_slice1_sql_only` (custom) and
+  `0003_seed_exercises` (custom, written by `seed/exercises.ts`, still guarded by its drift test).
+  Every table, column, CHECK, index, grant and the 50 seeded exercises carry over. Names that changed
+  are generated ones: unique constraints (`user_email_unique` for `user_email_key`) and foreign keys
+  (`session_user_id_user_id_fk`). There are no down migrations any more.
+- **The bookkeeping table is `public.__drizzle_migrations`**, not drizzle's default `drizzle`
+  schema, so no second schema exists. The first migration grants the backup role `SELECT` on it, as
+  it did for `schema_migrations`. The app role gets nothing on it.
+- **Better Auth runs on its Drizzle adapter** over our Drizzle instance and the same `pg` Pool.
+  `src/db/auth-schema.ts` is what `auth generate` writes for our options, with two edits for `04`:
+  `timestamptz` everywhere (the generator writes `timestamp` without time zone), and snake_case names
+  for the two `user_id` indexes (it writes `session_userId_idx`). `snake-case-schema.ts` is deleted:
+  the Drizzle columns carry the SQL names.
+- **The adapter's schema check is back on.** On Kysely it introspected the database on start, which
+  would have woken Neon from `/api/health`, so it was off. On Drizzle it compares the schema object
+  with the fields Better Auth expects and touches no database: the `/api/health` test still sees no
+  connection open. Dropping `userAgent` from `auth-schema.ts` failed every sign-in with "Drizzle schema
+  mismatch: session.userAgent"; naming a column `ipAddress` failed the snake_case sign-in test.
+- **Known gap, accepted: a failed `drizzle-kit migrate` does not say why.** In 0.31.10, and in
+  0.31.11 (npm `latest`), the migrate command runs inside hanji's `renderWithTask`, which catches the
+  rejection and calls `process.exit(1)` without printing it. A migration failure still fails the
+  Vercel build, but its log shows only `applying migrations...`. The cause is found by running the
+  same migrations against Docker (`pnpm db:migrate`). **Rejected:** a wrapper that re-runs the
+  migrator to print the error, because it would be a second migration path in the build.
+- **Verified locally**, nothing against Neon or Vercel: 29 Vitest tests (one new, `/api/me` with a
+  profile, which checks that numeric columns come back as numbers and `birth_date` as a local date
+  string) and the Playwright suite (7 passed, the WebKit offline test skipped as before), typecheck,
+  lint, and `pnpm contract` with no change to `openapi.json`. In a `linux/amd64` `node:24` container,
+  `pnpm install --frozen-lockfile` installed esbuild's Linux binaries, which drizzle-kit uses to load
+  its TypeScript config, and `pnpm vercel-build` with `VERCEL_GIT_COMMIT_REF=develop` migrated an
+  empty Postgres 18 through all four migrations. A second run applied nothing.
+- **Still unverified:** `drizzle-kit migrate` inside Vercel's own build image (the next `develop`
+  deploy proves it), and whether Neon's console-created owner role may run the new
+  `GRANT CREATE ON DATABASE`. It owns the database, so it should be able to.
+- **Before this merges to `develop`:** run the new grant on Neon `staging` and `main`, reset the
+  staging owner password and Vercel's `DATABASE_URL_DIRECT`. Merging deploys staging and runs its
+  first migration.
+
+**Changed:** `infra/db/bootstrap.sql`, `00`, `03` §2 and §11, `04` (Conventions, Better Auth tables,
+Roles), `08` *Unverified*, `12` §1, §2, §3 and §6, `13` §5 and §10, `AGENTS.md` (commands),
+`.claude/settings.json` (drizzle-kit asks, as dbmate did), `.oxlintrc.json` (`schema.ts` is written
+by hand now, so it is linted).
+
+### [2026-09-26] `pnpm dev:session`: a local-only script signs an agent's browser in, and the app stays unchanged
+
+**Context.** Agents check UI changes in a real browser, and every screen but `/sign-in` sits behind
+Google and the invite gate. The browser tests already get past it with Better Auth's `testUtils()` on
+a test-only instance (2026-09-24, *The CI browser test signs in with Better Auth's own test helper*).
+An agent running the app by hand had no equivalent, so it improvised or could not look.
+
+**Decided (asked; firstmate, under Yuta's delegation), and built.** A script outside the app,
+`apps/api/scripts/dev-session.ts`, run as `pnpm dev:session`. It finds or creates the dedicated local
+test user `dev@example.test`, mints a session cookie with the same code the Playwright fixture uses
+(`apps/api/test/e2e/test-session.ts`, split out of `session.ts`), and writes three gitignored files
+under the repo-root `.dev-session/`: Playwright storageState JSON, a Playwright MCP snippet, and a
+chrome-devtools-axi script. It never prints the token or email. The chrome-devtools-axi script opens
+the local page, sets `document.cookie`, then reopens it; page script cannot set `httpOnly`, but the
+API reads the Cookie header either way.
+
+After switching accounts with `pnpm dev:session`, reload every open app page before using it. A
+request retried in an already-open tab can still put the new account's response in the previous
+account's saved copy; that remaining gap is tracked in
+[#13](https://github.com/yutaasakura96/overload/issues/13).
+
+- **It stays out of the app, as 2026-09-24 kept `testUtils()` out of the production auth config.**
+  The staging URLs are public (2026-09-23, Deployment Protection off), and `08` §1 allows Google only,
+  so a sign-in route, flag or code path in the deployed API would be a hole. Nothing in `apps/api/src`
+  or `apps/web` imports the script; no deployed variable is added.
+- **It refuses anything but local values before it connects** (`scripts/dev-session-guard.ts`):
+  every value it uses comes from `apps/api/.env.local`, parsed by the script rather than inherited
+  from the shell. Any conflicting exported value is refused by name, without printing its value.
+  `DATABASE_URL` must target localhost or `127.0.0.1`, port 5434, database `overload`, with no query
+  overrides; `BETTER_AUTH_URL` must be plain-http localhost or `127.0.0.1`. `NODE_ENV=production`
+  and the presence of `VERCEL` or `VERCEL_ENV` are refused in both the file and exported environment.
+  A deployed secret deliberately pasted into `.env.local` cannot be detected by these checks.
+- **Tests:** Vitest covers those refusals and checks a refused run writes nothing. A Playwright spec
+  uses a test-only entry against the browser-test database and loads the signed-in library from its
+  storageState file.
+
+**Alternatives considered.** An in-app dev sign-in route or env flag: rejected for the hole above.
+Minting cookies by hand from SQL: a session row alone does not authenticate, the cookie must be
+HMAC-signed (2026-09-24), and it would duplicate the fixture's code.
+
+**Changed:** `AGENTS.md` (commands), `package.json`, `apps/api/package.json`, `.gitignore`.
+
+### [2026-09-28] Staging's API crashed on every request: Vercel's Hono preset took `src/app.ts` as its entry, and Node could not resolve extensionless imports
+
+**Context.** After the Drizzle switch deployed, the staging web app loaded but `/api/health` and
+`/api/me` answered 500 `FUNCTION_INVOCATION_FAILED`, through the web rewrite and on the
+`overload-api` develop URL directly, so the installed app showed *OFFLINE* and blocked the iPhone
+checklist (`11` §3). The runtime logs could not be read (the local Vercel CLI login had expired), so
+the build was reproduced on a laptop with `vercel build` (CLI 60.1.3) and placeholder settings.
+
+**Found, two faults, either one enough to crash every request.**
+
+- **The wrong entry.** The Hono preset takes the first of `app`, `index`, `server`, then `src/app`,
+  `src/index`, `src/server` whose text contains `from 'hono'`. `src/app.ts` came first, so the
+  function's handler was `src/app.js`, which has no default export. `12` §3 had said the preset
+  bundles `src/index.ts`; it never looked at that file.
+- **Unresolvable imports.** The preset does not bundle. It compiles each file to ESM on its own
+  (`"type": "module"`), and Node's ESM loader refuses `import './lib/problem'`: the built
+  `src/app.js` threw `ERR_MODULE_NOT_FOUND` on load. tsx, Vitest and drizzle-kit resolve such
+  imports, which is why nothing local failed.
+
+**Decided (firstmate, under Yuta's delegation), and built.** `src/app.ts` becomes
+`src/create-app.ts`; `src/index.ts` imports `hono` by name (a type, checked against the default
+export with `satisfies`); every relative import under `apps/api/src` ends in `.js`. CI gains a
+`vercel-build` job: `pnpm --filter @overload/api check:vercel-build` runs `vercel build` through
+`pnpm dlx` at a pinned version, requires the handler to be `src/index.js`, copies the function
+outside the repo (recreating pnpm's symlinks from `filePathMap`) and asks it for `/api/health` in
+plain Node. Against the old code it fails on the entry; with one extensionless import it fails with
+`ERR_MODULE_NOT_FOUND`.
+
+**Alternatives considered.** Bundling the API ourselves (esbuild in `vercel-build`, the entry a
+bundle): a second build path next to the preset's, rejected while the preset works with two rules.
+Vercel CLI as a devDependency: pinned in the lockfile, but it adds about 250 packages and moved other
+packages' resolutions, so the check fetches it with `pnpm dlx` instead. A lint rule for the `.js`
+ending: the CI job catches it, and an extra rule would duplicate it.
+
+**Still open.** `/api/me` and sign-in against Neon are proven only once `develop` redeploys; the
+check reaches no database. The new job is not a required status until it is added to the branch
+rules.
+
+**Changed:** `apps/api/src/*` (imports, the rename), `apps/api/scripts/check-vercel-build.ts`,
+`apps/api/package.json`, `.github/workflows/ci.yml`, `12` §3, `00-status`, `AGENTS.md` (commands).
+### [2026-09-27] The persisted query cache is kept per account
+
+**Context.** The web app saved its TanStack Query cache to IndexedDB under one fixed key,
+`overload`, whoever was signed in. When the session cookie changed without a sign-out (A's session
+expired and B signed in, or `pnpm dev:session` was handed another identity), the next launch
+restored A's copy and rendered it to B: A's email and library, until the one-minute staleTime let
+`/api/me` refetch. It was found reviewing `pnpm dev:session` (PR #11). Weight, food and health
+numbers must never be readable by a different account (`08` §7).
+
+**Decided (asked; the captain), and built.** Separate saved data per account, the old shared copy
+dropped once, and the 3-second offline rule kept (`08` §5).
+
+- Each account's copy lives under `query-cache:user:<id>`. The persister uses its cached `me` to
+  choose that key and drops writes after the account closes. The shared `query-cache:overload` key
+  is deleted at launch and never read. The same-tab cookie-switch gap remains in
+  [#13](https://github.com/yutaasakura96/overload/issues/13).
+- `/api/me` is the account check at every launch, focus and reconnect (`staleTime: 0`). The current
+  rendering and offline rules, including the `dev:session` reload requirement, are in `08` §5.
+- Switching account stops saving, clears memory except `me`, sets `me` to the new account, then
+  loads its own copy. Other tabs hear of it on a `BroadcastChannel` and reload.
+- A 401 wipes nothing: the same user signing in again gets their copy back (`08` §5). Sign-out
+  still wipes every copy.
+
+**Alternatives considered.** Keeping one shared copy and wiping it when `/api/me` names another
+account: rejected by the captain after review kept finding paths around it. A legacy copy could
+already mix two accounts, another tab kept the old account in memory, and every wipe rule had edge
+cases. Keying the persister's `buster` by user id: `persistQueryClientRestore` discards a busted copy,
+so switching accounts would delete the other account's offline data. `PersistQueryClientProvider`:
+it fixes one persister for the app's lifetime, so the app calls `persistQueryClientRestore` and
+`persistQueryClientSubscribe` itself (TanStack Query 5.103.2, source and docs checked 2026-09-27).
+
+**Changed:** `apps/web/src/query.ts`, `main.tsx`, `App.tsx`, `sign-out.ts`,
+`screens/ExerciseLibrary.tsx`, `screens/SignIn.tsx`; `08` §5 and §7; `03` §6.
+
+### [2026-09-28] Staging's auth routes failed with a 500: Vercel's `overload_app` password no longer matched Neon `staging`
+
+**Context.** After the entry fix, `/api/health` answered 200 on staging and every `/api/auth/*` route
+answered 500. The function log said only `Failed query: select … from "rate_limit"`, then the query's
+parameters (the client's IP; for a user lookup it would be an email), and no Postgres cause. The
+`develop` build had migrated successfully as `overload_owner`.
+
+**Found.** A PR preview, which carries staging's Preview variables (`12` §2), logged the cause once
+the logging below was in: `28P01`, password authentication failed for `overload_app`. The unscoped
+Preview `DATABASE_URL` holds a password Neon `staging` no longer accepts; the `develop`-scoped one was
+written in the same minute with the same value (`12` §2), and staging fails at the same query, but its
+log cannot show the cause until `develop` carries this change. `DATABASE_URL_DIRECT` and the owner
+password were reset on 2026-09-26 and work; `DATABASE_URL` was last written on 2026-09-25. The fix was
+outside the repo, and done the same day with Yuta's approval: `overload_app`'s password reset on Neon
+`staging` only (the Neon API, not `main`), the new pooled string written straight into both Preview
+`DATABASE_URL` entries without being printed, and `develop` redeployed. Staging sign-in then answered
+200. The grant checks ruled out the other suspect, a wrong table owner: all 11 tables are owned by
+`overload_owner`, and `overload_app` holds `SELECT, INSERT, UPDATE` on `rate_limit`.
+
+**Decided (firstmate, under Yuta's delegation), and built.**
+- **The error log names Postgres's reason.** `apps/api/src/lib/error-log.ts` rebuilds a
+  `DrizzleQueryError`'s stack as its SQL without the parameters, and adds the cause: SQLSTATE,
+  message, and the schema, table, column and constraint Postgres names. Classes 22 and 23 keep the
+  code and names only, since their messages can quote the value that failed. A connection-level cause
+  logs its name, message and code.
+- **A `Smoke` workflow** POSTs `/api/auth/sign-in/social` to each ready API preview deployment and
+  fails on a 5xx (`12` §5). `/api/health` cannot catch a bad database credential, by design.
+
+**Alternatives considered.** Logging the Drizzle error's `cause` as it stands: its `message` is fine
+for most classes, but a 22 or 23 can quote a value, so those are trimmed. A smoke check for staging
+only: Vercel sets the GitHub deployment's ref to the commit, not the branch, and PR previews share
+staging's variables, so checking every API preview costs nothing and catches the same fault earlier.
+
+**Changed:** `apps/api/src/lib/error-log.ts`, `apps/api/src/create-app.ts`,
+`apps/api/test/error-log.test.ts`, `.github/workflows/smoke.yml`, `03` §7, `12` §5.

@@ -1,0 +1,110 @@
+# Overload
+
+A weight-training tracker: lift logging, meal planning, Apple Health data, bodyweight coaching.
+Invite-only, web app first (installed to the iPhone home screen), native iOS later.
+
+## Read first
+
+- `docs/00-status.md`: where the project is. `CONTEXT.md`: the vocabulary. Use its terms
+  (`workout`, not "session") in code, tickets and commits.
+- Architecture and stack: @docs/03-technical-design.md. Schema: `docs/04`. API: `docs/07`.
+  Auth: `docs/08`. Flows: `docs/09`. Tests: `docs/11`. Deploy: `docs/12`. Security: `docs/13`.
+- Design: `docs/05` (tokens) and `docs/10` (screens). The `design/*.dc.html` files are sources.
+  `design/overload.html` is generated and gitignored.
+- Why something was decided, and what was rejected: `docs/06`. Don't re-propose a rejected option
+  without new evidence.
+
+## Commands
+
+Root `package.json` scripts, pnpm pinned by `packageManager` (run it through corepack if a version
+manager's `pnpm` shim refuses). Each is a CI job (`.github/workflows/ci.yml`):
+
+- `pnpm typecheck` (TypeScript 7), `pnpm lint` (oxlint type-aware, then `oxfmt --check`; `pnpm format`
+  writes), `pnpm test` (Vitest, API), `pnpm e2e` (Playwright, Chromium and WebKit).
+- `pnpm --filter @overload/api check:vercel-build`: builds the API as Vercel's Hono preset does and
+  asks the function for `/api/health` (`docs/12` §3). Hence `src/index.ts` is the only entry candidate
+  and relative imports under `apps/api/src` end in `.js`.
+- `pnpm contract`: regenerates `packages/api-contract` from the route schemas. CI fails on a diff.
+- Local Postgres 18: `docker compose up -d`. Local never touches Neon. The tests migrate and use
+  its `overload_test` database themselves. A volume made before 2026-09-25 lacks `bootstrap.sql`'s
+  database grant: `docker compose down -v` to start over.
+- Schema: Drizzle tables in `apps/api/src/db/schema.ts` (Better Auth's in `auth-schema.ts`).
+  `pnpm --filter @overload/api db:generate` writes the SQL migration; grants, functions and seeds are
+  custom migrations. Never `drizzle-kit push` (`docs/12` §3). After a rebase or merge that brings in
+  another migration, delete and regenerate yours so its journal `when` is later than every earlier
+  entry: the migrator compares the last applied row's `created_at` with each `when` and silently
+  skips older entries. CI enforces it with `pnpm db:check-order`.
+- Dev migrations: `pnpm db:migrate` (drizzle-kit, reads `apps/api/.env.local`), against Docker only.
+  Staging and production migrate in the API's `vercel-build` script (`docs/12` §3). Never by hand.
+  A failed `drizzle-kit migrate` exits 1 without printing why; reproduce against Docker to see it.
+- Signed-in screens locally: with the API and web dev servers on `apps/api/.env.local`, run
+  `pnpm dev:session`. It reads only `apps/api/.env.local`, requires the local `overload` database,
+  and writes the cookie to three gitignored `.dev-session/` handoff files without printing it:
+  storageState, Playwright MCP, and chrome-devtools-axi (`docs/06`, 2026-09-26). Reload the page
+  after switching accounts with `dev:session`; the remaining same-tab gap is tracked in
+  [#13](https://github.com/yutaasakura96/overload/issues/13).
+- A Better Auth upgrade or a new field: `apps/api/scripts/auth-schema.ts` generates its Drizzle
+  schema into a scratch file to diff against `src/db/auth-schema.ts` (`casing` does nothing).
+
+## Branches
+
+`develop` deploys staging. `main` deploys production, and the build runs migrations against
+production. Work on `develop` or a feature branch. A hook blocks edits on `main`.
+
+## Binding rules
+
+A linter won't catch these:
+
+- `apps/web` imports `packages/api-contract` only, never `apps/api`.
+- `packages/api-contract/openapi.json` and its types are generated from the route schemas. Regenerate
+  them; never edit them by hand. Breaking changes fail CI (oasdiff) unless the PR carries the label.
+- Every query in `apps/api/src/db/` takes the session user. Routes never filter by user themselves.
+  Every resource gets a cross-user test (`docs/08` §10).
+- The web app's persisted cache is kept per account (`docs/08` §5). Every per-user query is
+  `enabled` only once `/api/me` has confirmed the account (`useAccount()` in `apps/web/src/query.ts`).
+- Planner, progression, trend, expenditure and plateau logic are pure functions in
+  `apps/api/src/domain/`, never in the web app.
+- Rows created on the device carry a client-made UUIDv7. Every write is safe to retry: a repeat
+  returns the original result.
+- A logged set is written to IndexedDB before the screen updates. It is deleted only after the
+  server acknowledges it, and never dropped silently (`docs/03` §8.1).
+- Migrations follow the add-first rule (`docs/12` §3): they must work with the code already running.
+  Drop, rename, `NOT NULL` and narrowing take two releases. Seed data ships as migrations.
+- Never log or send to Sentry: food, weight or health values, photos, tokens, emails. Ids and error
+  codes only.
+- `/api/health` must not touch the database. Otherwise the uptime check keeps Neon awake.
+- Errors are RFC 9457 problem details with our `code`. The one exception is Better Auth's own
+  `/api/auth/*`, which answers `{ code, message }` (`docs/07` §1.3).
+
+## Workflow
+
+- Write tests before implementation where there's a natural seam.
+- Review the diff against repo standards and the original request before saying it's done.
+- For work spanning sessions, write a spec and tickets first.
+- A feature with a UI surface clears the polish gate before it's done, run against the diff in this
+  order: the `web-design-guidelines` skill, then a WCAG 2.1 AA accessibility review, then a design
+  critique for hierarchy, consistency and motion. It audits against `docs/05`; it doesn't reopen it.
+
+## Agent skills
+
+### Issue tracker
+
+GitHub Issues on `yutaasakura96/overload`, via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five canonical names, unmapped — `needs-triage`, `needs-info`, `ready-for-agent`,
+`ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `CONTEXT.md` at the root plus `docs/adr/`. Note that `docs/00-status.md` through
+`docs/13` are this project's real design record — read `docs/00-status.md` first, as `CLAUDE.md`
+says. See `docs/agents/domain.md`.
+
+## Maintaining this file
+
+Keep this file for knowledge useful to almost every future agent session in this project.
+Do not repeat what the codebase already shows; point to the authoritative file or command instead.
+Prefer rewriting or pruning existing entries over appending new ones.
+When updating this file, preserve this bar for all agents and keep entries concise.

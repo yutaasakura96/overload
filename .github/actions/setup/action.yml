@@ -1,0 +1,13 @@
+name: Set up the workspace
+description: pnpm from packageManager, Node from .tool-versions, and a frozen install.
+runs:
+  using: composite
+  steps:
+    # No version input: the action reads `packageManager` from package.json (docs/12 §3).
+    - uses: pnpm/action-setup@v6.1.0
+    - uses: actions/setup-node@v7.0.0
+      with:
+        node-version-file: .tool-versions
+        cache: pnpm
+    - run: pnpm install --frozen-lockfile
+      shell: bash

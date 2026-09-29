@@ -2,7 +2,7 @@
 
 **Project:** A weight-training progress tracker combining lift logging, meal planning, Apple Watch/iPhone health data, and bodyweight/diet coaching.
 **Phase:** 7 — Build (M1 first). Phase 6 — Review finished 2026-09-23.
-**Updated:** 2026-09-23
+**Updated:** 2026-09-25
 
 ## Done
 - Phase 1 — Brief + PRD: `docs/01-project-brief.md`, `docs/02-product-requirements.md`, `docs/06-decision-log.md`.
@@ -13,9 +13,120 @@
 - 2026-09-16: Phase 3 — `docs/05-design-system.md` and `docs/10-screen-specifications.md` written from the six `.dc.html` files. Every hex code, size, tracking value and grid measurement lifted from source; contrast ratios computed, not estimated. The canvas's "THE SYSTEM" sticky note was found inaccurate and is superseded by `docs/05`.
 
 ## Next
-**Phase 7 — Build, M1 first.** Run `/setup-matt-pocock-skills` once (tracker: GitHub Issues or local
-files; the repo is public), then `/grill-with-docs` for the first feature. Each UI feature clears the
-polish gate in `CLAUDE.md`.
+**Phase 7 — Build, slice 1.** Two grills have run. `/grill-with-docs` on **2026-09-23** settled
+fourteen questions and cut M1 into slices; `/grill-with-docs` on **2026-09-24** settled twelve more —
+what slice 1 is made of, and the toolchain. Nine entries in `06`, dated those two days.
+
+**Settled 2026-09-24, in one place:**
+
+| | Decision |
+| --- | --- |
+| S8's scope | Slice 1 reads the library (`GET /api/exercises`, `/api/me`, `/api/health`). Create, edit, delete and the per-user setting move to slice 2, where S4's picker gives them a screen |
+| Migrations | Slice-scoped, not all of `04` at once. `04` now carries a *when each table is created* table |
+| Auth in slice 1 | Google + gate + admin bootstrap + **bearer**. `csrf()` mounted now, tested in slice 2. `11` §2 gains a per-slice schedule |
+| Profile | `user_profile` created; the setup screen waits for the first reader of a profile field (slice 3) |
+| Install | Manifest + shell-only service worker, so `11` §3 items 1 and 2 can run |
+| How far | Through to `main` and production, after the staging checklist |
+| Query layer | ~~Kysely~~ **Drizzle ORM + drizzle-kit** since 2026-09-25 (below), over the same `pg` Pool Better Auth gets |
+| Lint / format | **oxlint + oxfmt**, exact-pinned. Not Vite+ until 1.0 (it is MIT and free now; the 2025 paid plan was dropped) |
+| Language | **TypeScript 7**, config written 7-clean, with `openapi-typescript` on the TS6 alias |
+| Runtime | Node 24 and pnpm pinned in repo and CI |
+| Browser sign-in | Better Auth's `testUtils()` cookie helper. The real Google round trip is proven by hand on staging |
+| Better Auth | snake_case columns (from the Drizzle columns since 2026-09-25: `casing: 'snake'` turned out to be read by nothing), rate limits in the database |
+
+M1 is cut into seven slices:
+
+1. **Skeleton + auth + exercise library (S8)** — one vertical cut through every layer, deployed to
+   staging before it merges. Real Better Auth, not a stub.
+2. Routines (S4).
+3. Screen 1 on the real write path — S1's happy path, S2, S3, S5, S6. Answers the two gaps under
+   *Raised by the pain-point check*, and implements the kg/lb toggle.
+4. The hard edges — Web Locks, tombstones for offline deletes, refused-set UI, resume after force-quit.
+5. Progress chart (S7). 6. Invite administration (S9). 7. Export and delete (S10).
+
+**Slice 1 is built, 2026-09-25**, on branch `fm/overload-slice1-pr`, in review against `develop`,
+not yet deployed. Every piece of `#1`'s *In* list is in the repo, and the five CI checks and the
+contract drift check pass locally against Docker Postgres 18: 28 Vitest tests and 7 Playwright tests
+on Chromium and WebKit (the offline-shell test skips on WebKit). The API's migrations run from its
+`vercel-build` script (`12` §3). Provisioning is done (below). What remains of `#1`'s *Done when* is
+Yuta's: the staging deploy that merging to `develop` triggers, the iPhone checklist, then `main` and
+a watched production migration. Item 4 is answered below and in `06` as far as a laptop can answer
+it.
+
+**Drizzle replaces Kysely and dbmate, 2026-09-25** (`06`), on branch `fm/overload-drizzle`. The
+first staging deploy after slice 1 merged failed in `vercel-build`: dbmate's Go `lib/pq` refuses the
+SCRAM iteration count `i=1` that Neon sends. Migration history starts fresh (staging and production
+were never migrated). **Before that branch merges,** `bootstrap.sql`'s new `GRANT CREATE ON DATABASE`
+for `overload_owner` must be run on Neon `staging` and `main`, and the staging owner password and
+Vercel's `DATABASE_URL_DIRECT` reset. Merging deploys staging and runs its first migration.
+
+**Staging's API crashed on every request, found 2026-09-28** (`06`): Vercel's Hono preset took
+`src/app.ts` as the entry, and its unbundled ESM output could not resolve extensionless imports.
+Fixed on branch `fm/overload-staging-api-crash`, with a CI job that builds the API as Vercel does
+(`12` §3). The iPhone checklist waits for that fix to reach `develop`.
+
+**Issues are open.** Milestone `M1`, one issue per slice, `#1`–`#7`, each chained to the one before
+with GitHub's native dependencies. `#1` carries the full slice-1 specification; its `ready-for-agent`
+label is **off** until provisioning is finished (below). `#3` carries the three questions its own
+`/grill-with-docs` must settle first.
+Each UI feature clears the polish gate in `AGENTS.md`.
+
+### Provisioning — done (2026-09-25)
+
+Verified by reading Vercel back, not by trusting the writes: `node scripts/vercel-verify.mjs`
+exits 0, every variable `12` §2 requires present on both projects across production, preview scoped
+to `develop`, and unscoped preview.
+
+- **Neon** — project with `main` and `staging` (branched before the roles existed), the three roles
+  bootstrapped separately on each branch, passwords rotated and held only in Vercel.
+- **Vercel** — `overload-web` (`apps/web`, vite) and `overload-api` (`apps/api`, the **`hono`
+  preset**, `sin1`), Deployment Protection **None** on both, Node 24.x, git-connected with `main` as
+  the production branch. Production domains `overload-web-pied.vercel.app` and
+  `overload-api-mu.vercel.app`; the plain names were taken.
+- **Google** — a new OAuth client with the three redirect URIs. The original client's secret was
+  lost, and Google shows a secret once with no way to add a second, so the old client is superseded.
+  **Delete it once sign-in works on staging, not before.**
+- **GitHub** — `DATABASE_URL_BACKUP` secret set.
+
+**Deliberately unset, none blocking:** `SENTRY_DSN`, `VITE_SENTRY_DSN`, `SENTRY_AUTH_TOKEN` (a
+`sentry-cli login` token is scoped `org:ci` and cannot create projects — make them in the browser,
+then re-run the script, which upserts), and `ANTHROPIC_API_KEY` (M2). **Before slice 1 ships:** set
+the Sentry three, use an *organization* auth token for CI rather than a personal one, and add the
+uptime and cron monitors in `12` §5 — the uptime check needs `/api/health`, so it cannot exist until
+slice 1 deploys.
+
+Issue `#1` is `ready-for-agent` again. Both Vercel projects show failed deployments until `apps/web`
+and `apps/api` exist; the first real deploy is slice 1.
+
+#### What the three failed attempts taught, kept so it is not repeated
+
+- The first two walkthroughs cleared the screen between stages, which hid the errors from the Vercel
+  writes: nothing landed and nothing said so. A provisioning script must **verify by reading back**,
+  never by reporting its own writes.
+- They rotated database passwords several stages before using them, so an abandoned run left the
+  database with passwords nobody held. Ask for everything human **first**, mutate **second**, write
+  in the same breath.
+- **A Google client secret is shown once and cannot be reissued**; a lost one means a new client.
+- Vercel hides `sensitive` variable values in listings, so a variable's *presence* is checkable but
+  its value is not. An empty-looking `ANTHROPIC_API_KEY` was removed rather than left: absent is
+  safer than present-and-wrong.
+- The Vercel CLI token expires daily. Every script that touches the API refreshes it first.
+
+**Seed increments, researched 2026-09-23** against Anytime Fitness Japan's own store pages (all 1,848
+crawled; `06` holds the evidence): barbell 2.5 · dumbbell 1.0 with the suggestion rounded to the rack
+· `machine_plate` 2.5 · `machine_stack` 5.0 · cable 2.5 · bodyweight 0. The dumbbell figure is
+high-confidence, the barbell medium-high, the stacks inferred.
+
+**Yuta confirms at his own gym** — equipment is franchise-chosen and only 5 of 1,848 stores publish
+denominations: does the branch stock **1.25 kg plates**, and do the **stacks have the small adder
+pin**? Neither blocks slice 1; `exercise_setting` overrides per exercise either way.
+
+`/setup-matt-pocock-skills` ran 2026-09-23: **GitHub Issues** on `yutaasakura96/overload` via `gh`,
+the five canonical triage labels kept as-is (the four missing ones were created on the repo),
+single-context domain docs. Written: `docs/agents/{issue-tracker,triage-labels,domain}.md` and an
+`## Agent skills` block in `CLAUDE.md`. Not created: wayfinder's `wayfinder:map` and
+`wayfinder:<type>` labels — make them by hand before the first `/wayfinder` run, since
+`gh issue create --label <missing>` fails outright.
 
 ### Phase 6 — Review, done 2026-09-23
 One group per session, in this order. `06` is the reference for every group, not a group of its own.
@@ -70,9 +181,12 @@ _(nothing — both group 6 items landed in `11` §2 on 2026-09-23.)_
 - `10` §7.3 scroll and sticky for screens 3–6: left open for each screen's M2 `/grill-with-docs` (2026-09-22).
 
 ### Phase 5 — done 2026-09-21
-Written: `CLAUDE.md`, `.claude/settings.json`, `.claude/hooks/{pre-edit-branch-guard,stop-branch-drift}.sh`,
+Written: `CLAUDE.md`, `.claude/settings.json`, `.claude/hooks/pre-edit-branch-guard.sh`,
 `.gitignore` entry. No `.mcp.json` (Neon and Sentry come from claude.ai connectors). Decision in `06`.
 The pnpm entries in the allowlist are provisional until `package.json` exists.
+`gh api` is allowed, and writes ask: `-X`/`--method` with POST, PATCH, PUT or DELETE, and the
+implicit POST of `-f`, `-F`, `--field`, `--raw-field` and `--input` (a GET with fields asks too).
+Not covered: lowercase methods, `-X "$VAR"`, and combined short flags such as `-iXPOST`.
 
 ### Phase 4 — done 2026-09-21
 Written: `03`, `04`, `CONTEXT.md`, `07`, `08`, `09`, `11`, `12`, `13`, and
@@ -102,25 +216,60 @@ sticky are kept open for M2 (see *Reviewed, kept*).
 
 ### Check when built — raised by Phase 4
 `docs/03` §11 lists the unverified items. The ones that bite first:
-- Web Locks in Safari, for one uploading tab.
+- Web Locks **inside a standalone home-screen app**, and whether the lock is shared with Safari. The
+  API itself is supported from Safari 15.4 — verified 2026-09-24.
 - Whether Workouts v2 without workout metrics still carries average and max heart rate.
 - The exact names in HAE's body fat and lean mass payloads.
 - `pg_trgm` on Neon Free, for `reference_food` search (`04`).
 - How `@hono/zod-openapi` describes a multipart file part (`07`).
-- `dbmate` running inside Vercel's build image, and the exact `vercel.ts` rewrite syntax (`12` §6).
+- ~~`dbmate` inside Vercel's build image.~~ **It ran, and could not connect** (first staging deploy,
+  2026-09-25): its Go `lib/pq` refuses Neon's SCRAM iteration count `i=1`. Replaced by drizzle-kit
+  (`06`, 2026-09-25). **Still unverified, needs the next staging deploy:** `drizzle-kit migrate`
+  inside Vercel's build image, and whether `apps/web/vercel.ts` is honoured alongside a framework
+  preset. The `vercel.ts` rewrite syntax was verified 2026-09-24 (`12` §1).
+- ~~Whether `casing: 'snake'` renames Better Auth's tables.~~ **Answered building slice 1**
+  (`06`, 2026-09-24): the option does nothing in 1.7.5. snake_case comes from the Drizzle columns
+  since 2026-09-25 (`04`, `08`).
+- ~~`@types/react` under TypeScript 7.~~ **No problem found**, 2026-09-25: `@types/react` 19.3.0
+  typechecks cleanly under `tsc` 7.0.2 across the whole web app, so the TypeScript 6.0.3 fallback is
+  not needed (`06`).
 - The client IP the API project sees on a rewritten request, for the WAF rule (`13` §10).
 - Whether a Vercel variable can be withheld from the function runtime — if not, the API's runtime
   environment holds `DATABASE_URL_DIRECT` as well (`13` §10, raised 2026-09-23).
+- ~~Whether an installed-to-home-screen PWA on iOS can announce the end of rest.~~ **Answered
+  2026-09-24** (`03` §11, `06`): `navigator.vibrate` does not exist on iOS at all; Web Push works in
+  an installed app from iOS 16.4 but needs a user gesture to ask; the Screen Wake Lock does not work
+  in a standalone app until 18.4. So the screen-1 grill chooses between **push and sound**, with a
+  wake lock as a progressive enhancement. The product half — should it alert at all — is still that
+  grill's question.
 
 ### Waiting for the first build — raised by group 7
-- `infra/db/bootstrap.sql` does not exist yet. It creates the three roles and is run before the
-  first migration, once per environment (`13` §5). The first migration does the grants only.
+- ~~`infra/db/bootstrap.sql` does not exist yet.~~ **Written 2026-09-24**, with
+  `infra/db/local-passwords.sql` beside it for Docker. It creates the three roles with no passwords
+  and is run before the first migration, once per environment (`13` §5). The first migration does the
+  grants only.
 - Deployment Protection must be set to None on both Vercel projects when they are created
   (`12` §1 and §6).
 
+### Raised by the pain-point check — decide at each feature's grill (2026-09-23)
+Yuta's four stated pain points read against the docs before the first build. Two are covered as
+written (the short food list: S12, S16, S18; batch prep: S13, S17). Three gaps, full reasoning in
+`06` (2026-09-23, "the four pain points checked against the docs"):
+- **The target set count is stored and never shown.** `04` has `target_sets` and S4 promises it, but
+  screen 1 draws only `SET 3`, so the screen answers "how many have I done" and not "how many are
+  left". Candidate: `SET 3 OF 4` in the active card's label row — horizontal, so the 54px of slack in
+  `10` §1 is untouched. **Screen-1 grill, M1.**
+- **Nothing announces that rest has ended.** The timer starts by itself and survives a lock and a
+  relaunch, but no notification, sound, vibration or wake lock exists in any doc. **Screen-1 grill,
+  M1**, with the iOS feasibility half in *Check when built* above.
+- **No shelf life, and a batch never runs out.** `04` `batch` is the newest row for a food, with no
+  depleting portion count and no keeps-for-N-days, so the prep plan cannot say "cook the fish again
+  on Wednesday" — the very reason those foods were chosen. Candidate: `keeps_days` on `food` plus a
+  second cook day in S17. **S13/S17 grill, M2.**
+
 ### Standing
 - Design risk on record: if the real failure mode turns out to be not logging at all because the app reads as a spreadsheet, Quiet was the better bet. Revisit after M1 is in daily use. Phase 3 did not soften Instrument — the contrast cost is recorded as a measured deviation and left for Yuta.
-- `docs/10` §8 lists everything the PRD requires that no artboard covers — session start, exercise library, food list management, target setup, the grocery list proper, invite admin, health setup, photo estimation, plateau protocols, and every error state.
+- `docs/10` §8 lists everything the PRD requires that no artboard covers — workout start, exercise library, food list management, target setup, the grocery list proper, invite admin, health setup, photo estimation, plateau protocols, and every error state.
 - Auth: Better Auth with Google, invite-only — allowlist support verified 2026-09-17.
 - M3 photo/text meal-estimate provider: not yet chosen. Haiku 4.5 already reads labels in M2, so it is the default candidate. Phase 4.
 - Weekday routine times are set in the app, not fixed in the docs.

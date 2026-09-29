@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // Explicit, because Vercel's builder compiles through a temporary tsconfig in /tmp that
+    // extends this one, and the default type roots are looked up from that file's directory.
+    "typeRoots": ["./node_modules/@types"],
+    "types": ["node"]
+  },
+  "include": ["src", "scripts", "seed", "test", "vitest.config.ts"]
+}
