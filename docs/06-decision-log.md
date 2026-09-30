@@ -2831,6 +2831,8 @@ workflow (`.github/workflows/health.yml`) replaces it: every 15 minutes it curls
 the run, which GitHub emails to the owner. Sentry error reporting is unaffected; the cron monitor
 stays deferred until the scheduled job exists. Rejected: paying for the seat, for a check GitHub
 does at $0. Cost of the swap: detection takes up to 15 minutes plus retries, against about 15
-with the 5-minute, 3-failure Sentry rule.
+with the 5-minute, 3-failure Sentry rule. GitHub disables scheduled workflows in a public repository
+after 60 days without repository activity, which silently stops `Health` and `backup.yml` alike;
+re-enable each from the Actions tab (the workflow → **Enable workflow**). No keepalive job was added.
 
 **Changed:** `.github/workflows/health.yml`, `00`, `06`, `12`.

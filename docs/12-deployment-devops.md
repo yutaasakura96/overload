@@ -278,6 +278,9 @@ seat, so a GitHub Actions workflow does that job (`06`, 2026-09-30).
   and the database would stop partway through the month. The route answers `200` if the function
   runs. A database outage still surfaces as Sentry errors from real requests.
 - The uptime check costs about 2,900 function invocations a month, well inside Hobby's 1M.
+- GitHub disables scheduled workflows in a public repository after 60 days without repository
+  activity. That stops `Health` and `backup.yml` silently, with no failed run to email. To turn one
+  back on: Actions tab → the workflow → **Enable workflow**.
 - Logging rules (what is never logged) are `03` §7.
 
 ---
