@@ -58,8 +58,10 @@ type Account = {
 
 let account: Account = { userId: undefined, status: 'checking' };
 let accountGeneration = 0;
-/** Another account a member answer named since /api/me last confirmed, already re-checked. */
+/** Another account a member answer named, already re-checked, until another confirmation. */
 let refusedUser: string | undefined;
+/** Set when refusedUser asks /api/me again; that re-check's confirmation keeps the marker. */
+let recheckingRefused = false;
 let accountClosed = false;
 let pendingRemember: Promise<unknown> | undefined;
 const listeners = new Set<() => void>();
@@ -207,11 +209,12 @@ export async function openCache() {
 }
 
 /** /api/me named this user: open their copy, dropping any other account's data from memory first. */
-async function confirm(me: Me, generation: number) {
+async function confirm(me: Me, generation: number, recheck: boolean) {
   if (generation !== accountGeneration) throw new AccountCheckFailed('Account closed');
-  refusedUser = undefined;
   const { id } = me.user;
   const switched = account.userId !== id;
+  // Kept only when the re-check it asked for confirms the same account, so that answer cannot loop.
+  if (switched || !recheck) refusedUser = undefined;
   if (switched) {
     stopPersisting?.();
     stopPersisting = undefined;
@@ -243,6 +246,8 @@ export const meQuery = queryOptions({
   queryFn: async () => {
     if (accountClosed) throw new AccountCheckFailed('Account closed');
     const generation = ++accountGeneration;
+    const recheck = recheckingRefused;
+    recheckingRefused = false;
     stopPersisting?.();
     stopPersisting = undefined;
     if (account.status === 'confirmed') setAccount({ ...account, status: 'checking' });
@@ -259,7 +264,7 @@ export const meQuery = queryOptions({
       setAccount({ ...account, status: 'unconfirmed' });
       throw new AccountCheckFailed(error);
     }
-    await confirm(me, generation);
+    await confirm(me, generation, recheck);
     return me;
   },
 });
@@ -288,6 +293,7 @@ async function confirmedAccountData<T>(
   if (answeredFor === userId) return data;
   if (answeredFor !== null && answeredFor !== refusedUser) {
     refusedUser = answeredFor;
+    recheckingRefused = true;
     void queryClient.invalidateQueries({ queryKey: ME_KEY });
   }
   throw new AccountCheckFailed('Answered for another account');

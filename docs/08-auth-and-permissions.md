@@ -203,7 +203,8 @@ The endpoint list is `docs/07`.
   names the confirmed account. Any other answer is dropped before it reaches the cache. One naming
   another account, such as a retry sent after the cookie changed under an open tab (the local
   `pnpm dev:session` helper does this), asks `/api/me` again, once per account named until
-  `/api/me` next confirms an account, which opens the copy of the account the cookie now holds. One
+  a later `/api/me` check confirms an account (that re-check itself does not count, so an answer
+  it confirms against cannot loop), which opens the copy of the account the cookie now holds. One
   naming no account shows as not updated without asking again.
 - **Offline**, the app opens as that user, and the gym screen works exactly as it does online. New
   sets are pending and carry that user's id in the set store. With a copy to open, the launch waits

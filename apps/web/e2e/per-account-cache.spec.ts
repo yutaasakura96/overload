@@ -632,3 +632,38 @@ test('an answer naming no account shows as not updated without looping through /
   expect(await savedCache(page, userA)).not.toContain(OWN_A);
   await page.unrouteAll({ behavior: 'ignoreErrors' });
 });
+
+test('an answer naming an account /api/me does not confirm asks once, then shows as not updated', async ({
+  page,
+  context,
+}) => {
+  await useCookie(context, userA);
+  // The header names someone else, yet /api/me keeps confirming A: a proxy or cache replaying another
+  // member's answer.
+  await page.route('**/api/exercises', async (route) => {
+    const response = await route.fetch();
+    const { items }: { items: { name: string }[] } = await response.json();
+    const [first, ...rest] = items;
+    await route.fulfill({
+      response,
+      headers: { ...response.headers(), 'overload-user': userB },
+      json: { items: [{ ...first, name: OWN_A }, ...rest] },
+    });
+  });
+  const requests = { me: 0, exercises: 0 };
+  page.on('request', (request) => {
+    const { pathname } = new URL(request.url());
+    if (pathname === '/api/me') requests.me += 1;
+    if (pathname === '/api/exercises') requests.exercises += 1;
+  });
+  await page.goto('/');
+  await expect(page.getByText(EMAIL_A)).toBeVisible();
+  await expect(page.getByText('Not updated')).toBeVisible();
+
+  await page.waitForTimeout(2000);
+  expect(requests).toEqual({ me: 2, exercises: 2 });
+  await expect(page.getByText(EMAIL_A)).toBeVisible();
+  await expect(page.getByText(OWN_A)).toHaveCount(0);
+  expect(await savedCache(page, userA)).not.toContain(OWN_A);
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
