@@ -8,9 +8,19 @@ export type Exercise = components['schemas']['Exercise'];
 export type Me = components['schemas']['Me'];
 export type Problem = components['schemas']['Problem'];
 
+/** The header names a success response declares, without the index signature every one carries. */
+type DeclaredHeaders<Path extends keyof paths> = keyof {
+  [
+    Name in keyof paths[Path]['get']['responses'][200]['headers'] as string extends Name
+      ? never
+      : Name
+  ]: never;
+};
+
 /**
  * The response header naming the account a member answer belongs to. A client keeps the body only
- * for the account it names (docs/08 §5). Checked here against the generated contract.
+ * for the account it names (docs/08 §5). Checked here against the headers the generated contract
+ * declares on each member route's success response.
  */
-export const ACCOUNT_HEADER =
-  'Overload-User' satisfies keyof paths['/api/me']['get']['responses'][200]['headers'];
+export const ACCOUNT_HEADER = 'Overload-User' satisfies DeclaredHeaders<'/api/me'> &
+  DeclaredHeaders<'/api/exercises'>;
