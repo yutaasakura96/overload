@@ -2821,3 +2821,16 @@ not. Same 6-commit threshold, same never-blocks behavior.
 
 **Changed:** `AGENTS.md`, `.no-mistakes.yaml`, `.claude/hooks/stop-branch-drift.sh`,
 `.claude/settings.json`, `00`, `06`.
+
+### 2026-09-30 — Uptime check moves from Sentry to a GitHub Actions workflow
+
+Enabling the Sentry uptime monitor on org `personal-projects-ge` failed with "You don't have enough
+pay-as-you-go available to create a new seat", so the disabled monitor was deleted. The `Health`
+workflow (`.github/workflows/health.yml`) replaces it: every 15 minutes it curls
+`https://overload-web-pied.vercel.app/api/health` with a timeout and two retries, and a non-200 fails
+the run, which GitHub emails to the owner. Sentry error reporting is unaffected; the cron monitor
+stays deferred until the scheduled job exists. Rejected: paying for the seat, for a check GitHub
+does at $0. Cost of the swap: detection takes up to 15 minutes plus retries, against about 15
+with the 5-minute, 3-failure Sentry rule.
+
+**Changed:** `.github/workflows/health.yml`, `00`, `06`, `12`.

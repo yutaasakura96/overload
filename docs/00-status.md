@@ -2,7 +2,7 @@
 
 **Project:** A weight-training progress tracker combining lift logging, meal planning, Apple Watch/iPhone health data, and bodyweight/diet coaching.
 **Phase:** 7 — Build (M1 first). Phase 6 — Review finished 2026-09-23.
-**Updated:** 2026-09-25
+**Updated:** 2026-09-30
 
 ## Done
 - Phase 1 — Brief + PRD: `docs/01-project-brief.md`, `docs/02-product-requirements.md`, `docs/06-decision-log.md`.
@@ -92,8 +92,9 @@ to `develop`, and unscoped preview.
 `sentry-cli login` token is scoped `org:ci` and cannot create projects — make them in the browser,
 then re-run the script, which upserts), and `ANTHROPIC_API_KEY` (M2). **Before slice 1 ships:** set
 the Sentry three, use an *organization* auth token for CI rather than a personal one, and add the
-uptime and cron monitors in `12` §5 — the uptime check needs `/api/health`, so it cannot exist until
-slice 1 deploys.
+cron monitor in `12` §5, still deferred until the scheduled job exists. The uptime check is done: a
+Sentry uptime monitor needs a paid seat, so the `Health` workflow (`.github/workflows/health.yml`)
+curls `/api/health` every 15 minutes and GitHub emails a failed run (`06`, 2026-09-30).
 
 Issue `#1` is `ready-for-agent` again. Both Vercel projects show failed deployments until `apps/web`
 and `apps/api` exist; the first real deploy is slice 1.
