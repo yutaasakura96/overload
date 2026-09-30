@@ -261,18 +261,54 @@ export const meQuery = queryOptions({
   },
 });
 
+/**
+ * Runs one account's request: only under a confirmed account, and its answer is dropped if the
+ * account changed while it was in flight (docs/08 §5).
+ */
+export async function forAccount<T>(request: () => Promise<T>): Promise<T> {
+  const generation = accountGeneration;
+  if (account.status !== 'confirmed') throw new AccountCheckFailed('Account unconfirmed');
+  const result = await request();
+  if (generation !== accountGeneration || account.status !== 'confirmed') {
+    throw new AccountCheckFailed('Account changed');
+  }
+  return result;
+}
+
 /** One account's data: enable it only once /api/me has confirmed the account (`useAccount`). */
 export const exercisesQuery = queryOptions({
   queryKey: ['exercises'],
   refetchOnWindowFocus: false,
   refetchOnReconnect: false,
-  queryFn: async ({ signal }) => {
-    const generation = accountGeneration;
-    if (account.status !== 'confirmed') throw new AccountCheckFailed('Account unconfirmed');
-    const items = unwrap(await api.GET('/api/exercises', { signal })).items;
-    if (generation !== accountGeneration || account.status !== 'confirmed') {
-      throw new AccountCheckFailed('Account changed');
-    }
-    return items;
-  },
+  queryFn: ({ signal }) =>
+    forAccount(async () => unwrap(await api.GET('/api/exercises', { signal })).items),
 });
+
+/**
+ * The library with the caller's hidden exercises included: a routine may still name one, and the
+ * library lists them to show again.
+ */
+export const allExercisesQuery = queryOptions({
+  queryKey: ['exercises', 'all'],
+  refetchOnWindowFocus: false,
+  refetchOnReconnect: false,
+  queryFn: ({ signal }) =>
+    forAccount(
+      async () =>
+        unwrap(
+          await api.GET('/api/exercises', { params: { query: { includeHidden: 'true' } }, signal }),
+        ).items,
+    ),
+});
+
+export const routinesQuery = queryOptions({
+  queryKey: ['routines'],
+  refetchOnWindowFocus: false,
+  refetchOnReconnect: false,
+  queryFn: ({ signal }) =>
+    forAccount(async () => unwrap(await api.GET('/api/routines', { signal })).items),
+});
+
+/** After a write: both exercise lists, since a setting or a new exercise changes each. */
+export const refreshExercises = () => queryClient.invalidateQueries({ queryKey: ['exercises'] });
+export const refreshRoutines = () => queryClient.invalidateQueries({ queryKey: ['routines'] });

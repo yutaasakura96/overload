@@ -1,22 +1,36 @@
-import type { ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { signOut } from './sign-out';
 
-// Components drawn in docs/05 §4 that slice 1 uses.
+// Components drawn in docs/05 §4, and the few slice 2's screens add from the same tokens (docs/10 §8.1).
 
-/** 4.1. The right side is always the data-state slot. */
+/**
+ * 4.1. The right side is always the data-state slot. With `back`, the title block becomes screen
+ * 2's back chevron plus a 12px title; the chevron's 44px target comes out of the bar's left padding.
+ */
 export function AppBar({
   title,
   subline,
   slot,
+  back,
 }: {
   title: string;
   subline?: string;
   slot: ReactNode;
+  back?: { label: string; onClick: () => void };
 }) {
   return (
-    <header className="app-bar">
-      <div>
-        <h1 className="app-bar__title">{title}</h1>
-        {subline !== undefined && <div className="app-bar__subline">{subline}</div>}
+    <header className={back === undefined ? 'app-bar' : 'app-bar app-bar--back'}>
+      <div className="app-bar__lead">
+        {back !== undefined && (
+          <button type="button" className="app-bar__back" onClick={back.onClick}>
+            <Chevron direction="back" />
+            <span className="visually-hidden">{back.label}</span>
+          </button>
+        )}
+        <div>
+          <h1 className="app-bar__title">{title}</h1>
+          {subline !== undefined && <div className="app-bar__subline">{subline}</div>}
+        </div>
       </div>
       {slot}
     </header>
@@ -32,6 +46,41 @@ export function SyncedAt({ at }: { at: number }) {
       <span className="data-state__dot" aria-hidden="true" />
       SYNCED {time}
     </output>
+  );
+}
+
+/**
+ * 4.8's tabs, as the switch between the two top-level screens. Links, since each is a place with its
+ * own address; the current one carries `aria-current`.
+ */
+export function ScreenTabs({
+  current,
+  navigate,
+}: {
+  current: '/' | '/routines';
+  navigate: (path: string) => void;
+}) {
+  const tabs = [
+    { path: '/routines', label: 'Routines' },
+    { path: '/', label: 'Exercises' },
+  ] as const;
+  return (
+    <nav className="tabs" aria-label="Sections">
+      {tabs.map((tab) => (
+        <a
+          key={tab.path}
+          href={tab.path}
+          className="tabs__tab"
+          aria-current={tab.path === current ? 'page' : undefined}
+          onClick={(event) => {
+            event.preventDefault();
+            navigate(tab.path);
+          }}
+        >
+          {tab.label}
+        </a>
+      ))}
+    </nav>
   );
 }
 
@@ -52,6 +101,49 @@ export function InfoIcon({ size = 14, color }: { size?: number; color: string })
     >
       <circle cx="12" cy="12" r="9" />
       <path d="M12 8v5M12 17h.01" />
+    </svg>
+  );
+}
+
+/** 6, the check. Stroke 2.5 at 15px and up, 3 below (docs/05 §4.7). */
+export function CheckIcon({ size = 15, color }: { size?: number; color: string }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      strokeWidth={size < 15 ? 3 : 2.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M4 12.5 9.5 18 20 6.5" />
+    </svg>
+  );
+}
+
+/**
+ * 6, the back chevron, turned for the other directions rather than adding an icon: forward on a row
+ * that opens a screen, up and down on the move buttons.
+ */
+export function Chevron({ direction }: { direction: 'back' | 'forward' | 'up' | 'down' }) {
+  const turn = { back: 0, up: 90, forward: 180, down: 270 }[direction];
+  return (
+    <svg
+      width={18}
+      height={18}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      style={turn === 0 ? undefined : { transform: `rotate(${turn}deg)` }}
+    >
+      <path d="M15 5 8 12l7 7" />
     </svg>
   );
 }
@@ -77,5 +169,271 @@ export function Notice({
         {children}
       </div>
     </div>
+  );
+}
+
+/** A field the server refused: the word, the icon and the reason, never the colour alone. */
+export function FieldError({ id, message }: { id?: string; message: string }) {
+  return (
+    <div className="field__error" id={id}>
+      <InfoIcon size={12} color="var(--error)" />
+      <span className="field__error-word">Refused</span>
+      <span>{message}</span>
+    </div>
+  );
+}
+
+type FieldProps = {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  error?: string;
+  /** Shown beside the label, e.g. whether the value is the default or the user's own. */
+  note?: string;
+  /** Said after the label but not shown, e.g. `for Barbell Bench Press`, for context the layout gives. */
+  labelContext?: string;
+  placeholder?: string;
+  className?: string;
+};
+
+/** A labelled text field (docs/10 §8.1). 16px text, so iOS does not zoom into it on focus. */
+export function TextField({
+  label,
+  value,
+  onChange,
+  error,
+  note,
+  placeholder,
+  className,
+  focusOnOpen,
+  type = 'text',
+}: FieldProps & {
+  /** Focus on mount: only for a form's first field, on a screen opened to fill it in. */
+  focusOnOpen?: boolean;
+  type?: 'text' | 'search';
+}) {
+  const id = useId();
+  return (
+    <div className={['field', className].filter(Boolean).join(' ')}>
+      <FieldLabel htmlFor={id} label={label} note={note} />
+      <input
+        id={id}
+        type={type}
+        className="field__input"
+        value={value}
+        placeholder={placeholder}
+        autoComplete="off"
+        // oxlint-disable-next-line jsx-a11y/no-autofocus -- only a form's first field, opened on purpose
+        autoFocus={focusOnOpen}
+        aria-invalid={error === undefined ? undefined : true}
+        aria-describedby={error === undefined ? undefined : `${id}-error`}
+        onChange={(event) => onChange(event.target.value)}
+      />
+      {error !== undefined && <FieldError id={`${id}-error`} message={error} />}
+    </div>
+  );
+}
+
+/**
+ * A figure the user types: mono, at the app's 17px figure size (docs/05 §2.2). An empty field with a
+ * placeholder means "use the default", which the placeholder shows.
+ */
+export function NumberField({
+  label,
+  value,
+  onChange,
+  error,
+  note,
+  labelContext,
+  placeholder,
+  className,
+  decimal = false,
+  unit,
+  errorShownAt,
+}: FieldProps & {
+  decimal?: boolean;
+  unit?: string;
+  /** Where `error` is printed instead, for a field too narrow to hold the message itself. */
+  errorShownAt?: string;
+}) {
+  const id = useId();
+  const describedBy = error === undefined ? undefined : (errorShownAt ?? `${id}-error`);
+  return (
+    <div className={['field', 'field--number', className].filter(Boolean).join(' ')}>
+      <FieldLabel
+        htmlFor={id}
+        label={label}
+        note={note}
+        context={[labelContext, unit === undefined ? undefined : `in ${unitNames[unit]}`]
+          .filter(Boolean)
+          .join(' ')}
+      />
+      <div className="field__figure">
+        <input
+          id={id}
+          type="text"
+          inputMode={decimal ? 'decimal' : 'numeric'}
+          className="field__input field__input--number"
+          value={value}
+          placeholder={placeholder}
+          autoComplete="off"
+          aria-invalid={error === undefined ? undefined : true}
+          aria-describedby={describedBy}
+          onChange={(event) => onChange(event.target.value)}
+        />
+        {unit !== undefined && (
+          <span className="field__unit" aria-hidden="true">
+            {unit}
+          </span>
+        )}
+      </div>
+      {error !== undefined && errorShownAt === undefined && (
+        <FieldError id={`${id}-error`} message={error} />
+      )}
+    </div>
+  );
+}
+
+/** The spoken form of a unit printed beside a figure, which is hidden from screen readers. */
+const unitNames: Record<string, string> = { kg: 'kilograms', s: 'seconds' };
+
+function FieldLabel({
+  htmlFor,
+  label,
+  note,
+  context,
+}: {
+  htmlFor: string;
+  label: string;
+  note?: string;
+  context?: string;
+}) {
+  return (
+    <div className="field__label-row">
+      <label htmlFor={htmlFor} className="field__label">
+        {label}
+        {context !== undefined && context !== '' && (
+          <span className="visually-hidden"> {context}</span>
+        )}
+      </label>
+      {note !== undefined && <span className="field__note">{note}</span>}
+    </div>
+  );
+}
+
+/** A number the user typed, or `null` for an empty field. Text that is not a number stays NaN. */
+export function parseFigure(value: string): number | null {
+  const trimmed = value.trim().replace(',', '.');
+  return trimmed === '' ? null : Number(trimmed);
+}
+
+export const formatKg = (kg: number) =>
+  Number.isInteger(kg) ? String(kg) : String(Number(kg.toFixed(2)));
+
+/**
+ * A delete in two steps: the button, then the question with Keep and Delete. Focus moves to Keep when
+ * the question opens and back to the button when it closes, so it is never left on nothing.
+ */
+export function DeleteConfirm({
+  label,
+  question,
+  busy,
+  onDelete,
+}: {
+  label: string;
+  question: ReactNode;
+  busy: boolean;
+  onDelete: () => void;
+}) {
+  const [asking, setAsking] = useState(false);
+  // Set by the user's click only, so opening the screen never moves focus here.
+  const focusPending = useRef(false);
+  const target = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!focusPending.current) return;
+    focusPending.current = false;
+    target.current?.focus();
+  });
+  const ask = (next: boolean) => {
+    focusPending.current = true;
+    setAsking(next);
+  };
+
+  if (!asking) {
+    return (
+      <button
+        ref={target}
+        type="button"
+        className="button button--tertiary"
+        disabled={busy}
+        onClick={() => ask(true)}
+      >
+        {label}
+      </button>
+    );
+  }
+  return (
+    <fieldset className="confirm">
+      <legend className="confirm__question">{question}</legend>
+      <div className="confirm__actions">
+        <button
+          ref={target}
+          type="button"
+          className="button button--tertiary"
+          disabled={busy}
+          onClick={() => ask(false)}
+        >
+          Keep
+        </button>
+        <button
+          type="button"
+          className="button button--secondary"
+          disabled={busy}
+          onClick={onDelete}
+        >
+          Delete
+        </button>
+      </div>
+    </fieldset>
+  );
+}
+
+/** The signed-in account and the way out, at the foot of each top-level screen. */
+export function AccountFooter({
+  email,
+  navigate,
+}: {
+  email: string;
+  navigate: (path: string) => void;
+}) {
+  const [signingOut, setSigningOut] = useState(false);
+  const [signOutFailed, setSignOutFailed] = useState(false);
+  return (
+    <>
+      {signOutFailed && (
+        <Notice tone="flag" word="Not signed out">
+          Couldn't sign out. Try again.
+        </Notice>
+      )}
+      <footer className="footer">
+        <span className="footer__account">{email}</span>
+        <button
+          type="button"
+          className="button button--tertiary"
+          disabled={signingOut}
+          onClick={() => {
+            setSigningOut(true);
+            setSignOutFailed(false);
+            void signOut(navigate).then((signedOut) => {
+              if (signedOut) return;
+              setSigningOut(false);
+              setSignOutFailed(true);
+            });
+          }}
+        >
+          Sign out
+        </button>
+      </footer>
+    </>
   );
 }

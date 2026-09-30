@@ -4,6 +4,9 @@ import type { components } from './schema';
 
 export type { components, operations, paths } from './schema';
 
+export type Equipment = components['schemas']['Equipment'];
 export type Exercise = components['schemas']['Exercise'];
 export type Me = components['schemas']['Me'];
 export type Problem = components['schemas']['Problem'];
+export type Routine = components['schemas']['Routine'];
+export type RoutineSlot = components['schemas']['RoutineSlot'];
