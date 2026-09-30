@@ -34,7 +34,7 @@ unrecoverable. So:
 | --- | --- |
 | **What** | `pg_dump --format=custom` of the Neon `main` branch (production only; staging holds test data) |
 | **When** | Nightly, GitHub Actions `schedule`, `0 18 * * *` UTC (03:00 JST) — after the daily job at `0 15 * * *` UTC has finished |
-| **Connection** | `DATABASE_URL_BACKUP`: the **direct** (non-`-pooler`) host, as Neon's pg_dump guide requires, as role `overload_backup` (§5). A GitHub Actions secret, not a Vercel variable |
+| **Connection** | `DATABASE_URL_BACKUP`: the **direct** (non-`-pooler`) host, as Neon's pg_dump guide requires, as role `overload_backup` (§5). A secret of the GitHub `backup` environment, not a repository secret or a Vercel variable |
 | **Encryption** | The dump is encrypted with `age` to a public key committed in the repo **before** upload. The private key lives in Yuta's 1Password (Personal vault), never in GitHub or AWS. The bucket also has SSE-S3 |
 | **Where** | S3 bucket in Yuta's AWS account, `ap-northeast-1`. Block Public Access on, versioning on |
 | **AWS auth** | GitHub OIDC → IAM role. No long-lived AWS keys anywhere. The role's policy is `s3:PutObject` on `backups/*` of that one bucket — it cannot read, list or delete |
@@ -133,7 +133,7 @@ This is step one of the migration notes, whenever they are written.
 | --- | --- | --- | --- |
 | `DATABASE_URL` | Vercel, api | Role `overload_app` (§5) | Change the schema |
 | `DATABASE_URL_DIRECT` | Vercel, api | Role `overload_owner` | — (it is the owner). **Only `drizzle-kit migrate` reads it**, in the build. Whether Vercel can withhold a variable from the function runtime is unverified (§10), so assume the deployed function's environment holds it too: that is what threat 4 costs if the runtime is compromised |
-| `DATABASE_URL_BACKUP` | GitHub Actions secret | Role `overload_backup` | Write anything |
+| `DATABASE_URL_BACKUP` | GitHub `backup` environment secret | Role `overload_backup` | Write anything |
 | `BETTER_AUTH_SECRET` | Vercel, api | Signs sessions | — |
 | `GOOGLE_CLIENT_SECRET` | Vercel, api | The one OAuth client (`12` §1) | — |
 | `ANTHROPIC_API_KEY` | Vercel, api | A dedicated **`overload` workspace**, $10/month limit. A key belongs to one workspace and cannot be moved (Anthropic docs, checked 2026-09-21) | Spend past the workspace limit, or touch other workspaces |

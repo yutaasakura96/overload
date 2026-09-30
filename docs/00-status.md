@@ -110,9 +110,10 @@ and `apps/api` exist; the first real deploy is slice 1.
   fixed window) already existed but answered `deny` (403); it now answers Vercel's default `429`, as
   `13` §3 says. Checked from outside: 320 requests to `/api/health`, the first 300 got `200`, the rest `429`.
 - **`overload_backup` password: rotated** on Neon `main` through Neon's reset-password API, because
-  the old one sits in the SQL Editor's history. Its one consumer, the GitHub secret
-  `DATABASE_URL_BACKUP` (`13` §4), was set from a pipe (direct host). Checked: that URL connects as
-  `overload_backup` and can `SELECT` the app tables.
+  the old one sits in the SQL Editor's history. Its one consumer, `DATABASE_URL_BACKUP` in the
+  GitHub `backup` environment (`13` §4), which the Backup job reads, was set from a pipe (direct
+  host). A stale repository-level copy, shadowed by the environment one, was deleted. Checked: that
+  URL connects as `overload_backup` and can `SELECT` the app tables.
 - **Sentry uptime and cron monitors (`12` §5): not done, needs Yuta.** The local `sentry-cli` token
   is scoped `org:ci` and gets 403 on projects and monitors, and the browser session is signed out.
   The cron monitor also has nothing to check in yet: the daily job and `/api/cron/*` route are not
