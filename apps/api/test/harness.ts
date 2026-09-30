@@ -27,6 +27,23 @@ export function useTestApp() {
   // holds the open transaction.
   const pool = new Pool({ connectionString: testDatabaseUrl, max: 1, idleTimeoutMillis: 0 });
   const db = createDatabase(pool);
+  // The app's own transactions nest inside each test's as savepoints. A real BEGIN on this one
+  // connection would be ignored, and its COMMIT would commit the test's rows, which the rollback
+  // below could then not undo.
+  let savepoints = 0;
+  db.transaction = async (run) => {
+    const name = `app_tx_${++savepoints}`;
+    await pool.query(`SAVEPOINT ${name}`);
+    try {
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the same connection, inside the test's transaction
+      const result = await run(db as unknown as Parameters<typeof run>[0]);
+      await pool.query(`RELEASE SAVEPOINT ${name}`);
+      return result;
+    } catch (error) {
+      await pool.query(`ROLLBACK TO SAVEPOINT ${name}`);
+      throw error;
+    }
+  };
   const auth = createAuth({
     config: testConfig,
     db,

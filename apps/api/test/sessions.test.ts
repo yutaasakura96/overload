@@ -8,7 +8,7 @@ import { WEB_ORIGIN, useTestApp } from './harness';
 // the bearer token each accepted only in their own place, and sign-out ending both.
 const t = useTestApp();
 
-const memberRoutes = ['/api/me', '/api/exercises'];
+const memberRoutes = ['/api/me', '/api/exercises', '/api/routines'];
 
 describe('a request with no session', () => {
   it.each(memberRoutes)('%s answers 401 unauthenticated as a problem detail', async (path) => {

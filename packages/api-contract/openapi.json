@@ -181,6 +181,25 @@
               ]
             },
             "description": "Present only for `validation_failed`."
+          },
+          "routines": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name"
+              ]
+            },
+            "description": "Present only for `exercise_in_routine`: the routines using it."
           }
         },
         "required": [
@@ -293,6 +312,327 @@
           "other"
         ],
         "description": "A load-increment class, not an equipment inventory (docs/04 `exercise`)."
+      },
+      "ExerciseCreate": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11",
+            "description": "Made on the device (UUIDv7). A repeat returns the row."
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "example": "Cable Y-Raise"
+          },
+          "equipment": {
+            "$ref": "#/components/schemas/Equipment"
+          },
+          "incrementKg": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "example": 2.5,
+            "description": "Default: the equipment class’s increment (docs/04 `exercise`)."
+          },
+          "restSeconds": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3600,
+            "example": 120,
+            "description": "Default 120."
+          },
+          "repLow": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "description": "Default 6."
+          },
+          "repHigh": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "description": "Default 10."
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "equipment"
+        ]
+      },
+      "ExercisePatch": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "equipment": {
+            "$ref": "#/components/schemas/Equipment"
+          },
+          "incrementKg": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "example": 2.5
+          },
+          "restSeconds": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3600,
+            "example": 120
+          },
+          "repLow": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "repHigh": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          }
+        }
+      },
+      "ExerciseSetting": {
+        "type": "object",
+        "properties": {
+          "incrementKg": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 100,
+            "example": 2.5
+          },
+          "restSeconds": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 3600,
+            "example": 120
+          },
+          "repLow": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "maximum": 100
+          },
+          "repHigh": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "maximum": 100
+          },
+          "hidden": {
+            "type": "boolean",
+            "description": "Off the caller’s pickers; history still names it."
+          }
+        },
+        "required": [
+          "incrementKg",
+          "restSeconds",
+          "repLow",
+          "repHigh",
+          "hidden"
+        ],
+        "description": "The whole setting. `null` restores the exercise’s default for that value."
+      },
+      "RoutineList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Routine"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "Routine": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+          },
+          "name": {
+            "type": "string",
+            "example": "Push A"
+          },
+          "position": {
+            "type": "integer",
+            "description": "Place in the routine list, 0 first."
+          },
+          "exercises": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RoutineSlot"
+            },
+            "description": "In order."
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "position",
+          "exercises"
+        ]
+      },
+      "RoutineSlot": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+          },
+          "exerciseId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+          },
+          "targetSets": {
+            "type": "integer",
+            "example": 3
+          },
+          "repLow": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "repHigh": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "exerciseId",
+          "targetSets",
+          "repLow",
+          "repHigh"
+        ],
+        "description": "Null reps fall back to the caller’s setting, then the exercise’s default."
+      },
+      "RoutineCreate": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11",
+            "description": "Made on the device (UUIDv7). A repeat returns the routine."
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "example": "Push A"
+          },
+          "exercises": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RoutineSlotInput"
+            },
+            "maxItems": 40
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ]
+      },
+      "RoutineSlotInput": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11",
+            "description": "Made on the device (UUIDv7)."
+          },
+          "exerciseId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+          },
+          "targetSets": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 20,
+            "description": "Default 3."
+          },
+          "repLow": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "maximum": 100
+          },
+          "repHigh": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "maximum": 100
+          }
+        },
+        "required": [
+          "id",
+          "exerciseId"
+        ]
+      },
+      "RoutinePatch": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "position": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Move to this place in the list, 0 first; past the end means last."
+          }
+        }
+      },
+      "RoutineExercisesPut": {
+        "type": "object",
+        "properties": {
+          "exercises": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RoutineSlotInput"
+            },
+            "maxItems": 40
+          }
+        },
+        "required": [
+          "exercises"
+        ]
       }
     },
     "parameters": {}
@@ -407,6 +747,700 @@
           },
           "401": {
             "description": "No session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a custom exercise, visible only to the caller",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExerciseCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "A repeat of the same create: the stored exercise",
+            "headers": {
+              "Overload-User": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "The id of the user whose session answered. Keep the body for that account only."
+                },
+                "required": true,
+                "description": "The id of the user whose session answered. Keep the body for that account only."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Exercise"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Created",
+            "headers": {
+              "Overload-User": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "The id of the user whose session answered. Keep the body for that account only."
+                },
+                "required": true,
+                "description": "The id of the user whose session answered. Keep the body for that account only."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Exercise"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`id_conflict`: the id is in use with different content",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`validation_failed`, including a name the caller already uses",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/exercises/{id}": {
+      "patch": {
+        "summary": "Edit a custom exercise’s name, equipment or defaults. A seeded one is not found",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExercisePatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The exercise as the caller now sees it",
+            "headers": {
+              "Overload-User": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "The id of the user whose session answered. Keep the body for that account only."
+                },
+                "required": true,
+                "description": "The id of the user whose session answered. Keep the body for that account only."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Exercise"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A malformed id",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No custom exercise with that id belongs to the caller",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`validation_failed`, including an inverted rep range or a name in use",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete a custom exercise. 204 whenever the caller has no such exercise afterwards",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "The caller has no custom exercise with that id",
+            "headers": {
+              "Overload-User": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "The id of the user whose session answered. Keep the body for that account only."
+                },
+                "required": true,
+                "description": "The id of the user whose session answered. Keep the body for that account only."
+              }
+            }
+          },
+          "400": {
+            "description": "A malformed id",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`exercise_in_routine`, listing the routines that use it",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/exercises/{id}/setting": {
+      "put": {
+        "summary": "The caller’s increment, rest, rep range and hidden flag for any exercise",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExerciseSetting"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The exercise as the caller now sees it",
+            "headers": {
+              "Overload-User": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "The id of the user whose session answered. Keep the body for that account only."
+                },
+                "required": true,
+                "description": "The id of the user whose session answered. Keep the body for that account only."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Exercise"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A malformed id",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No exercise with that id is visible to the caller",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`validation_failed`, including an effective rep range that is inverted",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/routines": {
+      "get": {
+        "summary": "Every routine the caller has, in list order, each with its slots in order",
+        "responses": {
+          "200": {
+            "description": "The routines",
+            "headers": {
+              "Overload-User": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "The id of the user whose session answered. Keep the body for that account only."
+                },
+                "required": true,
+                "description": "The id of the user whose session answered. Keep the body for that account only."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoutineList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a routine at the end of the list, optionally with its slots",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoutineCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "A repeat of the same create: the stored routine",
+            "headers": {
+              "Overload-User": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "The id of the user whose session answered. Keep the body for that account only."
+                },
+                "required": true,
+                "description": "The id of the user whose session answered. Keep the body for that account only."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Routine"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Created",
+            "headers": {
+              "Overload-User": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "The id of the user whose session answered. Keep the body for that account only."
+                },
+                "required": true,
+                "description": "The id of the user whose session answered. Keep the body for that account only."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Routine"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`id_conflict`: the routine or a slot id is in use with other content",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`validation_failed`, including an unknown or hidden exercise",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/routines/{id}": {
+      "patch": {
+        "summary": "Rename a routine, or move it in the list",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoutinePatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The routine",
+            "headers": {
+              "Overload-User": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "The id of the user whose session answered. Keep the body for that account only."
+                },
+                "required": true,
+                "description": "The id of the user whose session answered. Keep the body for that account only."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Routine"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A malformed id",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No routine with that id belongs to the caller",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`validation_failed`",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete a routine. 204 whenever the caller has no such routine afterwards",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "The caller has no routine with that id",
+            "headers": {
+              "Overload-User": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "The id of the user whose session answered. Keep the body for that account only."
+                },
+                "required": true,
+                "description": "The id of the user whose session answered. Keep the body for that account only."
+              }
+            }
+          },
+          "400": {
+            "description": "A malformed id",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/routines/{id}/exercises": {
+      "put": {
+        "summary": "Replace the whole slot list. Order is array order, so a reorder is one call",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoutineExercisesPut"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The routine with its new slots",
+            "headers": {
+              "Overload-User": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "The id of the user whose session answered. Keep the body for that account only."
+                },
+                "required": true,
+                "description": "The id of the user whose session answered. Keep the body for that account only."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Routine"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A malformed id",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No routine with that id belongs to the caller",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`id_conflict`: a slot id belongs to another routine",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`validation_failed`, including an unknown or hidden exercise",
             "content": {
               "application/problem+json": {
                 "schema": {

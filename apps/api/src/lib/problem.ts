@@ -10,6 +10,8 @@ export const problemCodes = {
   unauthenticated: { status: 401, title: 'Not signed in' },
   cross_origin: { status: 403, title: 'Cross-origin request refused' },
   not_found: { status: 404, title: 'Not found' },
+  id_conflict: { status: 409, title: 'Id already used for something else' },
+  exercise_in_routine: { status: 409, title: 'Exercise is used by a routine' },
   validation_failed: { status: 422, title: 'Request body failed validation' },
   internal: { status: 500, title: 'Internal error' },
 } as const satisfies Record<string, { status: ContentfulStatusCode; title: string }>;
@@ -30,6 +32,10 @@ export const Problem = z
       .array(z.object({ path: z.string(), message: z.string() }))
       .optional()
       .openapi({ description: 'Present only for `validation_failed`.' }),
+    routines: z
+      .array(z.object({ id: z.string(), name: z.string() }))
+      .optional()
+      .openapi({ description: 'Present only for `exercise_in_routine`: the routines using it.' }),
   })
   .openapi('Problem');
 
@@ -40,12 +46,17 @@ export function problemResponse(description: string) {
   return { description, content: { 'application/problem+json': { schema: Problem } } };
 }
 
-export function problem(
+/**
+ * The problem detail for `code`, typed with that code's status so a route's handler can return it
+ * for a response it declares.
+ */
+export function problem<C extends ProblemCode>(
   c: Context,
-  code: ProblemCode,
-  extra: { detail?: string; errors?: ProblemBody['errors'] } = {},
+  code: C,
+  extra: Pick<ProblemBody, 'detail' | 'errors' | 'routines'> = {},
 ) {
-  const { status, title } = problemCodes[code];
+  const { title } = problemCodes[code];
+  const status: (typeof problemCodes)[C]['status'] = problemCodes[code].status;
   const body: ProblemBody = {
     type: `urn:overload:problem:${code}`,
     title,
@@ -56,5 +67,6 @@ export function problem(
     requestId: c.get('requestId') ?? 'unknown',
     ...extra,
   };
-  return c.body(JSON.stringify(body), status, { 'Content-Type': 'application/problem+json' });
+  // c.json keeps a Content-Type it is given, so this is sent as application/problem+json.
+  return c.json(body, status, { 'Content-Type': 'application/problem+json' });
 }

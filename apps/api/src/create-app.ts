@@ -13,6 +13,7 @@ import { problem, type ProblemCode } from './lib/problem.js';
 import { exerciseRoutes } from './routes/exercises.js';
 import { healthRoutes } from './routes/health.js';
 import { meRoutes } from './routes/me.js';
+import { routineRoutes } from './routes/routines.js';
 
 export type AppDeps = RouteDeps & {
   auth: Auth;
@@ -90,6 +91,7 @@ export function createApp({ auth, config, db, log = console.log, reportError }: 
   app.openapiRoutes(healthRoutes);
   app.openapiRoutes(meRoutes({ config, db }));
   app.openapiRoutes(exerciseRoutes({ config, db }));
+  app.openapiRoutes(routineRoutes({ config, db }));
 
   app.openAPIRegistry.registerComponent('securitySchemes', 'session', {
     type: 'apiKey',
