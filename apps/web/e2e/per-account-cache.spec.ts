@@ -595,3 +595,40 @@ test('a retry answered under another account’s cookie never enters the open ac
   expect(await savedCache(page, userB)).toContain(OWN_B);
   await page.unrouteAll({ behavior: 'ignoreErrors' });
 });
+
+test('an answer naming no account shows as not updated without looping through /api/me', async ({
+  page,
+  context,
+}) => {
+  await useCookie(context, userA);
+  // A proxy that strips the header, or a web build live before its API.
+  await page.route('**/api/exercises', async (route) => {
+    const response = await route.fetch();
+    const headers = Object.fromEntries(
+      Object.entries(response.headers()).filter(([name]) => name !== 'overload-user'),
+    );
+    const { items }: { items: { name: string }[] } = await response.json();
+    const [first, ...rest] = items;
+    await route.fulfill({
+      response,
+      headers,
+      json: { items: [{ ...first, name: OWN_A }, ...rest] },
+    });
+  });
+  const requests = { me: 0, exercises: 0 };
+  page.on('request', (request) => {
+    const { pathname } = new URL(request.url());
+    if (pathname === '/api/me') requests.me += 1;
+    if (pathname === '/api/exercises') requests.exercises += 1;
+  });
+  await page.goto('/');
+  await expect(page.getByText(EMAIL_A)).toBeVisible();
+  await expect(page.getByText('Not updated')).toBeVisible();
+
+  await page.waitForTimeout(2000);
+  expect(requests).toEqual({ me: 1, exercises: 1 });
+  await expect(page.getByText(EMAIL_A)).toBeVisible();
+  await expect(page.getByText(OWN_A)).toHaveCount(0);
+  expect(await savedCache(page, userA)).not.toContain(OWN_A);
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
