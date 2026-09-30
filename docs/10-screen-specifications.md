@@ -408,8 +408,8 @@ under the title as a subline (the date and time on 4, the same form as screen 1'
 Flagged so they are not discovered mid-build. None of these are gaps in the six screens; they are
 screens and states the PRD requires that Phase 2 did not draw.
 
-- **Workout start and routine selection** (S4), including the no-routines empty state.
-- **Exercise library and picker** (S8).
+- **Workout start** (S4) from a routine. Routine selection and the no-routines empty state are
+  specified in §8.1, from slice 2.
 - **Food list management** (S12) and manual label entry.
 - **Goal phase and macro target setup** (S14), routine and meal count (S15).
 - **The grocery list proper** (S17) — only a preview card exists.
@@ -420,3 +420,62 @@ screens and states the PRD requires that Phase 2 did not draw.
 - **S18a and S21 with too few weigh-ins to estimate** (`03` §8.3): `Weigh in to see this` in place of the figure. Added by review 2026-09-22.
 - **Every error and failure state except the refused set.** The refused set is drawn
   (`Main-Refused`, 2026-09-22). A rejected save elsewhere, revoked access and the discard confirm are not.
+
+### 8.1 Routines and the exercise library (slice 2, S4 and S8)
+
+No artboard exists, so these were designed in the build (issue #2) from `05`'s tokens and
+components, and pass the polish gate (`AGENTS.md`). Nothing here adds a token or an icon.
+
+**Shared parts.**
+
+- **Tabs.** `Routines` and `Exercises`, `05` §4.8's tabs as links with `aria-current`, under the app
+  bar of the two top-level screens. `/` stays the exercise library until slice 3's Today screen
+  (`06`, 2026-10-01).
+- **Back.** Screen 2's back chevron plus a 12px title, the chevron's 44px target reaching into the
+  bar's padding. Its accessible name says where it goes.
+- **Fields.** An 8px small-caps label over a 44px input with a 1px `line/control` border, since an
+  empty field's border is what shows where to type (`05` §1.5). Text is 16px sans and figures 17px
+  mono, so iOS never zooms into a focused field (`06`, 2026-10-01). A note beside the label says
+  `Default` or `Yours`. A refused field gets an `error` border, and under it the word `Refused`, the
+  info icon and the reason; focus moves to the first one.
+- **Save notices.** `Not saved` in `flag` when the server was not reached: the form keeps
+  everything, and saving again later works. `Refused` in `error` when the server refused. Neither
+  queues offline (`06`, offline scope).
+- **Delete.** A tertiary button that becomes the question in place, with `Keep` and `Delete`. Focus
+  moves to `Keep`, and back to the button on `Keep`. `error` is never the colour of a destructive
+  button (`05` §1.4).
+- **Chevrons.** The back chevron turned 90°, 180° or 270° for up, forward and down, not a new icon.
+
+**Routine list** (`/routines`). A row per routine: name, `N EXERCISES · N SETS` in mono small caps,
+and the first three exercise names, with a forward chevron. The row opens the editor until slice 3
+starts a workout from it. `New routine` under the list. Empty: `No routines yet`, one sentence on
+what a routine is, and a primary `Create a routine`.
+
+**Routine editor** (`/routines/new`, `/routines/{id}`). The name, then the slots as a numbered list.
+A slot is the exercise name with `Remove`, then `Sets`, `Reps low` and `Reps high` with the move up
+and move down buttons. The first slot's up and the last slot's down are `aria-disabled`, so focus
+stays on a button that has just moved to the end. Empty rep fields show the exercise's range as
+placeholders: left empty, the slot follows the exercise. A slot's refusals print once under the slot,
+as the figures are too narrow. The figures narrow to 44px so the slot fits a 320px screen. Removing
+a slot moves focus to the slot now in its place. `Add exercises`, then the primary save at the foot.
+A hidden exercise still in the routine says `· Hidden`. Leaving without saving discards the edit.
+
+**Exercise picker.** Opens inside the editor, so nothing typed is lost. A search field, `New
+exercise`, then the library without hidden exercises, filtered on every word. Each row is a native
+checkbox stretched invisibly over it, drawn as `05`'s check cell, so a tap anywhere ticks it; the
+focus ring goes on the row. Ticked exercises join the routine in the order they were ticked. The
+sticky action bar holds the primary `Add N exercises`, which reads `Tick exercises to add` while
+nothing is ticked. Back to the editor, focus lands on `Add exercises`.
+
+**Exercise form** (`/exercises/new`, `/exercises/{id}`, and from the picker).
+
+- *New or custom:* name, equipment, then increment (kg), rest (s) and the rep range. The increment
+  follows the equipment class until the user types one.
+- *Seeded:* only the user's own values, each with its `Default`/`Yours` note, and `Restore
+  defaults` once any is the user's.
+- Under both: `Hide from pickers` (`Show in pickers again`), and for a custom exercise the delete.
+  A delete refused because routines use it names them and suggests hiding instead.
+
+**Exercise library** (`/`). Each row opens the exercise form. `New exercise` and a `Hidden
+exercises` disclosure under the list, which fetches the hidden ones when first opened.
+

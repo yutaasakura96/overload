@@ -2,7 +2,7 @@
 
 **Project:** A weight-training progress tracker combining lift logging, meal planning, Apple Watch/iPhone health data, and bodyweight/diet coaching.
 **Phase:** 7 — Build (M1 first). Phase 6 — Review finished 2026-09-23.
-**Updated:** 2026-09-30
+**Updated:** 2026-10-01
 
 ## Done
 - Phase 1 — Brief + PRD: `docs/01-project-brief.md`, `docs/02-product-requirements.md`, `docs/06-decision-log.md`.
@@ -64,6 +64,13 @@ Vercel's `DATABASE_URL_DIRECT` reset. Merging deploys staging and runs its first
 `src/app.ts` as the entry, and its unbundled ESM output could not resolve extensionless imports.
 Fixed on branch `fm/overload-staging-api-crash`, with a CI job that builds the API as Vercel does
 (`12` §3). The iPhone checklist waits for that fix to reach `develop`.
+
+**Slice 2 is built, 2026-10-01**, on branch `fm/overload-2` against `develop` (`#2`). The `routine`
+and `routine_exercise` tables, S8's four write routes, the routine routes, and four screens designed
+in the build (`10` §8.1) are in the repo and cleared the polish gate. The API tests cover `csrf()`
+on the first write route and the cross-user writes and deletes. A new Playwright test creates a
+routine, reorders it and deletes it on Chromium and WebKit. Deferred to slice 3 with the `set`
+table: `exercise_has_history` (`06`, 2026-10-01).
 
 **Issues are open.** Milestone `M1`, one issue per slice, `#1`–`#7`, each chained to the one before
 with GitHub's native dependencies. `#1` carries the full slice-1 specification; its `ready-for-agent`
