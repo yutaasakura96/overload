@@ -61,7 +61,7 @@ The S3 path, by hand (Yuta's IAM user reads the bucket; the role cannot):
 ```sh
 aws s3 ls s3://overload-backups-yutaasakura96/backups/ | tail -1          # the newest dump
 aws s3 cp s3://overload-backups-yutaasakura96/backups/<name> /tmp/
-infra/backup/restore.sh /tmp/<name> <the offline age key file>            # into overload_restore
+infra/backup/restore.sh /tmp/<name> <the age key file from 1Password>     # into overload_restore
 TEST_DATABASE_URL=postgres://overload_app:overload_app_dev@localhost:5434/overload_restore \
 TEST_DATABASE_URL_DIRECT='postgres://overload_owner:overload_owner_dev@localhost:5434/overload_restore?sslmode=disable' \
 pnpm --filter @overload/api exec vitest run --exclude test/dev-session.test.ts

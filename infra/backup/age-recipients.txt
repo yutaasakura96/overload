@@ -1,8 +1,7 @@
-# The public key every nightly backup is encrypted to (docs/13 §2). Its private key is kept offline
-# by Yuta and is never in GitHub or AWS. To rotate, replace the line below (docs/13 §8).
+# The public key every nightly backup is encrypted to (docs/13 §2). Its private key is in Yuta's
+# 1Password (Personal vault, item "overload backup age key") and is never in GitHub or AWS.
+# To rotate, replace the line below (docs/13 §8).
 #
-# Generate with:  age-keygen -o overload-backup.key   (then store the file offline)
+# Generate with:  age-keygen -o overload-backup.key   (then store the file in 1Password and delete it)
 # Public key:     age-keygen -y overload-backup.key
-#
-# Until a key is added here, the Backup workflow fails on purpose.
 age1kr084krc6her00qpvwa7dy8tev57s8795k744wcc4jdfr7u9larsc5py7w
