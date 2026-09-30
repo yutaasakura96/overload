@@ -86,7 +86,7 @@ to `develop`, and unscoped preview.
 - **Google** — a new OAuth client with the three redirect URIs. The original client's secret was
   lost, and Google shows a secret once with no way to add a second, so the old client is superseded.
   **Delete it once sign-in works on staging, not before.**
-- **GitHub** — `DATABASE_URL_BACKUP` secret set.
+- **GitHub** — `DATABASE_URL_BACKUP` secret set (in the `backup` environment since 2026-09-30, below).
 
 **Deliberately unset, none blocking:** `SENTRY_DSN`, `VITE_SENTRY_DSN`, `SENTRY_AUTH_TOKEN` (a
 `sentry-cli login` token is scoped `org:ci` and cannot create projects — make them in the browser,
