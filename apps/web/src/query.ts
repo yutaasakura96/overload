@@ -58,7 +58,7 @@ type Account = {
 
 let account: Account = { userId: undefined, status: 'checking' };
 let accountGeneration = 0;
-/** The last other account a member answer named, already re-checked with /api/me. */
+/** Another account a member answer named since /api/me last confirmed, already re-checked. */
 let refusedUser: string | undefined;
 let accountClosed = false;
 let pendingRemember: Promise<unknown> | undefined;
@@ -209,6 +209,7 @@ export async function openCache() {
 /** /api/me named this user: open their copy, dropping any other account's data from memory first. */
 async function confirm(me: Me, generation: number) {
   if (generation !== accountGeneration) throw new AccountCheckFailed('Account closed');
+  refusedUser = undefined;
   const { id } = me.user;
   const switched = account.userId !== id;
   if (switched) {
