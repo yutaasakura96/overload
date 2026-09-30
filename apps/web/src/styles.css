@@ -104,11 +104,32 @@ button {
 }
 .app-bar__title {
   margin: 0;
+  overflow-wrap: anywhere;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--text-primary);
+}
+.app-bar__lead {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+/* Screen 2's back chevron: an 18px icon in a 44px target that reaches into the bar's padding, so the
+   icon sits on the gutter (docs/05 §3.2). */
+.app-bar__back {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: var(--target-min);
+  height: var(--target-min);
+  margin: -13px 0 -13px -13px;
+  color: var(--text-tertiary);
+}
+.app-bar--back .app-bar__title {
+  font-size: 12px;
+  letter-spacing: 0.1em;
 }
 .app-bar__subline {
   margin-top: 3px;
@@ -145,6 +166,36 @@ button {
   color: var(--text-quaternary);
 }
 
+/* 4.8 Segmented control, as tabs between the two top-level screens */
+.tabs {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 5px;
+  margin: 14px var(--gutter) 0;
+}
+.tabs__tab {
+  display: grid;
+  place-items: center;
+  min-height: var(--target-min);
+  border: 1px solid var(--line-hairline);
+  border-radius: var(--radius);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-quaternary);
+  text-decoration: none;
+}
+.tabs__tab[aria-current='page'] {
+  border-color: var(--accent);
+  background: var(--surface-accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.section-label--gutter {
+  margin: 18px var(--gutter) 8px;
+}
+
 /* 4.4 Data table: the exercise library */
 .library {
   padding-top: 18px;
@@ -174,8 +225,18 @@ button {
   padding: 0;
   list-style: none;
 }
-.library__row + .library__row {
+/* Each row opens its exercise, so it is a 44px target (docs/05 §3.2). */
+.library__row {
+  min-height: var(--target-min);
+  align-content: center;
+  color: inherit;
+  text-decoration: none;
+}
+.library__list > li + li {
   border-top: 1px solid var(--line-row);
+}
+.library__tag {
+  color: var(--text-quaternary);
 }
 .library__name {
   font-size: 12px;
@@ -268,6 +329,392 @@ button {
   color: var(--text-quaternary);
   font-size: 11px;
   letter-spacing: 0.08em;
+}
+
+.button--secondary {
+  border: 1px solid var(--line-field);
+  color: var(--text-tertiary);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+}
+.button--secondary:active,
+.button--tertiary:active {
+  border-color: var(--line-control);
+  color: var(--text-secondary);
+}
+.button--icon {
+  width: var(--target-min);
+  padding: 0;
+}
+.button[aria-disabled='true'] {
+  opacity: 0.6;
+  cursor: default;
+}
+/* A screen's terminal action (docs/05 §4.6). */
+.button--terminal {
+  min-height: 60px;
+}
+
+/* Fields. docs/05 draws none; these are built from its tokens (docs/10 §8.1). Typed text is 16px so
+   iOS does not zoom the page on focus; typed figures are the 17px mono figure size. */
+.form {
+  display: grid;
+  gap: 18px;
+  padding: 18px var(--gutter) 0;
+}
+.form--secondary {
+  gap: 10px;
+  margin-top: 22px;
+  padding: 18px var(--gutter) 30px;
+  border-top: 1px solid var(--line-hairline);
+}
+.form__pair {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+.form__lede {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+.field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.field__label-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.field__label,
+.field__note {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-quaternary);
+}
+.field__input {
+  width: 100%;
+  min-height: var(--target-min);
+  margin: 0;
+  padding: 0 10px;
+  /* line/control, not line/field: an empty field's border is what shows where to type (§1.5). */
+  border: 1px solid var(--line-control);
+  border-radius: var(--radius);
+  background: none;
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 16px;
+}
+.field__input::placeholder {
+  color: var(--text-quaternary);
+  opacity: 1;
+}
+.field__input:focus {
+  border-color: var(--accent);
+}
+.field__input[aria-invalid='true'] {
+  border-color: var(--error);
+}
+.field__input--number {
+  padding-right: 26px;
+  font-family: var(--font-mono);
+  font-size: 17px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.field__select {
+  padding-right: 6px;
+}
+.field__figure {
+  position: relative;
+}
+.field__unit {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-quaternary);
+  pointer-events: none;
+}
+.field__error {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 10px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+.field__error .notice__icon {
+  margin-top: 1px;
+}
+.field__error-word {
+  font-size: 9px;
+  line-height: 15px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--error);
+}
+
+/* A destructive action asks once more, in place. */
+.confirm {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.confirm__question {
+  margin: 0 0 10px;
+  padding: 0;
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+.confirm__actions {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.empty {
+  margin: 12px var(--gutter);
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+.empty--flush {
+  margin: 0;
+}
+.section-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 14px var(--gutter) 0;
+}
+
+/* Routine list (S4) */
+.empty-state {
+  display: grid;
+  gap: 10px;
+  padding: 22px var(--gutter) 0;
+}
+.empty-state__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 400;
+  color: var(--text-primary);
+}
+.empty-state__body {
+  margin: 0 0 8px;
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+.routines {
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line-hairline);
+}
+.routines > li {
+  border-bottom: 1px solid var(--line-row);
+}
+.routines__row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 60px;
+  padding: 11px var(--gutter);
+  color: inherit;
+  text-decoration: none;
+}
+.routines__text {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.routines__name {
+  font-size: 15px;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+.routines__meta {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  color: var(--text-quaternary);
+}
+.routines__preview {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+.routines__go {
+  display: grid;
+  color: var(--text-tertiary);
+}
+
+/* Routine editor: one slot per exercise */
+.slots {
+  display: grid;
+  gap: 10px;
+}
+.slots .section-label {
+  margin: 0;
+}
+.slots__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line-hairline);
+}
+.slot {
+  display: grid;
+  gap: 8px;
+  padding: 10px 0 12px;
+  border-bottom: 1px solid var(--line-row);
+}
+.slot__head {
+  display: grid;
+  grid-template-columns: 24px 1fr auto;
+  align-items: center;
+  gap: 6px;
+}
+.slot__index {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+}
+.slot__name {
+  min-width: 0;
+  font-size: 15px;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+.slot__flag {
+  font-size: 11px;
+  color: var(--text-quaternary);
+}
+.slot__error {
+  margin: 0 0 0 30px;
+  font-size: 10px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+.slot__fields {
+  display: grid;
+  /* The figures give way first on a narrow phone, down to the 44px target, so the row fits 320px. */
+  grid-template-columns: repeat(3, minmax(var(--target-min), 62px)) 1fr;
+  align-items: end;
+  gap: 8px;
+  margin-left: 30px;
+}
+.slot__errors {
+  display: grid;
+  gap: 4px;
+  margin-left: 30px;
+}
+.slot__fields .field__input--number {
+  padding: 0 8px;
+}
+.slot__moves {
+  display: flex;
+  justify-content: flex-end;
+  gap: 5px;
+}
+
+/* Exercise picker */
+.picker {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+}
+.picker__tools {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: 8px;
+  padding: 14px var(--gutter) 0;
+}
+.picker__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line-hairline);
+}
+.picker__list > li + li {
+  border-top: 1px solid var(--line-row);
+}
+.picker__row {
+  display: grid;
+  grid-template-columns: 46px 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 12px;
+  row-gap: 2px;
+  align-items: center;
+  position: relative;
+  min-height: 56px;
+  padding: 6px var(--gutter);
+  cursor: pointer;
+}
+.picker__check {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.picker__row:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.picker__row .check-cell {
+  grid-row: 1 / span 2;
+}
+.picker__name {
+  align-self: end;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.picker__meta {
+  align-self: start;
+  font-size: 10px;
+  color: var(--text-quaternary);
+}
+.action-bar {
+  position: sticky;
+  bottom: 0;
+  margin-top: auto;
+  padding: 12px var(--gutter) calc(12px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line-hairline);
+  background: var(--surface-ground);
+}
+
+/* 4.7 Check cell */
+.check-cell {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: var(--target-min);
+  border: 1px solid var(--line-control);
+  border-radius: var(--radius);
+}
+.check-cell--done {
+  border-color: var(--line-done);
+  background: var(--surface-done);
 }
 
 /* Sign-in */

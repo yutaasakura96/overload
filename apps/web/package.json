@@ -21,7 +21,8 @@
     "idb-keyval": "6.3.0",
     "openapi-fetch": "0.17.0",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "uuid": "14.0.2"
   },
   "devDependencies": {
     "@playwright/test": "1.63.0",

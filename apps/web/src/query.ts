@@ -262,6 +262,20 @@ export const meQuery = queryOptions({
 });
 
 /**
+ * Runs one account's request: only under a confirmed account, and its answer is dropped if the
+ * account changed while it was in flight (docs/08 §5).
+ */
+export async function forAccount<T>(request: () => Promise<T>): Promise<T> {
+  const generation = accountGeneration;
+  if (account.status !== 'confirmed') throw new AccountCheckFailed('Account unconfirmed');
+  const result = await request();
+  if (generation !== accountGeneration || account.status !== 'confirmed') {
+    throw new AccountCheckFailed('Account changed');
+  }
+  return result;
+}
+
+/**
  * One account's answer from a member route, kept only when it is the confirmed account's: the API
  * names whose session answered, so an answer made under another account's cookie (a retry after the
  * cookie changed) never reaches this account's copy. It is refused and not retried; the next /api/me
@@ -270,16 +284,10 @@ export const meQuery = queryOptions({
 async function confirmedAccountData<T>(
   request: () => Promise<{ data?: T; error?: unknown; response: Response }>,
 ): Promise<NonNullable<T>> {
-  const generation = accountGeneration;
   const { userId } = account;
-  if (account.status !== 'confirmed' || userId === undefined) {
-    throw new AccountCheckFailed('Account unconfirmed');
-  }
-  const result = await request();
+  if (userId === undefined) throw new AccountCheckFailed('Account unconfirmed');
+  const result = await forAccount(request);
   const data = unwrap(result);
-  if (generation !== accountGeneration || account.status !== 'confirmed') {
-    throw new AccountCheckFailed('Account changed');
-  }
   if (result.response.headers.get(ACCOUNT_HEADER) === userId) return data;
   throw new AccountCheckFailed('Answered for another account');
 }
@@ -292,3 +300,31 @@ export const exercisesQuery = queryOptions({
   queryFn: async ({ signal }) =>
     (await confirmedAccountData(() => api.GET('/api/exercises', { signal }))).items,
 });
+
+/**
+ * The library with the caller's hidden exercises included: a routine may still name one, and the
+ * library lists them to show again.
+ */
+export const allExercisesQuery = queryOptions({
+  queryKey: ['exercises', 'all'],
+  refetchOnWindowFocus: false,
+  refetchOnReconnect: false,
+  queryFn: async ({ signal }) =>
+    (
+      await confirmedAccountData(() =>
+        api.GET('/api/exercises', { params: { query: { includeHidden: 'true' } }, signal }),
+      )
+    ).items,
+});
+
+export const routinesQuery = queryOptions({
+  queryKey: ['routines'],
+  refetchOnWindowFocus: false,
+  refetchOnReconnect: false,
+  queryFn: async ({ signal }) =>
+    (await confirmedAccountData(() => api.GET('/api/routines', { signal }))).items,
+});
+
+/** After a write: both exercise lists, since a setting or a new exercise changes each. */
+export const refreshExercises = () => queryClient.invalidateQueries({ queryKey: ['exercises'] });
+export const refreshRoutines = () => queryClient.invalidateQueries({ queryKey: ['routines'] });
