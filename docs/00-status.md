@@ -86,7 +86,7 @@ to `develop`, and unscoped preview.
 - **Google** — a new OAuth client with the three redirect URIs. The original client's secret was
   lost, and Google shows a secret once with no way to add a second, so the old client is superseded.
   **Delete it once sign-in works on staging, not before.**
-- **GitHub** — `DATABASE_URL_BACKUP` secret set.
+- **GitHub** — `DATABASE_URL_BACKUP` secret set (in the `backup` environment since 2026-09-30, below).
 
 **Deliberately unset, none blocking:** `SENTRY_DSN`, `VITE_SENTRY_DSN`, `SENTRY_AUTH_TOKEN` (a
 `sentry-cli login` token is scoped `org:ci` and cannot create projects — make them in the browser,
@@ -98,6 +98,26 @@ curls `/api/health` every 15 minutes and GitHub emails a failed run (`06`, 2026-
 
 Issue `#1` is `ready-for-agent` again. Both Vercel projects show failed deployments until `apps/web`
 and `apps/api` exist; the first real deploy is slice 1.
+
+### After the first production release (2026-09-30)
+
+- **`age` key: done.** Public key in `infra/backup/age-recipients.txt`, so the nightly backup stops
+  failing on purpose once this reaches `develop`. The private key was generated straight into the
+  1Password item *overload backup age key* (Personal vault) and exists nowhere else. Checked: the key
+  in 1Password derives the committed public key, and an `age` round trip through it decrypts. The
+  first run by hand (`13` §9) is still open.
+- **WAF: done.** The `api-rate-limit` rule on `overload-web` (`/api/` prefix, 300 / 60 s per IP,
+  fixed window) already existed but answered `deny` (403); it now answers Vercel's default `429`, as
+  `13` §3 says. Checked from outside: 320 requests to `/api/health`, the first 300 got `200`, the rest `429`.
+- **`overload_backup` password: rotated** on Neon `main` through Neon's reset-password API, because
+  the old one sits in the SQL Editor's history. Its one consumer, `DATABASE_URL_BACKUP` in the
+  GitHub `backup` environment (`13` §4), which the Backup job reads, was set from a pipe (direct
+  host). A stale repository-level copy, shadowed by the environment one, was deleted. Checked: that
+  URL connects as `overload_backup` and can `SELECT` the app tables.
+- **Sentry uptime and cron monitors (`12` §5): not done, needs Yuta.** The local `sentry-cli` token
+  is scoped `org:ci` and gets 403 on projects and monitors, and the browser session is signed out.
+  The cron monitor also has nothing to check in yet: the daily job and `/api/cron/*` route are not
+  built, so a monitor made now would only report missed check-ins.
 
 #### What the three failed attempts taught, kept so it is not repeated
 
