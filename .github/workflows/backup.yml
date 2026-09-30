@@ -1,0 +1,48 @@
+# The nightly backup of production (docs/13 §2): pg_dump of Neon main as overload_backup, encrypted
+# with age to the committed public key, uploaded to S3 through GitHub OIDC. No AWS key is stored
+# anywhere; the role it assumes can only put objects under backups/ (infra/aws). A failed run is the
+# alert: GitHub emails the repository owner (docs/12 §5).
+#
+# Scheduled runs use the default branch (develop). The `backup` environment admits develop only, and
+# the role trusts that environment only, so no other branch or pull request can assume it.
+name: Backup
+
+on:
+  schedule:
+    # 03:00 JST, after the daily job at 15:00 UTC has finished.
+    - cron: '0 18 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-24.04
+    environment: backup
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: ./.github/actions/age
+      - name: Name the object
+        run: echo "OBJECT=overload-main-$(date -u +%Y%m%dT%H%M%SZ).dump.age" >> "$GITHUB_ENV"
+      - name: Dump production and encrypt it
+        run: infra/backup/dump.sh "$RUNNER_TEMP/$OBJECT"
+        env:
+          DATABASE_URL_BACKUP: ${{ secrets.DATABASE_URL_BACKUP }}
+      - uses: aws-actions/configure-aws-credentials@v6.3.0
+        with:
+          role-to-assume: ${{ vars.BACKUP_ROLE_ARN }}
+          aws-region: ap-northeast-1
+      # PutObject is all the role holds, so nothing is read back; the upload's exit status is the check.
+      - name: Upload to S3
+        run: aws s3 cp "$RUNNER_TEMP/$OBJECT" "s3://$BUCKET/backups/$OBJECT" --only-show-errors
+        env:
+          BUCKET: ${{ vars.BACKUP_BUCKET }}

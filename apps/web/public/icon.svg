@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Overload's home-screen icon: a plate on a bar, in the one accent on surface/ground
+       (docs/05 §1). The mark stays inside the maskable safe zone, a centred circle of 80%
+       diameter. The PNGs beside it are rendered from these numbers. -->
+  <rect width="512" height="512" fill="#0B0D0F"/>
+  <rect x="80" y="238" width="352" height="36" fill="#3FB6D4"/>
+  <circle cx="256" cy="256" r="104" fill="#0B0D0F" stroke="#3FB6D4" stroke-width="36"/>
+  <rect x="200" y="238" width="112" height="36" fill="#3FB6D4"/>
+</svg>

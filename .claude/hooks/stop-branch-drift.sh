@@ -10,6 +10,11 @@
 # Deliberately silent when there is nothing to say: a hook that prints on every
 # turn is a hook that gets ignored, and this one only exists to be noticed.
 # Never blocks — it reports and exits 0 whatever it finds.
+#
+# Output goes through the Stop hook's JSON `systemMessage` field, not stdout:
+# Claude Code never surfaces a successful hook's plain stdout in the transcript
+# (docs/06, 2026-09-29). A prior version of this hook printed to stdout and was
+# never seen.
 set -euo pipefail
 
 repo="${CLAUDE_PROJECT_DIR:-.}"
@@ -25,5 +30,6 @@ behind="$(git -C "$repo" rev-list --count main..develop 2>/dev/null || echo 0)"
 # where it went unnoticed last time, so the threshold sits below that.
 [ "$behind" -ge 6 ] || exit 0
 
-echo "main is ${behind} commits behind develop — worth merging before it grows further (docs/12 §3)."
+message="main is ${behind} commits behind develop — worth merging before it grows further (docs/12 §3)."
+jq -n --arg msg "$message" '{systemMessage: $msg}'
 exit 0

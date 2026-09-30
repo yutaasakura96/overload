@@ -43,12 +43,32 @@ unrecoverable. So:
 
 Pattern documented by Neon ("Automate pg_dump backups", GitHub Actions → S3), checked 2026-09-21.
 
+**As built (2026-09-28, `06`).** `.github/workflows/backup.yml` runs `infra/backup/dump.sh` in the
+GitHub environment `backup`, which admits `develop` only; the role trusts that environment and no
+other subject. The environment holds the variables `BACKUP_BUCKET` and `BACKUP_ROLE_ARN` (the
+outputs of `infra/aws`). The dump runs from the `postgres:18` image; `age` is the 1.3.2 release,
+checksum-pinned. The workflow fails until a public key is in `infra/backup/age-recipients.txt`.
+
 ### Restore — both paths tested before M1 ships
 
 | Path | Use when | Test |
 | --- | --- | --- |
 | Neon restore from history | Damage under 6 hours old (`12` §4) | Once on `staging`, before M1 |
-| S3 dump | Anything older, or Neon itself is the problem | Download, `age -d`, `pg_restore` into Docker Postgres, run the API's test suite against it. Before M1, then quarterly |
+| S3 dump | Anything older, or Neon itself is the problem | Download, `age -d`, `pg_restore` into Docker Postgres, run the API's test suite against it. Before M1, then quarterly. CI's `backup-restore` job runs the same scripts on every pull request, against the test database |
+
+The S3 path, by hand (Yuta's IAM user reads the bucket; the role cannot):
+
+```sh
+aws s3 ls s3://overload-backups-yutaasakura96/backups/ | tail -1          # the newest dump
+aws s3 cp s3://overload-backups-yutaasakura96/backups/<name> /tmp/
+infra/backup/restore.sh /tmp/<name> <the offline age key file>            # into overload_restore
+TEST_DATABASE_URL=postgres://overload_app:overload_app_dev@localhost:5434/overload_restore \
+TEST_DATABASE_URL_DIRECT='postgres://overload_owner:overload_owner_dev@localhost:5434/overload_restore?sslmode=disable' \
+pnpm --filter @overload/api exec vitest run --exclude test/dev-session.test.ts
+```
+
+If `pg_restore` stops on a role Docker lacks (one of Neon's own), create it there `NOLOGIN` and run
+the restore again; the restore runs in one transaction, so nothing half-restored is left.
 
 A restore that has never run is not a backup. Both tests are on the checklist in §9.
 
@@ -112,14 +132,14 @@ This is step one of the migration notes, whenever they are written.
 | Secret | Where it lives | Scope | Cannot |
 | --- | --- | --- | --- |
 | `DATABASE_URL` | Vercel, api | Role `overload_app` (§5) | Change the schema |
-| `DATABASE_URL_DIRECT` | Vercel, api | Role `overload_owner` | — (it is the owner). **Only dbmate reads it**, in the build. Whether Vercel can withhold a variable from the function runtime is unverified (§10), so assume the deployed function's environment holds it too: that is what threat 4 costs if the runtime is compromised |
+| `DATABASE_URL_DIRECT` | Vercel, api | Role `overload_owner` | — (it is the owner). **Only `drizzle-kit migrate` reads it**, in the build. Whether Vercel can withhold a variable from the function runtime is unverified (§10), so assume the deployed function's environment holds it too: that is what threat 4 costs if the runtime is compromised |
 | `DATABASE_URL_BACKUP` | GitHub Actions secret | Role `overload_backup` | Write anything |
 | `BETTER_AUTH_SECRET` | Vercel, api | Signs sessions | — |
 | `GOOGLE_CLIENT_SECRET` | Vercel, api | The one OAuth client (`12` §1) | — |
 | `ANTHROPIC_API_KEY` | Vercel, api | A dedicated **`overload` workspace**, $10/month limit. A key belongs to one workspace and cannot be moved (Anthropic docs, checked 2026-09-21) | Spend past the workspace limit, or touch other workspaces |
 | `CRON_SECRET` | Vercel, api | The cron route only (`08`) | — |
 | `SENTRY_AUTH_TOKEN` | Vercel, web and api | Source-map upload: `project:releases` scope only | Read events or change alerts |
-| GitHub → AWS | None stored: OIDC | `s3:PutObject` on `backups/*` | Read, list, delete |
+| GitHub → AWS | None stored: OIDC, trusted for the `backup` environment only | `s3:PutObject` on `backups/*` | Read, list, delete |
 | Ingest tokens | Hashed in `ingest_token` | One route, one user (`08` §9) | Anything else |
 | `age` private key | Offline, with Yuta | Decrypts backups | — |
 
@@ -133,7 +153,7 @@ branches — so a missing grant fails a test, not production.
 
 | Role | Used by | Privileges |
 | --- | --- | --- |
-| `overload_owner` | dbmate, via `DATABASE_URL_DIRECT` | Owns the schema and every table. DDL |
+| `overload_owner` | `drizzle-kit migrate`, via `DATABASE_URL_DIRECT` | Owns every table. DDL. `CREATE` on the `public` schema and on the database: drizzle's migrator runs `CREATE SCHEMA IF NOT EXISTS` before every run (`06`, 2026-09-25) |
 | `overload_app` | The running API, via `DATABASE_URL` | `SELECT, INSERT, UPDATE, DELETE` on app tables. `SELECT, INSERT` only on `audit_event`. `EXECUTE` on `purge_audit_events()`. No DDL |
 | `overload_backup` | GitHub Actions `pg_dump` | `SELECT` on every table, and `USAGE` on the schema |
 
@@ -144,16 +164,16 @@ branches — so a missing grant fails a test, not production.
 
 ### Creating them — bootstrap, not a migration
 
-A migration cannot create these roles: dbmate connects **as** `overload_owner`, so that role has to
+A migration cannot create these roles: drizzle-kit connects **as** `overload_owner`, so that role has to
 exist before the first migration runs, and Neon requires `CREATE ROLE … LOGIN PASSWORD` with at
 least 60 bits of entropy (Neon docs, checked 2026-09-23) — a password in a committed file would be
 public. So the split is:
 
 | | Creates the roles | Grants their privileges |
 | --- | --- | --- |
-| What | `infra/db/bootstrap.sql` — three `LOGIN` roles, no password, plus `GRANT CREATE ON SCHEMA public TO overload_owner` | The first migration, run as `overload_owner` |
-| Neon | Pasted into the SQL Editor once per branch, as the console-created owner role, then one `ALTER ROLE … PASSWORD '…'` per role with a generated value that is typed into Vercel (or GitHub) and saved nowhere else | dbmate, in the API build (`12` §3) |
-| Local, CI | The same file, from `docker-entrypoint-initdb.d`, with fixed development passwords | dbmate |
+| What | `infra/db/bootstrap.sql` — three `LOGIN` roles, no password, plus `CREATE` for `overload_owner` on schema `public` and on the database | The first migration, run as `overload_owner` |
+| Neon | Pasted into the SQL Editor once per branch, as the console-created owner role, then one `ALTER ROLE … PASSWORD '…'` per role with a generated value that is typed into Vercel (or GitHub) and saved nowhere else | `drizzle-kit migrate`, in the API build (`12` §3) |
+| Local, CI | The same file, from `docker-entrypoint-initdb.d`, with fixed development passwords | `drizzle-kit migrate` |
 
 **Branch order matters.** Neon copies a parent branch's roles, passwords included, into a child at
 creation (Neon docs, checked 2026-09-23). Create the `staging` branch **before** the bootstrap, and
@@ -275,12 +295,16 @@ Nothing below is needed while Yuta is the only user. All of it is needed before 
 
 ## 10. Unverified, to check when built
 
-- What client IP the API project sees on a request rewritten from the web project (§3).
+- What client IP the API project sees on a request rewritten from the web project (§3). Better Auth's
+  rate limiter depends on it too: it reads `x-forwarded-for` and uses it only when the header holds a
+  single address (1.7.5 source, `08` *Unverified*).
 - Whether a Vercel variable can be withheld from the function runtime and given only to the build.
   If it cannot, `DATABASE_URL_DIRECT` (role `overload_owner`) sits in the deployed function's
   environment, and threat 4's "the runtime URL can't drop tables" holds only for `DATABASE_URL`
   (§4, §6). *Added 2026-09-23.*
 - Neon's DPA terms, for APPI's cloud exception (§9).
-- Whether Better Auth's adapter works under `overload_app` with no DDL (it should; its tables are
-  created by our migrations, not by Better Auth at runtime).
+- ~~Whether Better Auth's adapter works under `overload_app` with no DDL.~~ **Answered 2026-09-25:**
+  it does. Every Vitest and Playwright run signs in, writes sessions and rate-limit rows, and signs
+  out as `overload_app`, which holds only `SELECT, INSERT, UPDATE, DELETE` from the privileges
+  migration; the tables come from the migrations running as `overload_owner` (dbmate then, drizzle-kit since 2026-09-25).
 - Sentry auth token scope names at the time of creation.

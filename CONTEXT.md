@@ -67,7 +67,9 @@ _Avoid_: template, program, plan (plan belongs to meals); using "routine" for th
 **Exercise**:
 A movement in the library, either **seeded** (shared, about 50) or **custom** (one user's own).
 A **hidden** exercise is off the user's pickers but still named in history.
-_Avoid_: lift, movement (in code)
+Named **specification → equipment → exercise**: "Barbell Bench Press", "1 Arm Dumbbell Row". One
+name per movement, so "DB Row" and "Dumbbell Row" never become two rows.
+_Avoid_: lift, movement (in code); abbreviating the equipment in a name
 
 **Set**:
 One logged effort of an exercise within a workout, with weight, reps and optional RIR or RPE (`set`).
@@ -87,11 +89,14 @@ _Avoid_: previous, history
 
 **Suggestion**:
 Today's proposed weight for an exercise: last weight plus the increment if every working set last
-time reached the top of the rep range, otherwise the same weight. Never overwrites a typed value.
+time reached the top of the rep range, otherwise the same weight, rounded up to a weight the equipment can make. Never overwrites a typed
+value.
 _Avoid_: recommendation, target weight, prescription
 
 **Increment**:
-The step a suggestion adds, per exercise (2.5 kg barbell, 2 kg dumbbell by default).
+The step a suggestion adds, per exercise (2.5 kg barbell, 1 kg dumbbell by default). The
+equipment class it is seeded from is a load-increment distinction, not an inventory one: a
+plate-loaded machine shares the barbell's plates, a selectorised stack does not.
 _Avoid_: jump, step size
 
 **e1RM**:
