@@ -555,3 +555,43 @@ test('an exercise answer already in flight cannot enter the previous account cop
   await expect(page.getByText(EMAIL_B)).toBeVisible();
   await expect(page.getByText(OWN_B)).toBeVisible();
 });
+
+test('a retry answered under another account’s cookie never enters the open account’s copy', async ({
+  page,
+  context,
+}) => {
+  await useCookie(context, userA);
+
+  // A's launch is confirmed, then its library request fails once. Before the retry, the cookie becomes
+  // B's with no reload and no account check in between, as `pnpm dev:session` can leave an open tab
+  // (docs/08 §5).
+  const { promise: switched, resolve: switchDone } = Promise.withResolvers<void>();
+  let calls = 0;
+  await page.route('**/api/exercises', async (route) => {
+    calls += 1;
+    if (calls === 1) {
+      await switched;
+      await route.fulfill({ status: 500, contentType: 'application/problem+json', body: '{}' });
+      return;
+    }
+    const response = await route.fetch();
+    const { items }: { items: { name: string }[] } = await response.json();
+    const [first, ...rest] = items;
+    await route.fulfill({ response, json: { items: [{ ...first, name: OWN_B }, ...rest] } });
+  });
+  const asked = page.waitForRequest('**/api/exercises');
+  await page.goto('/');
+  await asked;
+  await expect(page.getByText(EMAIL_A)).toBeVisible();
+  await expect.poll(() => savedCache(page, userA)).toContain(EMAIL_A);
+  await useCookie(context, userB);
+  switchDone();
+
+  // The retry answers as B: A's copy refuses it, and the tab opens B's own copy instead.
+  await expect(page.getByText(EMAIL_B)).toBeVisible();
+  await expect(page.getByText(OWN_B)).toBeVisible();
+  await page.waitForTimeout(1500);
+  expect(await savedCache(page, userA)).not.toContain(OWN_B);
+  expect(await savedCache(page, userB)).toContain(OWN_B);
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+});

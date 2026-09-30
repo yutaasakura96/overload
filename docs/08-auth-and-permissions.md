@@ -198,10 +198,12 @@ The endpoint list is `docs/07`.
   data arrives and opens their own copy instead. A tab receiving an account-change notice closes
   its current copy and reloads. Sign-out across tabs and its limits are in §7. A launch back from
   sign-in opens no copy until `/api/me` answers.
-- After switching accounts with the local `pnpm dev:session` helper, reload the open app page.
-  A retry before the next account check can still save the new account's response in the previous
-  account's copy; the remaining gap is tracked in
-  [#13](https://github.com/yutaasakura96/overload/issues/13).
+- **Every member response names its account** in the `Overload-User` header, the id of the user
+  whose session answered (`07` §1.1). The web app keeps a per-user answer only when that header
+  names the confirmed account. Any other answer, such as a retry sent after the cookie changed
+  under an open tab (the local `pnpm dev:session` helper does this), is dropped before it reaches
+  the cache, and `/api/me` is asked again, which opens the copy of the account the cookie now
+  holds.
 - **Offline**, the app opens as that user, and the gym screen works exactly as it does online. New
   sets are pending and carry that user's id in the set store. With a copy to open, the launch waits
   3 s for `/api/me`, once, then treats a timeout or network error as offline: it shows that copy and

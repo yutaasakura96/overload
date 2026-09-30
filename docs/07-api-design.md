@@ -28,6 +28,9 @@ Written 2026-09-21. Decisions and the options rejected are in `docs/06` (2026-09
 - **Absent and null differ.** In a PATCH an omitted field is unchanged and `null` clears it. In a
   response every field is present, and `null` means no value.
 - Every response carries `Cache-Control: private, no-store` and `X-Request-Id`.
+- Every response to a signed-in caller carries `Overload-User`, the id of the user whose session
+  answered, and every member route's success response declares it in the contract. A client keeps
+  a per-user body only for the account it names (`08` §5).
 
 ### 1.2 Methods and retries
 

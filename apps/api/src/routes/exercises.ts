@@ -1,6 +1,7 @@
 import { createRoute, defineOpenAPIRoute, z } from '@hono/zod-openapi';
 import type { AppEnv, RouteDeps } from '../app-env.js';
 import { listExercises } from '../db/exercises.js';
+import { accountHeaders } from '../lib/account.js';
 import { problemResponse } from '../lib/problem.js';
 import { ExerciseList } from './schemas.js';
 
@@ -19,7 +20,11 @@ const getExercises = createRoute({
     }),
   },
   responses: {
-    200: { description: 'The library', content: { 'application/json': { schema: ExerciseList } } },
+    200: {
+      description: 'The library',
+      headers: accountHeaders,
+      content: { 'application/json': { schema: ExerciseList } },
+    },
     400: problemResponse('A query parameter of the wrong type'),
     401: problemResponse('No session'),
   },

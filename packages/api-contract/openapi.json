@@ -322,6 +322,17 @@
         "responses": {
           "200": {
             "description": "The caller",
+            "headers": {
+              "Overload-User": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "The id of the user whose session answered. Keep the body for that account only."
+                },
+                "required": true,
+                "description": "The id of the user whose session answered. Keep the body for that account only."
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -365,6 +376,17 @@
         "responses": {
           "200": {
             "description": "The library",
+            "headers": {
+              "Overload-User": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "The id of the user whose session answered. Keep the body for that account only."
+                },
+                "required": true,
+                "description": "The id of the user whose session answered. Keep the body for that account only."
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
