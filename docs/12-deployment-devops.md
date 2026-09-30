@@ -109,7 +109,7 @@ per app, pointing at Docker Postgres — local never touches Neon.
 - Changing a variable does nothing until the next deploy, and an Instant Rollback keeps the old
   deployment's variables (Vercel docs, checked 2026-09-21). After rotating a secret, redeploy.
 - One more secret lives outside Vercel: `DATABASE_URL_BACKUP` (direct connection, role
-  `overload_backup`), a GitHub Actions secret for the nightly backup (`13` §2).
+  `overload_backup`), a secret of the GitHub `backup` environment for the nightly backup (`13` §2).
 - Rotation steps for a leaked key are the incident plan in `13` §8.
 
 ---
