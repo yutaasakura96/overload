@@ -2875,3 +2875,31 @@ and left the gap open.
   requests.
 
 **Changed:** `07` §1.1, `08` §5, `AGENTS.md` (commands).
+
+### 2026-10-01 — Form fields type at 16px, and their border is `line/control`
+
+Slice 2 brings the app's first text fields (`10` §8.1). iOS Safari zooms into a focused input whose
+text is under 16px, and the scale has nothing between 15 and 17. Typed text is therefore 16px sans,
+added to `05` §2.2 as a field size, not a display size; typed figures use the existing 17px mono.
+Rejected: `maximum-scale=1` in the viewport, which disables pinch zoom (WCAG 1.4.4), and 17px sans,
+a size the scale keeps for figures. The field border is `line/control` (3.38:1), not `line/field`
+(1.54:1): the label names a field but an empty field's border is what shows where to type, the case
+`05` §1.5 does not let `line/field` cover.
+
+**Changed:** `05`, `10`, `apps/web/src/styles.css`.
+
+### 2026-10-01 — `/` stays the exercise library until slice 3's Today screen
+
+Slice 2 adds `/routines` beside the library, switched by tabs. Moving the library off `/` now would
+move it twice, once more when Today arrives, and the per-account cache's browser tests all start at
+`/` (`08` §5). Routines open their editor until slice 3 starts a workout from them.
+
+**Changed:** `10`.
+
+### 2026-10-01 — Deleting an exercise checks history only once sets exist
+
+`07` refuses a delete with 409 `exercise_has_history` when the exercise has sets. The `set` table
+arrives in slice 3, so slice 2's delete refuses only `exercise_in_routine`; slice 3 adds the history
+check with the table. Both refusals send the user to hiding it instead, which keeps it in history.
+
+**Changed:** `07`.

@@ -254,6 +254,15 @@ GET /api/exercises  →  200
 
 `overrides` tells the settings screen which values are the user's own and which are defaults.
 
+- **Create.** `id`, `name` and `equipment` are required. An omitted `incrementKg` takes the equipment
+  class's increment (`04` `exercise`), `restSeconds` 120 and the rep range 6–10. A name one of the
+  caller's own exercises already has, in any case, is a 422 on `name`, for create and edit alike.
+- **Delete.** Until slice 3 adds the `set` table there is no history to check, so only
+  `exercise_in_routine` refuses. A seeded exercise is nobody's to delete: 204, and nothing changes.
+- **Setting.** The body is the whole setting. The effective rep range, the user's values over the
+  defaults, must be in order, or 422 on `repLow`. A setting that is all `null` and not hidden removes
+  the row, so the exercise is back to its defaults. Hiding keeps the first `hidden_at`.
+
 ### Routines
 
 | Method | Path | Auth | Purpose | Success | Failures |
@@ -261,7 +270,7 @@ GET /api/exercises  →  200
 | GET | `/api/routines` | M | Every routine with its slots, in `position` order | 200 | 401 |
 | POST | `/api/routines` | M | Create, optionally with `exercises[]` | 201 / 200 | 401, 409, 422 |
 | PATCH | `/api/routines/{id}` | M | Rename, or move in the list | 200 | 401, 404, 422 |
-| PUT | `/api/routines/{id}/exercises` | M | Replace the whole slot list. Order is array order, so a reorder is one call | 200 | 401, 404, 422 (unknown or hidden exercise) |
+| PUT | `/api/routines/{id}/exercises` | M | Replace the whole slot list. Order is array order, so a reorder is one call | 200 | 401, 404, 409 `id_conflict`, 422 (unknown or hidden exercise) |
 | DELETE | `/api/routines/{id}` | M | Delete. Past workouts keep their name (`04`) | 204 | 401 |
 
 ```http
@@ -271,6 +280,17 @@ PUT /api/routines/0192r001-…/exercises
   { "id": "0192r102-…", "exerciseId": "0192a1f4-…", "targetSets": 3, "repLow": 12, "repHigh": 15 }
 ] }
 ```
+
+- **Slots.** Up to 40, each slot `id` once. `targetSets` defaults to 3. A slot's rep range is both
+  ends or neither: neither follows the exercise (setting, then default), and one alone is a 422 on the
+  missing end. An exercise that is another user's, or hidden by the caller, is a 422 on that slot's
+  `exerciseId`.
+- **Slot ids** are made on the device like any row's. A PUT keeps a slot's id when it keeps the slot,
+  and one already belonging to another routine is a 409 `id_conflict`.
+- **Create** puts the routine last in the list. A repeat with the same name and slots is a 200; the
+  same id with other content is a 409 `id_conflict`.
+- **`PATCH` `position`** moves the routine to that place, 0 first, and past the end means last. The
+  others close up around it, so the positions are always 0…n−1.
 
 ### Last time and suggestions, for offline use
 
