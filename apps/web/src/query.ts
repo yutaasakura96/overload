@@ -1,4 +1,4 @@
-import type { Me } from '@overload/api-contract';
+import { ACCOUNT_HEADER, type Me } from '@overload/api-contract';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
 import { QueryClient, queryOptions } from '@tanstack/react-query';
 import {
@@ -261,18 +261,37 @@ export const meQuery = queryOptions({
   },
 });
 
+/**
+ * One account's answer from a member route, kept only when it is the confirmed account's: the API
+ * names whose session answered, so an answer made under another account's cookie (a retry after the
+ * cookie changed) never reaches this account's copy. A mismatch asks /api/me again, which opens the
+ * copy of the account the cookie now holds (docs/08 §5).
+ */
+async function confirmedAccountData<T>(
+  request: () => Promise<{ data?: T; error?: unknown; response: Response }>,
+): Promise<NonNullable<T>> {
+  const generation = accountGeneration;
+  const { userId } = account;
+  if (account.status !== 'confirmed' || userId === undefined) {
+    throw new AccountCheckFailed('Account unconfirmed');
+  }
+  const result = await request();
+  const data = unwrap(result);
+  if (generation !== accountGeneration || account.status !== 'confirmed') {
+    throw new AccountCheckFailed('Account changed');
+  }
+  if (result.response.headers.get(ACCOUNT_HEADER) !== userId) {
+    void queryClient.invalidateQueries({ queryKey: ME_KEY });
+    throw new AccountCheckFailed('Answered for another account');
+  }
+  return data;
+}
+
 /** One account's data: enable it only once /api/me has confirmed the account (`useAccount`). */
 export const exercisesQuery = queryOptions({
   queryKey: ['exercises'],
   refetchOnWindowFocus: false,
   refetchOnReconnect: false,
-  queryFn: async ({ signal }) => {
-    const generation = accountGeneration;
-    if (account.status !== 'confirmed') throw new AccountCheckFailed('Account unconfirmed');
-    const items = unwrap(await api.GET('/api/exercises', { signal })).items;
-    if (generation !== accountGeneration || account.status !== 'confirmed') {
-      throw new AccountCheckFailed('Account changed');
-    }
-    return items;
-  },
+  queryFn: async ({ signal }) =>
+    (await confirmedAccountData(() => api.GET('/api/exercises', { signal }))).items,
 });

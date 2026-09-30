@@ -60,6 +60,8 @@ export interface paths {
         /** @description The caller */
         200: {
           headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
             [name: string]: unknown;
           };
           content: {
@@ -108,6 +110,8 @@ export interface paths {
         /** @description The library */
         200: {
           headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
             [name: string]: unknown;
           };
           content: {

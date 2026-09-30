@@ -6,6 +6,7 @@ import { HTTPException } from 'hono/http-exception';
 import { requestId } from 'hono/request-id';
 import type { AppEnv, RouteDeps } from './app-env.js';
 import type { Auth } from './auth/auth.js';
+import { ACCOUNT_HEADER } from './lib/account.js';
 import { describeError } from './lib/error-log.js';
 import type { ReportError } from './lib/error-report.js';
 import { problem, type ProblemCode } from './lib/problem.js';
@@ -79,7 +80,9 @@ export function createApp({ auth, config, db, log = console.log, reportError }: 
     if (session === null) return problem(c, 'unauthenticated');
     const { id, name, email, image } = session.user;
     c.set('user', { id, name, email, image: image ?? null });
-    return next();
+    await next();
+    // Names whose session answered, so a client can refuse another account's answer (docs/08 §5).
+    c.res.headers.set(ACCOUNT_HEADER, id);
   });
 
   app.on(['GET', 'POST'], `${AUTH_PREFIX}*`, (c) => auth.handler(c.req.raw));
