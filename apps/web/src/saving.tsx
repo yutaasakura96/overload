@@ -13,6 +13,8 @@ export type SaveProblem =
       code: string | undefined;
       fields: Map<string, string>;
       routines: { id: string; name: string }[];
+      /** What an earlier call of the same save already stored, when only a later one was refused. */
+      saved?: string;
     };
 
 export function saveProblem(error: unknown): SaveProblem {
@@ -27,22 +29,26 @@ export function saveProblem(error: unknown): SaveProblem {
 }
 
 /**
- * A refusal made before sending, for the fields whose text is not a finite number. JSON would send
- * NaN or Infinity as null, which the API reads as "use the default", so such a field never leaves
- * the device.
+ * The fields whose text is not a finite number. JSON would send NaN or Infinity as null, which the
+ * API reads as "use the default", so such a field never leaves the device.
  */
 export function unreadableFigures(
   figures: [path: string, text: string][],
+): [path: string, message: string][] {
+  return figures
+    .filter(([, text]) => {
+      const figure = parseFigure(text);
+      return figure !== null && !Number.isFinite(figure);
+    })
+    .map(([path]) => [path, 'Enter a number, in digits only']);
+}
+
+/** A refusal made before sending, for the fields the device already knows the server would refuse. */
+export function refusedOnDevice(
+  fields: [path: string, message: string][],
 ): SaveProblem | undefined {
-  const unreadable = figures.filter(([, text]) => {
-    const figure = parseFigure(text);
-    return figure !== null && !Number.isFinite(figure);
-  });
-  if (unreadable.length === 0) return undefined;
-  const fields = new Map(
-    unreadable.map(([path]) => [path, 'Enter a number, in digits only'] as [string, string]),
-  );
-  return { kind: 'refused', code: undefined, fields, routines: [] };
+  if (fields.length === 0) return undefined;
+  return { kind: 'refused', code: undefined, fields: new Map(fields), routines: [] };
 }
 
 /**
@@ -94,6 +100,7 @@ export function SaveNotice({ problem, what }: { problem: SaveProblem | undefined
 }
 
 function refusal(problem: Extract<SaveProblem, { kind: 'refused' }>, what: string) {
+  if (problem.saved !== undefined) return problem.saved;
   if (problem.code === 'exercise_in_routine') {
     const names = problem.routines.map((routine) => routine.name).join(', ');
     return `Used by ${names}. Take it out of ${problem.routines.length === 1 ? 'that routine' : 'those routines'} first, or hide it instead.`;

@@ -33,11 +33,22 @@ test('a routine is created from the picker, reordered and deleted', async ({ pag
   await expect(slots).toHaveCount(2);
   await expect(slots.nth(0)).toContainText('Barbell Bench Press');
 
-  // A half-set rep range is refused by the server, and the edit stays.
+  // A half-set rep range is refused on the missing end before any request, and the edit stays.
+  const writes: string[] = [];
+  page.on('request', (request) => {
+    if (request.url().includes('/api/routines') && request.method() !== 'GET') {
+      writes.push(request.method());
+    }
+  });
   await page.getByRole('textbox', { name: 'Reps low for Barbell Bench Press' }).fill('5');
   await page.getByRole('button', { name: 'Create routine' }).click();
   await expect(page.getByRole('alert').first()).toContainText('Refused');
+  await expect(page.getByText('Set both ends of the range, or neither')).toBeVisible();
+  await expect(
+    page.getByRole('textbox', { name: 'Reps high for Barbell Bench Press' }),
+  ).toHaveAttribute('aria-invalid', 'true');
   await expect(page.getByRole('textbox', { name: 'Name' })).toHaveValue(name);
+  expect(writes).toEqual([]);
 
   // Text that is not a number is refused on the device, never sent as "follow the exercise".
   const repsLow = page.getByRole('textbox', { name: 'Reps low for Barbell Bench Press' });
@@ -65,6 +76,20 @@ test('a routine is created from the picker, reordered and deleted', async ({ pag
   await page.getByRole('button', { name: 'Save routine' }).click();
   await expect(page).toHaveURL('/routines');
   await expect(row).toContainText('Incline Dumbbell Bench Press, Barbell Bench Press');
+
+  // The slots are saved before the name, so a refused name leaves only the name unsaved.
+  await row.click();
+  writes.length = 0;
+  await page.getByRole('textbox', { name: 'Sets for Barbell Bench Press' }).fill('4');
+  await page.getByRole('textbox', { name: 'Name' }).fill(' ');
+  await page.getByRole('button', { name: 'Save routine' }).click();
+  await expect(page.getByRole('alert').first()).toContainText(
+    'The exercises were saved; the name was not.',
+  );
+  await expect(page.getByRole('textbox', { name: 'Name' })).toHaveAttribute('aria-invalid', 'true');
+  expect(writes).toEqual(['PUT', 'PATCH']);
+  await page.getByRole('button', { name: 'Back to routines' }).click();
+  await expect(row).toContainText('2 EXERCISES · 7 SETS', { ignoreCase: true });
 
   await row.click();
   await page.getByRole('button', { name: 'Delete routine' }).click();

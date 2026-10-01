@@ -23,6 +23,7 @@ import {
 } from '../query';
 import {
   SaveNotice,
+  refusedOnDevice,
   saveProblem,
   unreadableFigures,
   useFocusRefused,
@@ -61,6 +62,16 @@ const slotsBody = (slots: DraftSlot[]) =>
     repLow: parseFigure(slot.repLow),
     repHigh: parseFigure(slot.repHigh),
   }));
+
+/** Slots with one end of the rep range set: refused on the missing end, as the server would. */
+const halfSetRanges = (slots: DraftSlot[]): [path: string, message: string][] =>
+  slots.flatMap((slot, index) => {
+    const low = slot.repLow.trim() !== '';
+    const high = slot.repHigh.trim() !== '';
+    if (low === high) return [];
+    const missing = low ? 'repHigh' : 'repLow';
+    return [[`exercises.${index}.${missing}`, 'Set both ends of the range, or neither']];
+  });
 
 export function RoutineEditor({
   routine,
@@ -140,7 +151,8 @@ export function RoutineEditor({
       return next;
     });
 
-  async function run(write: () => Promise<void>) {
+  /** `slotsSaved` says whether the slots already landed when a later call failed. */
+  async function run(write: () => Promise<void>, slotsSaved = () => false) {
     setBusy(true);
     setProblem(undefined);
     try {
@@ -148,39 +160,52 @@ export function RoutineEditor({
       await refreshRoutines();
       navigate('/routines', { replace: true });
     } catch (error) {
-      setProblem(saveProblem(error));
+      const failed = saveProblem(error);
+      if (slotsSaved()) {
+        await refreshRoutines();
+        if (failed.kind === 'refused') failed.saved = 'The exercises were saved; the name was not.';
+      }
+      setProblem(failed);
       setBusy(false);
     }
   }
 
   const save = () => {
-    const unreadable = unreadableFigures(
-      slots.flatMap((s, index) =>
-        (['targetSets', 'repLow', 'repHigh'] as const).map((field): [string, string] => [
-          `exercises.${index}.${field}`,
-          s[field],
-        ]),
+    const refused = refusedOnDevice([
+      ...unreadableFigures(
+        slots.flatMap((s, index) =>
+          (['targetSets', 'repLow', 'repHigh'] as const).map((field): [string, string] => [
+            `exercises.${index}.${field}`,
+            s[field],
+          ]),
+        ),
       ),
+      ...halfSetRanges(slots),
+    ]);
+    if (refused !== undefined) return setProblem(refused);
+    let slotsSaved = false;
+    return run(
+      async () => {
+        if (routine === undefined) {
+          unwrap(
+            await api.POST('/api/routines', { body: { id, name, exercises: slotsBody(slots) } }),
+          );
+          return;
+        }
+        const path = { params: { path: { id } } };
+        const body = slotsBody(slots);
+        if (JSON.stringify(body) !== JSON.stringify(slotsBody(draftOf(routine)))) {
+          unwrap(
+            await api.PUT('/api/routines/{id}/exercises', { ...path, body: { exercises: body } }),
+          );
+          slotsSaved = true;
+        }
+        if (name.trim() !== routine.name) {
+          unwrap(await api.PATCH('/api/routines/{id}', { ...path, body: { name } }));
+        }
+      },
+      () => slotsSaved,
     );
-    if (unreadable !== undefined) return setProblem(unreadable);
-    return run(async () => {
-      if (routine === undefined) {
-        unwrap(
-          await api.POST('/api/routines', { body: { id, name, exercises: slotsBody(slots) } }),
-        );
-        return;
-      }
-      const path = { params: { path: { id } } };
-      if (name.trim() !== routine.name) {
-        unwrap(await api.PATCH('/api/routines/{id}', { ...path, body: { name } }));
-      }
-      const body = slotsBody(slots);
-      if (JSON.stringify(body) !== JSON.stringify(slotsBody(draftOf(routine)))) {
-        unwrap(
-          await api.PUT('/api/routines/{id}/exercises', { ...path, body: { exercises: body } }),
-        );
-      }
-    });
   };
 
   const remove = () =>

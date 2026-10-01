@@ -17,6 +17,7 @@ import { newId } from '../ids';
 import { allExercisesQuery, forAccount, refreshExercises, useAccount } from '../query';
 import {
   SaveNotice,
+  refusedOnDevice,
   saveProblem,
   unreadableFigures,
   useFocusRefused,
@@ -113,8 +114,8 @@ export function ExerciseForm({
     unwrap(await api.PUT('/api/exercises/{id}/setting', { params: { path: { id } }, body }));
 
   const save = () => {
-    const unreadable = unreadableFigures(Object.entries(figures));
-    if (unreadable !== undefined) return setProblem(unreadable);
+    const refused = refusedOnDevice(unreadableFigures(Object.entries(figures)));
+    if (refused !== undefined) return setProblem(refused);
     return run(async () => {
       if (creating) {
         return unwrap(

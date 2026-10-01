@@ -441,7 +441,10 @@ components, and pass the polish gate (`AGENTS.md`). Nothing here adds a token or
 - **Save notices.** `Not saved` in `flag` when the server was not reached: the form keeps
   everything, and saving again later works. `Refused` in `error` when the server refused, or before
   sending when a figure is not a number (`Enter a number, in digits only`), so it never goes as
-  `null`, which would mean the default. Neither queues offline (`06`, offline scope).
+  `null`, which would mean the default, or when a slot has one end of its rep range (`Set both ends
+  of the range, or neither`). Neither queues offline (`06`, offline scope).
+- **Saving a routine.** Its slots go before its name, so a refused slot list saves nothing. A name
+  refused after the slots landed says `The exercises were saved; the name was not.`
 - **Delete.** A tertiary button that becomes the question in place, with `Keep` and `Delete`. Focus
   moves to `Keep`, and back to the button on `Keep`. `error` is never the colour of a destructive
   button (`05` §1.4).
