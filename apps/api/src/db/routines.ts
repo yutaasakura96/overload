@@ -62,7 +62,7 @@ export async function createRoutine(
   input: { id: string; name: string; exercises: SlotInput[] },
 ): Promise<CreateRoutineResult> {
   const slots = input.exercises.map(normalise);
-  const unusable = await unusableSlotIndexes(db, userId, slots);
+  const unusable = await unusableSlotIndexes(db, userId, slots, []);
   if (unusable.length > 0) return { kind: 'unusable_exercises', indexes: unusable };
 
   const created = await db.transaction(async (tx) => {
@@ -161,7 +161,16 @@ export async function replaceRoutineExercises(
       .where(and(eq(routine.id, id), eq(routine.userId, userId)))
       .returning({ id: routine.id });
     if (owned.length === 0) return { kind: 'not_found' } as const;
-    const unusable = await unusableSlotIndexes(tx, userId, slots);
+    const held = await tx
+      .select({ exerciseId: routineExercise.exerciseId })
+      .from(routineExercise)
+      .where(eq(routineExercise.routineId, id));
+    const unusable = await unusableSlotIndexes(
+      tx,
+      userId,
+      slots,
+      held.map((slot) => slot.exerciseId),
+    );
     if (unusable.length > 0) return { kind: 'unusable_exercises', indexes: unusable } as const;
     if (await slotIdsTaken(tx, slots, id)) return { kind: 'id_conflict' } as const;
 
@@ -201,11 +210,17 @@ function sameSlot(stored: RoutineSlot, sent: Slot | undefined) {
   );
 }
 
-/** Which slots name an exercise this user cannot use: unknown, another user's, or hidden. */
-async function unusableSlotIndexes(db: Queryable, userId: string, slots: Slot[]) {
-  const usable = await usableExerciseIds(db, userId, [
-    ...new Set(slots.map((slot) => slot.exerciseId)),
-  ]);
+/**
+ * Which slots name an exercise this user cannot use: unknown, another user's, or hidden. A hidden
+ * exercise the routine already holds (`held`) stays usable, so hiding it never blocks the routine.
+ */
+async function unusableSlotIndexes(db: Queryable, userId: string, slots: Slot[], held: string[]) {
+  const usable = await usableExerciseIds(
+    db,
+    userId,
+    [...new Set(slots.map((slot) => slot.exerciseId))],
+    held,
+  );
   return slots.flatMap((slot, index) => (usable.has(slot.exerciseId) ? [] : [index]));
 }
 

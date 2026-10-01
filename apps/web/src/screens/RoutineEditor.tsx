@@ -21,7 +21,13 @@ import {
   routinesQuery,
   useAccount,
 } from '../query';
-import { SaveNotice, saveProblem, useFocusRefused, type SaveProblem } from '../saving';
+import {
+  SaveNotice,
+  saveProblem,
+  unreadableFigures,
+  useFocusRefused,
+  type SaveProblem,
+} from '../saving';
 import { ExerciseForm } from './ExerciseForm';
 import { ExercisePicker } from './ExercisePicker';
 
@@ -147,8 +153,17 @@ export function RoutineEditor({
     }
   }
 
-  const save = () =>
-    run(async () => {
+  const save = () => {
+    const unreadable = unreadableFigures(
+      slots.flatMap((s, index) =>
+        (['targetSets', 'repLow', 'repHigh'] as const).map((field): [string, string] => [
+          `exercises.${index}.${field}`,
+          s[field],
+        ]),
+      ),
+    );
+    if (unreadable !== undefined) return setProblem(unreadable);
+    return run(async () => {
       if (routine === undefined) {
         unwrap(
           await api.POST('/api/routines', { body: { id, name, exercises: slotsBody(slots) } }),
@@ -166,6 +181,7 @@ export function RoutineEditor({
         );
       }
     });
+  };
 
   const remove = () =>
     run(async () => {

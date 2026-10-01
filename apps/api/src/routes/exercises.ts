@@ -62,7 +62,7 @@ const postExercise = createRoute({
     200: exerciseResponse('A repeat of the same create: the stored exercise'),
     401: problemResponse('No session'),
     409: problemResponse('`id_conflict`: the id is in use with different content'),
-    422: problemResponse('`validation_failed`, including a name the caller already uses'),
+    422: problemResponse('`validation_failed`, including an inverted rep range or a name in use'),
   },
 });
 
@@ -129,7 +129,10 @@ export function exerciseRoutes({ db }: RouteDeps) {
         if (result.kind === 'created') return c.json(result.exercise, 201);
         if (result.kind === 'existing') return c.json(result.exercise, 200);
         if (result.kind === 'id_conflict') return problem(c, 'id_conflict');
-        return fieldRefused(c, 'name', 'You already have an exercise with this name');
+        if (result.kind === 'duplicate_name') {
+          return fieldRefused(c, 'name', 'You already have an exercise with this name');
+        }
+        return fieldRefused(c, 'repLow', 'repLow must not exceed repHigh');
       },
     }),
     defineOpenAPIRoute<typeof patchExercise, AppEnv>({

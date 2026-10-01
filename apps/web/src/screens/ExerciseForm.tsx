@@ -15,7 +15,13 @@ import {
 import { classIncrementKg, equipmentLabels, newExerciseDefaults } from '../equipment';
 import { newId } from '../ids';
 import { allExercisesQuery, forAccount, refreshExercises, useAccount } from '../query';
-import { SaveNotice, saveProblem, useFocusRefused, type SaveProblem } from '../saving';
+import {
+  SaveNotice,
+  saveProblem,
+  unreadableFigures,
+  useFocusRefused,
+  type SaveProblem,
+} from '../saving';
 
 // S8's write half (docs/10 §8.1): a new custom exercise, an edit of one, or the caller's own values
 // for a seeded one. A seeded exercise is nobody's to rename; its figures are overridden per user and
@@ -106,8 +112,10 @@ export function ExerciseForm({
   const putSetting = async (body: ReturnType<typeof settingOf>) =>
     unwrap(await api.PUT('/api/exercises/{id}/setting', { params: { path: { id } }, body }));
 
-  const save = () =>
-    run(async () => {
+  const save = () => {
+    const unreadable = unreadableFigures(Object.entries(figures));
+    if (unreadable !== undefined) return setProblem(unreadable);
+    return run(async () => {
       if (creating) {
         return unwrap(
           await api.POST('/api/exercises', {
@@ -146,6 +154,7 @@ export function ExerciseForm({
         hidden: exercise.hidden,
       });
     });
+  };
 
   const setHidden = (hidden: boolean) => {
     if (exercise === undefined) return;

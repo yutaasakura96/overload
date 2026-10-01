@@ -126,7 +126,8 @@ export type CreateExerciseResult =
   | { kind: 'created'; exercise: UserExercise }
   | { kind: 'existing'; exercise: UserExercise }
   | { kind: 'id_conflict' }
-  | { kind: 'duplicate_name' };
+  | { kind: 'duplicate_name' }
+  | { kind: 'inverted_range' };
 
 /**
  * A custom exercise. The id is the client's, so a retried create lands once: a repeat with the same
@@ -145,6 +146,7 @@ export async function createExercise(
     repLow: input.repLow ?? defaultRepRange.low,
     repHigh: input.repHigh ?? defaultRepRange.high,
   };
+  if (fields.repLow > fields.repHigh) return { kind: 'inverted_range' };
   // No conflict target: the id's primary key and the one-name-per-owner index both land here, and
   // what follows tells them apart without an error in the transaction.
   const inserted = await db
@@ -302,20 +304,22 @@ export async function putExerciseSetting(
 }
 
 /**
- * The ids among `ids` that this user may put in a routine: seeded or their own, and not hidden.
- * Anything else is refused as if it did not exist (docs/07 §1.3, docs/08 §4).
+ * The ids among `ids` that this user may put in a routine: seeded or their own, and not hidden
+ * unless the routine already holds it (`held`). Anything else is refused as if it did not exist
+ * (docs/07 §1.3, docs/08 §4).
  */
 export async function usableExerciseIds(
   db: Queryable,
   userId: string,
   ids: string[],
+  held: string[],
 ): Promise<Set<string>> {
   if (ids.length === 0) return new Set();
   const rows = await selectUserExercises(db, userId).where(
     and(
       sql`${exercise.id} = ANY(${sql.param(ids)}::uuid[])`,
       visibleTo(userId),
-      isNull(exerciseSetting.hiddenAt),
+      or(isNull(exerciseSetting.hiddenAt), sql`${exercise.id} = ANY(${sql.param(held)}::uuid[])`),
     ),
   );
   return new Set(rows.map((row) => row.id));

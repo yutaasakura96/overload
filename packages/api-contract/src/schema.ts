@@ -193,7 +193,7 @@ export interface paths {
             'application/problem+json': components['schemas']['Problem'];
           };
         };
-        /** @description `validation_failed`, including a name the caller already uses */
+        /** @description `validation_failed`, including an inverted rep range or a name in use */
         422: {
           headers: {
             [name: string]: unknown;
