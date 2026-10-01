@@ -2854,8 +2854,8 @@ and left the gap open.
 - **The web app keeps an answer only for the account it names.** Per-user queries go through one
   helper in `apps/web/src/query.ts`, which compares the header with the confirmed account after the
   body is unwrapped. On a mismatch it drops the answer and does not retry it. When the header names
-  another account it asks `/api/me` again, once per account named until `/api/me` next confirms
-  an account, which opens the new account's copy as a switch at launch does. The browser test fails
+  another account it asks `/api/me` again, once per account named (`08` §5 has when that resets),
+  which opens the new account's copy as a switch at launch does. The browser test fails
   one library request, switches the cookie, and checks the retry never reaches the first account's
   copy; before the fix it showed the second account's library under the first.
 - **A header, not a field in each body.** One middleware covers every route, the body schemas stay
