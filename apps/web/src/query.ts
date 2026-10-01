@@ -58,10 +58,6 @@ type Account = {
 
 let account: Account = { userId: undefined, status: 'checking' };
 let accountGeneration = 0;
-/** Another account a member answer named, already re-checked, until another confirmation. */
-let refusedUser: string | undefined;
-/** Set when refusedUser asks /api/me again; that re-check's confirmation keeps the marker. */
-let recheckingRefused = false;
 let accountClosed = false;
 let pendingRemember: Promise<unknown> | undefined;
 const listeners = new Set<() => void>();
@@ -209,12 +205,10 @@ export async function openCache() {
 }
 
 /** /api/me named this user: open their copy, dropping any other account's data from memory first. */
-async function confirm(me: Me, generation: number, recheck: boolean) {
+async function confirm(me: Me, generation: number) {
   if (generation !== accountGeneration) throw new AccountCheckFailed('Account closed');
   const { id } = me.user;
   const switched = account.userId !== id;
-  // Kept only when the re-check it asked for confirms the same account, so that answer cannot loop.
-  if (switched || !recheck) refusedUser = undefined;
   if (switched) {
     stopPersisting?.();
     stopPersisting = undefined;
@@ -246,8 +240,6 @@ export const meQuery = queryOptions({
   queryFn: async () => {
     if (accountClosed) throw new AccountCheckFailed('Account closed');
     const generation = ++accountGeneration;
-    const recheck = recheckingRefused;
-    recheckingRefused = false;
     stopPersisting?.();
     stopPersisting = undefined;
     if (account.status === 'confirmed') setAccount({ ...account, status: 'checking' });
@@ -264,7 +256,7 @@ export const meQuery = queryOptions({
       setAccount({ ...account, status: 'unconfirmed' });
       throw new AccountCheckFailed(error);
     }
-    await confirm(me, generation, recheck);
+    await confirm(me, generation);
     return me;
   },
 });
@@ -272,9 +264,8 @@ export const meQuery = queryOptions({
 /**
  * One account's answer from a member route, kept only when it is the confirmed account's: the API
  * names whose session answered, so an answer made under another account's cookie (a retry after the
- * cookie changed) never reaches this account's copy. An answer naming another account asks /api/me
- * again, once per account named, which opens the copy of the account the cookie now holds; an answer
- * naming no one is refused without asking, so neither can loop through /api/me (docs/08 §5).
+ * cookie changed) never reaches this account's copy. It is refused and not retried; the next /api/me
+ * check, at focus or reconnect, opens the account the cookie now holds (docs/08 §5).
  */
 async function confirmedAccountData<T>(
   request: () => Promise<{ data?: T; error?: unknown; response: Response }>,
@@ -289,13 +280,7 @@ async function confirmedAccountData<T>(
   if (generation !== accountGeneration || account.status !== 'confirmed') {
     throw new AccountCheckFailed('Account changed');
   }
-  const answeredFor = result.response.headers.get(ACCOUNT_HEADER);
-  if (answeredFor === userId) return data;
-  if (answeredFor !== null && answeredFor !== refusedUser) {
-    refusedUser = answeredFor;
-    recheckingRefused = true;
-    void queryClient.invalidateQueries({ queryKey: ME_KEY });
-  }
+  if (result.response.headers.get(ACCOUNT_HEADER) === userId) return data;
   throw new AccountCheckFailed('Answered for another account');
 }
 

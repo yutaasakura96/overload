@@ -200,12 +200,11 @@ The endpoint list is `docs/07`.
   sign-in opens no copy until `/api/me` answers.
 - **Every member response names its account** in the `Overload-User` header, the id of the user
   whose session answered (`07` §1.1). The web app keeps a per-user answer only when that header
-  names the confirmed account. Any other answer is dropped before it reaches the cache. One naming
-  another account, such as a retry sent after the cookie changed under an open tab (the local
-  `pnpm dev:session` helper does this), asks `/api/me` again, once per account named until
-  a later `/api/me` check confirms an account (that re-check itself does not count, so an answer
-  it confirms against cannot loop), which opens the copy of the account the cookie now holds. One
-  naming no account shows as not updated without asking again.
+  names the confirmed account. Any other answer, one naming another account (such as a retry sent
+  after the cookie changed under an open tab, which the local `pnpm dev:session` helper does) or
+  one naming no account, is dropped before it reaches the cache, is not retried, and shows as not
+  updated. It does not ask `/api/me` again; the next account check, at focus or reconnect, opens
+  the copy of the account the cookie now holds.
 - **Offline**, the app opens as that user, and the gym screen works exactly as it does online. New
   sets are pending and carry that user's id in the set store. With a copy to open, the launch waits
   3 s for `/api/me`, once, then treats a timeout or network error as offline: it shows that copy and

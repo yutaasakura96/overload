@@ -2853,17 +2853,22 @@ and left the gap open.
   API test fails if one does not. A 401 names no one.
 - **The web app keeps an answer only for the account it names.** Per-user queries go through one
   helper in `apps/web/src/query.ts`, which compares the header with the confirmed account after the
-  body is unwrapped. On a mismatch it drops the answer and does not retry it. When the header names
-  another account it asks `/api/me` again, once per account named (`08` §5 has when that resets),
-  which opens the new account's copy as a switch at launch does. The browser test fails
-  one library request, switches the cookie, and checks the retry never reaches the first account's
-  copy; before the fix it showed the second account's library under the first.
+  body is unwrapped. On any mismatch, a header naming another account or no header at all, it drops
+  the answer, does not retry it, and shows the data as not updated. It does not ask `/api/me` again:
+  the next account check, at focus or reconnect, opens the account the cookie now holds, as a
+  switch at launch does. The browser test fails one library request, switches the cookie, and
+  checks the retry never reaches the first account's copy, `/api/me` is not asked again, and the
+  next focus check opens the second account; before the fix it showed the second account's library
+  under the first.
+- **No re-check on a mismatch.** An earlier draft asked `/api/me` again when the header named
+  another account. Yuta narrowed it in review: rejecting the answer is what #13 asks, the next focus
+  or reconnect check already opens the new account, and a re-check needed module state to keep it
+  from looping.
 - **A header, not a field in each body.** One middleware covers every route, the body schemas stay
   as they are, and the native client can read the same header. **Rejected: an `ownerId` field in
   every response body**, which each new route would have to remember.
 - **Strict: a missing header counts as a mismatch.** A proxy that dropped it would otherwise turn
-  the check off silently. It does not ask `/api/me` again: that check would confirm the same
-  account, remount the library and refetch it, looping for as long as the header is missing. The
+  the check off silently. The
   cost is deploy skew: a web build that reaches users before its API shows the library as not
   updated until the API deploy lands. Nothing is lost, and no one uses the app yet. The browser
   test strips the header and checks the library shows as not updated with a bounded number of
