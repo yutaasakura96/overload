@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { ApiError } from './api';
-import { Notice } from './components';
+import { Notice, parseFigure } from './components';
 import { queryClient } from './query';
 
 // What a failed save shows (docs/09 F2 and F5). Routines and exercises are not queued offline, so a
@@ -24,6 +24,21 @@ export function saveProblem(error: unknown): SaveProblem {
     [...error.fieldErrors].map(([path, message]) => [path, fieldMessage(path, message)]),
   );
   return { kind: 'refused', code: error.code, fields, routines: error.problem?.routines ?? [] };
+}
+
+/**
+ * A refusal made before sending, for the fields whose text is not a number. JSON would send NaN as
+ * null, which the API reads as "use the default", so such a field never leaves the device.
+ */
+export function unreadableFigures(
+  figures: [path: string, text: string][],
+): SaveProblem | undefined {
+  const unreadable = figures.filter(([, text]) => Number.isNaN(parseFigure(text)));
+  if (unreadable.length === 0) return undefined;
+  const fields = new Map(
+    unreadable.map(([path]) => [path, 'Enter a number, in digits only'] as [string, string]),
+  );
+  return { kind: 'refused', code: undefined, fields, routines: [] };
 }
 
 /**

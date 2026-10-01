@@ -279,6 +279,41 @@ describe('PUT /api/routines/{id}/exercises', () => {
     expect(await routines(a.cookie)).toEqual([pushA]);
   });
 
+  it('keeps a hidden exercise the routine already holds, but refuses adding one', async () => {
+    const { cookie } = await t.createSignedInUser('hidden-kept@example.test');
+    const ids = await exerciseIds(cookie);
+    const bench = slot(ids.bench);
+    const pushdown = slot(ids.pushdown);
+    const pushA = await createRoutine(cookie, 'Push A', [bench, pushdown]);
+    const pullA = await createRoutine(cookie, 'Pull A');
+    await send(cookie, 'PUT', `/api/exercises/${ids.bench}/setting`, {
+      incrementKg: null,
+      restSeconds: null,
+      repLow: null,
+      repHigh: null,
+      hidden: true,
+    });
+
+    const kept = await send(cookie, 'PUT', `/api/routines/${pushA.id}/exercises`, {
+      exercises: [{ ...pushdown, targetSets: 5 }, bench],
+    });
+    const added = await send(cookie, 'PUT', `/api/routines/${pullA.id}/exercises`, {
+      exercises: [slot(ids.incline), slot(ids.bench)],
+    });
+
+    expect(kept.status).toBe(200);
+    const stored: Routine = await kept.json();
+    expect(stored.exercises.map((s) => [s.exerciseId, s.targetSets])).toEqual([
+      [ids.pushdown, 5],
+      [ids.bench, 3],
+    ]);
+    expect(added.status).toBe(422);
+    expect(await added.json()).toMatchObject({
+      code: 'validation_failed',
+      errors: [{ path: 'exercises.1.exerciseId' }],
+    });
+  });
+
   it('refuses a slot id already used by another routine as 409 id_conflict', async () => {
     const { cookie } = await t.createSignedInUser('slot-reuse@example.test');
     const ids = await exerciseIds(cookie);

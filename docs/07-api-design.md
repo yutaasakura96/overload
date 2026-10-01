@@ -235,7 +235,7 @@ yet or what they have logged (`08` §4).
 | Method | Path | Auth | Purpose | Success | Failures |
 | --- | --- | --- | --- | --- | --- |
 | GET | `/api/exercises` | M | Seeded plus custom, each with the caller's effective settings. Hidden ones only with `?includeHidden=true`. Sorted by name | 200 | 401 |
-| POST | `/api/exercises` | M | Create a custom exercise | 201 / 200 | 401, 409 `id_conflict`, 422 (duplicate name included) |
+| POST | `/api/exercises` | M | Create a custom exercise | 201 / 200 | 401, 409 `id_conflict`, 422 (duplicate name or inverted rep range included) |
 | PATCH | `/api/exercises/{id}` | M | Edit a custom exercise's name, equipment or defaults. Seeded ones return 404 | 200 | 401, 404, 422 |
 | DELETE | `/api/exercises/{id}` | M | Delete a custom exercise with no sets | 204 | 401, 409 `exercise_has_history`, 409 `exercise_in_routine` |
 | PUT | `/api/exercises/{id}/setting` | M | The caller's increment, rest, rep range and `hidden` for any exercise. `null` restores the default | 200 | 401, 404, 422 |
@@ -252,7 +252,8 @@ GET /api/exercises  →  200
 `overrides` tells the settings screen which values are the user's own and which are defaults.
 
 - **Create.** `id`, `name` and `equipment` are required. An omitted `incrementKg` takes the equipment
-  class's increment (`04` `exercise`), `restSeconds` 120 and the rep range 6–10. A name one of the
+  class's increment (`04` `exercise`), `restSeconds` 120 and the rep range 6–10. A missing rep end
+  takes its default, and a range that comes out inverted is a 422 on `repLow`. A name one of the
   caller's own exercises already has, in any case, is a 422 on `name`, for create and edit alike.
 - **Delete.** Until slice 3 adds the `set` table there is no history to check, so only
   `exercise_in_routine` refuses. A seeded exercise is nobody's to delete: 204, and nothing changes.
@@ -267,7 +268,7 @@ GET /api/exercises  →  200
 | GET | `/api/routines` | M | Every routine with its slots, in `position` order | 200 | 401 |
 | POST | `/api/routines` | M | Create, optionally with `exercises[]` | 201 / 200 | 401, 409, 422 |
 | PATCH | `/api/routines/{id}` | M | Rename, or move in the list | 200 | 401, 404, 422 |
-| PUT | `/api/routines/{id}/exercises` | M | Replace the whole slot list. Order is array order, so a reorder is one call | 200 | 401, 404, 409 `id_conflict`, 422 (unknown or hidden exercise) |
+| PUT | `/api/routines/{id}/exercises` | M | Replace the whole slot list. Order is array order, so a reorder is one call | 200 | 401, 404, 409 `id_conflict`, 422 (unknown exercise, or a hidden one the routine does not already hold) |
 | DELETE | `/api/routines/{id}` | M | Delete. Past workouts keep their name (`04`) | 204 | 401 |
 
 ```http
@@ -280,8 +281,9 @@ PUT /api/routines/0192r001-…/exercises
 
 - **Slots.** Up to 40, each slot `id` once. `targetSets` defaults to 3. A slot's rep range is both
   ends or neither: neither follows the exercise (setting, then default), and one alone is a 422 on the
-  missing end. An exercise that is another user's, or hidden by the caller, is a 422 on that slot's
-  `exerciseId`.
+  missing end. An unknown exercise or another user's is a 422 on that slot's `exerciseId`. So is one
+  hidden by the caller, unless the routine already holds it: hiding an exercise never blocks saving
+  a routine that keeps it, but it cannot be added anew.
 - **Slot ids** are made on the device like any row's. A PUT keeps a slot's id when it keeps the slot,
   and one already belonging to another routine is a 409 `id_conflict`.
 - **Create** puts the routine last in the list. A repeat with the same name and slots is a 200; the

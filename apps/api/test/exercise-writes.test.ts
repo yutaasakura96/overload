@@ -151,6 +151,32 @@ describe('POST /api/exercises', () => {
     expect(JSON.stringify(problem)).not.toContain('y-raise');
   });
 
+  it('refuses one rep end that leaves the default range inverted, as 422 on repLow', async () => {
+    const { cookie } = await t.createSignedInUser('one-end@example.test');
+
+    const low = await send(cookie, 'POST', '/api/exercises', {
+      id: randomUUID(),
+      name: 'Cable Y-Raise',
+      equipment: 'cable',
+      repLow: 12,
+    });
+    const high = await send(cookie, 'POST', '/api/exercises', {
+      id: randomUUID(),
+      name: 'Cable Y-Raise',
+      equipment: 'cable',
+      repHigh: 4,
+    });
+
+    for (const res of [low, high]) {
+      expect(res.status).toBe(422);
+      expect(await res.json()).toMatchObject({
+        code: 'validation_failed',
+        errors: [{ path: 'repLow' }],
+      });
+    }
+    expect((await list(cookie)).filter((item) => item.custom)).toEqual([]);
+  });
+
   it('lets two users use the same name', async () => {
     const a = await t.createSignedInUser('same-a@example.test');
     const b = await t.createSignedInUser('same-b@example.test');

@@ -789,7 +789,7 @@
             }
           },
           "422": {
-            "description": "`validation_failed`, including a name the caller already uses",
+            "description": "`validation_failed`, including an inverted rep range or a name in use",
             "content": {
               "application/problem+json": {
                 "schema": {
