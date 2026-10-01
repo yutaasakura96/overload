@@ -40,13 +40,17 @@ test('a routine is created from the picker, reordered and deleted', async ({ pag
   await expect(page.getByRole('textbox', { name: 'Name' })).toHaveValue(name);
 
   // Text that is not a number is refused on the device, never sent as "follow the exercise".
+  const repsLow = page.getByRole('textbox', { name: 'Reps low for Barbell Bench Press' });
   const repsHigh = page.getByRole('textbox', { name: 'Reps high for Barbell Bench Press' });
+  await repsLow.fill('1e999');
   await repsHigh.fill('8a');
   await page.getByRole('button', { name: 'Create routine' }).click();
   await expect(page.getByRole('alert').first()).toContainText('Refused');
-  await expect(page.getByText('Enter a number, in digits only')).toBeVisible();
+  await expect(page.getByText('Enter a number, in digits only')).toHaveCount(2);
+  await expect(repsLow).toHaveAttribute('aria-invalid', 'true');
   await expect(repsHigh).toHaveAttribute('aria-invalid', 'true');
 
+  await repsLow.fill('5');
   await repsHigh.fill('8');
   await page.getByRole('button', { name: 'Create routine' }).click();
 
