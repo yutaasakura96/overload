@@ -108,9 +108,7 @@ test.describe('a relaunch after a write', () => {
     const name = `Legs ${Date.now()}`;
     await page.goto('/routines');
     // The device's copy holds the list from before the write.
-    await expect
-      .poll(() => savedCache(page, userId))
-      .toContain('"queryKey":["routines"]');
+    await expect.poll(() => savedCache(page, userId)).toContain('"queryKey":["routines"]');
     await page.getByRole('button', { name: /^(Create a routine|New routine)$/ }).click();
     await page.getByRole('textbox', { name: 'Name' }).fill(name);
     await page.getByRole('button', { name: 'Add exercises' }).click();
