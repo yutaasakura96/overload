@@ -22,5 +22,5 @@ type DeclaredHeaders<Path extends keyof paths> = keyof {
  * for the account it names (docs/08 §5). Checked here against the headers the generated contract
  * declares on each member route's success response.
  */
-export const ACCOUNT_HEADER = 'Overload-User' satisfies DeclaredHeaders<'/api/me'> &
-  DeclaredHeaders<'/api/exercises'>;
+export const ACCOUNT_HEADER =
+  'Overload-User' satisfies DeclaredHeaders<'/api/me'> satisfies DeclaredHeaders<'/api/exercises'>;
