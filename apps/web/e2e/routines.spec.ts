@@ -46,7 +46,8 @@ test('a routine is created from the picker, reordered and deleted', async ({ pag
   await repsHigh.fill('8a');
   await page.getByRole('button', { name: 'Create routine' }).click();
   await expect(page.getByRole('alert').first()).toContainText('Refused');
-  await expect(page.getByText('Enter a number, in digits only')).toHaveCount(2);
+  // The slot says each message once, under its fields, and marks both fields.
+  await expect(page.getByText('Enter a number, in digits only')).toHaveCount(1);
   await expect(repsLow).toHaveAttribute('aria-invalid', 'true');
   await expect(repsHigh).toHaveAttribute('aria-invalid', 'true');
 
