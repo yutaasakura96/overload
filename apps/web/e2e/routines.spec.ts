@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { savedCache } from './device-store';
 import { apiFixture } from './fixture';
 
 type Cookies = Parameters<import('@playwright/test').BrowserContext['addCookies']>[0];
@@ -97,4 +98,46 @@ test('a routine is created from the picker, reordered and deleted', async ({ pag
   await page.getByRole('button', { name: 'Delete', exact: true }).click();
   await expect(page).toHaveURL('/routines');
   await expect(row).toHaveCount(0);
+});
+
+test.describe('a relaunch after a write', () => {
+  // page.route cannot hold a request a service worker forwards (WebKit).
+  test.use({ serviceWorkers: 'block' });
+
+  test('lists the routine the saved copy is missing', async ({ page }) => {
+    const name = `Legs ${Date.now()}`;
+    await page.goto('/routines');
+    // The device's copy holds the list from before the write.
+    await expect
+      .poll(() => savedCache(page, userId))
+      .toContain('"queryKey":["routines"]');
+    await page.getByRole('button', { name: /^(Create a routine|New routine)$/ }).click();
+    await page.getByRole('textbox', { name: 'Name' }).fill(name);
+    await page.getByRole('button', { name: 'Add exercises' }).click();
+    await page.getByRole('searchbox', { name: 'Search' }).fill('bench');
+    await page.getByRole('checkbox', { name: 'Barbell Bench Press', exact: true }).check();
+    await page.getByRole('button', { name: 'Add 1 exercise' }).click();
+
+    // The answer to the create is lost, so the device keeps its list from before the write, as when
+    // the app closes before the throttled save of the cache lands.
+    const created = Promise.withResolvers<void>();
+    await page.route('**/api/routines', async (route) => {
+      if (route.request().method() !== 'POST') return route.continue();
+      await route.fetch();
+      await route.abort();
+      created.resolve();
+    });
+    await page.getByRole('button', { name: 'Create routine' }).click();
+    await created.promise;
+    await page.unrouteAll();
+
+    await page.goto('/routines');
+    const row = page.getByRole('link', { name: new RegExp(name) });
+    await expect(row).toContainText('1 EXERCISE', { ignoreCase: true });
+
+    await row.click();
+    await page.getByRole('button', { name: 'Delete routine' }).click();
+    await page.getByRole('button', { name: 'Delete', exact: true }).click();
+    await expect(row).toHaveCount(0);
+  });
 });

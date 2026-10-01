@@ -122,12 +122,20 @@ function accountPersister(userId: string, generation = accountGeneration): Persi
 
 let stopPersisting: (() => void) | undefined;
 
-function restore(userId: string, generation = accountGeneration) {
-  return persistQueryClientRestore({
+/**
+ * The saved copy can predate the last write, since the persister saves at most once a second, so
+ * each launch asks again for what it restored once the account is confirmed.
+ */
+async function restore(userId: string, generation = accountGeneration) {
+  await persistQueryClientRestore({
     queryClient,
     persister: accountPersister(userId, generation),
     maxAge: CACHE_MAX_AGE_MS,
   }).catch(() => undefined);
+  await queryClient.invalidateQueries({
+    predicate: (query) => query.queryKey[0] !== 'me',
+    refetchType: 'none',
+  });
 }
 
 // Other tabs of the app on this device: when one of them changes account or signs out, this tab
