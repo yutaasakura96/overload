@@ -27,13 +27,17 @@ export function saveProblem(error: unknown): SaveProblem {
 }
 
 /**
- * A refusal made before sending, for the fields whose text is not a number. JSON would send NaN as
- * null, which the API reads as "use the default", so such a field never leaves the device.
+ * A refusal made before sending, for the fields whose text is not a finite number. JSON would send
+ * NaN or Infinity as null, which the API reads as "use the default", so such a field never leaves
+ * the device.
  */
 export function unreadableFigures(
   figures: [path: string, text: string][],
 ): SaveProblem | undefined {
-  const unreadable = figures.filter(([, text]) => Number.isNaN(parseFigure(text)));
+  const unreadable = figures.filter(([, text]) => {
+    const figure = parseFigure(text);
+    return figure !== null && !Number.isFinite(figure);
+  });
   if (unreadable.length === 0) return undefined;
   const fields = new Map(
     unreadable.map(([path]) => [path, 'Enter a number, in digits only'] as [string, string]),
