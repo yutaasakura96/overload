@@ -193,7 +193,9 @@ The endpoint list is `docs/07`.
   keeps the last confirmed signed-in user (id, name, email) in IndexedDB beside the cached API data.
 - **The cached API data is kept per account**, each user's copy under its own IndexedDB key, and
   only one account's copy is ever open. At launch the app loads the last confirmed user's copy and
-  keeps it hidden while `/api/me` checks the account. When it names that user, their queries run.
+  keeps it hidden while `/api/me` checks the account. When it names that user, their queries run,
+  each fetched again, since the copy can predate the last write (the persister saves at most once a
+  second).
   When it names another account, the app drops the first copy from memory before that account's
   data arrives and opens their own copy instead. A tab receiving an account-change notice closes
   its current copy and reloads. Sign-out across tabs and its limits are in §7. A launch back from
