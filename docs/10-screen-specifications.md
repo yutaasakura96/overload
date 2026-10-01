@@ -439,8 +439,9 @@ components, and pass the polish gate (`AGENTS.md`). Nothing here adds a token or
   `Default` or `Yours`. A refused field gets an `error` border, and under it the word `Refused`, the
   info icon and the reason; focus moves to the first one.
 - **Save notices.** `Not saved` in `flag` when the server was not reached: the form keeps
-  everything, and saving again later works. `Refused` in `error` when the server refused. Neither
-  queues offline (`06`, offline scope).
+  everything, and saving again later works. `Refused` in `error` when the server refused, or before
+  sending when a figure is not a number (`Enter a number, in digits only`), so it never goes as
+  `null`, which would mean the default. Neither queues offline (`06`, offline scope).
 - **Delete.** A tertiary button that becomes the question in place, with `Keep` and `Delete`. Focus
   moves to `Keep`, and back to the button on `Keep`. `error` is never the colour of a destructive
   button (`05` §1.4).
