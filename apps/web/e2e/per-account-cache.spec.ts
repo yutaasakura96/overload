@@ -555,3 +555,94 @@ test('an exercise answer already in flight cannot enter the previous account cop
   await expect(page.getByText(EMAIL_B)).toBeVisible();
   await expect(page.getByText(OWN_B)).toBeVisible();
 });
+
+test('a retry answered under another account’s cookie never enters the open account’s copy', async ({
+  page,
+  context,
+}) => {
+  await useCookie(context, userA);
+
+  // A's launch is confirmed, then its library request fails once. Before the retry, the cookie becomes
+  // B's with no reload and no account check in between, as `pnpm dev:session` can leave an open tab
+  // (docs/08 §5).
+  const { promise: switched, resolve: switchDone } = Promise.withResolvers<void>();
+  let calls = 0;
+  await page.route('**/api/exercises', async (route) => {
+    calls += 1;
+    if (calls === 1) {
+      await switched;
+      await route.fulfill({ status: 500, contentType: 'application/problem+json', body: '{}' });
+      return;
+    }
+    const response = await route.fetch();
+    const { items }: { items: { name: string }[] } = await response.json();
+    const [first, ...rest] = items;
+    await route.fulfill({ response, json: { items: [{ ...first, name: OWN_B }, ...rest] } });
+  });
+  let meRequests = 0;
+  page.on('request', (request) => {
+    if (new URL(request.url()).pathname === '/api/me') meRequests += 1;
+  });
+  const asked = page.waitForRequest('**/api/exercises');
+  await page.goto('/');
+  await asked;
+  await expect(page.getByText(EMAIL_A)).toBeVisible();
+  await expect.poll(() => savedCache(page, userA)).toContain(EMAIL_A);
+  await useCookie(context, userB);
+  switchDone();
+
+  // The retry answers as B: A's copy refuses it, shows as not updated, and nothing asks /api/me again.
+  await expect(page.getByText('Not updated')).toBeVisible();
+  await page.waitForTimeout(1500);
+  expect(calls).toBe(2);
+  expect(meRequests).toBe(1);
+  await expect(page.getByText(EMAIL_A)).toBeVisible();
+  await expect(page.getByText(OWN_B)).toHaveCount(0);
+  expect(await savedCache(page, userA)).not.toContain(OWN_B);
+
+  // The next account check, on focus, opens B's own copy.
+  await page.evaluate(() => window.dispatchEvent(new Event('visibilitychange')));
+  await expect(page.getByText(EMAIL_B)).toBeVisible();
+  await expect(page.getByText(OWN_B)).toBeVisible();
+  await page.waitForTimeout(1500);
+  expect(await savedCache(page, userA)).not.toContain(OWN_B);
+  expect(await savedCache(page, userB)).toContain(OWN_B);
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
+
+test('an answer naming no account shows as not updated without looping through /api/me', async ({
+  page,
+  context,
+}) => {
+  await useCookie(context, userA);
+  // A proxy that strips the header, or a web build live before its API.
+  await page.route('**/api/exercises', async (route) => {
+    const response = await route.fetch();
+    const headers = Object.fromEntries(
+      Object.entries(response.headers()).filter(([name]) => name !== 'overload-user'),
+    );
+    const { items }: { items: { name: string }[] } = await response.json();
+    const [first, ...rest] = items;
+    await route.fulfill({
+      response,
+      headers,
+      json: { items: [{ ...first, name: OWN_A }, ...rest] },
+    });
+  });
+  const requests = { me: 0, exercises: 0 };
+  page.on('request', (request) => {
+    const { pathname } = new URL(request.url());
+    if (pathname === '/api/me') requests.me += 1;
+    if (pathname === '/api/exercises') requests.exercises += 1;
+  });
+  await page.goto('/');
+  await expect(page.getByText(EMAIL_A)).toBeVisible();
+  await expect(page.getByText('Not updated')).toBeVisible();
+
+  await page.waitForTimeout(2000);
+  expect(requests).toEqual({ me: 1, exercises: 1 });
+  await expect(page.getByText(EMAIL_A)).toBeVisible();
+  await expect(page.getByText(OWN_A)).toHaveCount(0);
+  expect(await savedCache(page, userA)).not.toContain(OWN_A);
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+});

@@ -1,6 +1,7 @@
 import { createRoute, defineOpenAPIRoute } from '@hono/zod-openapi';
 import type { AppEnv, RouteDeps } from '../app-env.js';
 import { getProfile } from '../db/profile.js';
+import { accountHeaders } from '../lib/account.js';
 import { problemResponse } from '../lib/problem.js';
 import { Me } from './schemas.js';
 
@@ -9,7 +10,11 @@ const getMe = createRoute({
   path: '/api/me',
   summary: 'The signed-in user, their profile, and whether they are the admin',
   responses: {
-    200: { description: 'The caller', content: { 'application/json': { schema: Me } } },
+    200: {
+      description: 'The caller',
+      headers: accountHeaders,
+      content: { 'application/json': { schema: Me } },
+    },
     401: problemResponse('No session'),
   },
 });
