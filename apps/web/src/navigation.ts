@@ -1,6 +1,6 @@
 import { useCallback, useSyncExternalStore } from 'react';
 
-// Two screens do not need a router library. This is the location, and a way to change it.
+// A handful of screens do not need a router library. This is the location, and a way to change it.
 
 const subscribe = (onChange: () => void) => {
   window.addEventListener('popstate', onChange);
@@ -28,4 +28,22 @@ export function safeNext(next: string | null): string {
     return '/';
   }
   return next;
+}
+
+/** The signed-in screens, by path. Anything unknown opens the library, as before slice 2. */
+export type Route =
+  | { screen: 'library' }
+  | { screen: 'routines' }
+  | { screen: 'routine'; id: string | undefined }
+  | { screen: 'exercise'; id: string | undefined };
+
+export function routeOf(pathname: string): Route {
+  const [first, second, ...rest] = pathname.split('/').filter(Boolean);
+  if (rest.length > 0) return { screen: 'library' };
+  if (first === 'routines' && second === undefined) return { screen: 'routines' };
+  if (first === 'routines') return { screen: 'routine', id: second === 'new' ? undefined : second };
+  if (first === 'exercises' && second !== undefined) {
+    return { screen: 'exercise', id: second === 'new' ? undefined : second };
+  }
+  return { screen: 'library' };
 }

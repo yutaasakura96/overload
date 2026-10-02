@@ -139,6 +139,599 @@ export interface paths {
       };
     };
     put?: never;
+    /** Create a custom exercise, visible only to the caller */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['ExerciseCreate'];
+        };
+      };
+      responses: {
+        /** @description A repeat of the same create: the stored exercise */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['Exercise'];
+          };
+        };
+        /** @description Created */
+        201: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['Exercise'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `id_conflict`: the id is in use with different content */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `validation_failed`, including an inverted rep range or a name in use */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/exercises/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Delete a custom exercise. 204 whenever the caller has no such exercise afterwards */
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description The caller has no custom exercise with that id */
+        204: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description A malformed id */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `exercise_in_routine`, listing the routines that use it */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    /** Edit a custom exercise’s name, equipment or defaults. A seeded one is not found */
+    patch: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['ExercisePatch'];
+        };
+      };
+      responses: {
+        /** @description The exercise as the caller now sees it */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['Exercise'];
+          };
+        };
+        /** @description A malformed id */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No custom exercise with that id belongs to the caller */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `validation_failed`, including an inverted rep range or a name in use */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    trace?: never;
+  };
+  '/api/exercises/{id}/setting': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /** The caller’s increment, rest, rep range and hidden flag for any exercise */
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['ExerciseSetting'];
+        };
+      };
+      responses: {
+        /** @description The exercise as the caller now sees it */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['Exercise'];
+          };
+        };
+        /** @description A malformed id */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No exercise with that id is visible to the caller */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `validation_failed`, including an effective rep range that is inverted */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/routines': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Every routine the caller has, in list order, each with its slots in order */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description The routines */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['RoutineList'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    put?: never;
+    /** Create a routine at the end of the list, optionally with its slots */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['RoutineCreate'];
+        };
+      };
+      responses: {
+        /** @description A repeat of the same create: the stored routine */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['Routine'];
+          };
+        };
+        /** @description Created */
+        201: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['Routine'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `id_conflict`: the routine or a slot id is in use with other content */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `validation_failed`, including an unknown or hidden exercise */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/routines/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Delete a routine. 204 whenever the caller has no such routine afterwards */
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description The caller has no routine with that id */
+        204: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description A malformed id */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    /** Rename a routine, or move it in the list */
+    patch: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['RoutinePatch'];
+        };
+      };
+      responses: {
+        /** @description The routine */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['Routine'];
+          };
+        };
+        /** @description A malformed id */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No routine with that id belongs to the caller */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `validation_failed` */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    trace?: never;
+  };
+  '/api/routines/{id}/exercises': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /** Replace the whole slot list. Order is array order, so a reorder is one call */
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['RoutineExercisesPut'];
+        };
+      };
+      responses: {
+        /** @description The routine with its new slots */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['Routine'];
+          };
+        };
+        /** @description A malformed id */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No routine with that id belongs to the caller */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `id_conflict`: a slot id belongs to another routine */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `validation_failed`, including an unknown or hidden exercise */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
     post?: never;
     delete?: never;
     options?: never;
@@ -195,6 +788,11 @@ export interface components {
         path: string;
         message: string;
       }[];
+      /** @description Present only for `exercise_in_routine`: the routines using it. */
+      routines?: {
+        id: string;
+        name: string;
+      }[];
     };
     ExerciseList: {
       items: components['schemas']['Exercise'][];
@@ -239,6 +837,121 @@ export interface components {
       | 'cable'
       | 'bodyweight'
       | 'other';
+    ExerciseCreate: {
+      /**
+       * Format: uuid
+       * @description Made on the device (UUIDv7). A repeat returns the row.
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      id: string;
+      /** @example Cable Y-Raise */
+      name: string;
+      equipment: components['schemas']['Equipment'];
+      /**
+       * @description Default: the equipment class’s increment (docs/04 `exercise`).
+       * @example 2.5
+       */
+      incrementKg?: number;
+      /**
+       * @description Default 120.
+       * @example 120
+       */
+      restSeconds?: number;
+      /** @description Default 6. */
+      repLow?: number;
+      /** @description Default 10. */
+      repHigh?: number;
+    };
+    ExercisePatch: {
+      name?: string;
+      equipment?: components['schemas']['Equipment'];
+      /** @example 2.5 */
+      incrementKg?: number;
+      /** @example 120 */
+      restSeconds?: number;
+      repLow?: number;
+      repHigh?: number;
+    };
+    /** @description The whole setting. `null` restores the exercise’s default for that value. */
+    ExerciseSetting: {
+      /** @example 2.5 */
+      incrementKg: number | null;
+      /** @example 120 */
+      restSeconds: number | null;
+      repLow: number | null;
+      repHigh: number | null;
+      /** @description Off the caller’s pickers; history still names it. */
+      hidden: boolean;
+    };
+    RoutineList: {
+      items: components['schemas']['Routine'][];
+    };
+    Routine: {
+      /**
+       * Format: uuid
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      id: string;
+      /** @example Push A */
+      name: string;
+      /** @description Place in the routine list, 0 first. */
+      position: number;
+      /** @description In order. */
+      exercises: components['schemas']['RoutineSlot'][];
+    };
+    /** @description Null reps fall back to the caller’s setting, then the exercise’s default. */
+    RoutineSlot: {
+      /**
+       * Format: uuid
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      id: string;
+      /**
+       * Format: uuid
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      exerciseId: string;
+      /** @example 3 */
+      targetSets: number;
+      repLow: number | null;
+      repHigh: number | null;
+    };
+    RoutineCreate: {
+      /**
+       * Format: uuid
+       * @description Made on the device (UUIDv7). A repeat returns the routine.
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      id: string;
+      /** @example Push A */
+      name: string;
+      exercises?: components['schemas']['RoutineSlotInput'][];
+    };
+    RoutineSlotInput: {
+      /**
+       * Format: uuid
+       * @description Made on the device (UUIDv7).
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      id: string;
+      /**
+       * Format: uuid
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      exerciseId: string;
+      /** @description Default 3. */
+      targetSets?: number;
+      repLow?: number | null;
+      repHigh?: number | null;
+    };
+    RoutinePatch: {
+      name?: string;
+      /** @description Move to this place in the list, 0 first; past the end means last. */
+      position?: number;
+    };
+    RoutineExercisesPut: {
+      exercises: components['schemas']['RoutineSlotInput'][];
+    };
   };
   responses: never;
   parameters: never;

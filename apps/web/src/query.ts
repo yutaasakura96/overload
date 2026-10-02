@@ -1,13 +1,13 @@
 import { ACCOUNT_HEADER, type Me } from '@overload/api-contract';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
-import { QueryClient, queryOptions } from '@tanstack/react-query';
+import { QueryClient, queryOptions, type FetchStatus } from '@tanstack/react-query';
 import {
   persistQueryClientRestore,
   persistQueryClientSubscribe,
   type PersistedClient,
   type Persister,
 } from '@tanstack/react-query-persist-client';
-import { useSyncExternalStore } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import { api, ApiError, isUnauthenticated, unwrap } from './api';
 import { deviceStore } from './device-store';
 
@@ -122,12 +122,20 @@ function accountPersister(userId: string, generation = accountGeneration): Persi
 
 let stopPersisting: (() => void) | undefined;
 
-function restore(userId: string, generation = accountGeneration) {
-  return persistQueryClientRestore({
+/**
+ * The saved copy can predate the last write, since the persister saves at most once a second, so
+ * each launch asks again for what it restored once the account is confirmed.
+ */
+async function restore(userId: string, generation = accountGeneration) {
+  await persistQueryClientRestore({
     queryClient,
     persister: accountPersister(userId, generation),
     maxAge: CACHE_MAX_AGE_MS,
   }).catch(() => undefined);
+  await queryClient.invalidateQueries({
+    predicate: (query) => query.queryKey[0] !== 'me',
+    refetchType: 'none',
+  });
 }
 
 // Other tabs of the app on this device: when one of them changes account or signs out, this tab
@@ -262,6 +270,20 @@ export const meQuery = queryOptions({
 });
 
 /**
+ * Runs one account's request: only under a confirmed account, and its answer is dropped if the
+ * account changed while it was in flight (docs/08 §5).
+ */
+export async function forAccount<T>(request: () => Promise<T>): Promise<T> {
+  const generation = accountGeneration;
+  if (account.status !== 'confirmed') throw new AccountCheckFailed('Account unconfirmed');
+  const result = await request();
+  if (generation !== accountGeneration || account.status !== 'confirmed') {
+    throw new AccountCheckFailed('Account changed');
+  }
+  return result;
+}
+
+/**
  * One account's answer from a member route, kept only when it is the confirmed account's: the API
  * names whose session answered, so an answer made under another account's cookie (a retry after the
  * cookie changed) never reaches this account's copy. It is refused and not retried; the next /api/me
@@ -270,16 +292,10 @@ export const meQuery = queryOptions({
 async function confirmedAccountData<T>(
   request: () => Promise<{ data?: T; error?: unknown; response: Response }>,
 ): Promise<NonNullable<T>> {
-  const generation = accountGeneration;
   const { userId } = account;
-  if (account.status !== 'confirmed' || userId === undefined) {
-    throw new AccountCheckFailed('Account unconfirmed');
-  }
-  const result = await request();
+  if (userId === undefined) throw new AccountCheckFailed('Account unconfirmed');
+  const result = await forAccount(request);
   const data = unwrap(result);
-  if (generation !== accountGeneration || account.status !== 'confirmed') {
-    throw new AccountCheckFailed('Account changed');
-  }
   if (result.response.headers.get(ACCOUNT_HEADER) === userId) return data;
   throw new AccountCheckFailed('Answered for another account');
 }
@@ -292,3 +308,49 @@ export const exercisesQuery = queryOptions({
   queryFn: async ({ signal }) =>
     (await confirmedAccountData(() => api.GET('/api/exercises', { signal }))).items,
 });
+
+/**
+ * The library with the caller's hidden exercises included: a routine may still name one, and the
+ * library lists them to show again.
+ */
+export const allExercisesQuery = queryOptions({
+  queryKey: ['exercises', 'all'],
+  refetchOnWindowFocus: false,
+  refetchOnReconnect: false,
+  queryFn: async ({ signal }) =>
+    (
+      await confirmedAccountData(() =>
+        api.GET('/api/exercises', { params: { query: { includeHidden: 'true' } }, signal }),
+      )
+    ).items,
+});
+
+export const routinesQuery = queryOptions({
+  queryKey: ['routines'],
+  refetchOnWindowFocus: false,
+  refetchOnReconnect: false,
+  queryFn: async ({ signal }) =>
+    (await confirmedAccountData(() => api.GET('/api/routines', { signal }))).items,
+});
+
+/**
+ * Whether an editor may open on this query's copy: not while a stale copy, such as the one restored
+ * at launch, is being asked again, so its draft starts from the server's state. Offline (paused) or
+ * after a failed ask it opens on the saved copy. Once open it stays open: its own saves refetch.
+ */
+export function useOpensEditor({
+  isStale,
+  fetchStatus,
+}: {
+  isStale: boolean;
+  fetchStatus: FetchStatus;
+}) {
+  const [opened, setOpened] = useState(false);
+  const opens = opened || !(isStale && fetchStatus === 'fetching');
+  if (opens && !opened) setOpened(true);
+  return opens;
+}
+
+/** After a write: both exercise lists, since a setting or a new exercise changes each. */
+export const refreshExercises = () => queryClient.invalidateQueries({ queryKey: ['exercises'] });
+export const refreshRoutines = () => queryClient.invalidateQueries({ queryKey: ['routines'] });

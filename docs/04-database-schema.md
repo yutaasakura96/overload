@@ -203,6 +203,9 @@ One exercise slot in a routine.
 
 - `INDEX (routine_id, position)`. **Not unique** — reordering would otherwise collide mid-update.
   Ties break on `id`, which is time-ordered.
+- `INDEX (exercise_id)`: an exercise delete asks which routines use it (`07` §3, Exercises).
+- `CHECK (target_sets > 0)` and `CHECK (rep_low IS NULL OR rep_high IS NULL OR rep_low <= rep_high)`.
+  The API takes a slot's rep range both or neither (`07` §3, Routines); the check is the last line.
 - `exercise_id` is `NO ACTION DEFERRABLE INITIALLY DEFERRED`: an exercise still used by a routine
   cannot be deleted, and the API checks first so it can tell the user which routines use it.
   **Not `RESTRICT`, and not plain `NO ACTION`.** Deleting a `user` cascades to `exercise`, `routine`

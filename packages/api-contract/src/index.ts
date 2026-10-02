@@ -4,18 +4,22 @@ import type { components, paths } from './schema';
 
 export type { components, operations, paths } from './schema';
 
+export type Equipment = components['schemas']['Equipment'];
 export type Exercise = components['schemas']['Exercise'];
 export type Me = components['schemas']['Me'];
 export type Problem = components['schemas']['Problem'];
+export type Routine = components['schemas']['Routine'];
+export type RoutineSlot = components['schemas']['RoutineSlot'];
 
-/** The header names a success response declares, without the index signature every one carries. */
-type DeclaredHeaders<Path extends keyof paths> = keyof {
-  [
-    Name in keyof paths[Path]['get']['responses'][200]['headers'] as string extends Name
-      ? never
-      : Name
-  ]: never;
-};
+/**
+ * The header names a GET's success response declares, without the index signature every one
+ * carries. A path with no GET declares none.
+ */
+type DeclaredHeaders<Path extends keyof paths> = paths[Path] extends {
+  get: { responses: { 200: { headers: infer Headers } } };
+}
+  ? keyof { [Name in keyof Headers as string extends Name ? never : Name]: never }
+  : never;
 
 /**
  * The response header naming the account a member answer belongs to. A client keeps the body only
@@ -23,4 +27,4 @@ type DeclaredHeaders<Path extends keyof paths> = keyof {
  * declares on each member route's success response.
  */
 export const ACCOUNT_HEADER =
-  'Overload-User' satisfies DeclaredHeaders<'/api/me'> satisfies DeclaredHeaders<'/api/exercises'>;
+  'Overload-User' satisfies DeclaredHeaders<'/api/me'> satisfies DeclaredHeaders<'/api/exercises'> satisfies DeclaredHeaders<'/api/routines'>;

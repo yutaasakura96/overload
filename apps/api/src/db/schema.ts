@@ -180,3 +180,48 @@ export const exerciseSetting = pgTable(
     ),
   ],
 );
+
+/** One saved workout, like "Push A" (S4). Hard delete; past workouts keep their name (docs/04). */
+export const routine = pgTable(
+  'routine',
+  {
+    id: id(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    position: integer('position').notNull().default(0),
+    ...timestamps,
+  },
+  (t) => [index('routine_user_id_position_idx').on(t.userId, t.position)],
+);
+
+/**
+ * One exercise slot in a routine. `position` is not unique, so a reorder never collides mid-update;
+ * ties break on the time-ordered `id`. The FK to `exercise` is `DEFERRABLE INITIALLY DEFERRED`
+ * (docs/04), which Drizzle cannot express, so it is added in a custom migration.
+ */
+export const routineExercise = pgTable(
+  'routine_exercise',
+  {
+    id: id(),
+    routineId: uuid('routine_id')
+      .notNull()
+      .references(() => routine.id, { onDelete: 'cascade' }),
+    exerciseId: uuid('exercise_id').notNull(),
+    position: integer('position').notNull(),
+    targetSets: smallint('target_sets').notNull().default(3),
+    repLow: smallint('rep_low'),
+    repHigh: smallint('rep_high'),
+    ...timestamps,
+  },
+  (t) => [
+    index('routine_exercise_routine_id_position_idx').on(t.routineId, t.position),
+    index('routine_exercise_exercise_id_idx').on(t.exerciseId),
+    check('routine_exercise_target_sets_check', sql`${t.targetSets} > 0`),
+    check(
+      'routine_exercise_rep_range_check',
+      sql`${t.repLow} IS NULL OR ${t.repHigh} IS NULL OR ${t.repLow} <= ${t.repHigh}`,
+    ),
+  ],
+);

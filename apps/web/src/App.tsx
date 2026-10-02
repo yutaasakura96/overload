@@ -2,9 +2,12 @@ import { useQuery } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { isUnauthenticated } from './api';
 import { AppBar, Notice } from './components';
-import { safeNext, useLocation } from './navigation';
+import { routeOf, safeNext, useLocation } from './navigation';
 import { meQuery, useAccount } from './query';
+import { ExerciseScreen } from './screens/ExerciseForm';
 import { ExerciseLibrary } from './screens/ExerciseLibrary';
+import { RoutineScreen } from './screens/RoutineEditor';
+import { RoutineList } from './screens/RoutineList';
 import { SignIn } from './screens/SignIn';
 
 // /sign-in is open to everyone; every other route needs a member (docs/08 §5).
@@ -35,7 +38,13 @@ export function App() {
   }, [onSignIn, signedOut, opens, pathname, searchParams, navigate]);
 
   if (onSignIn) return <SignIn searchParams={searchParams} />;
-  if (opens) return <ExerciseLibrary me={me.data} navigate={navigate} />;
+  if (opens) {
+    const route = routeOf(pathname);
+    if (route.screen === 'routines') return <RoutineList me={me.data} navigate={navigate} />;
+    if (route.screen === 'routine') return <RoutineScreen id={route.id} navigate={navigate} />;
+    if (route.screen === 'exercise') return <ExerciseScreen id={route.id} navigate={navigate} />;
+    return <ExerciseLibrary me={me.data} navigate={navigate} />;
+  }
   if (me.isError && !signedOut) {
     return (
       <main>

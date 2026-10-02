@@ -36,6 +36,20 @@
       "when": 1790600662322,
       "tag": "0004_backup_reads_migration_sequence",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790772265619,
+      "tag": "0005_slice2_routines",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790772269482,
+      "tag": "0006_slice2_sql_only",
+      "breakpoints": true
     }
   ]
 }
