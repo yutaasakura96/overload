@@ -138,4 +138,55 @@ test.describe('a relaunch after a write', () => {
     await page.getByRole('button', { name: 'Delete', exact: true }).click();
     await expect(row).toHaveCount(0);
   });
+
+  test('opens the editor on the renamed routine, not the saved copy', async ({ page }) => {
+    const name = `Pull ${Date.now()}`;
+    const renamed = `${name} renamed`;
+    await page.goto('/routines/new');
+    await page.getByRole('textbox', { name: 'Name' }).fill(name);
+    await page.getByRole('button', { name: 'Add exercises' }).click();
+    await page.getByRole('searchbox', { name: 'Search' }).fill('bench');
+    await page.getByRole('checkbox', { name: 'Barbell Bench Press', exact: true }).check();
+    await page.getByRole('button', { name: 'Add 1 exercise' }).click();
+    await page.getByRole('button', { name: 'Create routine' }).click();
+    await expect(page).toHaveURL('/routines');
+    await expect.poll(() => savedCache(page, userId)).toContain(name);
+    const row = page.getByRole('link', { name: new RegExp(name) });
+    const path = await row.getAttribute('href');
+    if (path === null) throw new Error('the routine row has no link');
+
+    // The rename lands but its answer is lost, so the device keeps the old name, as when another
+    // device renames the routine.
+    await row.click();
+    const patched = Promise.withResolvers<void>();
+    await page.route(`**/api${path}`, async (route) => {
+      if (route.request().method() !== 'PATCH') return route.continue();
+      await route.fetch();
+      await route.abort();
+      patched.resolve();
+    });
+    await page.getByRole('textbox', { name: 'Name' }).fill(renamed);
+    await page.getByRole('button', { name: 'Save routine' }).click();
+    await patched.promise;
+    await page.unrouteAll();
+    expect(await savedCache(page, userId)).not.toContain(renamed);
+
+    // On relaunch the editor waits for the list it restored to be asked again.
+    const listed = Promise.withResolvers<void>();
+    await page.route('**/api/routines', async (route) => {
+      await listed.promise;
+      await route.continue();
+    });
+    await page.goto(path);
+    await expect(page.getByRole('heading', { name: 'Routine', level: 1 })).toBeVisible();
+    await expect(page.getByRole('textbox', { name: 'Name' })).toHaveCount(0);
+    listed.resolve();
+    await expect(page.getByRole('textbox', { name: 'Name' })).toHaveValue(renamed);
+    await page.unrouteAll();
+
+    await page.getByRole('button', { name: 'Delete routine' }).click();
+    await page.getByRole('button', { name: 'Delete', exact: true }).click();
+    await expect(page).toHaveURL('/routines');
+    await expect(page.getByRole('link', { name: new RegExp(name) })).toHaveCount(0);
+  });
 });

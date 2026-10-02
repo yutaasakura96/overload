@@ -14,7 +14,13 @@ import {
 } from '../components';
 import { classIncrementKg, equipmentLabels, newExerciseDefaults } from '../equipment';
 import { newId } from '../ids';
-import { allExercisesQuery, forAccount, refreshExercises, useAccount } from '../query';
+import {
+  allExercisesQuery,
+  forAccount,
+  refreshExercises,
+  useAccount,
+  useOpensEditor,
+} from '../query';
 import {
   SaveNotice,
   refusedOnDevice,
@@ -348,9 +354,17 @@ export function ExerciseScreen({
   const slot = <SyncedAt at={exercises.dataUpdatedAt} />;
   const back = { label: 'Back to exercises', onClick: () => navigate('/') };
   const done = () => navigate('/', { replace: true });
+  const opens = useOpensEditor(exercises);
 
   if (id === undefined) {
     return <ExerciseForm exercise={undefined} slot={slot} back={back} onDone={done} />;
+  }
+  if (!opens) {
+    return (
+      <main>
+        <AppBar title="Exercise" slot={slot} back={back} />
+      </main>
+    );
   }
   const exercise = exercises.data?.find((candidate) => candidate.id === id);
   if (exercise === undefined) {

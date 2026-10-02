@@ -20,6 +20,7 @@ import {
   refreshRoutines,
   routinesQuery,
   useAccount,
+  useOpensEditor,
 } from '../query';
 import {
   SaveNotice,
@@ -444,6 +445,7 @@ export function RoutineScreen({
   const exercises = useQuery({ ...allExercisesQuery, enabled: confirmed });
   const slot = <SyncedAt at={routines.dataUpdatedAt} />;
   const back = { label: 'Back to routines', onClick: () => navigate('/routines') };
+  const opens = useOpensEditor(routines);
 
   if (id === undefined) {
     return (
@@ -454,6 +456,13 @@ export function RoutineScreen({
         slot={slot}
         navigate={navigate}
       />
+    );
+  }
+  if (!opens) {
+    return (
+      <main>
+        <AppBar title="Routine" slot={slot} back={back} />
+      </main>
     );
   }
   const routine = routines.data?.find((candidate) => candidate.id === id);

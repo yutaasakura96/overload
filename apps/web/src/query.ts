@@ -1,13 +1,13 @@
 import { ACCOUNT_HEADER, type Me } from '@overload/api-contract';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
-import { QueryClient, queryOptions } from '@tanstack/react-query';
+import { QueryClient, queryOptions, type FetchStatus } from '@tanstack/react-query';
 import {
   persistQueryClientRestore,
   persistQueryClientSubscribe,
   type PersistedClient,
   type Persister,
 } from '@tanstack/react-query-persist-client';
-import { useSyncExternalStore } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import { api, ApiError, isUnauthenticated, unwrap } from './api';
 import { deviceStore } from './device-store';
 
@@ -332,6 +332,24 @@ export const routinesQuery = queryOptions({
   queryFn: async ({ signal }) =>
     (await confirmedAccountData(() => api.GET('/api/routines', { signal }))).items,
 });
+
+/**
+ * Whether an editor may open on this query's copy: not while a stale copy, such as the one restored
+ * at launch, is being asked again, so its draft starts from the server's state. Offline (paused) or
+ * after a failed ask it opens on the saved copy. Once open it stays open: its own saves refetch.
+ */
+export function useOpensEditor({
+  isStale,
+  fetchStatus,
+}: {
+  isStale: boolean;
+  fetchStatus: FetchStatus;
+}) {
+  const [opened, setOpened] = useState(false);
+  const opens = opened || !(isStale && fetchStatus === 'fetching');
+  if (opens && !opened) setOpened(true);
+  return opens;
+}
 
 /** After a write: both exercise lists, since a setting or a new exercise changes each. */
 export const refreshExercises = () => queryClient.invalidateQueries({ queryKey: ['exercises'] });
