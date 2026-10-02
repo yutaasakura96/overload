@@ -443,6 +443,9 @@ components, and pass the polish gate (`AGENTS.md`). Nothing here adds a token or
   sending when a figure is not a number (`Enter a number, in digits only`), so it never goes as
   `null`, which would mean the default, or when a slot has one end of its rep range (`Set both ends
   of the range, or neither`). Neither queues offline (`06`, offline scope).
+- **Opening an editor.** An existing routine or exercise shows only its app bar while a stale copy,
+  such as the one restored at launch (`08` §5), is being fetched again, so the edit starts from the
+  server's state. Offline, or when that fetch fails, it opens on the saved copy.
 - **Saving a routine.** Its slots go before its name, so a refused slot list saves nothing. A name
   refused after the slots landed says `The exercises were saved; the name was not.`
 - **Delete.** A tertiary button that becomes the question in place, with `Keep` and `Delete`. Focus
