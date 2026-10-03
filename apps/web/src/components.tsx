@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { useAccount } from './query';
 import { signOut, type SignOutResult } from './sign-out';
 import { requestUpload } from './uploader';
-import { dataState, recordsLoadedFor, useWorkoutStore } from './workout';
+import { dataState, readFailedFor, recordsLoadedFor, recordsOf, useWorkoutStore } from './workout';
 
 // Components drawn in docs/05 §4, and the few slice 2's screens add from the same tokens (docs/10 §8.1).
 
@@ -62,7 +62,8 @@ export function SyncedAt({ at }: { at: number }) {
  * as nothing is lost; then when the data on screen was last synced.
  */
 export function DataState({ at }: { at: number }) {
-  const records = useWorkoutStore((state) => state.records);
+  const { userId } = useAccount();
+  const records = useWorkoutStore((state) => recordsOf(state, userId));
   const lastSyncedAt = useWorkoutStore((state) => state.lastSyncedAt);
   const { refused, pending } = dataState(records);
   if (refused > 0) {
@@ -456,11 +457,13 @@ export function AccountFooter({
   const [busy, setBusy] = useState(false);
   const [stopped, setStopped] = useState<Exclude<SignOutResult, 'signed-out'>>();
   const { userId } = useAccount();
-  const loading = useWorkoutStore((state) => !recordsLoadedFor(state, userId) && !state.readFailed);
+  const loading = useWorkoutStore(
+    (state) => !recordsLoadedFor(state, userId) && !readFailedFor(state, userId),
+  );
   // Sets the server has not acknowledged, refused ones included (docs/08 §7).
   const waiting = useWorkoutStore(
     (state) =>
-      state.records.filter(
+      recordsOf(state, userId).filter(
         (record) =>
           record.table === 'sets' &&
           record.deletedAt === undefined &&

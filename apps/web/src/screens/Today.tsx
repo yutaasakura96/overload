@@ -20,6 +20,9 @@ import {
   finishWorkout,
   loadWorkouts,
   openWorkout,
+  readFailedFor,
+  recordsLoadedFor,
+  recordsOf,
   setsOf,
   startWorkout,
   useWorkoutStore,
@@ -45,10 +48,13 @@ export function Today({ me, navigate }: { me: Me; navigate: (path: string) => vo
   const exercises = useQuery({ ...allExercisesQuery, enabled: confirmed });
   // Kept warm here so a start has it offline (S2); `start` reads the cache's copy.
   useQuery({ ...lastTimeQuery, enabled: confirmed && me.profile !== null });
-  const loaded = useWorkoutStore((state) => state.loaded);
-  const readFailed = useWorkoutStore((state) => state.readFailed);
-  const records = useWorkoutStore((state) => state.records);
-  const idleEnded = useWorkoutStore((state) => state.idleEnded);
+  const userId = me.user.id;
+  const loaded = useWorkoutStore((state) => recordsLoadedFor(state, userId));
+  const readFailed = useWorkoutStore((state) => readFailedFor(state, userId));
+  const records = useWorkoutStore((state) => recordsOf(state, userId));
+  const idleEnded = useWorkoutStore((state) =>
+    state.userId === userId ? state.idleEnded : undefined,
+  );
   const [starting, setStarting] = useState(false);
   const [startFailed, setStartFailed] = useState<'exercises' | 'device'>();
   // The routine tapped while a workout is in progress: one at a time, so it asks first (F3).

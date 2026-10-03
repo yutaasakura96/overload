@@ -81,6 +81,16 @@ function mutate(change: (records: StoreRecord[]) => Change | undefined): Promise
 export const recordsLoadedFor = (state: WorkoutState, userId: string | undefined) =>
   state.loaded && state.userId === userId;
 
+/** Whether reading this user's records failed. */
+export const readFailedFor = (state: WorkoutState, userId: string | undefined) =>
+  state.readFailed && state.userId === userId;
+
+const NO_RECORDS: StoreRecord[] = [];
+
+/** This user's records, or none while the store holds nobody's or another account's (docs/08 §5). */
+export const recordsOf = (state: WorkoutState, userId: string | undefined) =>
+  recordsLoadedFor(state, userId) ? state.records : NO_RECORDS;
+
 const byPosition = (a: { row: { position: number; id: string } }, b: typeof a) =>
   a.row.position - b.row.position || (a.row.id < b.row.id ? -1 : 1);
 

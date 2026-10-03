@@ -310,6 +310,58 @@ test('a focus account check keeps the open account on screen until another ident
   await page.unrouteAll({ behavior: 'ignoreErrors' });
 });
 
+test('a new identity never sees the previous account’s workout while its own sets are read', async ({
+  page,
+  context,
+}) => {
+  await useCookie(context, userA);
+  await page.goto('/routines/new');
+  await page.getByRole('textbox', { name: 'Name' }).fill('A’s routine');
+  await page.getByRole('button', { name: 'Add exercises' }).click();
+  await page.getByRole('checkbox', { name: 'Chin-Up', exact: true }).check();
+  await page.getByRole('button', { name: 'Add 1 exercise' }).click();
+  await page.getByRole('button', { name: 'Create routine' }).click();
+  await expect(page).toHaveURL('/routines');
+  await page.goto('/');
+  await page.getByRole('button', { name: /Start this workout/ }).click();
+  await expect(page).toHaveURL('/workout');
+  await page.goto('/');
+  await expect(page.getByRole('link', { name: 'Resume workout' })).toBeVisible();
+
+  // The set store is slow to answer for B, so the screen B opens on is seen before B's sets are.
+  await page.evaluate(() => {
+    const rows: {
+      getAll: (this: IDBObjectStore, ...args: Parameters<IDBObjectStore['getAll']>) => IDBRequest;
+    } = IDBObjectStore.prototype;
+    const getAll = rows.getAll;
+    IDBObjectStore.prototype.getAll = function held(this: IDBObjectStore, query, count) {
+      const request = getAll.call(this, query, count);
+      if (this.transaction.db.name !== 'overload-sets') return request;
+      const released = new Promise((resolve) => {
+        window.addEventListener('release-sets', resolve, { once: true });
+      });
+      const proxy = new EventTarget();
+      Object.defineProperty(proxy, 'result', { get: () => request.result });
+      Object.defineProperty(proxy, 'error', { get: () => request.error });
+      request.addEventListener('success', () => {
+        void released.then(() => proxy.dispatchEvent(new Event('success')));
+      });
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- stands in for the request
+      return proxy as IDBRequest;
+    };
+  });
+  await useCookie(context, userB);
+  await page.evaluate(() => window.dispatchEvent(new Event('visibilitychange')));
+  await expect(page.getByText(EMAIL_B)).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Resume workout' })).toHaveCount(0);
+  await expect(page.getByText('A’s routine')).toHaveCount(0);
+
+  await page.evaluate(() => window.dispatchEvent(new Event('release-sets')));
+  await expect(page.getByRole('button', { name: 'Sign out' })).toBeEnabled();
+  await expect(page.getByRole('link', { name: 'Resume workout' })).toHaveCount(0);
+  await expect(page.getByText('A’s routine')).toHaveCount(0);
+});
+
 test('a failed server sign-out keeps the session, cache, and other tab open', async ({
   context,
 }) => {

@@ -22,6 +22,9 @@ import {
   finishWorkout,
   lastSetOf,
   openWorkout,
+  readFailedFor,
+  recordsLoadedFor,
+  recordsOf,
   setsOf,
   useWorkoutStore,
 } from '../workout';
@@ -78,8 +81,11 @@ function exerciseToOpen(
 }
 
 export function Workout({ me, navigate }: { me: Me; navigate: Navigate }) {
-  const loaded = useWorkoutStore((state) => state.loaded || state.readFailed);
-  const records = useWorkoutStore((state) => state.records);
+  const userId = me.user.id;
+  const loaded = useWorkoutStore(
+    (state) => recordsLoadedFor(state, userId) || readFailedFor(state, userId),
+  );
+  const records = useWorkoutStore((state) => recordsOf(state, userId));
   // What this screen shows of the server's is copied at the start; the slot's time is the routines'.
   const routines = useQuery({ ...routinesQuery, enabled: useAccount().status === 'confirmed' });
   const workout = openWorkout(records);
