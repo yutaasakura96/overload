@@ -2983,15 +2983,19 @@ What `#3` built, where it stops, and what was decided on the way.
 - **Sign-out waits for a workout in progress**: "Finish it first". Sets the server has not
   acknowledged are uploaded or discarded as `08` §7 says. Slice 3 has no way to bring an open
   workout back from the server, so signing out mid-workout would leave it open there for good.
-  *Revisit* when slice 4 builds resume.
+  *Revisit* when slice 4 builds resume. Sign out is not offered until the set store has been read
+  at launch: before that the device looks empty, and a quick tap would skip the choice and leave
+  the sets behind. A set store that cannot be cleared gets `08` §7's "Saved data couldn't be
+  cleared" warning, not a clean sign-out.
 - **Today takes `/`** and the library moves to `/exercises`, as planned on 2026-10-01. Today holds
   the profile form, since the time zone is the day boundary and the unit is how weights show; the
   setup screen proper waits for M2's fields.
 - **Pounds.** Weights show to the tenth of a pound and are typed in pounds; what is stored is kg
   to the hundredth, and a typed value survives the round trip. The exercise form's increment
   follows the unit too, so a 5 lb step is typed as 5 and stored as 2.27 kg. An increment left as
-  shown is saved as the stored kg value, not converted back, and so is the weight the active set
-  card opens on: 62.5 kg shows as 137.8 and is logged as 62.5, not 62.51.
+  shown is saved as the stored kg value, not converted back. The active set card does the same: a
+  weight equal to the one it opened on, left there or typed back, keeps the stored kilograms, so
+  62.5 kg shows as 137.8 and is logged as 62.5, not 62.51. Any other figure is converted.
 - **A rest of 0 seconds is no rest.** The set starts no timer: no rest bar, no tone, nothing to
   dismiss.
 - **A figure too long for 56px is set smaller.** `102.25` at 56px is wider than its column on a

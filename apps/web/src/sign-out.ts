@@ -1,7 +1,7 @@
 import { authClient } from './auth-client';
 import { deviceStore } from './device-store';
-import { announceSignOut, closeAccount, queryClient } from './query';
-import { discardWorkouts, openWorkout, useWorkoutStore } from './workout';
+import { announceSignOut, closeAccount, currentAccount, queryClient } from './query';
+import { discardWorkouts, openWorkout, recordsLoadedFor, useWorkoutStore } from './workout';
 
 /**
  * What stops a sign-out before it starts (docs/08 §7): sets are never left on a device nobody is
@@ -15,7 +15,9 @@ export async function signOut(
   navigate: (path: string) => void,
   options: { discard?: boolean } = {},
 ): Promise<SignOutResult> {
-  const { records } = useWorkoutStore.getState();
+  const state = useWorkoutStore.getState();
+  if (!recordsLoadedFor(state, currentAccount().userId)) return 'failed';
+  const { records } = state;
   if (options.discard !== true) {
     if (records.some((record) => record.state !== 'acknowledged')) return 'rows-waiting';
     if (openWorkout(records) !== undefined) return 'workout-open';
@@ -27,7 +29,10 @@ export async function signOut(
     return 'failed';
   }
   // Nothing of the user's stays readable on the device: the set store's records go with the cache.
-  await discardWorkouts().catch(() => undefined);
+  const setsWiped = await discardWorkouts().then(
+    () => true,
+    () => false,
+  );
   const pendingRemember = closeAccount();
   queryClient.clear();
   await pendingRemember?.catch(() => undefined);
@@ -40,6 +45,6 @@ export async function signOut(
       ),
   );
   announceSignOut();
-  navigate(wiped ? '/sign-in' : '/sign-in?wipe=failed');
+  navigate(wiped && setsWiped ? '/sign-in' : '/sign-in?wipe=failed');
   return 'signed-out';
 }

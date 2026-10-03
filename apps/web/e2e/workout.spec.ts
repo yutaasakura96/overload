@@ -441,4 +441,67 @@ test.describe('sign-out with a workout on the device', () => {
     );
     expect(kept).toBe(0);
   });
+
+  test('waits for the device’s sets to be read before it can start', async ({ page }) => {
+    const name = `Reload ${Date.now()}`;
+    await saveProfile(page);
+    await createRoutine(page, name, ['Chin-Up']);
+    await page.getByRole('button', { name: 'Create routine' }).click();
+    await expect(page).toHaveURL('/routines');
+    await start(page, name);
+    await expect(dataState(page)).toContainText('SYNCED');
+    await page.route('**/api/workouts/sync', (route) => route.abort());
+    await completeSet(page, { reps: '6' });
+    await expect(dataState(page)).toHaveText('1 PENDING');
+
+    // The app opens again with the set store slow to answer: Today is up before the sets are read.
+    await page.addInitScript(() => {
+      const open = IDBFactory.prototype.open;
+      IDBFactory.prototype.open = function held(this: IDBFactory, database, version) {
+        const request = open.call(this, database, version);
+        if (database !== 'overload-sets') return request;
+        const released = new Promise((resolve) => {
+          window.addEventListener('release-sets', resolve, { once: true });
+        });
+        const proxy = new EventTarget();
+        Object.defineProperty(proxy, 'result', { get: () => request.result });
+        Object.defineProperty(proxy, 'error', { get: () => request.error });
+        request.addEventListener('success', () => {
+          void released.then(() => proxy.dispatchEvent(new Event('success')));
+        });
+        // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- stands in for the request
+        return proxy as IDBOpenDBRequest;
+      };
+    });
+    await page.goto('/');
+    const signOut = page.getByRole('button', { name: 'Sign out' });
+    await expect(signOut).toBeDisabled();
+
+    await page.evaluate(() => window.dispatchEvent(new Event('release-sets')));
+    await signOut.click();
+    await expect(page.getByText('1 set not uploaded yet.')).toBeVisible();
+    await expect(page).toHaveURL('/');
+  });
+
+  test('says so when the set store could not be cleared', async ({ page }) => {
+    await saveProfile(page);
+    await page.evaluate(() => {
+      const transaction = IDBDatabase.prototype.transaction;
+      IDBDatabase.prototype.transaction = function refused(
+        this: IDBDatabase,
+        stores,
+        mode,
+        options,
+      ) {
+        if (this.name === 'overload-sets' && mode === 'readwrite') {
+          throw new DOMException('The wipe failed.', 'UnknownError');
+        }
+        return transaction.call(this, stores, mode, options);
+      };
+    });
+
+    await page.getByRole('button', { name: 'Sign out' }).click();
+    await expect(page).toHaveURL('/sign-in?wipe=failed');
+    await expect(page.getByText("Saved data couldn't be cleared from this device.")).toBeVisible();
+  });
 });

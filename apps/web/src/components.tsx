@@ -1,7 +1,8 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { useAccount } from './query';
 import { signOut, type SignOutResult } from './sign-out';
 import { requestUpload } from './uploader';
-import { dataState, useWorkoutStore } from './workout';
+import { dataState, recordsLoadedFor, useWorkoutStore } from './workout';
 
 // Components drawn in docs/05 §4, and the few slice 2's screens add from the same tokens (docs/10 §8.1).
 
@@ -454,6 +455,8 @@ export function AccountFooter({
 }) {
   const [busy, setBusy] = useState(false);
   const [stopped, setStopped] = useState<Exclude<SignOutResult, 'signed-out'>>();
+  const { userId } = useAccount();
+  const loaded = useWorkoutStore((state) => recordsLoadedFor(state, userId));
   // Sets the server has not acknowledged, refused ones included (docs/08 §7).
   const waiting = useWorkoutStore(
     (state) =>
@@ -520,7 +523,7 @@ export function AccountFooter({
         <button
           type="button"
           className="button button--tertiary"
-          disabled={busy}
+          disabled={busy || !loaded}
           onClick={() => leave()}
         >
           Sign out

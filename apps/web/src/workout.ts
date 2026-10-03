@@ -74,6 +74,10 @@ function mutate(change: (records: StoreRecord[]) => Change | undefined): Promise
 
 // Reading the records.
 
+/** Whether this user's records have been read from the set store this launch. */
+export const recordsLoadedFor = (state: WorkoutState, userId: string | undefined) =>
+  state.loaded && state.userId === userId;
+
 const byPosition = (a: { row: { position: number; id: string } }, b: typeof a) =>
   a.row.position - b.row.position || (a.row.id < b.row.id ? -1 : 1);
 

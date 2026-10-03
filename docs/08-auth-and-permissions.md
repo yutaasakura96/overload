@@ -271,6 +271,11 @@ The endpoint list is `docs/07`.
 - A receiving tab wipes again after a sign-out notice to clear writes made after the first tab's
   wipe. A write that lands after this second wipe can still leave a saved copy; this timing gap is
   a known limit.
+- **Before the set store is read**, at launch, Sign out is not offered: what is waiting on the
+  device is not known yet, and it decides everything below. *Added 2026-10-03.*
+- If the set store cannot be cleared after the server ends the session, sign-out reaches `/sign-in`
+  with the same warning, "Saved data couldn't be cleared from this device." The rows stay under
+  their user's id and show only to that account. *Added 2026-10-03.*
 - **With a workout in progress** and nothing waiting: "A workout is in progress. Finish it first."
   The session stays. The device cannot yet bring an open workout back from the server, so signing
   out would leave it open there for good (`06`, 2026-10-03; revisit with slice 4's resume).
