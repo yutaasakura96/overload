@@ -2958,6 +2958,14 @@ What `#3` built, where it stops, and what was decided on the way.
   rest of F4. The screen refuses what the schema would (reps 1–100, RIR 0–10, weight 0–9999.99 kg)
   before a set is logged, so nothing it writes is one the server turns away. `not_found` and
   `parent_missing` are per row already, as is a constraint the database refuses.
+- **A workout outlives its routine in sync too.** A `routineId` the caller does not own, which is
+  what a routine deleted mid-workout becomes, is stored as null and the row is not refused.
+  Refusing it as `parent_missing` kept the finish, and the 3-hour rule's write, from ever reaching
+  the server. This narrows the 2026-09-22 rule for this one field; another user's routine id reads
+  the same as one that does not exist.
+- **Sync deletes workouts only.** A `{ id, deletedAt }` is accepted in `workouts`, which Finish
+  with no set and the 3-hour rule send. Deleting a workout exercise or a set is slice 4's, with the
+  tombstones that keep a stale copy from bringing it back.
 - **`set.weight_kg >= 0`** is a new check: bodyweight exercises log 0, nothing logs a negative.
 - **Last time is copied into the workout at start.** The device keeps last time, the suggestion,
   the exercise name and its rest with each `workout_exercise` record, outside the row that
@@ -2982,7 +2990,10 @@ What `#3` built, where it stops, and what was decided on the way.
 - **Pounds.** Weights show to the tenth of a pound and are typed in pounds; what is stored is kg
   to the hundredth, and a typed value survives the round trip. The exercise form's increment
   follows the unit too, so a 5 lb step is typed as 5 and stored as 2.27 kg. An increment left as
-  shown is saved as the stored kg value, not converted back.
+  shown is saved as the stored kg value, not converted back, and so is the weight the active set
+  card opens on: 62.5 kg shows as 137.8 and is logged as 62.5, not 62.51.
+- **A rest of 0 seconds is no rest.** The set starts no timer: no rest bar, no tone, nothing to
+  dismiss.
 - **A figure too long for 56px is set smaller.** `102.25` at 56px is wider than its column on a
   375px phone, and an input clips what does not fit. The size is `min(56px, column ÷ characters)`,
   so the figure is always read whole. This narrows `05` §2.6; it is not a second size.

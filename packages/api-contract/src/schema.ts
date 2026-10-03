@@ -1348,14 +1348,11 @@ export interface components {
       /** @default [] */
       workouts: (components['schemas']['SyncDeletion'] | components['schemas']['WorkoutRow'])[];
       /** @default [] */
-      workoutExercises: (
-        | components['schemas']['SyncDeletion']
-        | components['schemas']['WorkoutExerciseRow']
-      )[];
+      workoutExercises: components['schemas']['WorkoutExerciseRow'][];
       /** @default [] */
-      sets: (components['schemas']['SyncDeletion'] | components['schemas']['SetRow'])[];
+      sets: components['schemas']['SetRow'][];
     };
-    /** @description A row the phone deleted. */
+    /** @description A workout the phone deleted. */
     SyncDeletion: {
       /**
        * Format: uuid

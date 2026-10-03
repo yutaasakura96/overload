@@ -47,10 +47,11 @@ test.beforeEach(async ({ context }) => {
 
 const dataState = (page: Page) => page.locator('.data-state');
 
-async function saveProfile(page: Page) {
+async function saveProfile(page: Page, unit?: 'Kilograms' | 'Pounds') {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Today', level: 1 })).toBeVisible();
   await page.getByRole('textbox', { name: 'Time zone' }).fill('Asia/Tokyo');
+  if (unit !== undefined) await page.getByRole('radio', { name: unit }).check();
   await page.getByRole('button', { name: /^Save (profile|and finish setup)$/ }).click();
   await expect(page.getByText('Saved.')).toBeVisible();
 }
@@ -77,7 +78,7 @@ async function start(page: Page, name: string) {
 
 async function completeSet(page: Page, figures: { weight?: string; reps?: string; rir?: string }) {
   if (figures.weight !== undefined) {
-    await page.getByRole('textbox', { name: 'Weight in kilograms' }).fill(figures.weight);
+    await page.getByRole('textbox', { name: /^Weight in/ }).fill(figures.weight);
   }
   if (figures.reps !== undefined) {
     await page.getByRole('textbox', { name: 'Reps', exact: true }).fill(figures.reps);
@@ -259,6 +260,59 @@ test('a workout is logged from a routine, offline and back, and finished', async
   await expect(page).toHaveURL('/');
   await expect(dataState(page)).toContainText('SYNCED');
   await expect.poll(() => stored().length).toBe(1);
+});
+
+async function finish(page: Page) {
+  await page.getByRole('button', { name: 'Finish workout' }).click();
+  await page.getByRole('button', { name: 'Finish', exact: true }).click();
+  await expect(page).toHaveURL('/');
+}
+
+test('a weight left as the card opened it is logged as the stored kilograms', async ({ page }) => {
+  const name = `Pounds ${Date.now()}`;
+  const weights = () =>
+    stored()
+      .find((workout) => workout.name === name)
+      ?.exercises[0]?.sets.map((set) => set.weightKg);
+  await saveProfile(page, 'Kilograms');
+  await createRoutine(page, name, ['Barbell Deadlift']);
+  await page.getByRole('button', { name: 'Create routine' }).click();
+  await expect(page).toHaveURL('/routines');
+  await start(page, name);
+  await completeSet(page, { weight: '82.5', reps: '5' });
+  await expect(page.getByRole('row', { name: /^1 82.5 5/ })).toBeVisible();
+
+  // In pounds the card opens on 181.9, which is 82.51 kg typed: untouched, it stays 82.5.
+  await saveProfile(page, 'Pounds');
+  await page.getByRole('link', { name: 'Resume workout' }).click();
+  await expect(page.getByRole('textbox', { name: 'Weight in pounds' })).toHaveValue('181.9');
+  await completeSet(page, { reps: '5' });
+  await expect(page.getByRole('row', { name: /^2 181.9 5/ })).toBeVisible();
+  await expect.poll(weights).toEqual([82.5, 82.5]);
+
+  // What is typed is converted.
+  await completeSet(page, { weight: '185', reps: '5' });
+  await expect.poll(weights).toEqual([82.5, 82.5, 83.91]);
+  await finish(page);
+});
+
+test('an exercise with no rest shows no rest bar after a set', async ({ page }) => {
+  const name = `No rest ${Date.now()}`;
+  await saveProfile(page);
+  await page.goto('/exercises');
+  await page.getByRole('link', { name: /Barbell Curl/ }).click();
+  await page.getByRole('textbox', { name: /Rest/ }).fill('0');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page).toHaveURL('/exercises');
+  await createRoutine(page, name, ['Barbell Curl']);
+  await page.getByRole('button', { name: 'Create routine' }).click();
+  await expect(page).toHaveURL('/routines');
+
+  await start(page, name);
+  await completeSet(page, { weight: '30', reps: '10' });
+  await expect(page.getByRole('region', { name: 'SET 2 OF 3' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Rest timer' })).toHaveCount(0);
+  await finish(page);
 });
 
 test('a workout left for three hours ends at its last set', async ({ page }) => {

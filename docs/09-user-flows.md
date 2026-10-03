@@ -76,7 +76,8 @@ Works identically offline. Every write below goes to the IndexedDB set store fir
    tick. The set is written locally before the screen updates.
 3. **Rest.** The timer starts from the exercise's default rest, or 120 s (S5). Skip or +30 s. It
    counts from the set's `performed_at`, so a locked phone does not stop it. At zero a tone plays
-   and the bar counts over until dismissed or the next set (`06`, 2026-10-03).
+   and the bar counts over until dismissed or the next set (`06`, 2026-10-03). A rest of 0 seconds
+   starts no timer.
 4. **Change the workout.** Add, remove or reorder exercises; edit or delete a ticked set. None of it
    touches the routine (S4). Edits and deletes travel in the same sync batch (`07` §3.4). *Not built
    yet; it needs slice 4's tombstones.* Any exercise of the workout can be opened from **Up next**

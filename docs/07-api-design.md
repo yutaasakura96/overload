@@ -75,7 +75,8 @@ that shape. Its rate limiter's 429 and our `beforeDelete` refusal arrive in that
 - `type` is `urn:overload:problem:<code>`. It is an identifier, not a link: there is no domain to host documentation on.
 - **An id in a body that is not the caller's** (another user's food, exercise, routine…) is
   refused as if it did not exist: 422 `validation_failed` on that field, or `parent_missing` in a
-  sync batch (`08` §4).
+  sync batch (`08` §4). A synced workout's `routineId` is the one exception: it is stored as null
+  (§3.4).
 - The detail never contains a food, weight or health value (`03` §7). It names the field, not what
   was in it.
 
@@ -337,10 +338,12 @@ screen shows "first workout".
 | --- | --- | --- | --- | --- | --- |
 | POST | `/api/workouts/sync` | M | Apply the device's queued rows | 200 with a result per row | 401 (nothing applied; every row stays pending), 413 over the row limit, 422 |
 
-**Built so far (slice 3):** the happy path, the clock guard, deletions, ownership and the limit. The
-request is validated as a whole, so a row with a bad value is a 422 for the request; the per-row
-`validation_failed` below, and tombstones, arrive in slice 4 (`06`, 2026-10-03). Until then a
-deleted row reports `deleted`, and a stale copy sent after its delete would be stored again.
+**Built so far (slice 3):** the happy path, the clock guard, deleting a workout, ownership and the
+limit. The request is validated as a whole, so a row with a bad value is a 422 for the request; the
+per-row `validation_failed` below, deleting a workout exercise or a set, and tombstones arrive in
+slice 4 (`06`, 2026-10-03). Until then a `{ id, deletedAt }` in `workoutExercises` or `sets` is a
+422, a deleted workout reports `deleted`, and a stale copy sent after its delete would be stored
+again.
 
 **Request.** Three arrays, each row the **whole current row** as the phone holds it, plus
 `clientUpdatedAt`, the phone's clock at the last edit. A deletion is `{ id, deletedAt }`.
@@ -392,8 +395,11 @@ POST /api/workouts/sync
   reported `deleted`. Without this, a stale copy from a second tab or a late request would bring a
   deleted set back. *Added 2026-09-22.*
 - **Ownership:** a row whose id exists under another user is refused as `not_found`, like any
-  other cross-user access. A row whose `routineId`, `workoutId`, `workoutExerciseId` or
-  `exerciseId` is not the caller's is refused as `parent_missing` (`08` §4).
+  other cross-user access. A row whose `workoutId`, `workoutExerciseId` or `exerciseId` is not the
+  caller's is refused as `parent_missing` (`08` §4). A workout whose `routineId` is not the
+  caller's, or names a routine deleted since the workout started, is stored with `routineId` null:
+  a workout outlives its routine (`04`), so its finish is never refused over it. *Changed
+  2026-10-03.*
 - **Limit:** 500 rows a request. The uploader splits larger queues.
 
 **Response.** Always 200 when authenticated, with one entry for every id sent:

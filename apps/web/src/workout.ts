@@ -273,7 +273,10 @@ export async function completeSet(input: {
     };
     return { put: [record] };
   });
-  useWorkoutStore.setState({ rest: { setId: id, extraSeconds: 0, dismissed: false } });
+  const rests = input.exercise.local.restSeconds > 0;
+  useWorkoutStore.setState({
+    rest: rests ? { setId: id, extraSeconds: 0, dismissed: false } : undefined,
+  });
 }
 
 /** A workout left with no logged set is deleted, not kept (docs/09 F3). */

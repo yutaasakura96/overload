@@ -1174,28 +1174,14 @@
           "workoutExercises": {
             "type": "array",
             "items": {
-              "anyOf": [
-                {
-                  "$ref": "#/components/schemas/SyncDeletion"
-                },
-                {
-                  "$ref": "#/components/schemas/WorkoutExerciseRow"
-                }
-              ]
+              "$ref": "#/components/schemas/WorkoutExerciseRow"
             },
             "default": []
           },
           "sets": {
             "type": "array",
             "items": {
-              "anyOf": [
-                {
-                  "$ref": "#/components/schemas/SyncDeletion"
-                },
-                {
-                  "$ref": "#/components/schemas/SetRow"
-                }
-              ]
+              "$ref": "#/components/schemas/SetRow"
             },
             "default": []
           }
@@ -1221,7 +1207,7 @@
           "deletedAt"
         ],
         "additionalProperties": false,
-        "description": "A row the phone deleted."
+        "description": "A workout the phone deleted."
       }
     },
     "parameters": {}

@@ -393,11 +393,9 @@ function ActiveSet({
   const number = completed.length + 1;
   const last = lastTime[completed.length];
   const previous = completed.at(-1);
-  const [kg, setKg] = useState(() => {
-    if (previous !== undefined) return formatWeight(previous.row.weightKg, unit);
-    if (suggestion !== null) return formatWeight(suggestion.weightKg, unit);
-    return bodyweight ? '0' : '';
-  });
+  const openingKg = previous?.row.weightKg ?? suggestion?.weightKg ?? (bodyweight ? 0 : null);
+  const opening = openingKg === null ? '' : formatWeight(openingKg, unit);
+  const [kg, setKg] = useState(opening);
   const [reps, setReps] = useState('');
   const [rir, setRir] = useState('');
   const [warm, setWarm] = useState(false);
@@ -436,7 +434,8 @@ function ActiveSet({
     if (typedRir !== null && (!Number.isInteger(typedRir) || typedRir < 0 || typedRir > 10)) {
       return { field: 'rir', message: 'RIR is a whole number, 0 to 10, or empty' };
     }
-    return { weightKg: toKg(typedWeight, unit), reps: typedReps, rir: typedRir };
+    const weightKg = openingKg !== null && kg === opening ? openingKg : toKg(typedWeight, unit);
+    return { weightKg, reps: typedReps, rir: typedRir };
   };
 
   const complete = async () => {

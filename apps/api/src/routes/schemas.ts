@@ -341,13 +341,13 @@ export const SetRow = z.object(SetFields).superRefine(oneEffort).openapi('SetRow
 const Deletion = z
   .object({ id: Uuid, deletedAt: Instant })
   .strict()
-  .openapi('SyncDeletion', { description: 'A row the phone deleted.' });
+  .openapi('SyncDeletion', { description: 'A workout the phone deleted.' });
 
 export const SyncBatch = z
   .object({
     workouts: z.array(z.union([Deletion, WorkoutRow])).default([]),
-    workoutExercises: z.array(z.union([Deletion, WorkoutExerciseRow])).default([]),
-    sets: z.array(z.union([Deletion, SetRow])).default([]),
+    workoutExercises: z.array(WorkoutExerciseRow).default([]),
+    sets: z.array(SetRow).default([]),
   })
   .openapi('SyncBatch', {
     description:

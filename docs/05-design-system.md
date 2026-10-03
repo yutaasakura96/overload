@@ -427,7 +427,8 @@ in `line/hairline` sits on the very top edge with an `accent` fill (62% in the a
 
 **Rest over** (`06`, 2026-10-03, not drawn). At zero the fill is full, the label reads `REST OVER`
 and the timer counts up as `+0:12`, both in `accent`; `+30s` goes and `SKIP` becomes `DISMISS`. It
-stays until dismissed or the next set. Fixed to the bottom edge over the safe-area inset.
+stays until dismissed or the next set. Fixed to the bottom edge over the safe-area inset. An
+exercise whose rest is 0 seconds shows no bar.
 
 ### 4.15 Footnote rule
 Absolutely positioned at `bottom: 18px`, 12px padding above a `line/hairline` top border, holding a

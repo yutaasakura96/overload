@@ -44,13 +44,13 @@ export type SetRow = {
   clientUpdatedAt: string;
 };
 
-/** A row the phone deleted. */
+/** A workout the phone deleted. */
 export type Deletion = { id: string; deletedAt: string };
 
 export type SyncBatch = {
   workouts: (WorkoutRow | Deletion)[];
-  workoutExercises: (WorkoutExerciseRow | Deletion)[];
-  sets: (SetRow | Deletion)[];
+  workoutExercises: WorkoutExerciseRow[];
+  sets: SetRow[];
 };
 
 export type SyncTable = keyof SyncBatch;
@@ -72,8 +72,7 @@ export type SyncResult =
       problem: { code: RefusalCode; status: 404 | 422 };
     };
 
-const isDeletion = (row: WorkoutRow | WorkoutExerciseRow | SetRow | Deletion): row is Deletion =>
-  'deletedAt' in row;
+const isDeletion = (row: WorkoutRow | Deletion): row is Deletion => 'deletedAt' in row;
 
 const refusal = (table: SyncTable, id: string, code: RefusalCode): SyncResult => ({
   table,
@@ -138,16 +137,12 @@ export async function syncWorkouts(
     );
   }
   for (const row of batch.workoutExercises) {
-    await apply('workoutExercises', row.id, isDeletion(row) ? undefined : row.workoutId, (tx) =>
-      isDeletion(row)
-        ? deleteWorkoutExercise(tx, userId, row)
-        : upsertWorkoutExercise(tx, userId, row),
+    await apply('workoutExercises', row.id, row.workoutId, (tx) =>
+      upsertWorkoutExercise(tx, userId, row),
     );
   }
   for (const row of batch.sets) {
-    await apply('sets', row.id, isDeletion(row) ? undefined : row.workoutExerciseId, (tx) =>
-      isDeletion(row) ? deleteSet(tx, userId, row) : upsertSet(tx, userId, row),
-    );
+    await apply('sets', row.id, row.workoutExerciseId, (tx) => upsertSet(tx, userId, row));
   }
   return results;
 }
@@ -162,12 +157,11 @@ function refusalFor(error: unknown): RefusalCode | undefined {
 }
 
 async function upsertWorkout(tx: Queryable, userId: string, row: WorkoutRow): Promise<SyncResult> {
-  if (row.routineId !== null && !(await ownsRoutine(tx, userId, row.routineId))) {
-    return refusal('workouts', row.id, 'parent_missing');
-  }
+  const routineId =
+    row.routineId !== null && (await ownsRoutine(tx, userId, row.routineId)) ? row.routineId : null;
   const [written] = await tx
     .insert(workout)
-    .values({ ...workoutColumns(row), id: row.id, userId })
+    .values({ ...workoutColumns(row), routineId, id: row.id, userId })
     .onConflictDoUpdate({
       target: workout.id,
       set: {
@@ -301,95 +295,25 @@ async function upsertSet(tx: Queryable, userId: string, row: SetRow): Promise<Sy
 }
 
 /**
- * A deletion removes the row when the stored copy is older than `deletedAt`, and counts as deleted
- * when the row is already gone. A newer stored copy wins and is answered as unchanged.
+ * A deletion removes the workout when the stored copy is older than `deletedAt`, and counts as
+ * deleted when the row is already gone. A newer stored copy wins and is answered as unchanged.
  */
 async function deleteWorkout(tx: Queryable, userId: string, row: Deletion): Promise<SyncResult> {
-  return deleteRow(row, {
-    table: 'workouts',
-    remove: () =>
-      tx
-        .delete(workout)
-        .where(
-          and(
-            eq(workout.id, row.id),
-            eq(workout.userId, userId),
-            lt(workout.clientUpdatedAt, new Date(row.deletedAt)),
-          ),
-        )
-        .returning({ id: workout.id }),
-    stored: async () => {
-      const [stored] = await tx.select().from(workout).where(eq(workout.id, row.id));
-      if (stored === undefined) return 'gone';
-      return stored.userId === userId ? toWorkoutRow(stored) : 'other_user';
-    },
-  });
-}
-
-async function deleteWorkoutExercise(
-  tx: Queryable,
-  userId: string,
-  row: Deletion,
-): Promise<SyncResult> {
-  const owned = sql`${workoutExercise.workoutId} IN ${ownWorkouts(userId)}`;
-  return deleteRow(row, {
-    table: 'workoutExercises',
-    remove: () =>
-      tx
-        .delete(workoutExercise)
-        .where(
-          and(
-            eq(workoutExercise.id, row.id),
-            owned,
-            lt(workoutExercise.clientUpdatedAt, new Date(row.deletedAt)),
-          ),
-        )
-        .returning({ id: workoutExercise.id }),
-    stored: async () => {
-      const [stored] = await tx
-        .select({ row: workoutExercise, owned: sql<boolean>`${owned}` })
-        .from(workoutExercise)
-        .where(eq(workoutExercise.id, row.id));
-      if (stored === undefined) return 'gone';
-      return stored.owned ? toWorkoutExerciseRow(stored.row) : 'other_user';
-    },
-  });
-}
-
-async function deleteSet(tx: Queryable, userId: string, row: Deletion): Promise<SyncResult> {
-  const owned = sql`${set.workoutExerciseId} IN ${ownWorkoutExercises(userId)}`;
-  return deleteRow(row, {
-    table: 'sets',
-    remove: () =>
-      tx
-        .delete(set)
-        .where(and(eq(set.id, row.id), owned, lt(set.clientUpdatedAt, new Date(row.deletedAt))))
-        .returning({ id: set.id }),
-    stored: async () => {
-      const [stored] = await tx
-        .select({ row: set, owned: sql<boolean>`${owned}` })
-        .from(set)
-        .where(eq(set.id, row.id));
-      if (stored === undefined) return 'gone';
-      return stored.owned ? toSetRow(stored.row) : 'other_user';
-    },
-  });
-}
-
-async function deleteRow(
-  row: Deletion,
-  steps: {
-    table: SyncTable;
-    remove: () => Promise<{ id: string }[]>;
-    stored: () => Promise<'gone' | 'other_user' | WorkoutRow | WorkoutExerciseRow | SetRow>;
-  },
-): Promise<SyncResult> {
-  const removed = await steps.remove();
-  if (removed.length > 0) return { table: steps.table, id: row.id, status: 'deleted' };
-  const stored = await steps.stored();
-  if (stored === 'gone') return { table: steps.table, id: row.id, status: 'deleted' };
-  if (stored === 'other_user') return refusal(steps.table, row.id, 'not_found');
-  return { table: steps.table, id: row.id, status: 'unchanged', row: stored };
+  const removed = await tx
+    .delete(workout)
+    .where(
+      and(
+        eq(workout.id, row.id),
+        eq(workout.userId, userId),
+        lt(workout.clientUpdatedAt, new Date(row.deletedAt)),
+      ),
+    )
+    .returning({ id: workout.id });
+  if (removed.length > 0) return { table: 'workouts', id: row.id, status: 'deleted' };
+  const [stored] = await tx.select().from(workout).where(eq(workout.id, row.id));
+  if (stored === undefined) return { table: 'workouts', id: row.id, status: 'deleted' };
+  if (stored.userId !== userId) return refusal('workouts', row.id, 'not_found');
+  return { table: 'workouts', id: row.id, status: 'unchanged', row: toWorkoutRow(stored) };
 }
 
 async function ownsRoutine(tx: Queryable, userId: string, routineId: string) {

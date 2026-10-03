@@ -177,6 +177,46 @@ describe('POST /api/workouts/sync (S1)', () => {
     expect(stored?.endedAt?.toISOString()).toBe(finished.endedAt);
   });
 
+  it('finishes a workout whose routine was deleted after it started, keeping it without the routine', async () => {
+    const { cookie } = await t.createSignedInUser('routine-gone@example.test');
+    const routineId = randomUUID();
+    await send(cookie, 'POST', '/api/routines', { id: routineId, name: 'Push A' });
+    const w = workoutRow({ routineId });
+    expect((await sync(cookie, { workouts: [w] }))[0]?.row).toMatchObject({ routineId });
+    expect((await send(cookie, 'DELETE', `/api/routines/${routineId}`)).status).toBe(204);
+
+    const finished = {
+      ...w,
+      endedAt: at('2026-11-11T10:14:50Z'),
+      clientUpdatedAt: at('2026-11-11T10:14:50Z'),
+    };
+    const [result] = await sync(cookie, { workouts: [finished] });
+
+    expect(result).toMatchObject({ status: 'stored', row: { routineId: null } });
+    const [stored] = await t.db.select().from(workout).where(eq(workout.id, w.id));
+    expect(stored?.endedAt?.toISOString()).toBe(finished.endedAt);
+    expect(stored?.routineId).toBeNull();
+  });
+
+  it('refuses a deletion of an exercise row or a set: only a workout is deleted', async () => {
+    const { cookie } = await t.createSignedInUser('child-delete@example.test');
+    const { workoutExercise: we, sets } = await logBench(cookie, {
+      startedAt: at('2026-11-11T09:00:00Z'),
+      kg: 80,
+      reps: [10],
+    });
+    const deletedAt = at('2026-11-11T11:00:00Z');
+
+    for (const batch of [
+      { workoutExercises: [{ id: we.id, deletedAt }] },
+      { sets: [{ id: sets[1]?.id, deletedAt }] },
+    ]) {
+      expect((await send(cookie, 'POST', '/api/workouts/sync', batch)).status).toBe(422);
+    }
+
+    expect(await t.db.select().from(set).where(eq(set.workoutExerciseId, we.id))).toHaveLength(2);
+  });
+
   it('derives nothing from an idle workout: until the phone writes it, endedAt stays null', async () => {
     const { cookie } = await t.createSignedInUser('idle@example.test');
     const { workout: w } = await logBench(cookie, {
@@ -305,11 +345,7 @@ describe('the workout tree across users (docs/08 §4, §10)', () => {
       workoutExercises: [{ ...we, workoutId: ownWorkout.id, clientUpdatedAt: later }],
       sets: [{ ...sets[1], workoutExerciseId: ownExercise.id, reps: 1, clientUpdatedAt: later }],
     });
-    const deletes = await sync(b.cookie, {
-      workouts: [{ id: w.id, deletedAt: later }],
-      workoutExercises: [{ id: we.id, deletedAt: later }],
-      sets: [{ id: sets[1]?.id, deletedAt: later }],
-    });
+    const deletes = await sync(b.cookie, { workouts: [{ id: w.id, deletedAt: later }] });
 
     for (const result of [...overwrite, ...deletes]) {
       expect(result).toMatchObject({ status: 'refused', problem: { code: 'not_found' } });
@@ -319,7 +355,7 @@ describe('the workout tree across users (docs/08 §4, §10)', () => {
     expect(await t.db.select().from(set).where(eq(set.workoutExerciseId, we.id))).toHaveLength(2);
   });
 
-  it('refuses rows that refer to another user’s workout, exercise row, routine or custom exercise as parent_missing', async () => {
+  it('refuses rows that refer to another user’s workout, exercise row or custom exercise as parent_missing, and stores a workout naming their routine without it', async () => {
     const a = await t.createSignedInUser('owner@example.test');
     const b = await t.createSignedInUser('intruder@example.test');
     const { workout: w, workoutExercise: we } = await logBench(a.cookie, {
@@ -343,8 +379,9 @@ describe('the workout tree across users (docs/08 §4, §10)', () => {
       sets: [setRow(we.id, 5)],
     });
 
+    expect(results[0]?.row).toMatchObject({ routineId: null });
     expect(results.map((r) => [r.status, r.problem?.code])).toEqual([
-      ['refused', 'parent_missing'],
+      ['stored', undefined],
       ['stored', undefined],
       ['refused', 'parent_missing'],
       ['refused', 'parent_missing'],

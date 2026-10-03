@@ -158,7 +158,8 @@ on that date.
   another user's id, and a join would then show that user's exercise name or Apple workout. An id
   that is not the caller's is refused exactly like one that does not exist: 422
   `validation_failed` on that field's path, `parent_missing` inside a sync batch. *Added
-  2026-09-22.*
+  2026-09-22.* A synced workout's `routineId` is stored as null instead, the same whether the
+  routine is another user's or does not exist (`07` §3.4). *Added 2026-10-03.*
 - **Someone else's row gives 404, not 403.** A 403 would confirm the id exists.
 - **The daily job runs for every user**, and it is the only code path that is not scoped to one
   caller. It loops over users and calls the same per-user functions.
