@@ -112,7 +112,8 @@ and `apps/api` exist; the first real deploy is slice 1.
   failing on purpose once this reaches `develop`. The private key was generated straight into the
   1Password item *overload backup age key* (Personal vault) and exists nowhere else. Checked: the key
   in 1Password derives the committed public key, and an `age` round trip through it decrypts. The
-  first run by hand (`13` §9) is still open.
+  first run by hand (`13` §9) succeeded on 2026-10-03, once the role trusted GitHub's immutable
+  subject (`06`); every nightly run before it had failed at sign-in.
 - **WAF: done.** The `api-rate-limit` rule on `overload-web` (`/api/` prefix, 300 / 60 s per IP,
   fixed window) already existed but answered `deny` (403); it now answers Vercel's default `429`, as
   `13` §3 says. Checked from outside: 320 requests to `/api/health`, the first 300 got `200`, the rest `429`.
