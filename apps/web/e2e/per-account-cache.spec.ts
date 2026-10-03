@@ -314,6 +314,7 @@ test('a new identity never sees the previous account’s workout while its own s
   page,
   context,
 }) => {
+  await context.clock.install();
   await useCookie(context, userA);
   await page.goto('/routines/new');
   await page.getByRole('textbox', { name: 'Name' }).fill('A’s routine');
@@ -325,6 +326,9 @@ test('a new identity never sees the previous account’s workout while its own s
   await page.goto('/');
   await page.getByRole('button', { name: /Start this workout/ }).click();
   await expect(page).toHaveURL('/workout');
+  await page.getByRole('textbox', { name: 'Reps', exact: true }).fill('6');
+  await page.getByRole('button', { name: 'Complete set' }).click();
+  await expect(page.getByRole('row', { name: /^1 0 6/ })).toBeVisible();
   await page.goto('/');
   await expect(page.getByRole('link', { name: 'Resume workout' })).toBeVisible();
 
@@ -360,6 +364,17 @@ test('a new identity never sees the previous account’s workout while its own s
   await expect(page.getByRole('button', { name: 'Sign out' })).toBeEnabled();
   await expect(page.getByRole('link', { name: 'Resume workout' })).toHaveCount(0);
   await expect(page.getByText('A’s routine')).toHaveCount(0);
+
+  // Nor does B read that A's workout was ended by the 3-hour rule.
+  await useCookie(context, userA);
+  await context.clock.fastForward('03:00:30');
+  await page.goto('/');
+  await expect(page.getByText(/A’s routine ended at \d\d:\d\d/)).toBeVisible();
+  await useCookie(context, userB);
+  await page.evaluate(() => window.dispatchEvent(new Event('visibilitychange')));
+  await expect(page.getByText(EMAIL_B)).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Sign out' })).toBeEnabled();
+  await expect(page.getByText(/ended at/)).toHaveCount(0);
 });
 
 test('a failed server sign-out keeps the session, cache, and other tab open', async ({

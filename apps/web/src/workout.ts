@@ -169,8 +169,12 @@ export async function loadWorkouts(userId: string, nowMs = Date.now()): Promise<
   // A device whose IndexedDB cannot be read is not loaded: Today says so and offers to try again,
   // and neither a start nor a sign-out goes ahead on records nobody has seen (docs/08 §7).
   const records = await setStore.all(userId).catch(() => undefined);
+  // What the store says of the account before stays with that account.
+  const other =
+    useWorkoutStore.getState().userId === userId ? {} : { idleEnded: undefined, lastSyncedAt: 0 };
   if (records === undefined) {
     useWorkoutStore.setState({
+      ...other,
       userId,
       loaded: false,
       readFailed: true,
@@ -189,11 +193,12 @@ export async function loadWorkouts(userId: string, nowMs = Date.now()): Promise<
     last !== undefined &&
     exercise !== undefined &&
     nowMs - new Date(last.row.performedAt).getTime() < exercise.local.restSeconds * 1000;
-  // A rest already counted from this set keeps its `+30s` and its skip: this runs again on every
-  // return to the app, not only at launch.
+  // A rest already counted from this set keeps its `+30s` and its skip: this runs again from
+  // Today's "Try again" and when the account changes, not only at launch.
   const { rest } = useWorkoutStore.getState();
   const kept = last !== undefined && rest?.setId === last.id ? rest : undefined;
   useWorkoutStore.setState({
+    ...other,
     userId,
     loaded: true,
     readFailed: false,
