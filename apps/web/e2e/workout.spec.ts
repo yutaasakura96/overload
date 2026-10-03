@@ -323,9 +323,7 @@ test('an exercise with no rest shows no rest bar after a set', async ({ page }) 
   await finish(page);
 });
 
-test('a longer or skipped rest stays so after leaving the app and coming back', async ({
-  page,
-}) => {
+test('leaving the app and coming back keeps the workout screen as it was', async ({ page }) => {
   const name = `Away ${Date.now()}`;
   await page.clock.install();
   await saveProfile(page);
@@ -334,45 +332,57 @@ test('a longer or skipped rest stays so after leaving the app and coming back', 
   await page.getByRole('textbox', { name: /Rest/ }).fill('120');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page).toHaveURL('/exercises');
-  await createRoutine(page, name, ['Dumbbell Hammer Curl']);
+  await createRoutine(page, name, ['Dumbbell Hammer Curl', 'Dumbbell Lateral Raise']);
   await page.getByRole('button', { name: 'Create routine' }).click();
   await expect(page).toHaveURL('/routines');
   await start(page, name);
 
-  // Coming back asks /api/me again, and the workout is rebuilt from the set store once it answers.
-  const comeBack = async () => {
-    const me = page.waitForResponse((response) => response.url().endsWith('/api/me'));
-    await page.evaluate(() => window.dispatchEvent(new Event('visibilitychange')));
-    await me;
-    await expect(page.getByRole('heading', { name: 'Dumbbell Hammer Curl' })).toBeVisible();
-    await page.evaluate(
-      () =>
-        new Promise<void>((resolve, reject) => {
-          const open = indexedDB.open('overload-sets');
-          open.addEventListener('error', () => reject(open.error));
-          open.addEventListener('success', () => {
-            const read = open.result.transaction('rows', 'readonly').objectStore('rows').getAll();
-            read.addEventListener('success', () => resolve());
-            read.addEventListener('error', () => reject(read.error));
-          });
-        }),
-    );
-  };
-
+  // A set logged and its rest made longer, then another exercise opened with a set half typed.
   const rest = page.getByRole('region', { name: 'Rest timer' });
   await completeSet(page, { weight: '12', reps: '10' });
   await rest.getByRole('button', { name: '+30s rest' }).click();
-  await expect(rest.getByRole('timer')).toHaveText(/^2:[23]\d$/);
-  await page.clock.fastForward('02:10');
-  await comeBack();
-  await expect(rest.getByRole('timer')).toHaveText(/^0:[012]\d$/);
+  await page.getByRole('button', { name: /Dumbbell Lateral Raise/ }).click();
+  await page.getByRole('textbox', { name: /^Weight in/ }).fill('7.5');
+  await page.getByRole('textbox', { name: 'Reps', exact: true }).fill('12');
+  await page.getByRole('textbox', { name: 'Reps in reserve, optional' }).fill('2');
+  await page.getByRole('button', { name: 'Warm-up set' }).click();
+  const asLeft = async () => {
+    await expect(page.getByRole('heading', { name: 'Dumbbell Lateral Raise' })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'WARM-UP' })).toBeVisible();
+    await expect(page.getByRole('textbox', { name: /^Weight in/ })).toHaveValue('7.5');
+    await expect(page.getByRole('textbox', { name: 'Reps', exact: true })).toHaveValue('12');
+    await expect(page.getByRole('textbox', { name: 'Reps in reserve, optional' })).toHaveValue('2');
+    await expect(rest.getByRole('timer')).toHaveText(/^2:[012]\d$/);
+  };
+  await asLeft();
 
-  await completeSet(page, { reps: '10' });
+  // Coming back asks /api/me again. The screen stays as it was while that is away, and after.
+  const comeBack = async (check: () => Promise<void>) => {
+    const { promise: held, resolve: release } = Promise.withResolvers<void>();
+    await page.route('**/api/me', async (route) => {
+      await held;
+      await route.continue();
+    });
+    const asked = page.waitForRequest('**/api/me');
+    const answered = page.waitForResponse('**/api/me');
+    await page.evaluate(() => window.dispatchEvent(new Event('visibilitychange')));
+    await asked;
+    await check();
+    release();
+    await answered;
+    await page.unroute('**/api/me');
+    await expect(dataState(page)).toContainText('SYNCED');
+    await check();
+  };
+  await comeBack(asLeft);
+
   await rest.getByRole('button', { name: 'Skip rest' }).click();
-  await expect(rest).toHaveCount(0);
-  await comeBack();
-  await expect(page.getByRole('region', { name: 'SET 3 OF 3' })).toBeVisible();
-  await expect(rest).toHaveCount(0);
+  await comeBack(async () => {
+    await expect(page.getByRole('textbox', { name: /^Weight in/ })).toHaveValue('7.5');
+    await expect(rest).toHaveCount(0);
+  });
+  await page.getByRole('button', { name: 'Complete set' }).click();
+  await expect(page.getByRole('button', { name: /1 WARM-UP SET/ })).toBeVisible();
   await finish(page);
 });
 

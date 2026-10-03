@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { isUnauthenticated } from './api';
 import { AppBar, Notice } from './components';
 import { routeOf, safeNext, useLocation } from './navigation';
@@ -21,13 +21,18 @@ export function App() {
   const onSignIn = pathname === '/sign-in';
   const signedOut = isUnauthenticated(me.error);
   // The cache renders only as the account it belongs to, once /api/me has confirmed that account
-  // this launch, or offline as the last one it confirmed on this device (docs/08 §5, §7).
+  // this launch, or offline as the last one it confirmed on this device (docs/08 §5, §7). An account
+  // already open stays on screen while a later check runs: only an answer that ends the session or
+  // names another account takes its screen away.
+  const [openedAs, setOpenedAs] = useState<string>();
+  const shownAs =
+    me.data !== undefined && me.data.user.id === account.userId && !signedOut
+      ? me.data.user.id
+      : undefined;
+  const answered = !me.isFetching && (account.status !== 'checking' || me.fetchStatus === 'paused');
   const opens =
-    me.data !== undefined &&
-    me.data.user.id === account.userId &&
-    !signedOut &&
-    !me.isFetching &&
-    (account.status !== 'checking' || me.fetchStatus === 'paused');
+    me.data !== undefined && shownAs !== undefined && (answered || shownAs === openedAs);
+  if (opens && openedAs !== shownAs) setOpenedAs(shownAs);
 
   useEffect(() => {
     if (onSignIn && opens) {

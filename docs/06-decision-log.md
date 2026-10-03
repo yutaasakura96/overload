@@ -2989,6 +2989,17 @@ What `#3` built, where it stops, and what was decided on the way.
   cleared" warning, not a clean sign-out. A set store that cannot be read is not an empty one:
   Today says "Couldn't read this device's sets" with Try again in place of Start a workout, and
   sign-out fails until the read succeeds.
+- **A later account check no longer takes the screen away.** `/api/me` is asked again on every
+  return to the app, and until now the app rendered nothing while it was away, as at launch. On
+  screen 1 that rebuilt the workout each time the phone was unlocked: the exercise opened from Up
+  next went back to the last one logged, so a set could be logged to the wrong exercise, and the
+  typed figures and the warm-up toggle were lost. Now only the first check, at app open, holds the
+  screen back. After that the open account's screen stays mounted through a check and goes only
+  when the answer ends the session or names another account. Queries, uploads and saves still wait
+  for the answer, so nothing loaded under another cookie reaches this account's copy. This narrows
+  the 2026-09-27 rule in `08` §5. *Rejected:* keeping the current exercise and the draft figures in
+  the workout store so a remount restores them; it leaves the blank screen for up to 3 s on weak
+  signal and adds state to keep in step.
 - **Today takes `/`** and the library moves to `/exercises`, as planned on 2026-10-01. Today holds
   the profile form, since the time zone is the day boundary and the unit is how weights show; the
   setup screen proper waits for M2's fields.

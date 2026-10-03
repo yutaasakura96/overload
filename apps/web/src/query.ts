@@ -246,8 +246,8 @@ async function confirm(me: Me, generation: number) {
 
 export const meQuery = queryOptions({
   queryKey: ME_KEY,
-  // Asked at every launch, focus and reconnect, however fresh: it is the account check, and nothing
-  // renders until it answers or fails.
+  // Asked at every launch, focus and reconnect, however fresh: it is the account check. Nothing
+  // renders until the first one answers or fails; a later one runs behind the open account's screen.
   staleTime: 0,
   queryFn: async () => {
     if (accountClosed) throw new AccountCheckFailed('Account closed');

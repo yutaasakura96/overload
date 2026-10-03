@@ -181,7 +181,7 @@ test('a failed focus account check keeps the confirmed account’s library visib
   });
   await page.evaluate(() => window.dispatchEvent(new Event('visibilitychange')));
   await meAsked;
-  await expect(page.getByText(EMAIL_A)).toHaveCount(0);
+  await expect(page.getByText(EMAIL_A)).toBeVisible();
   release();
   await meFailed;
   await expect(page.getByText(EMAIL_A)).toBeVisible();
@@ -279,7 +279,7 @@ test('a second tab drops the previous account once another tab switches', async 
   expect(await savedCache(first, userB)).not.toContain(OWN_A);
 });
 
-test('a focus account check hides the open account until the new identity answers', async ({
+test('a focus account check keeps the open account on screen until another identity answers', async ({
   page,
   context,
 }) => {
@@ -297,14 +297,16 @@ test('a focus account check hides the open account until the new identity answer
   const meAsked = page.waitForRequest('**/api/me');
   await page.evaluate(() => window.dispatchEvent(new Event('visibilitychange')));
   await meAsked;
-  await expect(page.getByText(EMAIL_A)).toHaveCount(0);
-  await expect(page.getByText(OWN_A)).toHaveCount(0);
+  await expect(page.getByText(EMAIL_A)).toBeVisible();
+  await expect(page.getByText(OWN_A)).toBeVisible();
   await page.waitForTimeout(1500);
   expect(library.requests).toBe(0);
   expect(await savedCache(page, userA)).not.toContain(OWN_B);
   release();
   await expect(page.getByText(EMAIL_B)).toBeVisible();
   await expect(page.getByText(OWN_B)).toBeVisible();
+  await expect(page.getByText(EMAIL_A)).toHaveCount(0);
+  await expect(page.getByText(OWN_A)).toHaveCount(0);
   await page.unrouteAll({ behavior: 'ignoreErrors' });
 });
 

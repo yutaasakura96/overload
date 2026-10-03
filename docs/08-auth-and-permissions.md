@@ -218,6 +218,12 @@ The endpoint list is `docs/07`.
   network error or timeout keeps that same account's saved copy visible offline. A 401 still follows
   the ended-session flow below without a wipe; only a successful answer naming another account
   opens that account's copy.
+- **"Nothing renders until the check answers" is the rule for the first check, at app open.** Once
+  the app has opened as an account, a later check, at focus or reconnect, runs behind the screen
+  that is open: it stays mounted, the workout screen included, and only an answer that ends the
+  session or names another account takes it away. While that check is away the account is not
+  confirmed, so nothing is fetched, uploaded or saved under it; the screen shows what it already
+  held. *Changed 2026-10-03 (`06`).*
 - **Back online**, a 401 from any request means the session has ended, whether it expired, was
   signed out elsewhere, or was revoked. The client cannot tell which from the 401, and it does not
   try:
