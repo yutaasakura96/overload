@@ -5,6 +5,7 @@ type Cookies = Parameters<import('@playwright/test').BrowserContext['addCookies'
 
 type StoredWorkout = {
   name: string;
+  routineId: string | null;
   startedAt: string;
   endedAt: string | null;
   exercises: {
@@ -312,7 +313,42 @@ test('an exercise with no rest shows no rest bar after a set', async ({ page }) 
   await completeSet(page, { weight: '30', reps: '10' });
   await expect(page.getByRole('region', { name: 'SET 2 OF 3' })).toBeVisible();
   await expect(page.getByRole('region', { name: 'Rest timer' })).toHaveCount(0);
+  await completeSet(page, { reps: '10' });
+  await expect(page.getByRole('region', { name: 'SET 3 OF 3' })).toBeVisible();
+  await completeSet(page, { reps: '10' });
+  await expect(page.getByRole('region', { name: 'SET 4 · EXTRA' })).toBeVisible();
+  await completeSet(page, { reps: '10' });
+  await expect(page.getByRole('region', { name: 'SET 5 · EXTRA' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Rest timer' })).toHaveCount(0);
   await finish(page);
+});
+
+test('finishing after deleting the routine keeps the workout on the server', async ({ page }) => {
+  const name = `Deleted routine ${Date.now()}`;
+  await saveProfile(page, 'Kilograms');
+  await createRoutine(page, name, ['Barbell Bench Press']);
+  await page.getByRole('button', { name: 'Create routine' }).click();
+  await expect(page).toHaveURL('/routines');
+
+  await start(page, name);
+  await completeSet(page, { weight: '60', reps: '8' });
+  await expect(dataState(page)).toContainText('SYNCED');
+
+  await page.goto('/routines');
+  await page.getByRole('link', { name: new RegExp(name) }).click();
+  await page.getByRole('button', { name: 'Delete routine' }).click();
+  await page.getByRole('button', { name: 'Delete', exact: true }).click();
+  await expect(page).toHaveURL('/routines');
+
+  await page.goto('/');
+  await page.getByRole('link', { name: 'Resume workout' }).click();
+  await finish(page);
+  await expect(dataState(page)).toContainText('SYNCED');
+  await expect.poll(() => stored().find((workout) => workout.name === name)?.endedAt).toBeTruthy();
+  expect(stored().find((workout) => workout.name === name)).toMatchObject({
+    routineId: null,
+    exercises: [{ sets: [expect.objectContaining({ weightKg: 60, reps: 8 })] }],
+  });
 });
 
 test('a workout left for three hours ends at its last set', async ({ page }) => {

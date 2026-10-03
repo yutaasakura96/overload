@@ -228,11 +228,12 @@ The error colour is `error` `#F2555A` (`docs/05` §1.4, added 2026-09-22), alway
    Background Sync, which is unverified on Safari.
 3. The server upserts with `INSERT … ON CONFLICT (id) DO UPDATE … WHERE stored.client_updated_at <
    incoming.client_updated_at` and returns a result per row (`docs/07` §3.4). A retry after a lost
-   response, or a stale copy, changes nothing. Edits and deletes made offline travel in the same
-   batch. *Changed 2026-09-21* from `DO NOTHING`, which could not carry an offline edit.
-   - **A deletion leaves a tombstone.** The guard only works while a row exists, and deletes are
-     hard, so a stale copy arriving after a delete would otherwise be inserted again. Each sync
-     delete writes the id to `sync_tombstone` (`docs/04`) in the same transaction, along with the ids
+   response, or a stale copy, changes nothing. Slice 3 syncs workout deletion; editing or deleting
+   logged sets waits for slice 4 (`docs/07` §3.4). *Changed 2026-09-21* from `DO NOTHING`, which
+   could not carry an offline edit.
+   - **Slice 4: a deletion leaves a tombstone.** The guard only works while a row exists, and
+     deletes are hard, so a stale copy arriving after a delete would otherwise be inserted again.
+     Each sync delete writes the id to `sync_tombstone` (`docs/04`) in the same transaction, along with the ids
      it cascades to. The insert skips any row whose id or parent id has a tombstone, and reports it
      as `deleted`. Tombstones are purged after 30 days by the daily job (§8.4). *Added 2026-09-22.*
 4. **The local record is deleted only after the server acknowledges the set.** A refusal (kind 3)
@@ -246,8 +247,8 @@ The error colour is `error` `#F2555A` (`docs/05` §1.4, added 2026-09-22), alway
    - **Supported** in Safari and iOS Safari since 15.4 (MDN browser-compat, checked 2026-09-24).
      **Still unverified:** behaviour inside a standalone home-screen app, and whether a lock is shared
      between the installed app and the same origin open in Safari. `11` §3 item 4 checks both.
-   - A second tab uploading anyway is safe because of step 3 and its tombstones; the lock only
-     prevents wasted requests.
+   - Once tombstones are built, a second tab uploading anyway is safe against resurrection; the
+     lock also prevents wasted requests.
 6. `workout` and `workout_exercise` are created on the phone the same way, and uploaded before
    their sets.
 

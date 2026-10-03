@@ -346,7 +346,8 @@ slice 4 (`06`, 2026-10-03). Until then a `{ id, deletedAt }` in `workoutExercise
 again.
 
 **Request.** Three arrays, each row the **whole current row** as the phone holds it, plus
-`clientUpdatedAt`, the phone's clock at the last edit. A deletion is `{ id, deletedAt }`.
+`clientUpdatedAt`, the phone's clock at the last edit. Only a workout can be deleted in slice 3,
+with `{ id, deletedAt }`.
 
 ```http
 POST /api/workouts/sync
@@ -365,10 +366,9 @@ POST /api/workouts/sync
     { "id": "0192s020-…", "workoutExerciseId": "0192x010-…", "position": 0, "weightKg": 82.5, "reps": 10,
       "rir": 2, "rpe": null, "isWarmup": false, "performedAt": "2026-11-11T09:09:12.000Z",
       "clientUpdatedAt": "2026-11-11T09:09:12.000Z" },
-    { "id": "0192s021-…", "workoutExerciseId": "0192x010-…", "position": 1, "weightKg": 82.5, "reps": 0,
+    { "id": "0192s021-…", "workoutExerciseId": "0192x010-…", "position": 1, "weightKg": 82.5, "reps": 8,
       "rir": null, "rpe": null, "isWarmup": false, "performedAt": "2026-11-11T09:12:40.000Z",
-      "clientUpdatedAt": "2026-11-11T09:12:40.000Z" },
-    { "id": "0192s019-…", "deletedAt": "2026-11-11T09:10:03.000Z" }
+      "clientUpdatedAt": "2026-11-11T09:12:40.000Z" }
   ]
 }
 ```
@@ -387,11 +387,12 @@ POST /api/workouts/sync
   A retry of the same payload changes nothing. So does a stale copy arriving after a newer edit.
   This replaces `03` §8.1's `DO NOTHING`, and `docs/04` gains `client_updated_at` on the three
   tables.
-- **A deletion** removes the row if the stored `client_updated_at` is older than `deletedAt`, and
-  counts as `deleted` if the row is already gone. Deleting a workout cascades (`04`).
-- **A deleted row stays deleted.** Each deletion writes a `sync_tombstone` (`04`) for the row and
-  every row it cascades to. A row whose id, or whose parent's id, has a tombstone is not inserted,
-  and neither is a child of a row reported `deleted` earlier in the same batch. All of these are
+- **A workout deletion** removes the row if the stored `client_updated_at` is older than `deletedAt`,
+  and counts as `deleted` if the row is already gone. Deleting a workout cascades (`04`).
+- **Planned for slice 4: a deleted row stays deleted.** Each deletion writes a `sync_tombstone`
+  (`04`) for the row and every row it cascades to. A row whose id, or whose parent's id, has a
+  tombstone is not inserted, and neither is a child of a row reported `deleted` earlier in the
+  same batch. All of these are
   reported `deleted`. Without this, a stale copy from a second tab or a late request would bring a
   deleted set back. *Added 2026-09-22.*
 - **Ownership:** a row whose id exists under another user is refused as `not_found`, like any
@@ -402,7 +403,7 @@ POST /api/workouts/sync
   2026-10-03.*
 - **Limit:** 500 rows a request. The uploader splits larger queues.
 
-**Response.** Always 200 when authenticated, with one entry for every id sent:
+**Response.** A valid batch returns 200 with one entry for every id sent:
 
 ```json
 {
@@ -410,9 +411,7 @@ POST /api/workouts/sync
     { "table": "workouts", "id": "0192w003-…", "status": "stored", "row": { … } },
     { "table": "workoutExercises", "id": "0192x010-…", "status": "stored", "row": { … } },
     { "table": "sets", "id": "0192s020-…", "status": "stored", "row": { … } },
-    { "table": "sets", "id": "0192s021-…", "status": "refused",
-      "problem": { "code": "validation_failed", "status": 422, "errors": [{ "path": "reps", "message": "Number must be greater than 0" }] } },
-    { "table": "sets", "id": "0192s019-…", "status": "deleted" }
+    { "table": "sets", "id": "0192s021-…", "status": "stored", "row": { … } }
   ]
 }
 ```

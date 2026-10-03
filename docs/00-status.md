@@ -86,8 +86,8 @@ finish summary. For the iPhone checklist: whether the rest tone plays on silent 
 
 **Issues are open.** Milestone `M1`, one issue per slice, `#1`–`#7`, each chained to the one before
 with GitHub's native dependencies. `#1` carries the full slice-1 specification; its `ready-for-agent`
-label is **off** until provisioning is finished (below). `#3` carries the three questions its own
-`/grill-with-docs` must settle first.
+label is **off** until provisioning is finished (below). `#3`'s three questions were settled in
+`06` (2026-10-03).
 Each UI feature clears the polish gate in `AGENTS.md`.
 
 ### Provisioning — done (2026-09-25)

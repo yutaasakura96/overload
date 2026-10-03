@@ -91,6 +91,7 @@ control is enabled regardless; reps and RIR are pre-filled from the suggestion.
   9999.99 kg. The refused *row* below is for what the server turns away, in slice 4.
 - **Rest over, decided 2026-10-03** (`06`). A short tone at zero, and the bar counts over until
   `DISMISS` or the next set. The screen is kept awake while rest counts, where the browser allows.
+  A rest setting of 0 seconds starts no rest bar or tone.
 - **Weights in pounds.** With the profile's unit set to `lb`, every weight on the screen is shown
   and typed in pounds, to the tenth; the column head and the weight label read `LB`.
 - **The other exercises.** `UP NEXT` lists the exercises with sets left, then `DONE` the ones at
@@ -544,4 +545,3 @@ data-state slot. Under the tabs, in order:
 **Data-state slot (§7.4) as built.** Refused and pending are counted from the set store on every
 screen; the resting form is the later of the screen's last fetch and the last acknowledged upload.
 Cached data age is still not drawn.
-

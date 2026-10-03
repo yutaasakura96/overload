@@ -72,6 +72,7 @@ export async function storedWorkouts(db: Database, userId: string) {
     .orderBy(asc(set.position));
   return workouts.map((stored) => ({
     name: stored.name,
+    routineId: stored.routineId,
     startedAt: stored.startedAt,
     endedAt: stored.endedAt,
     exercises: exercises
