@@ -282,12 +282,13 @@ Nothing below is needed while Yuta is the only user. All of it is needed before 
 
 ### Before M1 ships (production, even for Yuta alone)
 
-- [ ] Terraform in `infra/aws/` applied: bucket, lifecycle, OIDC provider, backup role.
+- [x] Terraform in `infra/aws/` applied: bucket, lifecycle, OIDC provider, backup role (2026-10-03,
+      `06`: a plan showed nothing left to apply but the role's trust subject).
 - [x] `age` key pair made; public key committed; private key in 1Password (2026-09-30, `00`).
 - [ ] Anthropic `overload` workspace with a $10/month limit; its key in Vercel.
 - [ ] `infra/db/bootstrap.sql` run on each Neon branch, in branch order (§5), and a password set per
       role; `DATABASE_URL` switched to `overload_app`, `DATABASE_URL_DIRECT` to `overload_owner`.
-- [ ] Backup workflow run once by hand; object visible in S3.
+- [x] Backup workflow run once by hand; object visible in S3 (2026-10-03, `06`).
 - [ ] S3 restore tested into Docker (§2). Neon restore tested on `staging` (`12` §6).
 - [x] WAF rule on the web project (2026-09-30, `00`).
 

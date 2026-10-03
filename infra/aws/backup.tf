@@ -1,8 +1,20 @@
 locals {
-  repository = "yutaasakura96/overload"
+  github_owner      = "yutaasakura96"
+  github_repository = "overload"
+  repository        = "${local.github_owner}/${local.github_repository}"
+  # GitHub's numeric ids of the owner and the repository: `.owner.id` and `.id` of
+  # `gh api repos/yutaasakura96/overload`. Neither changes on a rename.
+  github_owner_id      = "155416259"
+  github_repository_id = "1372338827"
   # The GitHub environment the Backup workflow's job runs in (.github/workflows/backup.yml). It admits
   # develop only, so a pull request or another branch cannot present this subject.
   github_environment = "backup"
+  # This repository issues immutable subject claims: each name carries its id after an `@`
+  # (repo:OWNER@OWNER-ID/REPO@REPO-ID:…), so a recycled owner or repository name cannot present the
+  # subject. The prefix must equal `sub_claim_prefix` of
+  # `gh api repos/yutaasakura96/overload/actions/oidc/customization/sub`; a role that trusts the
+  # name-only form (repo:OWNER/REPO:…) refuses every token.
+  github_oidc_subject = "repo:${local.github_owner}@${local.github_owner_id}/${local.github_repository}@${local.github_repository_id}:environment:${local.github_environment}"
 }
 
 # ── The bucket ──────────────────────────────────────────────────────────────────────────────────
@@ -127,7 +139,7 @@ data "aws_iam_policy_document" "backup_trust" {
     condition {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${local.repository}:environment:${local.github_environment}"]
+      values   = [local.github_oidc_subject]
     }
   }
 }
