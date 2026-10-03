@@ -179,12 +179,16 @@ export async function loadWorkouts(userId: string, nowMs = Date.now()): Promise<
     last !== undefined &&
     exercise !== undefined &&
     nowMs - new Date(last.row.performedAt).getTime() < exercise.local.restSeconds * 1000;
+  // A rest already counted from this set keeps its `+30s` and its skip: this runs again on every
+  // return to the app, not only at launch.
+  const { rest } = useWorkoutStore.getState();
+  const kept = last !== undefined && rest?.setId === last.id ? rest : undefined;
   useWorkoutStore.setState({
     userId,
     loaded: true,
     readFailed: false,
     records,
-    rest: resting ? { setId: last.id, extraSeconds: 0, dismissed: false } : undefined,
+    rest: kept ?? (resting ? { setId: last.id, extraSeconds: 0, dismissed: false } : undefined),
   });
 }
 

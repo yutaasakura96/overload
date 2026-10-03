@@ -323,6 +323,59 @@ test('an exercise with no rest shows no rest bar after a set', async ({ page }) 
   await finish(page);
 });
 
+test('a longer or skipped rest stays so after leaving the app and coming back', async ({
+  page,
+}) => {
+  const name = `Away ${Date.now()}`;
+  await page.clock.install();
+  await saveProfile(page);
+  await page.goto('/exercises');
+  await page.getByRole('link', { name: /Dumbbell Hammer Curl/ }).click();
+  await page.getByRole('textbox', { name: /Rest/ }).fill('120');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page).toHaveURL('/exercises');
+  await createRoutine(page, name, ['Dumbbell Hammer Curl']);
+  await page.getByRole('button', { name: 'Create routine' }).click();
+  await expect(page).toHaveURL('/routines');
+  await start(page, name);
+
+  // Coming back asks /api/me again, and the workout is rebuilt from the set store once it answers.
+  const comeBack = async () => {
+    const me = page.waitForResponse((response) => response.url().endsWith('/api/me'));
+    await page.evaluate(() => window.dispatchEvent(new Event('visibilitychange')));
+    await me;
+    await expect(page.getByRole('heading', { name: 'Dumbbell Hammer Curl' })).toBeVisible();
+    await page.evaluate(
+      () =>
+        new Promise<void>((resolve, reject) => {
+          const open = indexedDB.open('overload-sets');
+          open.addEventListener('error', () => reject(open.error));
+          open.addEventListener('success', () => {
+            const read = open.result.transaction('rows', 'readonly').objectStore('rows').getAll();
+            read.addEventListener('success', () => resolve());
+            read.addEventListener('error', () => reject(read.error));
+          });
+        }),
+    );
+  };
+
+  const rest = page.getByRole('region', { name: 'Rest timer' });
+  await completeSet(page, { weight: '12', reps: '10' });
+  await rest.getByRole('button', { name: '+30s rest' }).click();
+  await expect(rest.getByRole('timer')).toHaveText(/^2:[23]\d$/);
+  await page.clock.fastForward('02:10');
+  await comeBack();
+  await expect(rest.getByRole('timer')).toHaveText(/^0:[012]\d$/);
+
+  await completeSet(page, { reps: '10' });
+  await rest.getByRole('button', { name: 'Skip rest' }).click();
+  await expect(rest).toHaveCount(0);
+  await comeBack();
+  await expect(page.getByRole('region', { name: 'SET 3 OF 3' })).toBeVisible();
+  await expect(rest).toHaveCount(0);
+  await finish(page);
+});
+
 test('finishing after deleting the routine keeps the workout on the server', async ({ page }) => {
   const name = `Deleted routine ${Date.now()}`;
   await saveProfile(page, 'Kilograms');
