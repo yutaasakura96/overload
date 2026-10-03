@@ -456,7 +456,10 @@ test.describe('sign-out with a workout on the device', () => {
 
     // The app opens again with the set store slow to answer: Today is up before the sets are read.
     await page.addInitScript(() => {
-      const open = IDBFactory.prototype.open;
+      const factory: {
+        open: (this: IDBFactory, ...args: Parameters<IDBFactory['open']>) => IDBOpenDBRequest;
+      } = IDBFactory.prototype;
+      const open = factory.open;
       IDBFactory.prototype.open = function held(this: IDBFactory, database, version) {
         const request = open.call(this, database, version);
         if (database !== 'overload-sets') return request;
@@ -486,7 +489,13 @@ test.describe('sign-out with a workout on the device', () => {
   test('says so when the set store could not be cleared', async ({ page }) => {
     await saveProfile(page);
     await page.evaluate(() => {
-      const transaction = IDBDatabase.prototype.transaction;
+      const database: {
+        transaction: (
+          this: IDBDatabase,
+          ...args: Parameters<IDBDatabase['transaction']>
+        ) => IDBTransaction;
+      } = IDBDatabase.prototype;
+      const transaction = database.transaction;
       IDBDatabase.prototype.transaction = function refused(
         this: IDBDatabase,
         stores,
