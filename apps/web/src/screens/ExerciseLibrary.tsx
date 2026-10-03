@@ -1,16 +1,9 @@
 import type { Exercise, Me } from '@overload/api-contract';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
-import {
-  AccountFooter,
-  AppBar,
-  Chevron,
-  Notice,
-  ScreenTabs,
-  SyncedAt,
-  formatKg,
-} from '../components';
-import { allExercisesQuery, exercisesQuery, useAccount } from '../query';
+import { AccountFooter, AppBar, Chevron, Notice, ScreenTabs, DataState } from '../components';
+import { allExercisesQuery, currentWeightUnit, exercisesQuery, useAccount } from '../query';
+import { formatWeight } from '../units';
 
 // S8: the seeded library plus the user's own, with their effective settings. Built from docs/05's
 // data table; each row opens the exercise to edit it or set the user's own values (docs/10 §8.1).
@@ -29,9 +22,9 @@ export function ExerciseLibrary({ me, navigate }: { me: Me; navigate: (path: str
       <AppBar
         title="Exercises"
         subline={exercises.data === undefined ? undefined : `${items.length} IN LIBRARY`}
-        slot={<SyncedAt at={exercises.dataUpdatedAt} />}
+        slot={<DataState at={exercises.dataUpdatedAt} />}
       />
-      <ScreenTabs current="/" navigate={navigate} />
+      <ScreenTabs current="/exercises" navigate={navigate} />
 
       {exercises.isError && (
         <Notice tone="flag" word="Not updated">
@@ -116,6 +109,7 @@ function LibraryRow({
   navigate: (path: string) => void;
 }) {
   const path = `/exercises/${exercise.id}`;
+  const unit = currentWeightUnit();
   return (
     <li>
       <a
@@ -132,8 +126,8 @@ function LibraryRow({
         </span>
         <span className="library__figure">
           <span className="visually-hidden">increment </span>
-          {formatKg(exercise.incrementKg)}
-          <span className="visually-hidden"> kilograms</span>
+          {formatWeight(exercise.incrementKg, unit)}
+          <span className="visually-hidden"> {unit === 'lb' ? 'pounds' : 'kilograms'}</span>
         </span>
         <span className="library__figure">
           <span className="visually-hidden">reps </span>

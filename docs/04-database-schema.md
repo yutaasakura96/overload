@@ -286,7 +286,7 @@ One logged set. The row the whole offline path exists to protect (S1).
 | `id` | uuid | no | — | PK, **generated on the phone**. Sync upserts on it, guarded by `client_updated_at`, which is what makes upload exactly-once |
 | `workout_exercise_id` | uuid | no | — | → `workout_exercise.id`, `ON DELETE CASCADE` |
 | `position` | integer | no | — | Order within the exercise, warm-ups included. Never renumbered: a delete leaves a gap. *Renamed 2026-09-22* from `set_number` |
-| `weight_kg` | numeric(6,2) | no | — | |
+| `weight_kg` | numeric(6,2) | no | — | `CHECK (weight_kg >= 0)`. A bodyweight exercise logs 0. *Added 2026-10-03* |
 | `reps` | smallint | no | — | `CHECK (reps > 0)` |
 | `rir` | smallint | yes | — | 0–10 |
 | `rpe` | numeric(3,1) | yes | — | 1.0–10.0 |
@@ -369,6 +369,7 @@ One row per user: the facts the maths needs and the clock the rules are read aga
 | `sex` | text | yes | — | `male` \| `female`, `CHECK`. Formula input only |
 | `birth_date` | date | yes | — | Formula input only |
 | `training_weekdays` | smallint[] | no | `'{}'` | ISO weekdays, 1 = Monday. Which calendar days are training days (S15). *Added 2026-09-21*: the schema had no record of it |
+| `weight_unit` | text | no | `'kg'` | `kg` \| `lb`, `CHECK`. How lift weights are shown and typed; everything stored stays kg (`06`, 2026-09-23). In the table since slice 1, read from slice 3 |
 | `created_at` / `updated_at` | timestamptz | no | `now()` | |
 
 ---

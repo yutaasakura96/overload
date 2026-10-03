@@ -59,7 +59,7 @@ async function openAs(page: Page, context: BrowserContext, userId: string, email
   const own = userId === userA ? OWN_A : OWN_B;
   await useCookie(context, userId);
   await markLibrary(page, own);
-  await page.goto('/');
+  await page.goto('/exercises');
   await expect(page.getByText(email)).toBeVisible();
   await expect(page.getByText(own)).toBeVisible();
   // The persister writes at most once a second.
@@ -94,7 +94,7 @@ test('after A, B on the same device never sees A’s data, and each keeps their 
     await route.continue();
   });
   const meAsked = page.waitForRequest('**/api/me');
-  await page.goto('/');
+  await page.goto('/exercises');
   await meAsked;
   await page.waitForTimeout(1000);
   await expect(page.getByText(EMAIL_A)).toHaveCount(0);
@@ -129,7 +129,7 @@ test('with no answer from /api/me, the launch opens only the last confirmed acco
   await page.route('**/api/me', () => {});
   const library = countLibraryRequests(page);
   const started = Date.now();
-  await page.goto('/');
+  await page.goto('/exercises');
   await expect(page.getByText(EMAIL_A)).toBeVisible({ timeout: 10_000 });
   expect(Date.now() - started).toBeGreaterThan(2500);
   await expect(page.getByText(OWN_A)).toBeVisible();
@@ -153,7 +153,7 @@ test('a network error at launch opens the saved copy; a later answer runs its qu
 
   await page.route('**/api/me', (route) => route.abort('internetdisconnected'));
   const library = countLibraryRequests(page);
-  await page.goto('/');
+  await page.goto('/exercises');
   await expect(page.getByText(OWN_A)).toBeVisible();
   await page.waitForTimeout(1000);
   expect(library.requests).toBe(0);
@@ -201,7 +201,7 @@ test('a failed Google sign-in preserves the saved account for an offline reload'
     page.getByText('Sign-in didn’t finish. Check your connection and try again.'),
   ).toBeVisible();
   await page.route('**/api/me', (route) => route.abort('internetdisconnected'));
-  await page.goto('/');
+  await page.goto('/exercises');
   await expect(page.getByText(EMAIL_A)).toBeVisible({ timeout: 10_000 });
   await expect(page.getByText(OWN_A)).toBeVisible();
 });
@@ -213,7 +213,7 @@ test('with no saved copy, a slow /api/me still signs in', async ({ page, context
     await new Promise((resolve) => setTimeout(resolve, 4500));
     await route.continue();
   });
-  await page.goto('/');
+  await page.goto('/exercises');
   await expect(page.getByText(EMAIL_A)).toBeVisible({ timeout: 10_000 });
   await expect(page.getByRole('listitem')).toHaveCount(50);
   await page.unrouteAll({ behavior: 'ignoreErrors' });
@@ -229,7 +229,7 @@ test('the copy shared by every account before this version is removed and never 
   await putDeviceValue(page, 'query-cache:overload', legacy);
 
   await useCookie(context, userB);
-  await page.goto('/');
+  await page.goto('/exercises');
   await expect(page.getByText(EMAIL_B)).toBeVisible();
   await expect(page.getByText('From the shared copy')).toHaveCount(0);
   expect(await deviceKeys(page)).not.toContain('query-cache:overload');
@@ -242,8 +242,8 @@ test('a 401 keeps the account’s saved data for when they sign in again', async
   await openAs(page, context, userA, EMAIL_A);
 
   await context.clearCookies();
-  await page.goto('/');
-  await expect(page).toHaveURL('/sign-in?next=%2F');
+  await page.goto('/exercises');
+  await expect(page).toHaveURL('/sign-in?next=%2Fexercises');
   expect(await deviceKeys(page)).toEqual(
     expect.arrayContaining(['signed-in-user', cacheKey(userA)]),
   );
@@ -268,7 +268,7 @@ test('a second tab drops the previous account once another tab switches', async 
   // Tab 2 opens as B. Both tabs then save B's copy, so it carries no marker.
   await useCookie(context, userB);
   const second = await context.newPage();
-  await second.goto('/');
+  await second.goto('/exercises');
   await expect(second.getByText(EMAIL_B)).toBeVisible();
 
   // Tab 1, without any refetch of its own, reopens as B.
@@ -314,7 +314,7 @@ test('a failed server sign-out keeps the session, cache, and other tab open', as
   const first = await context.newPage();
   await openAs(first, context, userA, EMAIL_A);
   const second = await context.newPage();
-  await second.goto('/');
+  await second.goto('/exercises');
   await expect(second.getByText(EMAIL_A)).toBeVisible();
   await first.route('**/api/auth/sign-out', (route) => route.abort('internetdisconnected'));
   await first.getByRole('button', { name: 'Sign out' }).click();
@@ -332,7 +332,7 @@ test('a successful sign-out wipes before other tabs reopen', async ({ context })
   const first = await context.newPage();
   await openAs(first, context, userA, EMAIL_A);
   const second = await context.newPage();
-  await second.goto('/');
+  await second.goto('/exercises');
   await expect(second.getByText(EMAIL_A)).toBeVisible();
   await second.evaluate(() => {
     // oxlint-disable-next-line typescript/unbound-method -- Proxy forwards the original store as thisArg
@@ -345,7 +345,7 @@ test('a successful sign-out wipes before other tabs reopen', async ({ context })
   });
   await first.getByRole('button', { name: 'Sign out' }).click();
   await expect(first).toHaveURL('/sign-in');
-  await expect(second).toHaveURL('/sign-in?next=%2F');
+  await expect(second).toHaveURL('/sign-in?next=%2Fexercises');
   await expect(second.getByText(EMAIL_A)).toHaveCount(0);
   await expect
     .poll(() => second.evaluate(() => sessionStorage.getItem('observed-second-wipe')))
@@ -357,7 +357,7 @@ test('a failed pending remember write cannot stop a confirmed sign-out', async (
   const first = await context.newPage();
   await openAs(first, context, userA, EMAIL_A);
   const second = await context.newPage();
-  await second.goto('/');
+  await second.goto('/exercises');
   await expect(second.getByText(EMAIL_A)).toBeVisible();
   await first.bringToFront();
 
@@ -417,7 +417,7 @@ test('a failed pending remember write cannot stop a confirmed sign-out', async (
 
   await first.waitForFunction(() => document.documentElement.dataset.rememberRejected === '1');
   await expect(first).toHaveURL('/sign-in');
-  await expect(second).toHaveURL('/sign-in?next=%2F');
+  await expect(second).toHaveURL('/sign-in?next=%2Fexercises');
   expect(await deviceKeys(second)).toEqual([]);
 });
 
@@ -425,7 +425,7 @@ test('a failed wipe keeps the saved copy closed on an offline reload', async ({ 
   const first = await context.newPage();
   await openAs(first, context, userA, EMAIL_A);
   const second = await context.newPage();
-  await second.goto('/');
+  await second.goto('/exercises');
   await expect(second.getByText(EMAIL_A)).toBeVisible();
   await first.bringToFront();
 
@@ -444,11 +444,11 @@ test('a failed wipe keeps the saved copy closed on an offline reload', async ({ 
 
   await first.getByRole('button', { name: 'Sign out' }).click();
   await expect(first).toHaveURL('/sign-in?wipe=failed');
-  await expect(second).toHaveURL('/sign-in?next=%2F');
+  await expect(second).toHaveURL('/sign-in?next=%2Fexercises');
   await expect(second.getByText(EMAIL_A)).toHaveCount(0);
   expect(await savedCache(first, userA)).toBe('');
   await first.route('**/api/me', (route) => route.abort('internetdisconnected'));
-  await first.goto('/');
+  await first.goto('/exercises');
   await expect(
     first.getByText('Couldn’t reach Overload. Open the app again when you have signal.'),
   ).toBeVisible();
@@ -491,7 +491,7 @@ test('a pending wipe blocks the saved copy after an account check succeeds', asy
       json: { items: [{ ...first, name: freshExercise }, ...rest] },
     });
   });
-  await page.goto('/');
+  await page.goto('/exercises');
   await exerciseAsked;
   await expect(page.getByText(EMAIL_A)).toBeVisible();
   await expect(page.getByText(OWN_A)).toHaveCount(0);
@@ -535,7 +535,7 @@ test('an exercise answer already in flight cannot enter the previous account cop
       .fulfill({ response, json: { items: [{ ...first, name: OWN_B }, ...rest] } })
       .catch(() => undefined);
   });
-  await page.goto('/');
+  await page.goto('/exercises');
   await exerciseAsked;
   await expect(page.getByText(EMAIL_A)).toBeVisible();
   await expect.poll(() => savedCache(page, userA)).toContain(EMAIL_A);
@@ -584,7 +584,7 @@ test('a retry answered under another account’s cookie never enters the open ac
     if (new URL(request.url()).pathname === '/api/me') meRequests += 1;
   });
   const asked = page.waitForRequest('**/api/exercises');
-  await page.goto('/');
+  await page.goto('/exercises');
   await asked;
   await expect(page.getByText(EMAIL_A)).toBeVisible();
   await expect.poll(() => savedCache(page, userA)).toContain(EMAIL_A);
@@ -635,7 +635,7 @@ test('an answer naming no account shows as not updated without looping through /
     if (pathname === '/api/me') requests.me += 1;
     if (pathname === '/api/exercises') requests.exercises += 1;
   });
-  await page.goto('/');
+  await page.goto('/exercises');
   await expect(page.getByText(EMAIL_A)).toBeVisible();
   await expect(page.getByText('Not updated')).toBeVisible();
 

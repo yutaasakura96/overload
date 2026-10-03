@@ -12,7 +12,10 @@ export const problemCodes = {
   not_found: { status: 404, title: 'Not found' },
   id_conflict: { status: 409, title: 'Id already used for something else' },
   exercise_in_routine: { status: 409, title: 'Exercise is used by a routine' },
+  exercise_has_history: { status: 409, title: 'Exercise has logged workouts' },
+  payload_too_large: { status: 413, title: 'Too many rows in one request' },
   validation_failed: { status: 422, title: 'Request body failed validation' },
+  setup_incomplete: { status: 422, title: 'A prerequisite is missing' },
   internal: { status: 500, title: 'Internal error' },
 } as const satisfies Record<string, { status: ContentfulStatusCode; title: string }>;
 
@@ -36,6 +39,10 @@ export const Problem = z
       .array(z.object({ id: z.string(), name: z.string() }))
       .optional()
       .openapi({ description: 'Present only for `exercise_in_routine`: the routines using it.' }),
+    missing: z
+      .array(z.enum(['profile', 'foods', 'day_routine', 'goal_phase']))
+      .optional()
+      .openapi({ description: 'Present only for `setup_incomplete`: the steps to finish first.' }),
   })
   .openapi('Problem');
 
@@ -53,7 +60,7 @@ export function problemResponse(description: string) {
 export function problem<C extends ProblemCode>(
   c: Context,
   code: C,
-  extra: Pick<ProblemBody, 'detail' | 'errors' | 'routines'> = {},
+  extra: Pick<ProblemBody, 'detail' | 'errors' | 'routines' | 'missing'> = {},
 ) {
   const { title } = problemCodes[code];
   const status: (typeof problemCodes)[C]['status'] = problemCodes[code].status;

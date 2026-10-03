@@ -87,6 +87,66 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/me/profile': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /** Set profile fields. The first save creates the profile */
+    patch: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['ProfilePatch'];
+        };
+      };
+      responses: {
+        /** @description The profile */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['Profile'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `validation_failed`, including an unknown time zone */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    trace?: never;
+  };
   '/api/exercises': {
     parameters: {
       query?: never;
@@ -259,7 +319,7 @@ export interface paths {
             'application/problem+json': components['schemas']['Problem'];
           };
         };
-        /** @description `exercise_in_routine`, listing the routines that use it */
+        /** @description `exercise_has_history`: a workout logged it, so hide it instead. `exercise_in_routine`, listing the routines that use it */
         409: {
           headers: {
             [name: string]: unknown;
@@ -739,6 +799,131 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/training/last-time': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Last time and today’s suggestion for every exercise the caller has logged */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description One entry per logged exercise */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['LastTimes'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `setup_incomplete` with `missing: ["profile"]`: local dates need the time zone */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/workouts/sync': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Apply the device’s queued workouts, workout exercises and sets */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['SyncBatch'];
+        };
+      };
+      responses: {
+        /** @description A result per row sent. Refusals do not fail the request; each is reported on its row */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['SyncResponse'];
+          };
+        };
+        /** @description No session. Nothing was applied */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `payload_too_large`: more than 500 rows */
+        413: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `validation_failed`: the batch did not match its schema */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -773,7 +958,13 @@ export interface components {
       birthDate: string | null;
       /** @description ISO weekdays, 1 = Monday. */
       trainingWeekdays: number[];
+      weightUnit: components['schemas']['WeightUnit'];
     } | null;
+    /**
+     * @description How weights are shown. Every weight is stored and sent in kg (docs/06, 2026-09-23).
+     * @enum {string}
+     */
+    WeightUnit: 'kg' | 'lb';
     Problem: {
       /** @example urn:overload:problem:unauthenticated */
       type: string;
@@ -793,6 +984,23 @@ export interface components {
         id: string;
         name: string;
       }[];
+      /** @description Present only for `setup_incomplete`: the steps to finish first. */
+      missing?: ('profile' | 'foods' | 'day_routine' | 'goal_phase')[];
+    };
+    /** @description Omitted fields are unchanged and `null` clears one. The first save creates the profile. */
+    ProfilePatch: {
+      /**
+       * @description Local dates are read in it: the day boundary.
+       * @example Asia/Tokyo
+       */
+      timezone?: string;
+      heightCm?: number | null;
+      /** @enum {string|null} */
+      sex?: 'male' | 'female' | null;
+      /** Format: date */
+      birthDate?: string | null;
+      trainingWeekdays?: number[];
+      weightUnit?: components['schemas']['WeightUnit'];
     };
     ExerciseList: {
       items: components['schemas']['Exercise'][];
@@ -951,6 +1159,214 @@ export interface components {
     };
     RoutineExercisesPut: {
       exercises: components['schemas']['RoutineSlotInput'][];
+    };
+    /** @description Every exercise the caller has logged. One never logged is absent. */
+    LastTimes: {
+      /**
+       * Format: date-time
+       * @example 2026-11-11T09:01:40.000Z
+       */
+      asOf: string;
+      exercises: components['schemas']['LastTime'][];
+    };
+    LastTime: {
+      /**
+       * Format: uuid
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      exerciseId: string;
+      /**
+       * Format: uuid
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      workoutId: string;
+      /**
+       * Format: date
+       * @description The workout’s local date.
+       */
+      performedOn: string;
+      /** @description Working sets only, numbered 1…n in order. */
+      sets: {
+        workingSet: number;
+        weightKg: number;
+        reps: number;
+      }[];
+      suggestion: components['schemas']['Suggestion'];
+    };
+    /** @description Today’s weight for the exercise (S3). */
+    Suggestion: {
+      /** @example 82.5 */
+      weightKg: number;
+      /** @enum {string} */
+      rule: 'top_of_range_hit' | 'repeat';
+      /** @example hit 10 on every set last time */
+      reason: string;
+    };
+    SyncResponse: {
+      /** @description One per row sent. */
+      results: components['schemas']['SyncResult'][];
+    };
+    SyncResult:
+      | {
+          /** @enum {string} */
+          table: 'workouts' | 'workoutExercises' | 'sets';
+          /**
+           * Format: uuid
+           * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+           */
+          id: string;
+          /** @enum {string} */
+          status: 'stored' | 'unchanged';
+          /** @description The server’s copy after this request. */
+          row:
+            | components['schemas']['WorkoutRow']
+            | components['schemas']['WorkoutExerciseRow']
+            | components['schemas']['SetRow'];
+        }
+      | {
+          /** @enum {string} */
+          table: 'workouts' | 'workoutExercises' | 'sets';
+          /**
+           * Format: uuid
+           * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+           */
+          id: string;
+          /** @enum {string} */
+          status: 'deleted';
+        }
+      | {
+          /** @enum {string} */
+          table: 'workouts' | 'workoutExercises' | 'sets';
+          /**
+           * Format: uuid
+           * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+           */
+          id: string;
+          /** @enum {string} */
+          status: 'refused';
+          problem: {
+            /** @enum {string} */
+            code: 'not_found' | 'parent_missing' | 'validation_failed';
+            status: number;
+          };
+        };
+    WorkoutRow: {
+      /**
+       * Format: uuid
+       * @description Made on the phone (UUIDv7).
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      id: string;
+      /**
+       * Format: uuid
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      routineId: string | null;
+      /** @example Push A */
+      name: string;
+      /**
+       * Format: date-time
+       * @example 2026-11-11T09:01:40.000Z
+       */
+      startedAt: string;
+      /**
+       * Format: date-time
+       * @description Null while the workout is in progress.
+       * @example 2026-11-11T09:01:40.000Z
+       */
+      endedAt: string | null;
+      note: string | null;
+      /**
+       * Format: date-time
+       * @description The phone’s clock at the last edit.
+       * @example 2026-11-11T09:01:40.000Z
+       */
+      clientUpdatedAt: string;
+    };
+    WorkoutExerciseRow: {
+      /**
+       * Format: uuid
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      id: string;
+      /**
+       * Format: uuid
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      workoutId: string;
+      /**
+       * Format: uuid
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      exerciseId: string;
+      position: number;
+      /** @description Copied from the routine at start. */
+      targetSets: number | null;
+      repLow: number;
+      repHigh: number;
+      /** @example 2.5 */
+      incrementKg: number;
+      /**
+       * Format: date-time
+       * @example 2026-11-11T09:01:40.000Z
+       */
+      clientUpdatedAt: string;
+    };
+    SetRow: {
+      /**
+       * Format: uuid
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      id: string;
+      /**
+       * Format: uuid
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      workoutExerciseId: string;
+      /** @description Order within the exercise, warm-ups included. Never renumbered. */
+      position: number;
+      /** @example 82.5 */
+      weightKg: number;
+      /** @example 10 */
+      reps: number;
+      rir: number | null;
+      rpe: number | null;
+      isWarmup: boolean;
+      /**
+       * Format: date-time
+       * @example 2026-11-11T09:01:40.000Z
+       */
+      performedAt: string;
+      /**
+       * Format: date-time
+       * @example 2026-11-11T09:01:40.000Z
+       */
+      clientUpdatedAt: string;
+    };
+    /** @description The device’s queued rows, each the whole current row, parents before children. At most 500 rows a request. */
+    SyncBatch: {
+      /** @default [] */
+      workouts: (components['schemas']['SyncDeletion'] | components['schemas']['WorkoutRow'])[];
+      /** @default [] */
+      workoutExercises: (
+        | components['schemas']['SyncDeletion']
+        | components['schemas']['WorkoutExerciseRow']
+      )[];
+      /** @default [] */
+      sets: (components['schemas']['SyncDeletion'] | components['schemas']['SetRow'])[];
+    };
+    /** @description A row the phone deleted. */
+    SyncDeletion: {
+      /**
+       * Format: uuid
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      id: string;
+      /**
+       * Format: date-time
+       * @example 2026-11-11T09:01:40.000Z
+       */
+      deletedAt: string;
     };
   };
   responses: never;

@@ -2,11 +2,11 @@
 // on a test-only instance, never the production config (docs/11 §1). Used by the browser-test
 // fixture (session.ts) and by `pnpm dev:session` (scripts/dev-session-core.ts), and by nothing in src.
 import { testUtils, type TestHelpers } from 'better-auth/plugins';
-import { eq } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 import { createAuth } from '../../src/auth/auth';
 import type { Config } from '../../src/config';
 import type { Database } from '../../src/db/connection';
-import { user } from '../../src/db/schema';
+import { exercise, set, user, workout, workoutExercise } from '../../src/db/schema';
 
 export type SessionCookie = Awaited<ReturnType<TestHelpers['getCookies']>>[number];
 
@@ -47,4 +47,50 @@ export async function mintSessionCookies(opts: {
   // oxlint-disable-next-line typescript/no-unsafe-type-assertion
   const { test } = (await auth.$context) as unknown as { test: TestHelpers };
   return test.getCookies({ userId: opts.userId, domain: opts.domain });
+}
+
+/** A user's workouts as the server holds them, oldest first, each with its exercises and sets. */
+export async function storedWorkouts(db: Database, userId: string) {
+  const workouts = await db
+    .select()
+    .from(workout)
+    .where(eq(workout.userId, userId))
+    .orderBy(asc(workout.startedAt));
+  const exercises = await db
+    .select({ row: workoutExercise, name: exercise.name })
+    .from(workoutExercise)
+    .innerJoin(workout, eq(workout.id, workoutExercise.workoutId))
+    .innerJoin(exercise, eq(exercise.id, workoutExercise.exerciseId))
+    .where(eq(workout.userId, userId))
+    .orderBy(asc(workoutExercise.position));
+  const sets = await db
+    .select({ row: set })
+    .from(set)
+    .innerJoin(workoutExercise, eq(workoutExercise.id, set.workoutExerciseId))
+    .innerJoin(workout, eq(workout.id, workoutExercise.workoutId))
+    .where(eq(workout.userId, userId))
+    .orderBy(asc(set.position));
+  return workouts.map((stored) => ({
+    name: stored.name,
+    startedAt: stored.startedAt,
+    endedAt: stored.endedAt,
+    exercises: exercises
+      .filter(({ row }) => row.workoutId === stored.id)
+      .map(({ row, name }) => ({
+        name,
+        targetSets: row.targetSets,
+        repLow: row.repLow,
+        repHigh: row.repHigh,
+        incrementKg: row.incrementKg,
+        sets: sets
+          .filter((each) => each.row.workoutExerciseId === row.id)
+          .map((each) => ({
+            weightKg: each.row.weightKg,
+            reps: each.row.reps,
+            rir: each.row.rir,
+            isWarmup: each.row.isWarmup,
+            performedAt: each.row.performedAt,
+          })),
+      })),
+  }));
 }

@@ -1,4 +1,4 @@
-import type { Equipment, Exercise } from '@overload/api-contract';
+import type { Equipment, Exercise, WeightUnit } from '@overload/api-contract';
 import { useQuery } from '@tanstack/react-query';
 import { useId, useState, type ReactNode } from 'react';
 import { api, expectOk, unwrap } from '../api';
@@ -7,20 +7,21 @@ import {
   DeleteConfirm,
   Notice,
   NumberField,
-  SyncedAt,
+  DataState,
   TextField,
-  formatKg,
   parseFigure,
 } from '../components';
 import { classIncrementKg, equipmentLabels, newExerciseDefaults } from '../equipment';
 import { newId } from '../ids';
 import {
   allExercisesQuery,
+  currentWeightUnit,
   forAccount,
   refreshExercises,
   useAccount,
   useOpensEditor,
 } from '../query';
+import { formatWeight, toKg } from '../units';
 import {
   SaveNotice,
   refusedOnDevice,
@@ -37,8 +38,8 @@ import {
 type Figures = { incrementKg: string; restSeconds: string; repLow: string; repHigh: string };
 type FigureKey = keyof Figures;
 
-const figuresOf = (exercise: Exercise): Figures => ({
-  incrementKg: formatKg(exercise.incrementKg),
+const figuresOf = (exercise: Exercise, unit: WeightUnit): Figures => ({
+  incrementKg: formatWeight(exercise.incrementKg, unit),
   restSeconds: String(exercise.restSeconds),
   repLow: String(exercise.repLow),
   repHigh: String(exercise.repHigh),
@@ -74,15 +75,17 @@ export function ExerciseForm({
   const [id] = useState(() => exercise?.id ?? newId());
   const [name, setName] = useState(exercise?.name ?? '');
   const [equipment, setEquipment] = useState<Equipment>(exercise?.equipment ?? 'barbell');
+  // The increment is shown and typed in the user's unit, and stored in kilograms.
+  const [unit] = useState(currentWeightUnit);
   const [figures, setFigures] = useState<Figures>(
     exercise === undefined
       ? {
-          incrementKg: formatKg(classIncrementKg.barbell),
+          incrementKg: formatWeight(classIncrementKg.barbell, unit),
           restSeconds: String(newExerciseDefaults.restSeconds),
           repLow: String(newExerciseDefaults.repLow),
           repHigh: String(newExerciseDefaults.repHigh),
         }
-      : figuresOf(exercise),
+      : figuresOf(exercise, unit),
   );
   const [touched, setTouched] = useState<Set<FigureKey>>(new Set());
   const [busy, setBusy] = useState(false);
@@ -102,6 +105,16 @@ export function ExerciseForm({
   const own = (key: FigureKey) => exercise?.overrides[key] === true || touched.has(key);
   /** The user's own value for a figure, or null to fall back to the default. */
   const ownFigure = (key: FigureKey) => (own(key) ? parseFigure(figures[key]) : null);
+  /**
+   * The increment in kilograms. Left as it was shown, it is the stored value: pounds turned back to
+   * kilograms would move it by a hundredth.
+   */
+  const incrementKg = () => {
+    const typed = parseFigure(figures.incrementKg);
+    if (typed === null) return null;
+    if (!touched.has('incrementKg')) return exercise?.incrementKg ?? classIncrementKg[equipment];
+    return toKg(typed, unit);
+  };
 
   async function run(write: () => Promise<Exercise | undefined>) {
     setBusy(true);
@@ -130,7 +143,7 @@ export function ExerciseForm({
               id,
               name,
               equipment,
-              incrementKg: figureOrOmit(figures.incrementKg),
+              incrementKg: incrementKg() ?? undefined,
               restSeconds: figureOrOmit(figures.restSeconds),
               repLow: figureOrOmit(figures.repLow),
               repHigh: figureOrOmit(figures.repHigh),
@@ -145,7 +158,7 @@ export function ExerciseForm({
             body: {
               name,
               equipment,
-              incrementKg: figureOrOmit(figures.incrementKg),
+              incrementKg: incrementKg() ?? undefined,
               restSeconds: figureOrOmit(figures.restSeconds),
               repLow: figureOrOmit(figures.repLow),
               repHigh: figureOrOmit(figures.repHigh),
@@ -154,7 +167,7 @@ export function ExerciseForm({
         );
       }
       return putSetting({
-        incrementKg: ownFigure('incrementKg'),
+        incrementKg: own('incrementKg') ? incrementKg() : null,
         restSeconds: ownFigure('restSeconds'),
         repLow: ownFigure('repLow'),
         repHigh: ownFigure('repHigh'),
@@ -239,7 +252,7 @@ export function ExerciseForm({
                   if (creating && !touched.has('incrementKg')) {
                     setFigures((current) => ({
                       ...current,
-                      incrementKg: formatKg(classIncrementKg[next]),
+                      incrementKg: formatWeight(classIncrementKg[next], unit),
                     }));
                   }
                 }}
@@ -263,7 +276,7 @@ export function ExerciseForm({
         <div className="form__pair">
           <NumberField
             label="Increment"
-            unit="kg"
+            unit={unit}
             decimal
             value={figures.incrementKg}
             onChange={setFigure('incrementKg')}
@@ -351,9 +364,9 @@ export function ExerciseScreen({
 }) {
   const confirmed = useAccount().status === 'confirmed';
   const exercises = useQuery({ ...allExercisesQuery, enabled: confirmed });
-  const slot = <SyncedAt at={exercises.dataUpdatedAt} />;
-  const back = { label: 'Back to exercises', onClick: () => navigate('/') };
-  const done = () => navigate('/', { replace: true });
+  const slot = <DataState at={exercises.dataUpdatedAt} />;
+  const back = { label: 'Back to exercises', onClick: () => navigate('/exercises') };
+  const done = () => navigate('/exercises', { replace: true });
   const opens = useOpensEditor(exercises);
 
   if (id === undefined) {

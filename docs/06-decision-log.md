@@ -2903,3 +2903,93 @@ arrives in slice 3, so slice 2's delete refuses only `exercise_in_routine`; slic
 check with the table. Both refusals send the user to hiding it instead, which keeps it in history.
 
 **Changed:** `07`.
+
+### 2026-10-03 — Screen 1 shows the target set count: `SET 3 OF 4`
+
+The first of the three questions `#3` had to settle before any code, decided by Yuta. The active
+card's label row reads `SET 3 OF 4` from `workout_exercise.target_sets`, `SET 5 · EXTRA` once the
+working sets pass the target, and plain `SET 3` when there is no target. The count is of working
+sets, so a warm-up never moves it; while the warm-up toggle is on the label reads `WARM-UP`. The
+label row is horizontal, so the 54px of slack in `10` §1 is untouched. Rejected: a separate progress
+line under the header, which costs a row on the one screen with none to spare, and showing nothing,
+which leaves "how many are left" unanswered (the pain-point check, 2026-09-23).
+
+**Changed:** `10` §1, `00`.
+
+### 2026-10-03 — Rest ending is announced by a sound, not a push
+
+The second question, decided by Yuta. At zero the app plays a short Web Audio tone, the rest bar
+turns to `accent`, reads `REST OVER` and counts up (`+0:12`) until `DISMISS` or the next set. The
+audio context is unlocked by the `COMPLETE SET` tap, the gesture iOS requires. The Screen Wake Lock
+is held only while rest is counting, where the browser grants it (not in a standalone app before
+iOS 18.4, `03` §11), so it is an enhancement and never the mechanism.
+
+Rejected: Web Push. It needs a permission prompt from a gesture, a subscription table, VAPID keys,
+a sender, and a server that knows when each rest ends, which is device state the server never
+sees. It would alert a pocketed phone, which the tone cannot: a locked or backgrounded app plays
+nothing. That limit is accepted for M1 and is the *Revisit if*.
+
+Unverified, for the phone checklist (`11` §3): whether the tone plays with the ring switch on
+silent. The app sets `navigator.audioSession.type = 'transient'` where that API exists; MDN's
+compat data, checked 2026-10-03, lists no Safari support, so on iPhone it changes nothing today.
+
+**Changed:** `03` §11, `10` §1, `05` §4.14, `11` §3, `00`.
+
+### 2026-10-03 — Screen 1 scrolls as a document; the app bar sticks and the rest bar is fixed
+
+The third question, decided by Yuta. The artboard fits one viewport, but a real exercise with
+warm-ups, five sets and a refusal does not. The document scrolls. The app bar sticks to the top on
+`surface/ground` and keeps its `line/hairline`: no shadow, no heavier line. The rest bar is fixed
+to the bottom over the safe-area inset, and the screen keeps matching padding under itself. Nothing
+else sticks. Completing a set brings the new active card into view (`block: nearest`, instant under
+reduced motion) and moves focus to it; `scroll-padding` keeps anything focused clear of both bars.
+Rejected: a scrolling region inside a fixed frame, which breaks the browser's own scroll
+restoration and rubber-banding on iOS.
+
+**Changed:** `10` §7.3.
+
+### 2026-10-03 — Slice 3's cut of sync, last time and the workout screen
+
+What `#3` built, where it stops, and what was decided on the way.
+
+- **Sync validates the whole batch.** `POST /api/workouts/sync` runs the request through its Zod
+  schema, so a row with a bad value is a 422 for the request, not a `refused` row inside a 200.
+  Per-row `validation_failed`, the refused-set screen and `sync_tombstone` are slice 4, with the
+  rest of F4. The screen refuses what the schema would (reps 1–100, RIR 0–10, weight 0–9999.99 kg)
+  before a set is logged, so nothing it writes is one the server turns away. `not_found` and
+  `parent_missing` are per row already, as is a constraint the database refuses.
+- **`set.weight_kg >= 0`** is a new check: bodyweight exercises log 0, nothing logs a negative.
+- **Last time is copied into the workout at start.** The device keeps last time, the suggestion,
+  the exercise name and its rest with each `workout_exercise` record, outside the row that
+  uploads. Reading the live query instead would show today's sets as "last time" as soon as the
+  first batch was acknowledged. The query is fetched again after each acknowledged batch, read or
+  not, so the next start has it; a start waits up to 1.5 s for an answer already on its way.
+- **Reps open on a placeholder**: last time's reps for that working set when the weight repeats,
+  the bottom of the range when the suggestion adds the increment. Left empty, the placeholder is
+  what is logged.
+- **The set that reaches the target moves on** to the next exercise with sets left. An extra set
+  stays where the user chose to be.
+- **A reconnect after an offline launch asks `/api/me` again** when rows are waiting. TanStack
+  Query's online manager starts as online and only reports changes, so a launch with no signal
+  never hears "back online", and nothing uploads under an unconfirmed account (`08` §5).
+- **Sign-out waits for a workout in progress**: "Finish it first". Sets the server has not
+  acknowledged are uploaded or discarded as `08` §7 says. Slice 3 has no way to bring an open
+  workout back from the server, so signing out mid-workout would leave it open there for good.
+  *Revisit* when slice 4 builds resume.
+- **Today takes `/`** and the library moves to `/exercises`, as planned on 2026-10-01. Today holds
+  the profile form, since the time zone is the day boundary and the unit is how weights show; the
+  setup screen proper waits for M2's fields.
+- **Pounds.** Weights show to the tenth of a pound and are typed in pounds; what is stored is kg
+  to the hundredth, and a typed value survives the round trip. The exercise form's increment
+  follows the unit too, so a 5 lb step is typed as 5 and stored as 2.27 kg. An increment left as
+  shown is saved as the stored kg value, not converted back.
+- **A figure too long for 56px is set smaller.** `102.25` at 56px is wider than its column on a
+  375px phone, and an input clips what does not fit. The size is `min(56px, column ÷ characters)`,
+  so the figure is always read whole. This narrows `05` §2.6; it is not a second size.
+- **Zustand 5** holds the open workout, as `03` §6 planned.
+
+Not built, and still owed to S4 and F3: **Start empty**, adding, removing or reordering exercises
+in a live workout, editing or deleting a logged set, an RPE entry (the card has RIR; `rpe` is
+stored as `null`), and the finish summary. The first three need the tombstones slice 4 brings.
+
+**Changed:** `00`, `03`, `04`, `05`, `07`, `08`, `09`, `10`, `11`.

@@ -1,10 +1,9 @@
 import type { Exercise, Me } from '@overload/api-contract';
 import { useQuery } from '@tanstack/react-query';
-import { AccountFooter, AppBar, Chevron, Notice, ScreenTabs, SyncedAt } from '../components';
+import { AccountFooter, AppBar, Chevron, Notice, ScreenTabs, DataState } from '../components';
 import { allExercisesQuery, routinesQuery, useAccount } from '../query';
 
-// S4's routine list (docs/10 §8.1). Starting a workout from a routine arrives with screen 1 in
-// slice 3; until then a routine opens its editor.
+// S4's routine list (docs/10 §8.1). A routine opens its editor here; a workout starts from Today.
 
 export function RoutineList({ me, navigate }: { me: Me; navigate: (path: string) => void }) {
   const confirmed = useAccount().status === 'confirmed';
@@ -22,7 +21,7 @@ export function RoutineList({ me, navigate }: { me: Me; navigate: (path: string)
             ? undefined
             : `${items.length} ${items.length === 1 ? 'ROUTINE' : 'ROUTINES'}`
         }
-        slot={<SyncedAt at={routines.dataUpdatedAt} />}
+        slot={<DataState at={routines.dataUpdatedAt} />}
       />
       <ScreenTabs current="/routines" navigate={navigate} />
 

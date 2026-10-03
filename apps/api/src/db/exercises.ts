@@ -7,6 +7,7 @@ import {
 } from '../domain/equipment.js';
 import type { Database, Queryable } from './connection.js';
 import { exercise, exerciseSetting, routine, routineExercise } from './schema.js';
+import { exercisesWithHistory } from './workouts.js';
 
 export type { Equipment };
 
@@ -211,18 +212,20 @@ export async function updateExercise(
 
 export type DeleteExerciseResult =
   | { kind: 'deleted' }
+  | { kind: 'has_history' }
   | { kind: 'in_routine'; routines: { id: string; name: string }[] };
 
 /**
- * Deletes one of the user's custom exercises. Refused while a routine uses it, naming the routines,
- * rather than leaving the deferred foreign key to fail at commit (docs/04 `routine_exercise`).
- * `exercise_has_history` joins this check in slice 3, when the `set` table exists.
+ * Deletes one of the user's custom exercises. Refused once a workout has logged it, since history
+ * keeps it (hide it instead), and while a routine uses it, naming the routines. Both are checked
+ * here rather than left to the deferred foreign keys, which would fail only at commit (docs/04).
  */
 export async function deleteExercise(
   db: Database,
   userId: string,
   id: string,
 ): Promise<DeleteExerciseResult> {
+  if ((await exercisesWithHistory(db, userId, [id])).size > 0) return { kind: 'has_history' };
   const routines = await db
     .selectDistinct({ id: routine.id, name: routine.name, position: routine.position })
     .from(routineExercise)

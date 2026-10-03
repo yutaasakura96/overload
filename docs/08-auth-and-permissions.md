@@ -270,6 +270,9 @@ The endpoint list is `docs/07`.
 - A receiving tab wipes again after a sign-out notice to clear writes made after the first tab's
   wipe. A write that lands after this second wipe can still leave a saved copy; this timing gap is
   a known limit.
+- **With a workout in progress** and nothing waiting: "A workout is in progress. Finish it first."
+  The session stays. The device cannot yet bring an open workout back from the server, so signing
+  out would leave it open there for good (`06`, 2026-10-03; revisit with slice 4's resume).
 - **With pending or refused sets:** first a dialog, "*N* sets not uploaded yet", with two actions:
   - **Upload now**, when online. Sign-out continues only when nothing pending is left. Refused sets
     still need the second choice.

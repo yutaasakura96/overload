@@ -46,7 +46,9 @@ Vocabulary is `CONTEXT.md`'s: **workout** (not session), **confirm**, **pending*
 ### F2. First run
 
 1. First sign-in lands on Today. With no routines, Today's training card shows the S4 empty state:
-   **Create a routine** or **Start an empty workout**.
+   **Create a routine** or **Start an empty workout**. Today also holds the profile form (time zone
+   and weight unit), reading "Set up your profile" until it is first saved (`10` §8.2). *Start an
+   empty workout is not built yet* (`06`, 2026-10-03).
 2. **Create a routine:** name → add exercises from the picker (F5) → per slot, target sets and rep
    range (default 6–10) → save.
 3. **Start an empty workout:** goes straight to F3 with no exercises; the user adds them from the
@@ -64,24 +66,30 @@ Vocabulary is `CONTEXT.md`'s: **workout** (not session), **confirm**, **pending*
 Works identically offline. Every write below goes to the IndexedDB set store first and uploads later
 (`03` §8.1).
 
-1. **Start.** Tap a routine (or **Start empty**). The phone creates the `workout` and its
-   `workout_exercise` rows with UUIDv7 ids, copying rep range, increment and target sets (`04`).
-   Last time and suggestions come from the offline cache (`07` §3, "Last time and suggestions").
+1. **Start.** Tap a routine on Today (or **Start empty**). The phone creates the `workout` and its
+   `workout_exercise` rows with UUIDv7 ids, copying rep range, increment and target sets (`04`):
+   the routine slot's range if it has one, else the user's own, else the exercise's default.
+   Last time and suggestions come from the offline cache (`07` §3, "Last time and suggestions")
+   and are kept with the workout from then on.
 2. **Log a set.** The active set row is pre-filled with the suggestion, or last time's numbers
    (S2, S3). Edit weight or reps if needed, optionally RIR/RPE and the warm-up flag (S6), tap the
    tick. The set is written locally before the screen updates.
 3. **Rest.** The timer starts from the exercise's default rest, or 120 s (S5). Skip or +30 s. It
-   counts from the set's `performed_at`, so a locked phone does not stop it.
+   counts from the set's `performed_at`, so a locked phone does not stop it. At zero a tone plays
+   and the bar counts over until dismissed or the next set (`06`, 2026-10-03).
 4. **Change the workout.** Add, remove or reorder exercises; edit or delete a ticked set. None of it
-   touches the routine (S4). Edits and deletes travel in the same sync batch (`07` §3.4).
-5. **Finish.** Tap **Finish** → `ended_at` is set to now → summary.
+   touches the routine (S4). Edits and deletes travel in the same sync batch (`07` §3.4). *Not built
+   yet; it needs slice 4's tombstones.* Any exercise of the workout can be opened from **Up next**
+   or **Done**, in any order.
+5. **Finish.** Tap **Finish workout**, confirm → `ended_at` is set to now → Today. *The summary is
+   not built yet.*
 
 **Ending a workout that was not finished cleanly** (decided 2026-09-21):
 
 | Case | Rule |
 | --- | --- |
 | **No Finish tapped** | A workout with no new set for **3 hours** counts as ended, with `ended_at` = the last set's `performed_at`. The phone writes it the next time the app opens, offline or not. The next open shows "Push A ended at 10:14" and nothing more. Until the phone writes it, the server returns `endedAt: null`, and another device shows the workout as in progress |
-| **Start while one is open** | A dialog: "Finish Push A first?" — **Finish** or **Resume**. One workout in progress per user. Enforced on the phone only; the server accepts what sync sends, because refusing it would refuse sets |
+| **Start while one is open** | Today shows the workout in progress with **Resume workout**. Tapping a routine asks in place: "Finish Push A first?" — **Finish** or **Resume**. One workout in progress per user. Enforced on the phone only; the server accepts what sync sends, because refusing it would refuse sets |
 | **Finish with zero ticked sets** | The workout is deleted (a delete in the sync batch), not kept. A mis-tap on Start leaves nothing in history |
 
 Planned sets that were never ticked are not stored. Only ticked sets become `set` rows.

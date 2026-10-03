@@ -19,7 +19,7 @@ test('a browser error reaches Sentry scrubbed', async ({ context, page }) => {
     await route.fulfill({ status: 200, body: '{}' });
   });
 
-  await page.goto('/');
+  await page.goto('/exercises');
   await expect(page.getByText(E2E_EMAIL)).toBeVisible();
   // A request whose query holds something typed, then an uncaught error.
   const typed = ['typed', 'search', 'term'].join('-');

@@ -25,11 +25,11 @@ test('pnpm dev:session signs a browser in to the local app', async ({ page, cont
   const state: { cookies: Cookies } = JSON.parse(readFileSync(out, 'utf8'));
   expect(printed).not.toContain(state.cookies[0]?.value);
   await context.addCookies(state.cookies);
-  await page.goto('/');
+  await page.goto('/exercises');
 
   await expect(page.getByRole('heading', { name: 'Exercises' })).toBeVisible();
   await expect(page.getByText(DEV_EMAIL)).toBeVisible();
-  await expect(page).toHaveURL('/');
+  await expect(page).toHaveURL('/exercises');
 
   const second: { storageState: string } = JSON.parse(devSession(dirname(out)));
   expect(second.storageState).toBe(out);

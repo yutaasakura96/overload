@@ -169,6 +169,7 @@ design/  docs/  CONTEXT.md
 | API data | TanStack Query, persisted to IndexedDB, one copy per account (`docs/08` §5) | Screens render the last loaded data offline, with its age |
 | Pending and refused sets, and the workout rows they belong to | The set store: our IndexedDB store, one record per `workout`, `workout_exercise` or `set` row keyed by its id, `durability: "strict"` | Written the moment the row is created or changed. Deleted only after the server acknowledges it. **Rows of the open workout stay, marked acknowledged, until the workout ends** (Finish, or the 3-hour rule in `docs/09` F3) |
 | Active workout, open on the device | One Zustand store, in memory, **rebuilt from the set store on every launch** | The rest timer stores when rest *started* (the last set's timestamp), never a countdown |
+| Last time, the suggestion, the exercise's name and rest, as they were when the workout started | With each `workout_exercise` record in the set store, beside the row and never uploaded | Copied at start, so an acknowledged batch cannot turn today's sets into "last time" (`06`, 2026-10-03) |
 | Days left incomplete at the end-of-day check | IndexedDB, device only | A list of dates, cleared by the sign-out wipe (`docs/08` §7), so the evening and "Yesterday" cards do not ask twice (`docs/09` F11). Not sent to the server, which derives incomplete days itself |
 | One screen's inputs, open tab | React state, plus the URL for anything worth linking | — |
 | Server truth | Postgres | — |
@@ -238,7 +239,10 @@ The error colour is `error` `#F2555A` (`docs/05` §1.4, added 2026-09-22), alway
    marks it refused and keeps it. While its workout is open, an acknowledged record is marked
    acknowledged instead, and deleted when the workout ends (§6).
 5. **One tab uploads at a time.** Use the Web Locks API (`navigator.locks.request`) around the
-   upload loop.
+   upload loop. *Slice 4.* Slice 3's uploader runs one upload at a time within a tab, on every
+   change to the set store, on reconnect, on return to the app and every 30 s while rows wait. After
+   a launch with no signal it asks `/api/me` again on reconnect, since nothing uploads under an
+   unconfirmed account (`docs/08` §5).
    - **Supported** in Safari and iOS Safari since 15.4 (MDN browser-compat, checked 2026-09-24).
      **Still unverified:** behaviour inside a standalone home-screen app, and whether a lock is shared
      between the installed app and the same origin open in Safari. `11` §3 item 4 checks both.
@@ -478,12 +482,15 @@ Sources and reasoning in `06` (2026-09-24, platform facts).
 
 ### What an installed iOS web app can do about rest ending
 
-Established here because it constrains a product decision, but **decided at the screen-1 grill**, not
-here. MDN browser-compat and WebKit, checked 2026-09-24:
+Established here because it constrains a product decision. **Decided 2026-10-03: a sound** (`06`).
+The `COMPLETE SET` tap resumes the audio context, a short tone plays when rest reaches zero, and
+the wake lock is held while rest counts, where it is granted. No push. MDN browser-compat and
+WebKit, checked 2026-09-24:
 
 | | State on iOS |
 | --- | --- |
 | `navigator.vibrate` | **Not supported in any version.** Not a candidate |
 | Web Push | **Supported from 16.4** in a home-screen app, over APNs, no Apple Developer Program membership. Permission must be requested from a direct user gesture |
 | Screen Wake Lock | Safari 16.4, but **not in a standalone home-screen app until iOS 18.4** (WebKit bug 254545). caniuse does not model the carve-out. A progressive enhancement, never the mechanism |
+| Web Audio | Plays once a user gesture has resumed the `AudioContext`. A backgrounded or locked app plays nothing. Whether the ring switch on silent mutes it is **unverified**; `navigator.audioSession`, which would say, is not in Safari (MDN browser-compat, checked 2026-10-03) |
 | `navigator.storage.persist()` | Supported from 15.2; WebKit grants it heuristically, and "opened as a Home Screen Web App" is one of the stated heuristics. Persistent-mode origins are excluded from eviction |

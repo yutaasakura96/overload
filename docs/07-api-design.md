@@ -159,7 +159,7 @@ only.
 | --- | --- | --- | --- | --- | --- |
 | `*` | `/api/auth/*` | — | Better Auth: Google sign-in, callback, `get-session`, `sign-out`, `list-sessions`, `revoke-other-sessions`, `revoke-sessions` (sign out everywhere, `08` §7), `delete-user` | Better Auth's | Better Auth's |
 | GET | `/api/me` | M | The signed-in user, their profile, and `isAdmin` | 200 | 401 |
-| PATCH | `/api/me/profile` | M | Timezone, height, sex, birth date, training weekdays | 200 profile | 401, 422 |
+| PATCH | `/api/me/profile` | M | Timezone, weight unit, height, sex, birth date, training weekdays. Omitted fields are unchanged; the first save creates the profile. An unknown IANA zone is a 422 on `timezone` | 200 profile | 401, 422 |
 | GET | `/api/me/export` | M | One section of the export (S10), paged | 200 | 401, 422 |
 | GET | `/api/admin/invites` | A | Every invite, newest first | 200 | 401, 404 |
 | POST | `/api/admin/invites` | A | Invite an email | 201 | 401, 404, 409 `invite_exists`, 422 |
@@ -180,10 +180,14 @@ with our `beforeDelete` (`08` §6). There is no route of our own for it.
     "heightCm": 172.0,
     "sex": "male",
     "birthDate": "1994-05-02",
-    "trainingWeekdays": [1, 3, 5]
+    "trainingWeekdays": [1, 3, 5],
+    "weightUnit": "kg"
   }
 }
 ```
+
+`profile` is `null` until the first `PATCH /api/me/profile`. `weightUnit` is `kg` or `lb`: how lift
+weights are shown and typed. Every weight in every request and response stays kg (`06`, 2026-09-23).
 
 `trainingWeekdays` uses ISO weekday numbers, 1 = Monday. It is what makes a calendar day a
 training day for the planner (S15).
@@ -258,8 +262,8 @@ GET /api/exercises  →  200
   class's increment (`04` `exercise`), `restSeconds` 120 and the rep range 6–10. A missing rep end
   takes its default, and a range that comes out inverted is a 422 on `repLow`. A name one of the
   caller's own exercises already has, in any case, is a 422 on `name`, for create and edit alike.
-- **Delete.** Until slice 3 adds the `set` table there is no history to check, so only
-  `exercise_in_routine` refuses. A seeded exercise is nobody's to delete: 204, and nothing changes.
+- **Delete.** `exercise_has_history` is checked first, then `exercise_in_routine` (since slice 3,
+  with the `set` table). A seeded exercise is nobody's to delete: 204, and nothing changes.
 - **Setting.** The body is the whole setting. The effective rep range, the user's values over the
   defaults, must be in order, or 422 on `repLow`. A setting that is all `null` and not hidden removes
   the row, so the exercise is back to its defaults. Hiding keeps the first `hidden_at`.
@@ -298,7 +302,7 @@ PUT /api/routines/0192r001-…/exercises
 
 | Method | Path | Auth | Purpose | Success | Failures |
 | --- | --- | --- | --- | --- | --- |
-| GET | `/api/training/last-time` | M | For **every exercise the caller has logged**: last time per working set, and today's suggestion | 200 | 401 |
+| GET | `/api/training/last-time` | M | For **every exercise the caller has logged**: last time per working set, and today's suggestion | 200 | 401, 422 `setup_incomplete` (`missing: ["profile"]`) |
 
 **Why one call for everything:** the gym screen must show last time and the suggestion with no
 signal (S2, S3), including for an exercise added mid-workout. The client fetches this once when
@@ -319,11 +323,24 @@ GET /api/training/last-time  →  200
 `sets` holds working sets only; `workingSet` is derived, 1…n in `position` order (`04`). `suggestion.rule` is `top_of_range_hit` or `repeat`. An exercise never logged is absent, and the
 screen shows "first workout".
 
+- **Which workout is last time:** the caller's most recent workout, by `started_at`, with at least
+  one working set of the exercise. A workout where it only had warm-ups is passed over.
+- **The suggestion** takes that workout's heaviest working weight, the `rep_high` copied into its
+  `workout_exercise`, and the exercise's increment and equipment as they are today, so a changed
+  increment applies at once. The weight is rounded up to one the equipment can make (S3).
+- **`performedOn`** is the workout's `started_at` as a date in the profile's time zone: the day
+  boundary. Without a profile there is no zone to read it in, hence `setup_incomplete`.
+
 ### 3.4 Sync — the only write path for workouts, workout exercises and sets
 
 | Method | Path | Auth | Purpose | Success | Failures |
 | --- | --- | --- | --- | --- | --- |
-| POST | `/api/workouts/sync` | M | Apply the device's queued rows | 200 with a result per row | 401 (nothing applied; every row stays pending), 400, 413 |
+| POST | `/api/workouts/sync` | M | Apply the device's queued rows | 200 with a result per row | 401 (nothing applied; every row stays pending), 413 over the row limit, 422 |
+
+**Built so far (slice 3):** the happy path, the clock guard, deletions, ownership and the limit. The
+request is validated as a whole, so a row with a bad value is a 422 for the request; the per-row
+`validation_failed` below, and tombstones, arrive in slice 4 (`06`, 2026-10-03). Until then a
+deleted row reports `deleted`, and a stale copy sent after its delete would be stored again.
 
 **Request.** Three arrays, each row the **whole current row** as the phone holds it, plus
 `clientUpdatedAt`, the phone's clock at the last edit. A deletion is `{ id, deletedAt }`.
