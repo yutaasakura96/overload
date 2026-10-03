@@ -272,7 +272,9 @@ The endpoint list is `docs/07`.
   wipe. A write that lands after this second wipe can still leave a saved copy; this timing gap is
   a known limit.
 - **Before the set store is read**, at launch, Sign out is not offered: what is waiting on the
-  device is not known yet, and it decides everything below. *Added 2026-10-03.*
+  device is not known yet, and it decides everything below. If the set store cannot be read, the
+  session stays and Sign out answers "Couldn't sign out. Try again."; Today says the device's sets
+  could not be read and offers to try again. *Added 2026-10-03.*
 - If the set store cannot be cleared after the server ends the session, sign-out reaches `/sign-in`
   with the same warning, "Saved data couldn't be cleared from this device." The rows stay under
   their user's id and show only to that account. *Added 2026-10-03.*

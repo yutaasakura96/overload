@@ -15,8 +15,10 @@ import {
 } from '../query';
 import { SaveNotice, saveProblem, useFocusRefused, type SaveProblem } from '../saving';
 import {
+  endIdleWorkout,
   exercisesOf,
   finishWorkout,
+  loadWorkouts,
   openWorkout,
   setsOf,
   startWorkout,
@@ -44,6 +46,7 @@ export function Today({ me, navigate }: { me: Me; navigate: (path: string) => vo
   // Kept warm here so a start has it offline (S2); `start` reads the cache's copy.
   useQuery({ ...lastTimeQuery, enabled: confirmed && me.profile !== null });
   const loaded = useWorkoutStore((state) => state.loaded);
+  const readFailed = useWorkoutStore((state) => state.readFailed);
   const records = useWorkoutStore((state) => state.records);
   const idleEnded = useWorkoutStore((state) => state.idleEnded);
   const [starting, setStarting] = useState(false);
@@ -118,6 +121,19 @@ export function Today({ me, navigate }: { me: Me; navigate: (path: string) => vo
       {startFailed === 'device' && (
         <Notice tone="flag" word="Not started">
           Couldn’t save the workout on this device. Try again.
+        </Notice>
+      )}
+
+      {readFailed && (
+        <Notice tone="flag" word="Not read">
+          Couldn’t read this device’s sets.{' '}
+          <button
+            type="button"
+            className="button button--tertiary"
+            onClick={() => void loadWorkouts(me.user.id).then(() => endIdleWorkout())}
+          >
+            Try again
+          </button>
         </Notice>
       )}
 

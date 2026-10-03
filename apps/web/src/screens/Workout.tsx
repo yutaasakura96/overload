@@ -78,7 +78,7 @@ function exerciseToOpen(
 }
 
 export function Workout({ me, navigate }: { me: Me; navigate: Navigate }) {
-  const loaded = useWorkoutStore((state) => state.loaded);
+  const loaded = useWorkoutStore((state) => state.loaded || state.readFailed);
   const records = useWorkoutStore((state) => state.records);
   // What this screen shows of the server's is copied at the start; the slot's time is the routines'.
   const routines = useQuery({ ...routinesQuery, enabled: useAccount().status === 'confirmed' });

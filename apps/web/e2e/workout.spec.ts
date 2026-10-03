@@ -486,6 +486,49 @@ test.describe('sign-out with a workout on the device', () => {
     await expect(page).toHaveURL('/');
   });
 
+  test('with the set store unreadable, starts nothing and signs nobody out', async ({ page }) => {
+    const name = `Unread ${Date.now()}`;
+    await saveProfile(page);
+    await createRoutine(page, name, ['Chin-Up']);
+    await page.getByRole('button', { name: 'Create routine' }).click();
+    await expect(page).toHaveURL('/routines');
+    await start(page, name);
+    await expect(dataState(page)).toContainText('SYNCED');
+    await page.route('**/api/workouts/sync', (route) => route.abort());
+    await completeSet(page, { reps: '6' });
+    await expect(dataState(page)).toHaveText('1 PENDING');
+
+    await page.addInitScript(() => {
+      const rows: {
+        getAll: (this: IDBObjectStore, ...args: Parameters<IDBObjectStore['getAll']>) => IDBRequest;
+      } = IDBObjectStore.prototype;
+      const getAll = rows.getAll;
+      let broken = true;
+      window.addEventListener('mend-sets', () => {
+        broken = false;
+      });
+      IDBObjectStore.prototype.getAll = function unreadable(this: IDBObjectStore, query, count) {
+        if (broken && this.transaction.db.name === 'overload-sets') {
+          throw new DOMException('The read failed.', 'UnknownError');
+        }
+        return getAll.call(this, query, count);
+      };
+    });
+    await page.goto('/');
+    await expect(page.getByText('Couldn’t read this device’s sets.')).toBeVisible();
+    await expect(page.getByRole('button', { name: /Start this workout/ })).toHaveCount(0);
+
+    await page.getByRole('button', { name: 'Sign out' }).click();
+    await expect(page.getByText("Couldn't sign out. Try again.")).toBeVisible();
+    await expect(page).toHaveURL('/');
+
+    await page.evaluate(() => window.dispatchEvent(new Event('mend-sets')));
+    await page.getByRole('button', { name: 'Try again' }).click();
+    await expect(page.getByRole('link', { name: 'Resume workout' })).toBeVisible();
+    await page.getByRole('button', { name: 'Sign out' }).click();
+    await expect(page.getByText('1 set not uploaded yet.')).toBeVisible();
+  });
+
   test('says so when the set store could not be cleared', async ({ page }) => {
     await saveProfile(page);
     await page.evaluate(() => {

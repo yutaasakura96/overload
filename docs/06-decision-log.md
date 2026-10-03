@@ -2986,7 +2986,9 @@ What `#3` built, where it stops, and what was decided on the way.
   *Revisit* when slice 4 builds resume. Sign out is not offered until the set store has been read
   at launch: before that the device looks empty, and a quick tap would skip the choice and leave
   the sets behind. A set store that cannot be cleared gets `08` §7's "Saved data couldn't be
-  cleared" warning, not a clean sign-out.
+  cleared" warning, not a clean sign-out. A set store that cannot be read is not an empty one:
+  Today says "Couldn't read this device's sets" with Try again in place of Start a workout, and
+  sign-out fails until the read succeeds.
 - **Today takes `/`** and the library moves to `/exercises`, as planned on 2026-10-01. Today holds
   the profile form, since the time zone is the day boundary and the unit is how weights show; the
   setup screen proper waits for M2's fields.

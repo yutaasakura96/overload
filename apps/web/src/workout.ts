@@ -30,6 +30,8 @@ type WorkoutState = {
   /** Whose records are loaded, or undefined before the first load. */
   userId: string | undefined;
   loaded: boolean;
+  /** The set store could not be read: what is on the device is not known, so nothing is assumed. */
+  readFailed: boolean;
   records: StoreRecord[];
   rest: Rest | undefined;
   /** When the uploader last had every row answered, for the data-state slot. 0 before that. */
@@ -41,6 +43,7 @@ type WorkoutState = {
 export const useWorkoutStore = create<WorkoutState>()(() => ({
   userId: undefined,
   loaded: false,
+  readFailed: false,
   records: [],
   rest: undefined,
   lastSyncedAt: 0,
@@ -153,9 +156,19 @@ export function dataState(records: StoreRecord[]): { refused: number; pending: n
  * `performedAt` picks up where it was, which is why the timer is never stored as a countdown.
  */
 export async function loadWorkouts(userId: string, nowMs = Date.now()): Promise<void> {
-  // A device whose IndexedDB cannot be read opens with nothing in progress; starting a workout then
-  // says the device could not save it.
-  const records = await setStore.all(userId).catch((): StoreRecord[] => []);
+  // A device whose IndexedDB cannot be read is not loaded: Today says so and offers to try again,
+  // and neither a start nor a sign-out goes ahead on records nobody has seen (docs/08 §7).
+  const records = await setStore.all(userId).catch(() => undefined);
+  if (records === undefined) {
+    useWorkoutStore.setState({
+      userId,
+      loaded: false,
+      readFailed: true,
+      records: [],
+      rest: undefined,
+    });
+    return;
+  }
   const workout = openWorkout(records);
   const last = workout === undefined ? undefined : lastSetOf(records, workout.id);
   const exercise = records.find(
@@ -169,6 +182,7 @@ export async function loadWorkouts(userId: string, nowMs = Date.now()): Promise<
   useWorkoutStore.setState({
     userId,
     loaded: true,
+    readFailed: false,
     records,
     rest: resting ? { setId: last.id, extraSeconds: 0, dismissed: false } : undefined,
   });

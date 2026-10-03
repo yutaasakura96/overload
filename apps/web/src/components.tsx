@@ -456,7 +456,7 @@ export function AccountFooter({
   const [busy, setBusy] = useState(false);
   const [stopped, setStopped] = useState<Exclude<SignOutResult, 'signed-out'>>();
   const { userId } = useAccount();
-  const loaded = useWorkoutStore((state) => recordsLoadedFor(state, userId));
+  const loading = useWorkoutStore((state) => !recordsLoadedFor(state, userId) && !state.readFailed);
   // Sets the server has not acknowledged, refused ones included (docs/08 §7).
   const waiting = useWorkoutStore(
     (state) =>
@@ -523,7 +523,7 @@ export function AccountFooter({
         <button
           type="button"
           className="button button--tertiary"
-          disabled={busy || !loaded}
+          disabled={busy || loading}
           onClick={() => leave()}
         >
           Sign out
