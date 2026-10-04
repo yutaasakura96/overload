@@ -459,7 +459,7 @@ test('each slot of an exercise a routine holds twice keeps its own last time thr
 }) => {
   const name = `Twice ${Date.now()}`;
   const bench = 'Barbell Bench Press';
-  await saveProfile(page);
+  await saveProfile(page, 'Kilograms');
   await createRoutine(page, name, [bench]);
   await page.getByRole('button', { name: 'Add exercises' }).click();
   await page.getByRole('checkbox', { name: bench, exact: true }).check();

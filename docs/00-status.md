@@ -2,7 +2,7 @@
 
 **Project:** A weight-training progress tracker combining lift logging, meal planning, Apple Watch/iPhone health data, and bodyweight/diet coaching.
 **Phase:** 7 — Build (M1 first). Phase 6 — Review finished 2026-09-23.
-**Updated:** 2026-10-03
+**Updated:** 2026-10-05
 
 ## Done
 - Phase 1 — Brief + PRD: `docs/01-project-brief.md`, `docs/02-product-requirements.md`, `docs/06-decision-log.md`.
@@ -13,7 +13,10 @@
 - 2026-09-16: Phase 3 — `docs/05-design-system.md` and `docs/10-screen-specifications.md` written from the six `.dc.html` files. Every hex code, size, tracking value and grid measurement lifted from source; contrast ratios computed, not estimated. The canvas's "THE SYSTEM" sticky note was found inaccurate and is superseded by `docs/05`.
 
 ## Next
-**Phase 7 — Build, slice 1.** Two grills have run. `/grill-with-docs` on **2026-09-23** settled
+**Phase 7 — Build, slice 4.** Slice 3 is built on `fm/overload-3`; slice 4 follows its review and
+merge. The slice boundaries and deferred work are recorded in `06` (2026-10-03).
+
+**Planning record.** Two grills have run. `/grill-with-docs` on **2026-09-23** settled
 fourteen questions and cut M1 into slices; `/grill-with-docs` on **2026-09-24** settled twelve more —
 what slice 1 is made of, and the toolchain. Nine entries in `06`, dated those two days.
 
@@ -85,9 +88,7 @@ refusals, tombstones, Start empty, changing a live workout, editing a logged set
 finish summary. For the iPhone checklist: whether the rest tone plays on silent (`11` §3).
 
 **Issues are open.** Milestone `M1`, one issue per slice, `#1`–`#7`, each chained to the one before
-with GitHub's native dependencies. `#1` carries the full slice-1 specification; its `ready-for-agent`
-label is **off** until provisioning is finished (below). `#3`'s three questions were settled in
-`06` (2026-10-03).
+with GitHub's native dependencies. `#3`'s three questions were settled in `06` (2026-10-03).
 Each UI feature clears the polish gate in `AGENTS.md`.
 
 ### Provisioning — done (2026-09-25)
