@@ -1192,7 +1192,7 @@ export interface components {
         reps: number;
       }[];
       suggestion: components['schemas']['Suggestion'];
-      /** @description Present where a routine’s last workout ran the exercise in more than one slot. Empty otherwise. */
+      /** @description Last time for each of the caller’s routine slots that has logged the exercise. */
       slots: components['schemas']['LastTimeSlot'][];
     };
     /** @description Today’s weight for the exercise (S3). */
@@ -1204,15 +1204,14 @@ export interface components {
       /** @example hit 10 on every set last time */
       reason: string;
     };
-    /** @description One slot’s own sets and suggestion, from the routine’s last workout. */
+    /** @description One routine slot’s own sets and suggestion, from the last workout that ran it. */
     LastTimeSlot: {
       /**
        * Format: uuid
+       * @description The routine slot.
        * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
        */
-      routineId: string;
-      /** @description Which of the exercise’s slots in that workout, counted from 0 in order. */
-      slot: number;
+      routineExerciseId: string;
       /**
        * Format: uuid
        * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
@@ -1328,6 +1327,12 @@ export interface components {
        * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
        */
       exerciseId: string;
+      /**
+       * Format: uuid
+       * @description The routine slot it was started from. Null when it came from none.
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      routineExerciseId: string | null;
       position: number;
       /** @description Copied from the routine at start. */
       targetSets: number | null;

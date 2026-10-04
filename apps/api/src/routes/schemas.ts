@@ -276,14 +276,11 @@ const LastFields = {
 
 export const LastTimeSlot = z
   .object({
-    routineId: Uuid,
-    slot: z.int().min(0).openapi({
-      description: 'Which of the exercise’s slots in that workout, counted from 0 in order.',
-    }),
+    routineExerciseId: Uuid.openapi({ description: 'The routine slot.' }),
     ...LastFields,
   })
   .openapi('LastTimeSlot', {
-    description: 'One slot’s own sets and suggestion, from the routine’s last workout.',
+    description: 'One routine slot’s own sets and suggestion, from the last workout that ran it.',
   });
 
 export const LastTime = z
@@ -291,8 +288,7 @@ export const LastTime = z
     exerciseId: Uuid,
     ...LastFields,
     slots: z.array(LastTimeSlot).openapi({
-      description:
-        'Present where a routine’s last workout ran the exercise in more than one slot. Empty otherwise.',
+      description: 'Last time for each of the caller’s routine slots that has logged the exercise.',
     }),
   })
   .openapi('LastTime');
@@ -317,6 +313,9 @@ const WorkoutExerciseFields = {
   id: Uuid,
   workoutId: Uuid,
   exerciseId: Uuid,
+  routineExerciseId: Uuid.nullable().openapi({
+    description: 'The routine slot it was started from. Null when it came from none.',
+  }),
   position: z.int().min(0).max(1000),
   targetSets: TargetSets.nullable().openapi({ description: 'Copied from the routine at start.' }),
   repLow: Reps,

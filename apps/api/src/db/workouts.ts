@@ -23,6 +23,7 @@ export type WorkoutExerciseRow = {
   id: string;
   workoutId: string;
   exerciseId: string;
+  routineExerciseId: string | null;
   position: number;
   targetSets: number | null;
   repLow: number;
@@ -208,6 +209,7 @@ async function upsertWorkoutExercise(
       set: {
         workoutId: excluded('workout_id'),
         exerciseId: excluded('exercise_id'),
+        routineExerciseId: excluded('routine_exercise_id'),
         position: excluded('position'),
         targetSets: excluded('target_sets'),
         repLow: excluded('rep_low'),
@@ -367,6 +369,7 @@ function workoutExerciseColumns(row: WorkoutExerciseRow) {
   return {
     workoutId: row.workoutId,
     exerciseId: row.exerciseId,
+    routineExerciseId: row.routineExerciseId,
     position: row.position,
     targetSets: row.targetSets,
     repLow: row.repLow,
@@ -407,6 +410,7 @@ function toWorkoutExerciseRow(row: typeof workoutExercise.$inferSelect): Workout
     id: row.id,
     workoutId: row.workoutId,
     exerciseId: row.exerciseId,
+    routineExerciseId: row.routineExerciseId,
     position: row.position,
     targetSets: row.targetSets,
     repLow: row.repLow,

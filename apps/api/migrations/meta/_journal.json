@@ -64,6 +64,13 @@
       "when": 1790996708621,
       "tag": "0008_slice3_sql_only",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791091087988,
+      "tag": "0009_slice3_routine_slot",
+      "breakpoints": true
     }
   ]
 }

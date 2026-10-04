@@ -255,7 +255,9 @@ export const workout = pgTable(
 /**
  * One exercise inside one workout, with the rep range, increment and target sets resolved and
  * copied at start (docs/04). The FK to `exercise` is deferred like `routine_exercise`'s, so it is
- * added in a custom migration.
+ * added in a custom migration. `routine_exercise_id` names the routine slot it was started from and
+ * has no FK: saving a routine deletes and re-inserts its slots under the same ids, which would
+ * clear it. Last time reads it only where the slot still exists.
  */
 export const workoutExercise = pgTable(
   'workout_exercise',
@@ -265,6 +267,7 @@ export const workoutExercise = pgTable(
       .notNull()
       .references(() => workout.id, { onDelete: 'cascade' }),
     exerciseId: uuid('exercise_id').notNull(),
+    routineExerciseId: uuid('routine_exercise_id'),
     position: integer('position').notNull(),
     targetSets: smallint('target_sets'),
     repLow: smallint('rep_low').notNull(),

@@ -780,7 +780,7 @@
             "items": {
               "$ref": "#/components/schemas/LastTimeSlot"
             },
-            "description": "Present where a routine’s last workout ran the exercise in more than one slot. Empty otherwise."
+            "description": "Last time for each of the caller’s routine slots that has logged the exercise."
           }
         },
         "required": [
@@ -821,15 +821,11 @@
       "LastTimeSlot": {
         "type": "object",
         "properties": {
-          "routineId": {
+          "routineExerciseId": {
             "type": "string",
             "format": "uuid",
-            "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
-          },
-          "slot": {
-            "type": "integer",
-            "minimum": 0,
-            "description": "Which of the exercise’s slots in that workout, counted from 0 in order."
+            "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11",
+            "description": "The routine slot."
           },
           "workoutId": {
             "type": "string",
@@ -869,14 +865,13 @@
           }
         },
         "required": [
-          "routineId",
-          "slot",
+          "routineExerciseId",
           "workoutId",
           "performedOn",
           "sets",
           "suggestion"
         ],
-        "description": "One slot’s own sets and suggestion, from the routine’s last workout."
+        "description": "One routine slot’s own sets and suggestion, from the last workout that ran it."
       },
       "SyncResponse": {
         "type": "object",
@@ -1100,6 +1095,15 @@
             "format": "uuid",
             "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
           },
+          "routineExerciseId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11",
+            "description": "The routine slot it was started from. Null when it came from none."
+          },
           "position": {
             "type": "integer",
             "minimum": 0,
@@ -1140,6 +1144,7 @@
           "id",
           "workoutId",
           "exerciseId",
+          "routineExerciseId",
           "position",
           "targetSets",
           "repLow",

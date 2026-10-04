@@ -540,7 +540,8 @@ data-state slot. Under the tabs, in order:
   Saved online only, like routines.
 - **Account:** the email and `Sign out`. With sets not uploaded it asks first, in place:
   `2 sets not uploaded yet.` — `Upload now` / `Discard and sign out`. With a workout in progress it
-  says to finish it first and offers neither (`08` §7).
+  says to finish it first, and with one whose ending has not uploaded it says so with `Try again`;
+  both offer neither (`08` §7).
 
 **Data-state slot (§7.4) as built.** Refused and pending are counted from the set store on every
 screen; the resting form is the later of the screen's last fetch and the last acknowledged upload.

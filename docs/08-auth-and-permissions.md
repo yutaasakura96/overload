@@ -285,10 +285,16 @@ The endpoint list is `docs/07`.
   with the same warning, "Saved data couldn't be cleared from this device." The rows stay under
   their user's id and show only to that account. *Added 2026-10-03.*
 - **With a workout in progress**, whatever is waiting: "A workout is in progress. Finish it first."
-  The session stays, and neither action below is offered until it is finished. The device cannot
-  yet bring an open workout back from the server, so signing out would leave it open there for good
-  (`06`, 2026-10-03; revisit with slice 4's resume).
-- **With pending or refused sets** and no workout in progress: first a dialog, "*N* sets not uploaded yet", with two actions:
+  The session stays, and neither action below is offered. The device cannot yet bring an open
+  workout back from the server, so signing out would leave it open there for good (`06`,
+  2026-10-03; revisit with slice 4's resume).
+- **With a workout whose ending the server has not acknowledged** (a Finish, the 3-hour rule's
+  ending, or the removal of one with no sets): "Your workout has not finished uploading. It has to
+  reach the server before you sign out.", with **Try again**, which uploads and then signs out.
+  Neither action below is offered: discarding here would leave the workout open on the server.
+  *Added 2026-10-04.*
+- **With pending or refused sets** of workouts the server has fully acknowledged: first a dialog,
+  "*N* sets not uploaded yet", with two actions:
   - **Upload now**, when online. Sign-out continues only when nothing pending is left. Refused sets
     still need the second choice.
   - **Discard and sign out**, which deletes them from the set store.

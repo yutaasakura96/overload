@@ -240,14 +240,9 @@ export async function startWorkout(input: {
   const exercises = input.routine.exercises.flatMap((slot, position): WorkoutExerciseRecord[] => {
     const exercise = input.exercises.get(slot.exerciseId);
     if (exercise === undefined) return [];
-    // An exercise the routine holds twice reads each slot's own last time; a slot the routine's last
-    // workout did not have falls back to the exercise's.
+    // A slot reads its own last time; one never logged falls back to the exercise's.
     const logged = input.lastTimes.get(slot.exerciseId);
-    const nth = input.routine.exercises
-      .slice(0, position)
-      .filter((earlier) => earlier.exerciseId === slot.exerciseId).length;
-    const last =
-      logged?.slots.find((own) => own.routineId === input.routine.id && own.slot === nth) ?? logged;
+    const last = logged?.slots.find((own) => own.routineExerciseId === slot.id) ?? logged;
     const id = newId();
     return [
       {
@@ -258,6 +253,7 @@ export async function startWorkout(input: {
           id,
           workoutId,
           exerciseId: slot.exerciseId,
+          routineExerciseId: slot.id,
           position,
           targetSets: slot.targetSets,
           repLow: slot.repLow ?? exercise.repLow,

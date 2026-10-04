@@ -444,8 +444,9 @@ export function DeleteConfirm({
 }
 
 /**
- * The signed-in account and the way out, at the foot of each top-level screen. With rows not yet
- * uploaded, signing out first asks: upload them now, or discard them (docs/08 §7).
+ * The signed-in account and the way out, at the foot of each top-level screen. A workout is
+ * finished and uploaded first; with other rows not yet uploaded, signing out asks: upload them
+ * now, or discard them (docs/08 §7).
  */
 export function AccountFooter({
   email,
@@ -492,6 +493,23 @@ export function AccountFooter({
         <Notice tone="flag" word="Not signed out">
           A workout is in progress. Finish it first, so it is uploaded whole.
         </Notice>
+      )}
+      {stopped === 'workout-unsynced' && (
+        <fieldset className="confirm confirm--gutter">
+          <legend className="confirm__question">
+            Your workout has not finished uploading. It has to reach the server before you sign out.
+          </legend>
+          <div className="confirm__actions">
+            <button
+              type="button"
+              className="button button--tertiary"
+              disabled={busy}
+              onClick={() => leave({ uploadFirst: true })}
+            >
+              Try again
+            </button>
+          </div>
+        </fieldset>
       )}
       {stopped === 'rows-waiting' && (
         <fieldset className="confirm confirm--gutter">

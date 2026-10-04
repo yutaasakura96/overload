@@ -414,6 +414,65 @@ test('finishing after deleting the routine keeps the workout on the server', asy
   });
 });
 
+test('each slot of an exercise a routine holds twice keeps its own last time through a reorder', async ({
+  page,
+}) => {
+  const name = `Twice ${Date.now()}`;
+  const bench = 'Barbell Bench Press';
+  await saveProfile(page);
+  await createRoutine(page, name, [bench]);
+  await page.getByRole('button', { name: 'Add exercises' }).click();
+  await page.getByRole('checkbox', { name: bench, exact: true }).check();
+  await page.getByRole('button', { name: 'Add 1 exercise' }).click();
+  const figures = (label: string, slot: number) =>
+    page.getByRole('textbox', { name: `${label} for ${bench}` }).nth(slot);
+  await figures('Sets', 0).fill('1');
+  await figures('Reps low', 0).fill('5');
+  await figures('Reps high', 0).fill('8');
+  await figures('Sets', 1).fill('1');
+  await figures('Reps low', 1).fill('8');
+  await figures('Reps high', 1).fill('12');
+  await page.getByRole('button', { name: 'Create routine' }).click();
+  await expect(page).toHaveURL('/routines');
+
+  // The 5–8 slot reaches 8; the 8–12 slot stops at 10.
+  await start(page, name);
+  await expect(page.getByText('Reps 5–8')).toBeVisible();
+  await completeSet(page, { weight: '80', reps: '8' });
+  await expect(page.getByText('Reps 8–12')).toBeVisible();
+  await completeSet(page, { weight: '60', reps: '10' });
+  await expect(dataState(page)).toContainText('SYNCED');
+  const lastTime = page.waitForResponse(
+    (response) => response.url().includes('/api/training/last-time') && response.ok(),
+  );
+  await finish(page);
+  await lastTime;
+
+  // The 8–12 slot is moved above the other.
+  await page.goto('/routines');
+  await page.getByRole('link', { name: new RegExp(name) }).click();
+  await page
+    .getByRole('button', { name: `Move ${bench} up` })
+    .nth(1)
+    .click();
+  await expect(figures('Reps high', 0)).toHaveValue('12');
+  await page.getByRole('button', { name: 'Save routine' }).click();
+  await expect(page).toHaveURL('/routines');
+
+  // Each slot opens on its own sets, judged against its own range.
+  await start(page, name);
+  await expect(page.getByText('Reps 8–12')).toBeVisible();
+  const card = page.getByRole('region', { name: 'SET 1 OF 1' });
+  await expect(card).toContainText('LAST60 × 10');
+  await expect(card).toContainText('set 1 stopped at 10 of 12 last time');
+  await expect(page.getByRole('textbox', { name: 'Weight in kilograms' })).toHaveValue('60');
+  await completeSet(page, { reps: '12' });
+  await expect(page.getByText('Reps 5–8')).toBeVisible();
+  await expect(card).toContainText('LAST80 × 8');
+  await expect(card).toContainText('hit 8 on the only set last time');
+  await expect(page.getByRole('textbox', { name: 'Weight in kilograms' })).toHaveValue('82.5');
+});
+
 test('a workout left for three hours ends at its last set', async ({ page }) => {
   const name = `Idle ${Date.now()}`;
   const before = stored().length;
@@ -479,19 +538,77 @@ test.describe('sign-out with a workout on the device', () => {
     await expect(page.getByRole('button', { name: 'Discard and sign out' })).toHaveCount(0);
     await expect(page).toHaveURL('/');
 
-    // Finished, the set still waiting asks first, and an upload that fails asks again.
+    // Finished on the device, its ending has not reached the server: still neither choice, and a
+    // retry that cannot upload says so again.
     await page.getByRole('link', { name: 'Resume workout' }).click();
     await finish(page);
     await page.getByRole('button', { name: 'Sign out' }).click();
-    await expect(page.getByText('1 set not uploaded yet.')).toBeVisible();
-    await page.getByRole('button', { name: 'Upload now' }).click();
+    await expect(page.getByText('Your workout has not finished uploading.')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Upload now' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Discard and sign out' })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Try again' }).click();
+    await expect(page.getByRole('button', { name: 'Try again' })).toBeEnabled();
+    await expect(page).toHaveURL('/');
+    expect(stored().at(-1)?.endedAt).toBeNull();
+
+    // With signal the retry uploads the ending and the set, and only then signs out.
+    await page.unrouteAll();
+    await page.getByRole('button', { name: 'Try again' }).click();
+    await expect(page).toHaveURL('/sign-in');
+    expect(stored().at(-1)?.endedAt).not.toBeNull();
+    expect(setsOfLatest()).toBe(1);
+    const kept = await page.evaluate(
+      () =>
+        new Promise<number>((resolve, reject) => {
+          const open = indexedDB.open('overload-sets');
+          open.addEventListener('error', () => reject(open.error));
+          open.addEventListener('success', () => {
+            const count = open.result.transaction('rows', 'readonly').objectStore('rows').count();
+            count.addEventListener('success', () => resolve(count.result));
+            count.addEventListener('error', () => reject(count.error));
+          });
+        }),
+    );
+    expect(kept).toBe(0);
+  });
+
+  test('offers to discard a set the server refused once its workout has ended there', async ({
+    page,
+  }) => {
+    const name = `Refused ${Date.now()}`;
+    await saveProfile(page);
+    await createRoutine(page, name, ['Chin-Up']);
+    await page.getByRole('button', { name: 'Create routine' }).click();
+    await expect(page).toHaveURL('/routines');
+    await start(page, name);
+    await expect(dataState(page)).toContainText('SYNCED');
+
+    // The server answers the set as refused; the workout's own rows are stored.
+    await page.route('**/api/workouts/sync', async (route) => {
+      const response = await route.fetch();
+      const body: { results: { table: string; id: string }[] } = await response.json();
+      const results = body.results.map((result) =>
+        result.table === 'sets'
+          ? {
+              table: result.table,
+              id: result.id,
+              status: 'refused',
+              problem: { code: 'validation_failed', status: 422 },
+            }
+          : result,
+      );
+      await route.fulfill({ response, json: { results } });
+    });
+    await completeSet(page, { reps: '6' });
+    await expect(dataState(page)).toContainText('1 REFUSED');
+    await finish(page);
+    await expect.poll(() => stored().at(-1)?.endedAt ?? null).not.toBeNull();
+
+    await page.getByRole('button', { name: 'Sign out' }).click();
     await expect(page.getByText('1 set not uploaded yet.')).toBeVisible();
     await expect(page).toHaveURL('/');
-
-    // Discarding is the user's explicit choice, and nothing of the workout stays on the device.
     await page.getByRole('button', { name: 'Discard and sign out' }).click();
     await expect(page).toHaveURL('/sign-in');
-    expect(setsOfLatest()).toBe(0);
     const kept = await page.evaluate(
       () =>
         new Promise<number>((resolve, reject) => {

@@ -2972,11 +2972,15 @@ What `#3` built, where it stops, and what was decided on the way.
   uploads. Reading the live query instead would show today's sets as "last time" as soon as the
   first batch was acknowledged. The query is fetched again after each acknowledged batch, read or
   not, so the next start has it; a start waits up to 1.5 s for an answer already on its way.
-- **Last time is per routine slot when a routine holds an exercise twice.** One answer per
-  exercise joined both slots' sets and judged them against the first slot's rep range: slots of
-  5–8 and 8–12 with 8, 8 and 10 added weight although the second missed 12. Each slot now takes its
-  own sets from the routine's last workout, judged against its own range (`07` §3, `slots`). A slot
-  with no match, after the routine was edited, falls back to the exercise's answer.
+- **Last time is per routine slot.** One answer per exercise joined both slots' sets when a
+  routine held an exercise twice and judged them against the first slot's rep range: slots of 5–8
+  and 8–12 with 8, 8 and 10 added weight although the second missed 12. `workout_exercise` now
+  records the routine slot it was started from (`routine_exercise_id`, nullable, `04`), and last
+  time answers each slot from the last workout that ran it, judged against its own range (`07` §3,
+  `slots`). A slot with no entry, or a row with no slot id, falls back to the exercise's answer.
+  *Rejected:* matching by the exercise's order within the routine, which swapped the two histories
+  when the slots were reordered; and a foreign key to `routine_exercise`, which a routine save
+  would clear because it deletes and re-inserts the slots.
 - **Reps open on a placeholder**: last time's reps for that working set when the weight repeats,
   the bottom of the range when the suggestion adds the increment. Left empty, the placeholder is
   what is logged.
@@ -2985,11 +2989,13 @@ What `#3` built, where it stops, and what was decided on the way.
 - **A reconnect after an offline launch asks `/api/me` again** when rows are waiting. TanStack
   Query's online manager starts as online and only reports changes, so a launch with no signal
   never hears "back online", and nothing uploads under an unconfirmed account (`08` §5).
-- **Sign-out waits for a workout in progress**: "Finish it first", with neither Upload now nor
-  Discard and sign out offered until it is finished, so a discard cannot leave the workout open on
-  the server. Once none is open, sets the server has not acknowledged are uploaded or discarded as
-  `08` §7 says. Slice 3 has no way to bring an open
-  workout back from the server, so signing out mid-workout would leave it open there for good.
+- **Sign-out waits for the workout to reach the server.** With one in progress it says "Finish it
+  first"; with a Finish, a 3-hour ending or a removal the server has not acknowledged it says the
+  workout has not finished uploading and offers Try again. Neither Upload now nor Discard and sign
+  out is offered in either state, so a discard cannot leave a workout open on the server. Only
+  then are other rows the server has not acknowledged uploaded or discarded as `08` §7 says. Slice
+  3 has no way to bring an open workout back from the server, so signing out before that would
+  leave it open there for good.
   *Revisit* when slice 4 builds resume. Sign out is not offered until the set store has been read
   at launch: before that the device looks empty, and a quick tap would skip the choice and leave
   the sets behind. A set store that cannot be cleared gets `08` §7's "Saved data couldn't be

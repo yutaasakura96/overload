@@ -260,6 +260,7 @@ here does not touch the routine (S4).
 | `id` | uuid | no | — | PK, from the phone |
 | `workout_id` | uuid | no | — | → `workout.id`, `ON DELETE CASCADE` |
 | `exercise_id` | uuid | no | — | → `exercise.id`, `NO ACTION DEFERRABLE INITIALLY DEFERRED`, for the reason under `routine_exercise` |
+| `routine_exercise_id` | uuid | yes | — | The routine slot it was started from. **No FK**, see below. Null for rows made before 2026-10-04 and for an exercise that came from no slot |
 | `position` | integer | no | — | Order within the workout |
 | `target_sets` | smallint | yes | — | Copied from the routine slot at start |
 | `rep_low` | smallint | no | — | **Resolved and copied at start**: routine slot → user setting → exercise default |
@@ -274,6 +275,12 @@ here does not touch the routine (S4).
 - The copied rep range and increment are what make a past workout honest: changing your settings
   today does not rewrite what you were aiming for in June, and the S3 progression rule reads the
   numbers the workout was actually run with.
+- `routine_exercise_id` keys "last time" by routine slot, so a routine that holds one exercise in
+  two slots progresses each on its own, and reordering the slots moves nothing (`07` §3). It has no
+  foreign key because saving a routine deletes and re-inserts its slots under the same ids; an
+  `ON DELETE SET NULL` would clear it on every save. Last time joins it to `routine_exercise`
+  through the caller's own routines, so an id whose slot is gone, or is not the caller's, matches
+  nothing and the per-exercise answer is used.
 
 ---
 

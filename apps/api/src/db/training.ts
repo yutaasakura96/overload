@@ -15,10 +15,10 @@ type Last = {
 export type LastTime = Last & {
   exerciseId: string;
   /**
-   * Where a routine's last workout ran the exercise in more than one slot: each slot's own sets,
-   * judged against its own rep range. `slot` counts the exercise's slots in that workout from 0.
+   * Per routine slot that still exists: its own sets from the last workout that ran it, judged
+   * against its own rep range.
    */
-  slots: (Last & { routineId: string; slot: number })[];
+  slots: (Last & { routineExerciseId: string })[];
 };
 
 type Row = {
@@ -30,7 +30,7 @@ type Row = {
   reps: number;
 };
 
-type SlotRow = Row & { routine_id: string; slot: number };
+type SlotRow = Row & { routine_exercise_id: string };
 
 function groupBy<T>(rows: T[], key: (row: T) => string): Map<string, T[]> {
   const grouped = new Map<string, T[]>();
@@ -41,8 +41,8 @@ function groupBy<T>(rows: T[], key: (row: T) => string): Map<string, T[]> {
 /**
  * For every exercise the user has logged a working set of: the most recent such workout's working
  * sets, numbered 1…n in `position` order with warm-ups left out (docs/04 `set`), and the suggestion.
- * The rule reads the rep range that workout ran with and the increment the user has today. An
- * exercise a routine's last workout ran in several slots also answers slot by slot.
+ * The rule reads the rep range that workout ran with and the increment the user has today. Each
+ * routine slot that still exists also answers from the last workout that ran that slot.
  */
 export async function lastTimes(
   db: Database,
@@ -70,31 +70,25 @@ export async function lastTimes(
   if (rows.length === 0) return [];
   const { rows: slotRows } = await db.execute<SlotRow>(sql`
     WITH latest AS (
-      SELECT DISTINCT ON (w.routine_id, we.exercise_id)
-             w.routine_id, we.exercise_id, w.id AS workout_id, w.started_at
+      SELECT DISTINCT ON (we.routine_exercise_id)
+             we.routine_exercise_id, we.id, we.exercise_id, we.rep_high,
+             w.id AS workout_id, w.started_at
       FROM workout w
       JOIN workout_exercise we ON we.workout_id = w.id
+      JOIN routine_exercise re
+        ON re.id = we.routine_exercise_id AND re.exercise_id = we.exercise_id
+      JOIN routine r ON r.id = re.routine_id AND r.user_id = ${userId}
       WHERE w.user_id = ${userId}
-        AND w.routine_id IS NOT NULL
         AND EXISTS (
           SELECT 1 FROM "set" s WHERE s.workout_exercise_id = we.id AND NOT s.is_warmup
         )
-      ORDER BY w.routine_id, we.exercise_id, w.started_at DESC, w.id DESC
-    ),
-    slots AS (
-      SELECT l.routine_id, l.exercise_id, l.workout_id, l.started_at, we.id, we.rep_high,
-             (row_number() OVER slot_order - 1)::int AS slot,
-             count(*) OVER (PARTITION BY l.routine_id, l.exercise_id) AS slot_count
-      FROM latest l
-      JOIN workout_exercise we ON we.workout_id = l.workout_id AND we.exercise_id = l.exercise_id
-      WINDOW slot_order AS (PARTITION BY l.routine_id, l.exercise_id ORDER BY we.position, we.id)
+      ORDER BY we.routine_exercise_id, w.started_at DESC, w.id DESC, we.position, we.id
     )
-    SELECT sl.routine_id, sl.exercise_id, sl.slot, sl.workout_id, sl.started_at, sl.rep_high,
+    SELECT l.routine_exercise_id, l.exercise_id, l.workout_id, l.started_at, l.rep_high,
            s.weight_kg::float8 AS weight_kg, s.reps
-    FROM slots sl
-    JOIN "set" s ON s.workout_exercise_id = sl.id AND NOT s.is_warmup
-    WHERE sl.slot_count > 1
-    ORDER BY sl.routine_id, sl.exercise_id, sl.slot, s.position, s.id
+    FROM latest l
+    JOIN "set" s ON s.workout_exercise_id = l.id AND NOT s.is_warmup
+    ORDER BY l.exercise_id, l.routine_exercise_id, s.position, s.id
   `);
 
   const exercises = new Map(
@@ -134,17 +128,9 @@ export async function lastTimes(
     lastOf(sets).map((last) => ({
       exerciseId,
       ...last,
-      slots: [
-        ...groupBy(slots.get(exerciseId) ?? [], (row) => `${row.routine_id} ${row.slot}`).values(),
-      ].flatMap((own) => {
-        const [first] = own;
-        if (first === undefined) return [];
-        return lastOf(own).map((ran) => ({
-          routineId: first.routine_id,
-          slot: first.slot,
-          ...ran,
-        }));
-      }),
+      slots: [...groupBy(slots.get(exerciseId) ?? [], (row) => row.routine_exercise_id)].flatMap(
+        ([routineExerciseId, own]) => lastOf(own).map((ran) => ({ routineExerciseId, ...ran })),
+      ),
     })),
   );
 }

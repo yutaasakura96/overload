@@ -60,6 +60,7 @@ function exerciseRow(workoutId: string, exercise: string, fields: Record<string,
     id: randomUUID(),
     workoutId,
     exerciseId: exercise,
+    routineExerciseId: null,
     position: 0,
     targetSets: 3,
     repLow: 6,
@@ -433,16 +434,36 @@ describe('GET /api/training/last-time (S2, S3)', () => {
     ]);
   });
 
-  it('answers each slot of an exercise a routine holds twice from its own sets and rep range', async () => {
+  it('answers each routine slot from its own sets and rep range, through a reorder, until the slot is gone', async () => {
     const { cookie } = await t.createSignedInUser('slots@example.test');
+    const other = await t.createSignedInUser('slots-other@example.test');
     await setUpProfile(cookie, 'UTC');
+    await setUpProfile(other.cookie, 'UTC');
     const bench = await exerciseId(cookie, 'Barbell Bench Press');
     const routineId = randomUUID();
-    await send(cookie, 'POST', '/api/routines', { id: routineId, name: 'Push A' });
+    const heavySlot = { id: randomUUID(), exerciseId: bench, repLow: 5, repHigh: 8 };
+    const lightSlot = { id: randomUUID(), exerciseId: bench, repLow: 8, repHigh: 12 };
+    const created = await send(cookie, 'POST', '/api/routines', {
+      id: routineId,
+      name: 'Push A',
+      exercises: [heavySlot, lightSlot],
+    });
+    expect(created.status).toBe(201);
+
     const startedAt = at('2026-11-04T09:00:00Z');
     const w = workoutRow({ routineId, startedAt, clientUpdatedAt: startedAt });
-    const heavy = exerciseRow(w.id, bench, { position: 0, repLow: 5, repHigh: 8 });
-    const light = exerciseRow(w.id, bench, { position: 1, repLow: 8, repHigh: 12 });
+    const heavy = exerciseRow(w.id, bench, {
+      routineExerciseId: heavySlot.id,
+      position: 0,
+      repLow: 5,
+      repHigh: 8,
+    });
+    const light = exerciseRow(w.id, bench, {
+      routineExerciseId: lightSlot.id,
+      position: 1,
+      repLow: 8,
+      repHigh: 12,
+    });
     const results = await sync(cookie, {
       workouts: [w],
       workoutExercises: [heavy, light],
@@ -453,52 +474,79 @@ describe('GET /api/training/last-time (S2, S3)', () => {
       ],
     });
     expect(results.every((r) => r.status === 'stored')).toBe(true);
+    expect(results[1]?.row).toMatchObject({ routineExerciseId: heavySlot.id });
 
-    const last = async () => {
-      const res = await t.app.request('/api/training/last-time', { headers: { cookie } });
-      const body: { exercises: { workoutId: string; slots: unknown[] }[] } = await res.json();
+    type Slot = { routineExerciseId: string };
+    const last = async (as = cookie) => {
+      const res = await t.app.request('/api/training/last-time', { headers: { cookie: as } });
+      const body: { exercises: { workoutId: string; slots: Slot[] }[] } = await res.json();
       return body.exercises;
     };
+    const bySlot = async () =>
+      (await last())[0]?.slots.toSorted((a, b) =>
+        a.routineExerciseId === heavySlot.id ? -1 : b.routineExerciseId === heavySlot.id ? 1 : 0,
+      );
 
     // The second slot stopped short of 12, so it repeats its weight although the first reached 8.
-    const slots = [
-      {
-        routineId,
-        slot: 0,
-        workoutId: w.id,
-        performedOn: '2026-11-04',
-        sets: [
-          { workingSet: 1, weightKg: 80, reps: 8 },
-          { workingSet: 2, weightKg: 80, reps: 8 },
-        ],
-        suggestion: {
-          weightKg: 82.5,
-          rule: 'top_of_range_hit',
-          reason: 'hit 8 on every set last time',
-        },
+    const heavyLast = {
+      routineExerciseId: heavySlot.id,
+      workoutId: w.id,
+      performedOn: '2026-11-04',
+      sets: [
+        { workingSet: 1, weightKg: 80, reps: 8 },
+        { workingSet: 2, weightKg: 80, reps: 8 },
+      ],
+      suggestion: {
+        weightKg: 82.5,
+        rule: 'top_of_range_hit',
+        reason: 'hit 8 on every set last time',
       },
-      {
-        routineId,
-        slot: 1,
-        workoutId: w.id,
-        performedOn: '2026-11-04',
-        sets: [{ workingSet: 1, weightKg: 60, reps: 10 }],
-        suggestion: {
-          weightKg: 60,
-          rule: 'repeat',
-          reason: 'set 1 stopped at 10 of 12 last time',
-        },
+    };
+    const lightLast = {
+      routineExerciseId: lightSlot.id,
+      workoutId: w.id,
+      performedOn: '2026-11-04',
+      sets: [{ workingSet: 1, weightKg: 60, reps: 10 }],
+      suggestion: {
+        weightKg: 60,
+        rule: 'repeat',
+        reason: 'set 1 stopped at 10 of 12 last time',
       },
-    ];
-    expect((await last())[0]?.slots).toEqual(slots);
+    };
+    expect(await bySlot()).toEqual([heavyLast, lightLast]);
 
-    // A later workout outside the routine is the exercise's last time; the routine's slots stay.
+    // Moved above the other, each slot keeps its own history.
+    const reordered = await send(cookie, 'PUT', `/api/routines/${routineId}/exercises`, {
+      exercises: [lightSlot, heavySlot],
+    });
+    expect(reordered.status).toBe(200);
+    expect(await bySlot()).toEqual([heavyLast, lightLast]);
+
+    // A later workout outside the routine is the exercise's last time; the slots keep theirs.
     const later = await logBench(cookie, {
       startedAt: at('2026-11-06T09:00:00Z'),
       kg: 85,
       reps: [10],
     });
-    expect(await last()).toMatchObject([{ workoutId: later.workout.id, slots }]);
+    expect((await last())[0]?.workoutId).toBe(later.workout.id);
+    expect(await bySlot()).toEqual([heavyLast, lightLast]);
+
+    // Another user naming the slot reads nothing of it.
+    const theirs = workoutRow();
+    const named = exerciseRow(theirs.id, bench, { routineExerciseId: heavySlot.id });
+    await sync(other.cookie, {
+      workouts: [theirs],
+      workoutExercises: [named],
+      sets: [setRow(named.id, 0)],
+    });
+    expect((await last(other.cookie))[0]?.slots).toEqual([]);
+
+    // A slot removed from the routine no longer answers: the device falls back to the exercise's.
+    const removed = await send(cookie, 'PUT', `/api/routines/${routineId}/exercises`, {
+      exercises: [lightSlot],
+    });
+    expect(removed.status).toBe(200);
+    expect(await bySlot()).toEqual([lightLast]);
   });
 
   it('reads the rep range the workout ran with and the increment the user has today', async () => {
