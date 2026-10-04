@@ -295,6 +295,46 @@ test('a weight left as the card opened it is logged as the stored kilograms', as
   await completeSet(page, { weight: '185', reps: '5' });
   await expect.poll(weights).toEqual([82.5, 82.5, 83.91]);
   await finish(page);
+
+  // The increment follows the same rule: 2.5 kg shows as 5.5, which typed back is still 2.5 kg,
+  // not the 2.49 that 5.5 lb converts to.
+  await page.goto('/exercises');
+  await page.getByRole('link', { name: /Barbell Deadlift/ }).click();
+  await expect(page.getByRole('textbox', { name: /Increment/ })).toHaveValue('5.5');
+  await page.getByRole('textbox', { name: /Increment/ }).fill('6');
+  await page.getByRole('textbox', { name: /Increment/ }).fill('5.5');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page).toHaveURL('/exercises');
+  const library: { items: { name: string; incrementKg: number }[] } = await (
+    await page.request.get('/api/exercises')
+  ).json();
+  expect(library.items.find((item) => item.name === 'Barbell Deadlift')?.incrementKg).toBe(2.5);
+});
+
+test('a profile changed elsewhere reaches the open form without undoing an edit in hand', async ({
+  page,
+}) => {
+  await saveProfile(page, 'Kilograms');
+  const timezone = page.getByRole('textbox', { name: 'Time zone' });
+  await timezone.fill('Europe/Paris');
+
+  // Another device saves pounds; coming back to the app asks /api/me again.
+  const elsewhere = await page.request.patch('/api/me/profile', {
+    headers: { Origin: new URL(page.url()).origin },
+    data: { weightUnit: 'lb' },
+  });
+  expect(elsewhere.ok()).toBe(true);
+  await page.evaluate(() => window.dispatchEvent(new Event('visibilitychange')));
+  await expect(page.getByRole('radio', { name: 'Pounds' })).toBeChecked();
+  await expect(timezone).toHaveValue('Europe/Paris');
+
+  // Saving the edit keeps the unit the other device chose.
+  await page.getByRole('button', { name: 'Save profile' }).click();
+  await expect(page.getByText('Saved.')).toBeVisible();
+  const me: { profile: { timezone: string; weightUnit: string } } = await (
+    await page.request.get('/api/me')
+  ).json();
+  expect(me.profile).toMatchObject({ timezone: 'Europe/Paris', weightUnit: 'lb' });
 });
 
 test('an exercise with no rest shows no rest bar after a set', async ({ page }) => {

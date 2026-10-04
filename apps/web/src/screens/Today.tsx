@@ -272,6 +272,16 @@ function ProfileForm({ me }: { me: Me }) {
   const exists = me.profile !== null;
   const [timezone, setTimezone] = useState(me.profile?.timezone ?? deviceTimezone());
   const [weightUnit, setWeightUnit] = useState<WeightUnit>(me.profile?.weightUnit ?? 'kg');
+  // A profile changed elsewhere arrives with a later account check: a field still showing the
+  // profile's value follows it, and one being edited is left alone.
+  const [shown, setShown] = useState(me.profile);
+  if (me.profile !== shown) {
+    setShown(me.profile);
+    if (me.profile !== null) {
+      if (timezone === (shown?.timezone ?? deviceTimezone())) setTimezone(me.profile.timezone);
+      if (weightUnit === (shown?.weightUnit ?? 'kg')) setWeightUnit(me.profile.weightUnit);
+    }
+  }
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [problem, setProblem] = useState<SaveProblem>();

@@ -161,14 +161,20 @@ export function dataState(records: StoreRecord[]): { refused: number; pending: n
 
 // Changing them.
 
+let latestLoad = 0;
+
 /**
  * Rebuilds the store from the set store, for this user. Rest still running from the last set's
  * `performedAt` picks up where it was, which is why the timer is never stored as a countdown.
+ * Only the latest call writes: a read that answers after a later one began is for an account, or
+ * a state of the device, that is no longer the one open.
  */
 export async function loadWorkouts(userId: string, nowMs = Date.now()): Promise<void> {
+  const load = ++latestLoad;
   // A device whose IndexedDB cannot be read is not loaded: Today says so and offers to try again,
   // and neither a start nor a sign-out goes ahead on records nobody has seen (docs/08 §7).
   const records = await setStore.all(userId).catch(() => undefined);
+  if (load !== latestLoad) return;
   // What the store says of the account before stays with that account.
   const other =
     useWorkoutStore.getState().userId === userId ? {} : { idleEnded: undefined, lastSyncedAt: 0 };

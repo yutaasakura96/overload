@@ -377,6 +377,53 @@ test('a new identity never sees the previous account’s workout while its own s
   await expect(page.getByText(/ended at/)).toHaveCount(0);
 });
 
+test('a slow read of the previous account’s sets cannot replace the open account’s', async ({
+  page,
+  context,
+}) => {
+  // The first read of the set store, A's at launch, is held; later ones answer at once.
+  await page.addInitScript(() => {
+    const rows: {
+      getAll: (this: IDBObjectStore, ...args: Parameters<IDBObjectStore['getAll']>) => IDBRequest;
+    } = IDBObjectStore.prototype;
+    const getAll = rows.getAll;
+    let held = false;
+    IDBObjectStore.prototype.getAll = function slow(this: IDBObjectStore, query, count) {
+      const request = getAll.call(this, query, count);
+      if (held || this.transaction.db.name !== 'overload-sets') return request;
+      held = true;
+      const released = new Promise((resolve) => {
+        window.addEventListener('release-sets', resolve, { once: true });
+      });
+      const proxy = new EventTarget();
+      Object.defineProperty(proxy, 'result', { get: () => request.result });
+      Object.defineProperty(proxy, 'error', { get: () => request.error });
+      request.addEventListener('success', () => {
+        void released.then(() => proxy.dispatchEvent(new Event('success')));
+      });
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- stands in for the request
+      return proxy as IDBRequest;
+    };
+  });
+  await useCookie(context, userA);
+  await page.goto('/');
+  await expect(page.getByText(EMAIL_A)).toBeVisible();
+  const signOut = page.getByRole('button', { name: 'Sign out' });
+  await expect(signOut).toBeDisabled();
+
+  await useCookie(context, userB);
+  await page.evaluate(() => window.dispatchEvent(new Event('visibilitychange')));
+  await expect(page.getByText(EMAIL_B)).toBeVisible();
+  await expect(signOut).toBeEnabled();
+
+  // A's read answers after B's: B's records stay the ones loaded.
+  await page.evaluate(async () => {
+    window.dispatchEvent(new Event('release-sets'));
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  });
+  await expect(signOut).toBeEnabled();
+});
+
 test('a failed server sign-out keeps the session, cache, and other tab open', async ({
   context,
 }) => {

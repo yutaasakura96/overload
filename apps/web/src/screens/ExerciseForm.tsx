@@ -106,13 +106,14 @@ export function ExerciseForm({
   /** The user's own value for a figure, or null to fall back to the default. */
   const ownFigure = (key: FigureKey) => (own(key) ? parseFigure(figures[key]) : null);
   /**
-   * The increment in kilograms. Left as it was shown, it is the stored value: pounds turned back to
-   * kilograms would move it by a hundredth.
+   * The increment in kilograms. Left as it was shown, or typed back to it, it is the stored value:
+   * pounds turned back to kilograms would move it by a hundredth.
    */
   const incrementKg = () => {
     const typed = parseFigure(figures.incrementKg);
     if (typed === null) return null;
-    if (!touched.has('incrementKg')) return exercise?.incrementKg ?? classIncrementKg[equipment];
+    const shownKg = exercise?.incrementKg ?? classIncrementKg[equipment];
+    if (figures.incrementKg === formatWeight(shownKg, unit)) return shownKg;
     return toKg(typed, unit);
   };
 
