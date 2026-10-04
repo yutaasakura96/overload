@@ -45,14 +45,14 @@ Vocabulary is `CONTEXT.md`'s: **workout** (not session), **confirm**, **pending*
 
 ### F2. First run
 
-1. First sign-in lands on Today. With no routines, Today's training card shows the S4 empty state:
-   **Create a routine** or **Start an empty workout**. Today also holds the profile form (time zone
-   and weight unit), reading "Set up your profile" until it is first saved (`10` §8.2). *Start an
-   empty workout is not built yet* (`06`, 2026-10-03).
+1. First sign-in lands on Today. With no routines, Today's training card offers **Create a
+   routine**. Today also holds the profile form (time zone and weight unit), reading "Set up your
+   profile" until it is first saved (`10` §8.2). **Start an empty workout** is planned but not
+   built yet (`06`, 2026-10-03).
 2. **Create a routine:** name → add exercises from the picker (F5) → per slot, target sets and rep
    range (default 6–10) → save.
-3. **Start an empty workout:** goes straight to F3 with no exercises; the user adds them from the
-   picker.
+3. **Planned — Start an empty workout:** goes straight to F3 with no exercises; the user adds them
+   from the picker.
 
 | Step | Goes wrong | User sees |
 | --- | --- | --- |
@@ -66,7 +66,7 @@ Vocabulary is `CONTEXT.md`'s: **workout** (not session), **confirm**, **pending*
 Works identically offline. Every write below goes to the IndexedDB set store first and uploads later
 (`03` §8.1).
 
-1. **Start.** Tap a routine on Today (or **Start empty**). The phone creates the `workout` and its
+1. **Start.** Tap a routine on Today. The phone creates the `workout` and its
    `workout_exercise` rows with UUIDv7 ids, copying rep range, increment and target sets (`04`):
    the routine slot's range if it has one, else the user's own, else the exercise's default.
    Last time and suggestions come from the offline cache (`07` §3, "Last time and suggestions")

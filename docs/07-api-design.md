@@ -339,11 +339,11 @@ screen shows "first workout".
 | POST | `/api/workouts/sync` | M | Apply the device's queued rows | 200 with a result per row | 401 (nothing applied; every row stays pending), 413 over the row limit, 422 |
 
 **Built so far (slice 3):** the happy path, the clock guard, deleting a workout, ownership and the
-limit. The request is validated as a whole, so a row with a bad value is a 422 for the request; the
-per-row `validation_failed` below, deleting a workout exercise or a set, and tombstones arrive in
-slice 4 (`06`, 2026-10-03). Until then a `{ id, deletedAt }` in `workoutExercises` or `sets` is a
-422, a deleted workout reports `deleted`, and a stale copy sent after its delete would be stored
-again.
+limit. A batch that fails request schema validation gets a 422; a database check or range violation
+on one row is reported as that row's `validation_failed` in a 200 response. Deleting a workout
+exercise or a set, and tombstones, arrive in slice 4 (`06`, 2026-10-03). Until then a
+`{ id, deletedAt }` in `workoutExercises` or `sets` is a 422, a deleted workout reports `deleted`,
+and a stale copy sent after its delete would be stored again.
 
 **Request.** Three arrays, each row the **whole current row** as the phone holds it, plus
 `clientUpdatedAt`, the phone's clock at the last edit. Only a workout can be deleted in slice 3,
@@ -418,8 +418,8 @@ POST /api/workouts/sync
 
 | `status` | Meaning | What the phone does |
 | --- | --- | --- |
-| `stored` | Inserted or updated | Delete the local record: **acknowledged** |
-| `unchanged` | The server already had this version or a newer one. `row` is the server's copy | Delete the local record |
+| `stored` | Inserted or updated | Mark **acknowledged**; keep an open workout's rows on the device until it ends (`03` §6) |
+| `unchanged` | The server already had this version or a newer one. `row` is the server's copy | Mark acknowledged; keep an open workout's rows until it ends |
 | `deleted` | Gone, now or before | Delete the local record |
 | `refused` | Refused, with `problem` | Keep the record and mark it **refused** (`03` §7, kind 3) |
 

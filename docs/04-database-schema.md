@@ -344,7 +344,7 @@ arriving later is not inserted again (`docs/03` §8.1). An id and a time, no con
 | **Last time** (S2): the previous workout's weight × reps per working set, in order | `workout (user_id, started_at DESC)` → `workout_exercise (exercise_id)` → `set (workout_exercise_id, position)`, `is_warmup = false` |
 | **Suggestion** (S3): did every working set hit the top of the range last time | Same rows, plus `workout_exercise.rep_high` copied at start |
 | **Chart** (S7): best working set per workout over a span, Epley `weight × (1 + reps / 30)` | `workout (user_id, started_at DESC)` filtered by span → the same join, `is_warmup = false` |
-| **Upload a set** (S1) | `INSERT … ON CONFLICT (id) DO UPDATE … WHERE set.client_updated_at < EXCLUDED.client_updated_at` on the PK. *Changed 2026-09-21* from `DO NOTHING`, so offline edits and deletes use the same path (`docs/07` §3.4). Skipped when `sync_tombstone` holds the row's id or its parent's |
+| **Upload a set** (S1) | `INSERT … ON CONFLICT (id) DO UPDATE … WHERE set.client_updated_at < EXCLUDED.client_updated_at` on the PK. *Changed 2026-09-21* from `DO NOTHING`, so a retry or stale copy changes nothing (`docs/07` §3.4). Offline set edits and deletes, including the `sync_tombstone` guard, are planned for slice 4. |
 | **Exercise picker** (S8) | `exercise (owner_user_id)`, left joined to `exercise_setting` to drop `hidden_at` rows |
 | **Export** (S10) | Every table by `user_id`, or by join for the child tables |
 
