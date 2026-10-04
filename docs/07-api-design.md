@@ -338,6 +338,8 @@ screen shows "first workout".
   back to the exercise's own answer when there is none: a slot never logged, or rows that carry no
   slot id. A routine holding one exercise in two slots therefore progresses each on its own, and
   reordering the slots changes nothing.
+- **`routineExerciseId` may be left out of a synced `workoutExercises` row** and is then stored as
+  null: a row made on a device before the field existed still uploads.
 - **`performedOn`** is the workout's `started_at` as a date in the profile's time zone: the day
   boundary. Without a profile there is no zone to read it in, hence `setup_incomplete`.
 
@@ -429,7 +431,7 @@ POST /api/workouts/sync
 | `status` | Meaning | What the phone does |
 | --- | --- | --- |
 | `stored` | Inserted or updated | Mark **acknowledged**; keep an open workout's rows on the device until it ends (`03` §6) |
-| `unchanged` | The server already had this version or a newer one. `row` is the server's copy | Mark acknowledged; keep an open workout's rows until it ends |
+| `unchanged` | The server already had this version or a newer one. `row` is the server's copy | Mark acknowledged; keep an open workout's rows until it ends. A workout the phone ended or removed whose `row` is still open is **not** acknowledged: it stays pending (`08` §7) |
 | `deleted` | Gone, now or before | Delete the local record |
 | `refused` | Refused, with `problem` | Keep the record and mark it **refused** (`03` §7, kind 3) |
 

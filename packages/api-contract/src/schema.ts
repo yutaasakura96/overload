@@ -1329,7 +1329,8 @@ export interface components {
       exerciseId: string;
       /**
        * Format: uuid
-       * @description The routine slot it was started from. Null when it came from none.
+       * @description The routine slot it was started from. Null, or left out by a row made before the field existed, when it came from none.
+       * @default null
        * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
        */
       routineExerciseId: string | null;

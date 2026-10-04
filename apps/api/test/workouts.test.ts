@@ -178,6 +178,19 @@ describe('POST /api/workouts/sync (S1)', () => {
     expect(stored?.endedAt?.toISOString()).toBe(finished.endedAt);
   });
 
+  it('takes a workout exercise row made before the routine slot id existed, as from no slot', async () => {
+    const { cookie } = await t.createSignedInUser('old-device@example.test');
+    const bench = await exerciseId(cookie, 'Barbell Bench Press');
+    const w = workoutRow();
+    const { routineExerciseId: _slot, ...old } = exerciseRow(w.id, bench);
+
+    const results = await sync(cookie, { workouts: [w], workoutExercises: [old] });
+
+    expect(results[1]).toMatchObject({ status: 'stored', row: { routineExerciseId: null } });
+    const [row] = await t.db.select().from(workoutExercise).where(eq(workoutExercise.id, old.id));
+    expect(row?.routineExerciseId).toBeNull();
+  });
+
   it('finishes a workout whose routine was deleted after it started, keeping it without the routine', async () => {
     const { cookie } = await t.createSignedInUser('routine-gone@example.test');
     const routineId = randomUUID();

@@ -313,9 +313,13 @@ const WorkoutExerciseFields = {
   id: Uuid,
   workoutId: Uuid,
   exerciseId: Uuid,
-  routineExerciseId: Uuid.nullable().openapi({
-    description: 'The routine slot it was started from. Null when it came from none.',
-  }),
+  routineExerciseId: Uuid.nullable()
+    .default(null)
+    .openapi({
+      description:
+        'The routine slot it was started from. Null, or left out by a row made before the field ' +
+        'existed, when it came from none.',
+    }),
   position: z.int().min(0).max(1000),
   targetSets: TargetSets.nullable().openapi({ description: 'Copied from the routine at start.' }),
   repLow: Reps,

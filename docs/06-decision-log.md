@@ -2995,7 +2995,9 @@ What `#3` built, where it stops, and what was decided on the way.
   out is offered in either state, so a discard cannot leave a workout open on the server. Only
   then are other rows the server has not acknowledged uploaded or discarded as `08` §7 says. Slice
   3 has no way to bring an open workout back from the server, so signing out before that would
-  leave it open there for good.
+  leave it open there for good. Acknowledged means the server's answer shows it: `deleted`, or a
+  row that has ended. `unchanged` with a row still open, which a phone clock set back produces,
+  keeps the ending or removal pending.
   *Revisit* when slice 4 builds resume. Sign out is not offered until the set store has been read
   at launch: before that the device looks empty, and a quick tap would skip the choice and leave
   the sets behind. A set store that cannot be cleared gets `08` §7's "Saved data couldn't be

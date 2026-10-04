@@ -292,6 +292,8 @@ The endpoint list is `docs/07`.
   ending, or the removal of one with no sets): "Your workout has not finished uploading. It has to
   reach the server before you sign out.", with **Try again**, which uploads and then signs out.
   Neither action below is offered: discarding here would leave the workout open on the server.
+  An answer of `unchanged` whose row is still open is not an acknowledgment: the server kept its
+  own, newer copy (the phone's clock went back), so the ending or removal stays pending.
   *Added 2026-10-04.*
 - **With pending or refused sets** of workouts the server has fully acknowledged: first a dialog,
   "*N* sets not uploaded yet", with two actions:

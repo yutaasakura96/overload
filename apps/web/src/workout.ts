@@ -396,10 +396,19 @@ export const sentRowOf = (record: StoreRecord): SentRow => ({
   deletedAt: record.deletedAt,
 });
 
+/** Whether the server's copy of a workout ended on the device is still in progress. */
+const stillOpenThere = (record: StoreRecord, row: object) =>
+  record.table === 'workouts' &&
+  record.row.endedAt !== null &&
+  'endedAt' in row &&
+  row.endedAt === null;
+
 /**
  * Applies a sync answer (docs/07 §3.4). A stored, unchanged or deleted row is acknowledged: its
  * record is deleted, or, while its workout is open, kept and marked acknowledged. A refused row is
- * kept and marked refused. A record changed since it was sent stays pending for the next upload.
+ * kept and marked refused. A record changed since it was sent stays pending for the next upload,
+ * and so does a workout's ending or removal the server's answer does not show: its own copy won
+ * and is still open (docs/08 §7).
  * Then every ended workout whose records are all acknowledged leaves the device.
  */
 export async function applySyncResults(sent: SentRow[], results: SyncResult[]): Promise<void> {
@@ -416,7 +425,7 @@ export async function applySyncResults(sent: SentRow[], results: SyncResult[]): 
       if (now.clientUpdatedAt !== was.clientUpdatedAt || now.deletedAt !== was.deletedAt) continue;
       if (result.status === 'refused') {
         put.set(record.id, { ...record, state: 'refused', problem: result.problem });
-      } else if (record.deletedAt !== undefined || result.status === 'deleted') {
+      } else if (result.status === 'deleted') {
         for (const other of records) {
           if (
             other.id === record.id ||
@@ -425,7 +434,7 @@ export async function applySyncResults(sent: SentRow[], results: SyncResult[]): 
             remove.add(other.id);
           }
         }
-      } else {
+      } else if (record.deletedAt === undefined && !stillOpenThere(record, result.row)) {
         put.set(record.id, { ...record, state: 'acknowledged' });
       }
     }
@@ -439,6 +448,7 @@ export async function applySyncResults(sent: SentRow[], results: SyncResult[]): 
         for (const record of whole) remove.add(record.id);
       }
     }
+    if (put.size === 0 && remove.size === 0) return undefined;
     return {
       put: [...put.values()].filter((record) => !remove.has(record.id)),
       remove: [...remove],
