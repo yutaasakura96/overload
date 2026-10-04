@@ -306,10 +306,10 @@ PUT /api/routines/0192r001-…/exercises
 | GET | `/api/training/last-time` | M | For **every exercise the caller has logged**: last time per working set, and today's suggestion | 200 | 401, 422 `setup_incomplete` (`missing: ["profile"]`) |
 
 **Why one call for everything:** the gym screen must show last time and the suggestion with no
-signal (S2, S3), including for an exercise added mid-workout. The client fetches this once when
-online, TanStack Query persists it, and it is refetched after every acknowledged sync batch. It is
-one row group per exercise, which is small. The suggestion is computed on the server (native-ready
-rule 2), so an offline workout shows the suggestion as of the last sync.
+signal (S2, S3). The client fetches this once when online, TanStack Query persists it, and it is
+refetched after every acknowledged sync batch. It is one row group per exercise, which is small.
+The suggestion is computed on the server (native-ready rule 2), so an offline workout shows the
+suggestion as of the last sync.
 
 ```json
 GET /api/training/last-time  →  200
