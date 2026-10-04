@@ -3046,7 +3046,7 @@ What `#3` built, where it stops, and what was decided on the way.
 - **Pounds.** Weights show to the tenth of a pound and are typed in pounds; what is stored is kg
   to the hundredth, and a typed value survives the round trip. The exercise form's increment
   follows the unit too, so a 5 lb step is typed as 5 and stored as 2.27 kg. An increment left as
-  shown is saved as the stored kg value, not converted back. The active set card does the same: a
+  shown, or typed back to it, is saved as the stored kg value, not converted back. The active set card does the same: a
   weight equal to the one it opened on, left there or typed back, keeps the stored kilograms, so
   62.5 kg shows as 137.8 and is logged as 62.5, not 62.51. Any other figure is converted.
 - **A rest of 0 seconds is no rest.** The set starts no timer: no rest bar, no tone, nothing to
