@@ -248,7 +248,7 @@ export function Today({ me, navigate }: { me: Me; navigate: (path: string) => vo
         </section>
       )}
 
-      <ProfileForm me={me} />
+      <ProfileForm key={me.user.id} me={me} />
 
       <AccountFooter email={me.user.email} navigate={navigate} />
     </main>

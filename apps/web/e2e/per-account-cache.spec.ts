@@ -377,6 +377,42 @@ test('a new identity never sees the previous account’s workout while its own s
   await expect(page.getByText(/ended at/)).toHaveCount(0);
 });
 
+test('a new identity opens its own profile form, without the previous account’s unsaved edit', async ({
+  page,
+  context,
+}) => {
+  const saveProfile = async (userId: string, timezone: string, weightUnit: string) => {
+    await useCookie(context, userId);
+    const saved = await page.request.patch('/api/me/profile', {
+      headers: { Origin: new URL(page.url()).origin },
+      data: { timezone, weightUnit },
+    });
+    expect(saved.ok()).toBe(true);
+  };
+  await useCookie(context, userB);
+  await page.goto('/');
+  await saveProfile(userB, 'America/New_York', 'lb');
+  await saveProfile(userA, 'Asia/Tokyo', 'kg');
+  await page.goto('/');
+  await expect(page.getByText(EMAIL_A)).toBeVisible();
+  const timezone = page.getByRole('textbox', { name: 'Time zone' });
+  await expect(timezone).toHaveValue('Asia/Tokyo');
+  await timezone.fill('Europe/Paris');
+
+  await useCookie(context, userB);
+  await page.evaluate(() => window.dispatchEvent(new Event('visibilitychange')));
+  await expect(page.getByText(EMAIL_B)).toBeVisible();
+  await expect(timezone).toHaveValue('America/New_York');
+  await expect(page.getByRole('radio', { name: 'Pounds' })).toBeChecked();
+
+  await page.getByRole('button', { name: 'Save profile' }).click();
+  await expect(page.getByText('Saved.')).toBeVisible();
+  const me: { profile: { timezone: string; weightUnit: string } } = await (
+    await page.request.get('/api/me')
+  ).json();
+  expect(me.profile).toMatchObject({ timezone: 'America/New_York', weightUnit: 'lb' });
+});
+
 test('a slow read of the previous account’s sets cannot replace the open account’s', async ({
   page,
   context,
