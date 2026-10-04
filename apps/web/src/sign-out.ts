@@ -6,7 +6,8 @@ import { discardWorkouts, openWorkout, recordsLoadedFor, useWorkoutStore } from 
 /**
  * What stops a sign-out before it starts (docs/08 §7): sets are never left on a device nobody is
  * signed in to, and they are lost only by an explicit choice. A workout in progress is finished
- * first, so its end reaches the server; rows not uploaded yet are uploaded or discarded.
+ * first, whatever is waiting, so its end reaches the server; with none open, rows not uploaded yet
+ * are uploaded or discarded.
  */
 export type SignOutResult = 'signed-out' | 'failed' | 'workout-open' | 'rows-waiting';
 
@@ -18,9 +19,9 @@ export async function signOut(
   const state = useWorkoutStore.getState();
   if (!recordsLoadedFor(state, currentAccount().userId)) return 'failed';
   const { records } = state;
-  if (options.discard !== true) {
-    if (records.some((record) => record.state !== 'acknowledged')) return 'rows-waiting';
-    if (openWorkout(records) !== undefined) return 'workout-open';
+  if (openWorkout(records) !== undefined) return 'workout-open';
+  if (options.discard !== true && records.some((record) => record.state !== 'acknowledged')) {
+    return 'rows-waiting';
   }
   try {
     const result = await authClient.signOut();

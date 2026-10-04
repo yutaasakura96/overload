@@ -428,8 +428,77 @@ describe('GET /api/training/last-time (S2, S3)', () => {
           rule: 'top_of_range_hit',
           reason: 'hit 10 on every set last time',
         },
+        slots: [],
       },
     ]);
+  });
+
+  it('answers each slot of an exercise a routine holds twice from its own sets and rep range', async () => {
+    const { cookie } = await t.createSignedInUser('slots@example.test');
+    await setUpProfile(cookie, 'UTC');
+    const bench = await exerciseId(cookie, 'Barbell Bench Press');
+    const routineId = randomUUID();
+    await send(cookie, 'POST', '/api/routines', { id: routineId, name: 'Push A' });
+    const startedAt = at('2026-11-04T09:00:00Z');
+    const w = workoutRow({ routineId, startedAt, clientUpdatedAt: startedAt });
+    const heavy = exerciseRow(w.id, bench, { position: 0, repLow: 5, repHigh: 8 });
+    const light = exerciseRow(w.id, bench, { position: 1, repLow: 8, repHigh: 12 });
+    const results = await sync(cookie, {
+      workouts: [w],
+      workoutExercises: [heavy, light],
+      sets: [
+        setRow(heavy.id, 0, { weightKg: 80, reps: 8 }),
+        setRow(heavy.id, 1, { weightKg: 80, reps: 8 }),
+        setRow(light.id, 0, { weightKg: 60, reps: 10 }),
+      ],
+    });
+    expect(results.every((r) => r.status === 'stored')).toBe(true);
+
+    const last = async () => {
+      const res = await t.app.request('/api/training/last-time', { headers: { cookie } });
+      const body: { exercises: { workoutId: string; slots: unknown[] }[] } = await res.json();
+      return body.exercises;
+    };
+
+    // The second slot stopped short of 12, so it repeats its weight although the first reached 8.
+    const slots = [
+      {
+        routineId,
+        slot: 0,
+        workoutId: w.id,
+        performedOn: '2026-11-04',
+        sets: [
+          { workingSet: 1, weightKg: 80, reps: 8 },
+          { workingSet: 2, weightKg: 80, reps: 8 },
+        ],
+        suggestion: {
+          weightKg: 82.5,
+          rule: 'top_of_range_hit',
+          reason: 'hit 8 on every set last time',
+        },
+      },
+      {
+        routineId,
+        slot: 1,
+        workoutId: w.id,
+        performedOn: '2026-11-04',
+        sets: [{ workingSet: 1, weightKg: 60, reps: 10 }],
+        suggestion: {
+          weightKg: 60,
+          rule: 'repeat',
+          reason: 'set 1 stopped at 10 of 12 last time',
+        },
+      },
+    ];
+    expect((await last())[0]?.slots).toEqual(slots);
+
+    // A later workout outside the routine is the exercise's last time; the routine's slots stay.
+    const later = await logBench(cookie, {
+      startedAt: at('2026-11-06T09:00:00Z'),
+      kg: 85,
+      reps: [10],
+    });
+    expect(await last()).toMatchObject([{ workoutId: later.workout.id, slots }]);
   });
 
   it('reads the rep range the workout ran with and the increment the user has today', async () => {

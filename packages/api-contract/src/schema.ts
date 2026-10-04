@@ -1192,6 +1192,8 @@ export interface components {
         reps: number;
       }[];
       suggestion: components['schemas']['Suggestion'];
+      /** @description Present where a routine’s last workout ran the exercise in more than one slot. Empty otherwise. */
+      slots: components['schemas']['LastTimeSlot'][];
     };
     /** @description Today’s weight for the exercise (S3). */
     Suggestion: {
@@ -1201,6 +1203,33 @@ export interface components {
       rule: 'top_of_range_hit' | 'repeat';
       /** @example hit 10 on every set last time */
       reason: string;
+    };
+    /** @description One slot’s own sets and suggestion, from the routine’s last workout. */
+    LastTimeSlot: {
+      /**
+       * Format: uuid
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      routineId: string;
+      /** @description Which of the exercise’s slots in that workout, counted from 0 in order. */
+      slot: number;
+      /**
+       * Format: uuid
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      workoutId: string;
+      /**
+       * Format: date
+       * @description The workout’s local date.
+       */
+      performedOn: string;
+      /** @description Working sets only, numbered 1…n in order. */
+      sets: {
+        workingSet: number;
+        weightKg: number;
+        reps: number;
+      }[];
+      suggestion: components['schemas']['Suggestion'];
     };
     SyncResponse: {
       /** @description One per row sent. */

@@ -774,6 +774,13 @@
           },
           "suggestion": {
             "$ref": "#/components/schemas/Suggestion"
+          },
+          "slots": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LastTimeSlot"
+            },
+            "description": "Present where a routine’s last workout ran the exercise in more than one slot. Empty otherwise."
           }
         },
         "required": [
@@ -781,7 +788,8 @@
           "workoutId",
           "performedOn",
           "sets",
-          "suggestion"
+          "suggestion",
+          "slots"
         ]
       },
       "Suggestion": {
@@ -809,6 +817,66 @@
           "reason"
         ],
         "description": "Today’s weight for the exercise (S3)."
+      },
+      "LastTimeSlot": {
+        "type": "object",
+        "properties": {
+          "routineId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+          },
+          "slot": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Which of the exercise’s slots in that workout, counted from 0 in order."
+          },
+          "workoutId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+          },
+          "performedOn": {
+            "type": "string",
+            "format": "date",
+            "description": "The workout’s local date."
+          },
+          "sets": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "workingSet": {
+                  "type": "integer"
+                },
+                "weightKg": {
+                  "type": "number"
+                },
+                "reps": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "workingSet",
+                "weightKg",
+                "reps"
+              ]
+            },
+            "description": "Working sets only, numbered 1…n in order."
+          },
+          "suggestion": {
+            "$ref": "#/components/schemas/Suggestion"
+          }
+        },
+        "required": [
+          "routineId",
+          "slot",
+          "workoutId",
+          "performedOn",
+          "sets",
+          "suggestion"
+        ],
+        "description": "One slot’s own sets and suggestion, from the routine’s last workout."
       },
       "SyncResponse": {
         "type": "object",

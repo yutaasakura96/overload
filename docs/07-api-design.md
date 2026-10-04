@@ -317,7 +317,8 @@ GET /api/training/last-time  →  200
   "exercises": [
     { "exerciseId": "0192a001-…", "workoutId": "0192w001-…", "performedOn": "2026-11-04",
       "sets": [ { "workingSet": 1, "weightKg": 80, "reps": 10 }, { "workingSet": 2, "weightKg": 80, "reps": 10 }, { "workingSet": 3, "weightKg": 80, "reps": 10 } ],
-      "suggestion": { "weightKg": 82.5, "rule": "top_of_range_hit", "reason": "hit 10 on every set last time" } }
+      "suggestion": { "weightKg": 82.5, "rule": "top_of_range_hit", "reason": "hit 10 on every set last time" },
+      "slots": [] }
   ] }
 ```
 
@@ -329,6 +330,15 @@ screen shows "first workout".
 - **The suggestion** takes that workout's heaviest working weight, the `rep_high` copied into its
   `workout_exercise`, and the exercise's increment and equipment as they are today, so a changed
   increment applies at once. The weight is rounded up to one the equipment can make (S3).
+- **`slots`** is last time per routine slot, for an exercise a routine holds more than once. For
+  each of the caller's routines, the most recent workout started from it with a working set of the
+  exercise is read; if that workout ran the exercise in more than one `workout_exercise`, each one
+  with working sets answers `{ routineId, slot, workoutId, performedOn, sets, suggestion }`, where
+  `slot` counts the exercise's rows in that workout from 0 in `position` order and the suggestion
+  is judged on that row's sets against that row's `rep_high`. At start the device gives the routine's
+  *n*th slot of the exercise the entry with its `routineId` and `slot` *n*, and falls back to the
+  exercise's own answer when there is none (the routine was edited, or ran it once). Otherwise
+  `slots` is empty.
 - **`performedOn`** is the workout's `started_at` as a date in the profile's time zone: the day
   boundary. Without a profile there is no zone to read it in, hence `setup_incomplete`.
 

@@ -2972,6 +2972,11 @@ What `#3` built, where it stops, and what was decided on the way.
   uploads. Reading the live query instead would show today's sets as "last time" as soon as the
   first batch was acknowledged. The query is fetched again after each acknowledged batch, read or
   not, so the next start has it; a start waits up to 1.5 s for an answer already on its way.
+- **Last time is per routine slot when a routine holds an exercise twice.** One answer per
+  exercise joined both slots' sets and judged them against the first slot's rep range: slots of
+  5–8 and 8–12 with 8, 8 and 10 added weight although the second missed 12. Each slot now takes its
+  own sets from the routine's last workout, judged against its own range (`07` §3, `slots`). A slot
+  with no match, after the routine was edited, falls back to the exercise's answer.
 - **Reps open on a placeholder**: last time's reps for that working set when the weight repeats,
   the bottom of the range when the suggestion adds the increment. Left empty, the placeholder is
   what is logged.
@@ -2980,8 +2985,10 @@ What `#3` built, where it stops, and what was decided on the way.
 - **A reconnect after an offline launch asks `/api/me` again** when rows are waiting. TanStack
   Query's online manager starts as online and only reports changes, so a launch with no signal
   never hears "back online", and nothing uploads under an unconfirmed account (`08` §5).
-- **Sign-out waits for a workout in progress**: "Finish it first". Sets the server has not
-  acknowledged are uploaded or discarded as `08` §7 says. Slice 3 has no way to bring an open
+- **Sign-out waits for a workout in progress**: "Finish it first", with neither Upload now nor
+  Discard and sign out offered until it is finished, so a discard cannot leave the workout open on
+  the server. Once none is open, sets the server has not acknowledged are uploaded or discarded as
+  `08` §7 says. Slice 3 has no way to bring an open
   workout back from the server, so signing out mid-workout would leave it open there for good.
   *Revisit* when slice 4 builds resume. Sign out is not offered until the set store has been read
   at launch: before that the device looks empty, and a quick tap would skip the choice and leave

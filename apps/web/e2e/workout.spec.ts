@@ -471,25 +471,27 @@ test.describe('sign-out with a workout on the device', () => {
     await expect(dataState(page)).toHaveText('1 PENDING');
     await page.goto('/');
     await page.getByRole('button', { name: 'Sign out' }).click();
+
+    // The workout in progress stops the sign-out whatever is waiting: it is finished first, and
+    // neither choice is offered until it is.
+    await expect(page.getByText('A workout is in progress')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Upload now' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Discard and sign out' })).toHaveCount(0);
+    await expect(page).toHaveURL('/');
+
+    // Finished, the set still waiting asks first, and an upload that fails asks again.
+    await page.getByRole('link', { name: 'Resume workout' }).click();
+    await finish(page);
+    await page.getByRole('button', { name: 'Sign out' }).click();
+    await expect(page.getByText('1 set not uploaded yet.')).toBeVisible();
+    await page.getByRole('button', { name: 'Upload now' }).click();
     await expect(page.getByText('1 set not uploaded yet.')).toBeVisible();
     await expect(page).toHaveURL('/');
 
-    // Uploaded, the workout in progress still stops the sign-out: it is finished first.
-    await page.unrouteAll();
-    await page.getByRole('button', { name: 'Upload now' }).click();
-    await expect(page.getByText('A workout is in progress')).toBeVisible();
-    await expect.poll(setsOfLatest).toBe(1);
-
     // Discarding is the user's explicit choice, and nothing of the workout stays on the device.
-    await page.route('**/api/workouts/sync', (route) => route.abort());
-    await page.getByRole('link', { name: 'Resume workout' }).click();
-    await completeSet(page, { reps: '5' });
-    await expect(dataState(page)).toHaveText('1 PENDING');
-    await page.goto('/');
-    await page.getByRole('button', { name: 'Sign out' }).click();
     await page.getByRole('button', { name: 'Discard and sign out' }).click();
     await expect(page).toHaveURL('/sign-in');
-    expect(setsOfLatest()).toBe(1);
+    expect(setsOfLatest()).toBe(0);
     const kept = await page.evaluate(
       () =>
         new Promise<number>((resolve, reject) => {
@@ -545,7 +547,7 @@ test.describe('sign-out with a workout on the device', () => {
 
     await page.evaluate(() => window.dispatchEvent(new Event('release-sets')));
     await signOut.click();
-    await expect(page.getByText('1 set not uploaded yet.')).toBeVisible();
+    await expect(page.getByText('A workout is in progress')).toBeVisible();
     await expect(page).toHaveURL('/');
   });
 
@@ -589,7 +591,7 @@ test.describe('sign-out with a workout on the device', () => {
     await page.getByRole('button', { name: 'Try again' }).click();
     await expect(page.getByRole('link', { name: 'Resume workout' })).toBeVisible();
     await page.getByRole('button', { name: 'Sign out' }).click();
-    await expect(page.getByText('1 set not uploaded yet.')).toBeVisible();
+    await expect(page.getByText('A workout is in progress')).toBeVisible();
   });
 
   test('says so when the set store could not be cleared', async ({ page }) => {

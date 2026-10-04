@@ -265,15 +265,35 @@ export const Suggestion = z
   })
   .openapi('Suggestion', { description: 'Today’s weight for the exercise (S3).' });
 
+const LastFields = {
+  workoutId: Uuid,
+  performedOn: z.iso.date().openapi({ description: 'The workout’s local date.' }),
+  sets: z
+    .array(z.object({ workingSet: z.int(), weightKg: z.number(), reps: z.int() }))
+    .openapi({ description: 'Working sets only, numbered 1…n in order.' }),
+  suggestion: Suggestion,
+};
+
+export const LastTimeSlot = z
+  .object({
+    routineId: Uuid,
+    slot: z.int().min(0).openapi({
+      description: 'Which of the exercise’s slots in that workout, counted from 0 in order.',
+    }),
+    ...LastFields,
+  })
+  .openapi('LastTimeSlot', {
+    description: 'One slot’s own sets and suggestion, from the routine’s last workout.',
+  });
+
 export const LastTime = z
   .object({
     exerciseId: Uuid,
-    workoutId: Uuid,
-    performedOn: z.iso.date().openapi({ description: 'The workout’s local date.' }),
-    sets: z
-      .array(z.object({ workingSet: z.int(), weightKg: z.number(), reps: z.int() }))
-      .openapi({ description: 'Working sets only, numbered 1…n in order.' }),
-    suggestion: Suggestion,
+    ...LastFields,
+    slots: z.array(LastTimeSlot).openapi({
+      description:
+        'Present where a routine’s last workout ran the exercise in more than one slot. Empty otherwise.',
+    }),
   })
   .openapi('LastTime');
 
