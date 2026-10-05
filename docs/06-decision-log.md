@@ -2904,6 +2904,31 @@ check with the table. Both refusals send the user to hiding it instead, which ke
 
 **Changed:** `07`.
 
+### 2026-10-03 — The backup role trusts GitHub's immutable subject; no nightly backup had run before
+
+Every Backup run since the workflow's first night (2026-09-29) failed at sign-in: *Could not assume
+role with OIDC: Not authorized to perform sts:AssumeRoleWithWebIdentity*. The bucket was empty. This
+repository issues immutable subject claims
+(`gh api repos/yutaasakura96/overload/actions/oidc/customization/sub`: `use_immutable_subject` true,
+prefix `repo:yutaasakura96@155416259/overload@1372338827`), which GitHub's OIDC reference gives every
+repository created after 2026-07-15. The role trusted the name-only subject the 2026-09-28 entry
+names, so no token matched.
+
+The trust policy now names `repo:yutaasakura96@155416259/overload@1372338827:environment:backup`,
+built in `infra/aws/backup.tf` from the names and the two ids. It is still one `StringEquals` on one
+subject: this repository, the `backup` environment, no wildcard, no branch or pull request subject.
+Applied 2026-10-03; the plan held that one condition and nothing else. This replaces the subject in
+the 2026-09-28 entry; the rest of that entry stands.
+
+Checked: the Backup workflow, run by hand on `develop`
+([37129272251](https://github.com/yutaasakura96/overload/actions/runs/37129272251)), succeeded and
+put `backups/overload-main-20261003T142058Z.dump.age` in the bucket, 32,053 bytes, SSE-S3, with an
+`age` header. Restoring from S3 into Docker (`13` §9) is still open.
+
+**Revisit if:** the repository is renamed or transferred. The subject carries both names beside the
+ids, so the trust needs the new names.
+
+**Changed:** `infra/aws/backup.tf`, `13` §9, `00`.
 ### 2026-10-03 — Screen 1 shows the target set count: `SET 3 OF 4`
 
 The first of the three questions `#3` had to settle before any code, decided by Yuta. The active
