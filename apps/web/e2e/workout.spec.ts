@@ -90,6 +90,27 @@ async function completeSet(page: Page, figures: { weight?: string; reps?: string
   await page.getByRole('button', { name: 'Complete set' }).click();
 }
 
+test('the library keeps its fetch time after a later workout upload', async ({ page }) => {
+  const name = `Sync time ${Date.now()}`;
+  await saveProfile(page);
+  await page.clock.install({ time: new Date('2026-10-06T09:59:40') });
+  await page.goto('/exercises');
+  await expect(page.getByRole('listitem')).toHaveCount(50);
+  await expect(dataState(page)).toHaveText('SYNCED 09:59');
+
+  await createRoutine(page, name, ['Barbell Bench Press']);
+  await page.getByRole('button', { name: 'Create routine' }).click();
+  await expect(page).toHaveURL('/routines');
+  await page.clock.setFixedTime(new Date('2026-10-06T10:00:10'));
+  await start(page, name);
+  await expect(dataState(page)).toHaveText('SYNCED 10:00');
+  await expect.poll(() => stored().some((workout) => workout.name === name)).toBe(true);
+
+  await page.goto('/exercises');
+  await expect(page.getByRole('listitem')).toHaveCount(50);
+  await expect(dataState(page)).toHaveText('SYNCED 09:59');
+});
+
 test('a workout is logged from a routine, offline and back, and finished', async ({
   page,
   context,

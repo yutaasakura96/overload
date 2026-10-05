@@ -333,6 +333,9 @@ One condition at a time, in the priority order of `docs/10` §7.4. Three drawn f
 | Pending | `7px 9px`, 1px `line/field`, radius 2 | 6px `flag` dot, 7px gap | `3 PENDING`, 10px mono `0.08em` `text/secondary` |
 | Resting (last sync) | none | 5px `done` dot, 6px gap | `SYNCED 06:41`, 10px mono `text/quaternary` |
 
+The resting time belongs to the data the screen displays. Library and routine screens use their
+own last fetch; screen 1 uses the device workout records' last acknowledged upload.
+
 Cached data age uses the resting form with its own string. It is not drawn.
 
 ### 4.3 Section label

@@ -64,7 +64,6 @@ export function SyncedAt({ at }: { at: number }) {
 export function DataState({ at }: { at: number }) {
   const { userId } = useAccount();
   const records = useWorkoutStore((state) => recordsOf(state, userId));
-  const lastSyncedAt = useWorkoutStore((state) => state.lastSyncedAt);
   const { refused, pending } = dataState(records);
   if (refused > 0) {
     return (
@@ -82,7 +81,7 @@ export function DataState({ at }: { at: number }) {
       </output>
     );
   }
-  return <SyncedAt at={Math.max(at, lastSyncedAt)} />;
+  return <SyncedAt at={at} />;
 }
 
 /**

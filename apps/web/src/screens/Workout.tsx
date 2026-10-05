@@ -1,5 +1,4 @@
 import type { Me, WeightUnit } from '@overload/api-contract';
-import { useQuery } from '@tanstack/react-query';
 import { useEffect, useId, useRef, useState, type CSSProperties } from 'react';
 import {
   AppBar,
@@ -10,7 +9,6 @@ import {
   Notice,
   parseFigure,
 } from '../components';
-import { routinesQuery, useAccount } from '../query';
 import { keepAwake, playTone, unlockTone } from '../rest-alert';
 import type { SetRecord, StoreRecord, WorkoutExerciseRecord, WorkoutRecord } from '../set-store';
 import { formatWeight, toKg, unitLabel } from '../units';
@@ -86,8 +84,6 @@ export function Workout({ me, navigate }: { me: Me; navigate: Navigate }) {
     (state) => recordsLoadedFor(state, userId) || readFailedFor(state, userId),
   );
   const records = useWorkoutStore((state) => recordsOf(state, userId));
-  // What this screen shows of the server's is copied at the start; the slot's time is the routines'.
-  const routines = useQuery({ ...routinesQuery, enabled: useAccount().status === 'confirmed' });
   const workout = openWorkout(records);
   const gone = loaded && workout === undefined;
 
@@ -103,7 +99,6 @@ export function Workout({ me, navigate }: { me: Me; navigate: Navigate }) {
       workout={workout}
       records={records}
       unit={me.profile?.weightUnit ?? 'kg'}
-      syncedAt={routines.dataUpdatedAt}
     />
   );
 }
@@ -112,12 +107,10 @@ function LiveWorkout({
   workout,
   records,
   unit,
-  syncedAt,
 }: {
   workout: WorkoutRecord;
   records: StoreRecord[];
   unit: WeightUnit;
-  syncedAt: number;
 }) {
   const exercises = exercisesOf(records, workout.id);
   const [currentId, setCurrentId] = useState(() => exerciseToOpen(exercises, records, workout.id));
@@ -157,7 +150,7 @@ function LiveWorkout({
 
   return (
     <main className="workout">
-      <WorkoutBar workout={workout} syncedAt={syncedAt} />
+      <WorkoutBar workout={workout} />
 
       {current === undefined ? (
         <p className="empty">This routine has no exercises. Finish, then add some to it.</p>
@@ -215,8 +208,9 @@ function LiveWorkout({
 }
 
 /** The app bar, with the elapsed time ticking under the routine's name. It stays put (§7.3). */
-function WorkoutBar({ workout, syncedAt }: { workout: WorkoutRecord; syncedAt: number }) {
+function WorkoutBar({ workout }: { workout: WorkoutRecord }) {
   const now = useNow();
+  const syncedAt = useWorkoutStore((state) => state.lastSyncedAt);
   const elapsed = (now - new Date(workout.row.startedAt).getTime()) / 1000;
   return (
     <AppBar

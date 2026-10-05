@@ -421,7 +421,9 @@ screen's app bar (`CONTEXT.md`; decided in `docs/06` 2026-09-19, with its priori
   2. **Pending** — *N* pending, in `flag`, with the 6px `flag` dot. This is the chip as drawn on screen 1.
   3. **Cached data age** — offline with nothing pending: the age of the data on screen, `text/quaternary`.
   4. **Last sync time** — the resting state, `text/quaternary`. Screen 6's `SYNCED 06:41` is this
-     state as drawn.
+     state as drawn. Use the last fetch time of the data on that screen; screen 1 displays device
+     workout records, so use the last acknowledged upload. A later workout upload does not change
+     the exercise library's displayed time.
 
 Drawn forms are in `docs/05` §4.2: refused (`Main-Refused`), pending (screen 1) and resting (screens 2–6).
 Cached data age is not drawn.
