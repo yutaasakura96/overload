@@ -546,5 +546,5 @@ data-state slot. Under the tabs, in order:
   both offer neither (`08` §7).
 
 **Data-state slot (§7.4) as built.** Refused and pending are counted from the set store on every
-screen; the resting form is the later of the screen's last fetch and the last acknowledged upload.
-Cached data age is still not drawn.
+screen; the resting form shows the time §7.4 names for that screen. Cached data age is still not
+drawn.
