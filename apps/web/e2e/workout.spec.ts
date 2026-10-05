@@ -93,22 +93,37 @@ async function completeSet(page: Page, figures: { weight?: string; reps?: string
 test('the library keeps its fetch time after a later workout upload', async ({ page }) => {
   const name = `Sync time ${Date.now()}`;
   await saveProfile(page);
+  await createRoutine(page, name, ['Barbell Bench Press']);
+  await page.getByRole('button', { name: 'Create routine' }).click();
+  await expect(page).toHaveURL('/routines');
+
   await page.clock.install({ time: new Date('2026-10-06T09:59:40') });
   await page.goto('/exercises');
   await expect(page.getByRole('listitem')).toHaveCount(50);
   await expect(dataState(page)).toHaveText('SYNCED 09:59');
 
-  await createRoutine(page, name, ['Barbell Bench Press']);
-  await page.getByRole('button', { name: 'Create routine' }).click();
-  await expect(page).toHaveURL('/routines');
+  // Every launch asks again for what it restored (query.ts), so from here the screens change
+  // without one: the library on screen at the end is the one fetched at 09:59.
+  const tabs = page.getByRole('navigation', { name: 'Sections' });
   await page.clock.setFixedTime(new Date('2026-10-06T10:00:10'));
-  await start(page, name);
+  await tabs.getByRole('link', { name: 'Today' }).click();
+  await page.getByRole('button', { name: new RegExp(`${name}.*Start this workout`) }).click();
+  await expect(page).toHaveURL('/workout');
   await expect(dataState(page)).toHaveText('SYNCED 10:00');
   await expect.poll(() => stored().some((workout) => workout.name === name)).toBe(true);
 
-  await page.goto('/exercises');
+  await page.goBack();
+  await tabs.getByRole('link', { name: 'Exercises' }).click();
   await expect(page.getByRole('listitem')).toHaveCount(50);
   await expect(dataState(page)).toHaveText('SYNCED 09:59');
+
+  // Finished with no set, the workout is not kept: the tests after this one start from none. The
+  // server takes a deletion only when it is later than the row it has, so the clock moves first.
+  await page.clock.setFixedTime(new Date('2026-10-06T10:00:20'));
+  await tabs.getByRole('link', { name: 'Today' }).click();
+  await page.getByRole('link', { name: 'Resume workout' }).click();
+  await finish(page);
+  await expect.poll(() => stored().some((workout) => workout.name === name)).toBe(false);
 });
 
 test('a workout is logged from a routine, offline and back, and finished', async ({
