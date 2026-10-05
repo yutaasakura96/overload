@@ -18,17 +18,11 @@ type RecordBase = {
    * stored it; `refused` when it refused it, which keeps the record to edit or discard.
    */
   state: 'pending' | 'acknowledged' | 'refused';
-  problem?: { code: string; status: number };
   /** Set when the row was deleted on the device: it travels as `{ id, deletedAt }`. */
   deletedAt?: string;
 };
 
-export type WorkoutRecord = RecordBase & {
-  table: 'workouts';
-  row: WorkoutRow;
-  /** Device-only: the 3-hour rule ended it, so Today says so once (docs/09 F3). */
-  local: { endedByIdleRule?: boolean };
-};
+export type WorkoutRecord = RecordBase & { table: 'workouts'; row: WorkoutRow };
 
 /** One working set as last time logged it, copied when the workout starts. */
 export type LastSet = { weightKg: number; reps: number };

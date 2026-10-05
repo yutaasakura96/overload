@@ -311,6 +311,36 @@ test('a weight left as the card opened it is logged as the stored kilograms', as
   expect(library.items.find((item) => item.name === 'Barbell Deadlift')?.incrementKg).toBe(2.5);
 });
 
+test('a unit changed elsewhere reopens the set card in the new unit', async ({ page }) => {
+  const name = `Unit ${Date.now()}`;
+  const weights = () =>
+    stored()
+      .find((workout) => workout.name === name)
+      ?.exercises[0]?.sets.map((set) => set.weightKg);
+  await saveProfile(page, 'Pounds');
+  await createRoutine(page, name, ['Barbell Deadlift']);
+  await page.getByRole('button', { name: 'Create routine' }).click();
+  await expect(page).toHaveURL('/routines');
+  await start(page, name);
+  await completeSet(page, { weight: '181.9', reps: '5' });
+  await expect(page.getByRole('row', { name: /^1 (\S+ × \d+ )?181.9 5 / })).toBeVisible();
+  await expect(page.getByRole('textbox', { name: 'Weight in pounds' })).toHaveValue('181.9');
+
+  // Another device saves kilograms; coming back to the app asks /api/me again.
+  const elsewhere = await page.request.patch('/api/me/profile', {
+    headers: { Origin: new URL(page.url()).origin },
+    data: { weightUnit: 'kg' },
+  });
+  expect(elsewhere.ok()).toBe(true);
+  await page.evaluate(() => window.dispatchEvent(new Event('visibilitychange')));
+  await expect(page.getByRole('textbox', { name: 'Weight in kilograms' })).toHaveValue('82.51');
+
+  // Left as it reopened, the set is the stored kilograms, not 181.9 kg.
+  await completeSet(page, { reps: '5' });
+  await expect.poll(weights).toEqual([82.51, 82.51]);
+  await finish(page);
+});
+
 test('a profile changed elsewhere reaches the open form without undoing an edit in hand', async ({
   page,
 }) => {

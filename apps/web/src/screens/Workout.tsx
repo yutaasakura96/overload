@@ -306,7 +306,7 @@ function ExerciseBlock({
       )}
 
       <ActiveSet
-        key={sets.length}
+        key={`${sets.length}:${unit}`}
         exercise={exercise}
         completed={completed}
         unit={unit}

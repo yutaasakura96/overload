@@ -241,7 +241,6 @@ export async function startWorkout(input: {
       note: null,
       clientUpdatedAt: now,
     },
-    local: {},
   };
   const exercises = input.routine.exercises.flatMap((slot, position): WorkoutExerciseRecord[] => {
     const exercise = input.exercises.get(slot.exerciseId);
@@ -366,9 +365,7 @@ export async function endIdleWorkout(nowMs = Date.now()): Promise<void> {
     if (last === undefined) return removeWorkout(records, workout, now);
     ended = { name: workout.row.name, endedAt: last.row.performedAt };
     const row = { ...workout.row, endedAt: last.row.performedAt, clientUpdatedAt: now };
-    return {
-      put: [{ ...workout, state: 'pending', row, local: { endedByIdleRule: true } }],
-    };
+    return { put: [{ ...workout, state: 'pending', row }] };
   });
   if (ended !== undefined) useWorkoutStore.setState({ rest: undefined, idleEnded: ended });
 }
@@ -430,7 +427,7 @@ export async function applySyncResults(sent: SentRow[], results: SyncResult[]): 
       const now = sentRowOf(record);
       if (now.clientUpdatedAt !== was.clientUpdatedAt || now.deletedAt !== was.deletedAt) continue;
       if (result.status === 'refused') {
-        put.set(record.id, { ...record, state: 'refused', problem: result.problem });
+        put.set(record.id, { ...record, state: 'refused' });
       } else if (result.status === 'deleted') {
         for (const other of records) {
           if (
