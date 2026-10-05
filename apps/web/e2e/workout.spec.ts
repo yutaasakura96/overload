@@ -436,7 +436,7 @@ test('finishing after deleting the routine keeps the workout on the server', asy
   await start(page, name);
   await completeSet(page, { weight: '60', reps: '8' });
   // SYNCED already shows from the start; the row says the set is on the device before the page goes.
-  await expect(page.getByRole('row', { name: /^1 60 8/ })).toBeVisible();
+  await expect(page.getByRole('row', { name: /^1 (60 × 8 )?60 8 / })).toBeVisible();
   await expect(dataState(page)).toContainText('SYNCED');
 
   await page.goto('/routines');
