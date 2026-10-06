@@ -67,7 +67,10 @@ async function uploadPending(): Promise<void> {
 let running: Promise<void> | undefined;
 let again = false;
 
-/** Uploads what is pending. Resolves when this and any upload asked for meanwhile have finished. */
+/**
+ * Uploads what is pending. Resolves when this and any upload asked for meanwhile have finished, and
+ * rejects when the set store could not take an answer: those rows stay pending for the next upload.
+ */
 export function requestUpload(): Promise<void> {
   if (running !== undefined) {
     again = true;
@@ -89,8 +92,11 @@ export function requestUpload(): Promise<void> {
 const hasPending = () =>
   useWorkoutStore.getState().records.some((record) => record.state === 'pending');
 
+/** An upload nobody waits for: what one could not write to the device, the next one sends again. */
+const uploadUnwatched = () => void requestUpload().catch(() => undefined);
+
 const tryUpload = () => {
-  if (hasPending()) void requestUpload();
+  if (hasPending()) uploadUnwatched();
 };
 
 /**
@@ -103,7 +109,7 @@ const retry = () => {
     void queryClient.refetchQueries({ queryKey: ['me'] });
     return;
   }
-  void requestUpload();
+  uploadUnwatched();
 };
 
 /** Starts uploading: on every change to the records, on reconnect, on return, and on a timer. */

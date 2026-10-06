@@ -305,6 +305,51 @@ async function finish(page: Page) {
   await expect(page).toHaveURL('/');
 }
 
+/** How many records the set store holds, read over a connection of the test's own. */
+const rowsOnDevice = (page: Page) =>
+  page.evaluate(
+    () =>
+      new Promise<number>((resolve, reject) => {
+        const open = indexedDB.open('overload-sets');
+        open.addEventListener('error', () => reject(open.error));
+        open.addEventListener('success', () => {
+          const count = open.result.transaction('rows', 'readonly').objectStore('rows').count();
+          count.addEventListener('success', () => {
+            open.result.close();
+            resolve(count.result);
+          });
+          count.addEventListener('error', () => reject(count.error));
+        });
+      }),
+  );
+
+/**
+ * Refuses every write to the set store from here on, until `mend-sets`. Each refusal is counted on
+ * the document, so a test can wait for one.
+ */
+function refuseSetStoreWrites() {
+  const database: {
+    transaction: (
+      this: IDBDatabase,
+      ...args: Parameters<IDBDatabase['transaction']>
+    ) => IDBTransaction;
+  } = IDBDatabase.prototype;
+  const transaction = database.transaction;
+  let broken = true;
+  let refused = 0;
+  window.addEventListener('mend-sets', () => {
+    broken = false;
+  });
+  IDBDatabase.prototype.transaction = function refuse(this: IDBDatabase, stores, mode, options) {
+    if (broken && this.name === 'overload-sets' && mode === 'readwrite') {
+      refused += 1;
+      document.documentElement.dataset.setWritesRefused = String(refused);
+      throw new DOMException('The write failed.', 'UnknownError');
+    }
+    return transaction.call(this, stores, mode, options);
+  };
+}
+
 test('a weight left as the card opened it is logged as the stored kilograms', async ({ page }) => {
   const name = `Pounds ${Date.now()}`;
   const weights = () =>
@@ -665,19 +710,7 @@ test.describe('sign-out with a workout on the device', () => {
     await expect(page).toHaveURL('/sign-in');
     expect(stored().at(-1)?.endedAt).not.toBeNull();
     expect(setsOfLatest()).toBe(1);
-    const kept = await page.evaluate(
-      () =>
-        new Promise<number>((resolve, reject) => {
-          const open = indexedDB.open('overload-sets');
-          open.addEventListener('error', () => reject(open.error));
-          open.addEventListener('success', () => {
-            const count = open.result.transaction('rows', 'readonly').objectStore('rows').count();
-            count.addEventListener('success', () => resolve(count.result));
-            count.addEventListener('error', () => reject(count.error));
-          });
-        }),
-    );
-    expect(kept).toBe(0);
+    expect(await rowsOnDevice(page)).toBe(0);
   });
 
   test('offers to discard a set the server refused once its workout has ended there', async ({
@@ -717,19 +750,7 @@ test.describe('sign-out with a workout on the device', () => {
     await expect(page).toHaveURL('/');
     await page.getByRole('button', { name: 'Discard and sign out' }).click();
     await expect(page).toHaveURL('/sign-in');
-    const kept = await page.evaluate(
-      () =>
-        new Promise<number>((resolve, reject) => {
-          const open = indexedDB.open('overload-sets');
-          open.addEventListener('error', () => reject(open.error));
-          open.addEventListener('success', () => {
-            const count = open.result.transaction('rows', 'readonly').objectStore('rows').count();
-            count.addEventListener('success', () => resolve(count.result));
-            count.addEventListener('error', () => reject(count.error));
-          });
-        }),
-    );
-    expect(kept).toBe(0);
+    expect(await rowsOnDevice(page)).toBe(0);
   });
 
   test('keeps a Finish the server did not take, and the sign-out it stops', async ({ page }) => {
@@ -899,5 +920,175 @@ test.describe('sign-out with a workout on the device', () => {
     await page.getByRole('button', { name: 'Sign out' }).click();
     await expect(page).toHaveURL('/sign-in?wipe=failed');
     await expect(page.getByText("Saved data couldn't be cleared from this device.")).toBeVisible();
+  });
+
+  test('stays usable when the upload it asks for cannot be written to the device', async ({
+    page,
+  }) => {
+    const name = `Unwritten ${Date.now()}`;
+    const errors: Error[] = [];
+    page.on('pageerror', (error) => errors.push(error));
+    await saveProfile(page);
+    await createRoutine(page, name, ['Chin-Up']);
+    await page.getByRole('button', { name: 'Create routine' }).click();
+    await expect(page).toHaveURL('/routines');
+    await start(page, name);
+    await expect(dataState(page)).toContainText('SYNCED');
+
+    // The server stores the set, but its answer for it never arrives: the workout ends and is
+    // acknowledged with one set still waiting.
+    await page.route('**/api/workouts/sync', async (route) => {
+      const response = await route.fetch();
+      const body: { results: { table: string }[] } = await response.json();
+      const results = body.results.filter((result) => result.table !== 'sets');
+      await route.fulfill({ response, json: { results } });
+    });
+    await completeSet(page, { reps: '6' });
+    await finish(page);
+    const signOut = page.getByRole('button', { name: 'Sign out' });
+    await expect(async () => {
+      await signOut.click();
+      await expect(page.getByText('1 set not uploaded yet.')).toBeVisible({ timeout: 1000 });
+    }).toPass();
+
+    // The device stops taking writes. The uploader's own try reaches the server and cannot note
+    // the answer; so does the one Upload now asks for.
+    await page.evaluate(refuseSetStoreWrites);
+    await page.unrouteAll();
+    const refusals = page.locator('html');
+    await page.evaluate(() => window.dispatchEvent(new Event('online')));
+    await expect(refusals).toHaveAttribute('data-set-writes-refused', '1');
+    await page.getByRole('button', { name: 'Upload now' }).click();
+    await expect(page.getByText("Couldn't sign out. Try again.")).toBeVisible();
+    await expect(refusals).toHaveAttribute('data-set-writes-refused', '2');
+    await expect(signOut).toBeEnabled();
+    await expect(page).toHaveURL('/');
+
+    // Once the device takes writes again, the same way out works.
+    await page.evaluate(() => window.dispatchEvent(new Event('mend-sets')));
+    await signOut.click();
+    await page.getByRole('button', { name: 'Upload now' }).click();
+    await expect(page).toHaveURL('/sign-in');
+    expect(setsOfLatest()).toBe(1);
+    expect(errors).toEqual([]);
+  });
+
+  test('a launch that cannot end an idle workout on the device leaves it in progress', async ({
+    page,
+  }) => {
+    const name = `Idle unwritten ${Date.now()}`;
+    const errors: Error[] = [];
+    page.on('pageerror', (error) => errors.push(error));
+    await page.clock.install();
+    await saveProfile(page);
+    await createRoutine(page, name, ['Chin-Up']);
+    await page.getByRole('button', { name: 'Create routine' }).click();
+    await expect(page).toHaveURL('/routines');
+    await start(page, name);
+    await completeSet(page, { reps: '6' });
+    await expect(page.getByRole('row', { name: /^1 (\S+ × \d+ )?0 6/ })).toBeVisible();
+    await expect(dataState(page)).toContainText('SYNCED');
+
+    // Past three hours, with the device refusing the write that would end it.
+    await page.clock.fastForward('03:00:30');
+    await page.addInitScript(refuseSetStoreWrites);
+    await page.goto('/');
+    await expect(page.locator('html')).toHaveAttribute('data-set-writes-refused', /^\d+$/);
+    await expect(page.getByRole('link', { name: 'Resume workout' })).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+});
+
+test.describe('the set store’s connection, lost under the open app', () => {
+  // The app's connections to the set store, kept where the test can end them as the browser does:
+  // `lose-sets` closes them and says so (the `close` event), `drop-sets` closes them unsaid.
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+      const factory: {
+        open: (this: IDBFactory, ...args: Parameters<IDBFactory['open']>) => IDBOpenDBRequest;
+      } = IDBFactory.prototype;
+      const open = factory.open;
+      const held = new Set<IDBDatabase>();
+      IDBFactory.prototype.open = function kept(this: IDBFactory, database, version) {
+        const request = open.call(this, database, version);
+        if (database === 'overload-sets') {
+          request.addEventListener('success', () => held.add(request.result));
+        }
+        return request;
+      };
+      const end = (said: boolean) => {
+        for (const connection of held) {
+          connection.close();
+          if (said) connection.dispatchEvent(new Event('close'));
+        }
+        held.clear();
+      };
+      window.addEventListener('lose-sets', () => end(true));
+      window.addEventListener('drop-sets', () => end(false));
+    });
+  });
+
+  for (const [how, event] of [
+    ['and says so', 'lose-sets'],
+    ['without a word', 'drop-sets'],
+  ] as const) {
+    test(`the browser closes it ${how}: the next set is saved, and Finish works`, async ({
+      page,
+    }) => {
+      const name = `Closed ${Date.now()}`;
+      await saveProfile(page, 'Kilograms');
+      await createRoutine(page, name, ['Chin-Up']);
+      await page.getByRole('button', { name: 'Create routine' }).click();
+      await expect(page).toHaveURL('/routines');
+      await start(page, name);
+      await completeSet(page, { reps: '6' });
+      await expect(page.getByRole('row', { name: /^1 (\S+ × \d+ )?0 6/ })).toBeVisible();
+      await expect(dataState(page)).toContainText('SYNCED');
+
+      await page.evaluate((type) => window.dispatchEvent(new Event(type)), event);
+      await completeSet(page, { reps: '5' });
+      await expect(page.getByRole('row', { name: /^2 (\S+ × \d+ )?0 5/ })).toBeVisible();
+      await expect(page.getByText('Couldn’t save the set on this device')).toHaveCount(0);
+      // The workout, its exercise and both sets.
+      expect(await rowsOnDevice(page)).toBe(4);
+
+      await finish(page);
+      await expect
+        .poll(() => stored().find((workout) => workout.name === name)?.exercises[0]?.sets.length)
+        .toBe(2);
+    });
+  }
+
+  test('another connection asks for the database: it is let go, and the next set is saved', async ({
+    page,
+  }) => {
+    const name = `Asked ${Date.now()}`;
+    await saveProfile(page, 'Kilograms');
+    await createRoutine(page, name, ['Chin-Up']);
+    await page.getByRole('button', { name: 'Create routine' }).click();
+    await expect(page).toHaveURL('/routines');
+    await start(page, name);
+    await completeSet(page, { reps: '6' });
+    await expect(page.getByRole('row', { name: /^1 (\S+ × \d+ )?0 6/ })).toBeVisible();
+    await expect(dataState(page)).toContainText('SYNCED');
+
+    // The device's storage is cleared from elsewhere, which asks every connection to close
+    // (`versionchange`). One that stays open blocks it.
+    const cleared = await page.evaluate(
+      () =>
+        new Promise<string>((resolve, reject) => {
+          const request = indexedDB.deleteDatabase('overload-sets');
+          request.addEventListener('success', () => resolve('cleared'));
+          request.addEventListener('blocked', () => resolve('blocked'));
+          request.addEventListener('error', () => reject(request.error));
+        }),
+    );
+    expect(cleared).toBe('cleared');
+
+    await completeSet(page, { reps: '5' });
+    await expect(page.getByRole('row', { name: /^2 (\S+ × \d+ )?0 5/ })).toBeVisible();
+    // Only the set logged since: what was cleared is gone from the device.
+    expect(await rowsOnDevice(page)).toBe(1);
+    await finish(page);
   });
 });

@@ -475,6 +475,8 @@ export function AccountFooter({
     setStopped(undefined);
     void (options.uploadFirst === true ? requestUpload() : Promise.resolve())
       .then(() => signOut(navigate, options))
+      // An upload whose answer the set store could not take: nothing is signed out or discarded.
+      .catch((): SignOutResult => 'failed')
       .then((result) => {
         if (result === 'signed-out') return;
         setBusy(false);

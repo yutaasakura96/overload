@@ -50,7 +50,10 @@ export function App() {
   const userId = opens ? me.data.user.id : undefined;
   useEffect(() => {
     if (userId === undefined) return undefined;
-    void loadWorkouts(userId).then(() => endIdleWorkout());
+    // A workout the device could not end stays in progress; coming back to the app tries again.
+    void loadWorkouts(userId)
+      .then(() => endIdleWorkout())
+      .catch(() => undefined);
     const onReturn = () => {
       if (document.visibilityState === 'visible') void endIdleWorkout().catch(() => undefined);
     };

@@ -52,54 +52,101 @@ const ROWS = 'rows';
 
 let opening: Promise<IDBDatabase> | undefined;
 
+/** Lets go of a connection that is no longer usable, so the next read or write opens another. */
+function forget(connection: Promise<IDBDatabase>) {
+  if (opening === connection) opening = undefined;
+}
+
 function open(): Promise<IDBDatabase> {
-  opening ??= new Promise<IDBDatabase>((resolve, reject) => {
+  if (opening !== undefined) return opening;
+  const connection = new Promise<IDBDatabase>((resolve, reject) => {
     const request = indexedDB.open(DATABASE, 1);
     request.addEventListener('upgradeneeded', () => {
       request.result.createObjectStore(ROWS, { keyPath: 'id' });
     });
-    request.addEventListener('success', () => resolve(request.result));
+    request.addEventListener('success', () => {
+      const db = request.result;
+      // The connection does not always last as long as the page. The browser closes it when the
+      // device's storage is cleared or evicted, or under a backgrounded iOS web app (`close`), and
+      // asks for it back when the database is deleted or upgraded from elsewhere (`versionchange`).
+      db.addEventListener('close', () => forget(connection));
+      db.addEventListener('versionchange', () => {
+        db.close();
+        forget(connection);
+      });
+      resolve(db);
+    });
     request.addEventListener('error', () => reject(request.error ?? new Error('set store')));
   }).catch((error: unknown) => {
-    opening = undefined;
+    forget(connection);
     throw error;
   });
-  return opening;
+  opening = connection;
+  return connection;
+}
+
+/**
+ * Runs `body` in a transaction on the rows. A connection the browser closed without saying so
+ * refuses to start one (`InvalidStateError`): nothing was read or written, so it is let go and the
+ * transaction started once more on a new one. `body` makes its requests before it returns.
+ */
+async function inTransaction<T>(
+  mode: IDBTransactionMode,
+  body: (transaction: IDBTransaction) => Promise<T>,
+  options?: IDBTransactionOptions,
+): Promise<T> {
+  const connection = open();
+  const db = await connection;
+  let transaction;
+  try {
+    transaction = db.transaction(ROWS, mode, options);
+  } catch (error) {
+    if (!(error instanceof DOMException) || error.name !== 'InvalidStateError') throw error;
+    forget(connection);
+    transaction = (await open()).transaction(ROWS, mode, options);
+  }
+  return body(transaction);
 }
 
 export const setStore = {
   /** Every record on the device belonging to this user. */
-  async all(userId: string): Promise<StoreRecord[]> {
-    const db = await open();
-    return new Promise((resolve, reject) => {
-      const request = db.transaction(ROWS, 'readonly').objectStore(ROWS).getAll();
-      request.addEventListener('success', () => {
-        // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- only this module writes the store
-        const records = request.result as StoreRecord[];
-        resolve(records.filter((record) => record.userId === userId));
-      });
-      request.addEventListener('error', () => reject(request.error ?? new Error('set store')));
-    });
+  all(userId: string): Promise<StoreRecord[]> {
+    return inTransaction(
+      'readonly',
+      (transaction) =>
+        new Promise((resolve, reject) => {
+          const request = transaction.objectStore(ROWS).getAll();
+          request.addEventListener('success', () => {
+            // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- only this module writes the store
+            const records = request.result as StoreRecord[];
+            resolve(records.filter((record) => record.userId === userId));
+          });
+          request.addEventListener('error', () => reject(request.error ?? new Error('set store')));
+        }),
+    );
   },
 
   /**
    * Writes and removes records in one transaction, flushed to disk before it resolves
    * (`durability: "strict"`), so a set is on the device before the screen says so (docs/03 §8.1).
    */
-  async write(change: { put?: StoreRecord[]; remove?: string[] }): Promise<void> {
-    const db = await open();
-    await new Promise<void>((resolve, reject) => {
-      const transaction = db.transaction(ROWS, 'readwrite', { durability: 'strict' });
-      const rows = transaction.objectStore(ROWS);
-      for (const record of change.put ?? []) rows.put(record);
-      for (const id of change.remove ?? []) rows.delete(id);
-      transaction.addEventListener('complete', () => resolve());
-      transaction.addEventListener('error', () =>
-        reject(transaction.error ?? new Error('set store')),
-      );
-      transaction.addEventListener('abort', () =>
-        reject(transaction.error ?? new Error('set store')),
-      );
-    });
+  write(change: { put?: StoreRecord[]; remove?: string[] }): Promise<void> {
+    return inTransaction(
+      'readwrite',
+      (transaction) =>
+        new Promise<void>((resolve, reject) => {
+          const rows = transaction.objectStore(ROWS);
+          for (const record of change.put ?? []) rows.put(record);
+          for (const id of change.remove ?? []) rows.delete(id);
+          transaction.addEventListener('complete', () => resolve());
+          transaction.addEventListener('error', () =>
+            reject(transaction.error ?? new Error('set store')),
+          );
+          transaction.addEventListener('abort', () =>
+            reject(transaction.error ?? new Error('set store')),
+          );
+        }),
+      { durability: 'strict' },
+    );
   },
 };
