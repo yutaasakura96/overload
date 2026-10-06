@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
+import { openApiDocument } from '../src/create-app';
 import { userProfile } from '../src/db/schema';
+import { ACCOUNT_HEADER } from '../src/lib/account';
 import { WEB_ORIGIN, useTestApp } from './harness';
 
 // docs/08 §2 and §10 as scheduled for slice 1 (docs/11 §2): 401 with no session, the cookie and
 // the bearer token each accepted only in their own place, and sign-out ending both.
 const t = useTestApp();
 
-const memberRoutes = ['/api/me', '/api/exercises'];
+const memberRoutes = ['/api/me', '/api/exercises', '/api/routines'];
 
 describe('a request with no session', () => {
   it.each(memberRoutes)('%s answers 401 unauthenticated as a problem detail', async (path) => {
@@ -74,6 +76,42 @@ describe('cookie and bearer', () => {
       headers: { Authorization: `Bearer ${token}.bm90LXRoZS1zaWduYXR1cmU` },
     });
     expect(res.status).toBe(401);
+  });
+});
+
+describe('the account header', () => {
+  // A client keeps a member answer only for the account it names (docs/08 §5).
+  it.each(memberRoutes)('%s names the account whose session answered', async (path) => {
+    const a = await t.createSignedInUser('header-a@example.test');
+    const b = await t.createSignedInUser('header-b@example.test');
+
+    const asA = await t.app.request(path, { headers: { cookie: a.cookie } });
+    const asB = await t.app.request(path, { headers: { Authorization: `Bearer ${b.token}` } });
+
+    expect(asA.headers.get(ACCOUNT_HEADER)).toBe(a.user.id);
+    expect(asB.headers.get(ACCOUNT_HEADER)).toBe(b.user.id);
+  });
+
+  it('names no account on a 401', async () => {
+    const res = await t.app.request('/api/me');
+    expect(res.status).toBe(401);
+    expect(res.headers.has(ACCOUNT_HEADER)).toBe(false);
+  });
+
+  it('is declared on every successful member response in the contract', () => {
+    const document = openApiDocument(t.app);
+    const member = Object.entries(document.paths ?? {}).filter(([path]) => path !== '/api/health');
+    expect(member.map(([path]) => path)).toEqual(expect.arrayContaining(memberRoutes));
+    for (const [path, operations] of member) {
+      for (const [method, operation] of Object.entries(operations ?? {})) {
+        const responses: Record<string, { headers?: Record<string, unknown> }> =
+          operation?.responses ?? {};
+        for (const [status, response] of Object.entries(responses)) {
+          if (!status.startsWith('2')) continue;
+          expect(response.headers, `${method} ${path} ${status}`).toHaveProperty([ACCOUNT_HEADER]);
+        }
+      }
+    }
   });
 });
 

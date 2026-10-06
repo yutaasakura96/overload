@@ -1,0 +1,36 @@
+# Production uptime check (docs/12 §5): GET /api/health every 15 minutes. A failed run is the alert:
+# GitHub emails the repository owner. It replaced the Sentry uptime monitor, which needs a paid seat
+# (docs/06, 2026-09-30). /api/health never touches the database, so this does not keep Neon awake.
+#
+# Scheduled runs use the default branch (develop).
+name: Health
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: health
+  cancel-in-progress: false
+
+jobs:
+  health:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: GET /api/health answers 200
+        env:
+          URL: https://overload-web-pied.vercel.app/api/health
+        run: |
+          status=$(curl --silent --show-error --output "$RUNNER_TEMP/body" --write-out '%{http_code}' \
+            --max-time 15 --retry 2 --retry-delay 5 --retry-all-errors "$URL")
+          echo "GET $URL: $status"
+          if [ "$status" != "200" ]; then
+            cat "$RUNNER_TEMP/body"
+            echo "::error::$URL answered $status"
+            exit 1
+          fi

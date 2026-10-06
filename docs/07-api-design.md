@@ -28,6 +28,9 @@ Written 2026-09-21. Decisions and the options rejected are in `docs/06` (2026-09
 - **Absent and null differ.** In a PATCH an omitted field is unchanged and `null` clears it. In a
   response every field is present, and `null` means no value.
 - Every response carries `Cache-Control: private, no-store` and `X-Request-Id`.
+- Every response to a signed-in caller carries `Overload-User`, the id of the user whose session
+  answered, and every member route's success response declares it in the contract. A client keeps
+  a per-user body only for the account it names (`08` §5).
 
 ### 1.2 Methods and retries
 
@@ -72,7 +75,8 @@ that shape. Its rate limiter's 429 and our `beforeDelete` refusal arrive in that
 - `type` is `urn:overload:problem:<code>`. It is an identifier, not a link: there is no domain to host documentation on.
 - **An id in a body that is not the caller's** (another user's food, exercise, routine…) is
   refused as if it did not exist: 422 `validation_failed` on that field, or `parent_missing` in a
-  sync batch (`08` §4).
+  sync batch (`08` §4). A synced workout's `routineId` is the one exception: it is stored as null
+  (§3.4).
 - The detail never contains a food, weight or health value (`03` §7). It names the field, not what
   was in it.
 
@@ -156,7 +160,7 @@ only.
 | --- | --- | --- | --- | --- | --- |
 | `*` | `/api/auth/*` | — | Better Auth: Google sign-in, callback, `get-session`, `sign-out`, `list-sessions`, `revoke-other-sessions`, `revoke-sessions` (sign out everywhere, `08` §7), `delete-user` | Better Auth's | Better Auth's |
 | GET | `/api/me` | M | The signed-in user, their profile, and `isAdmin` | 200 | 401 |
-| PATCH | `/api/me/profile` | M | Timezone, height, sex, birth date, training weekdays | 200 profile | 401, 422 |
+| PATCH | `/api/me/profile` | M | Timezone, weight unit, height, sex, birth date, training weekdays. Omitted fields are unchanged; the first save creates the profile. An unknown IANA zone is a 422 on `timezone` | 200 profile | 401, 422 |
 | GET | `/api/me/export` | M | One section of the export (S10), paged | 200 | 401, 422 |
 | GET | `/api/admin/invites` | A | Every invite, newest first | 200 | 401, 404 |
 | POST | `/api/admin/invites` | A | Invite an email | 201 | 401, 404, 409 `invite_exists`, 422 |
@@ -177,10 +181,14 @@ with our `beforeDelete` (`08` §6). There is no route of our own for it.
     "heightCm": 172.0,
     "sex": "male",
     "birthDate": "1994-05-02",
-    "trainingWeekdays": [1, 3, 5]
+    "trainingWeekdays": [1, 3, 5],
+    "weightUnit": "kg"
   }
 }
 ```
+
+`profile` is `null` until the first `PATCH /api/me/profile`. `weightUnit` is `kg` or `lb`: how lift
+weights are shown and typed. Every weight in every request and response stays kg (`06`, 2026-09-23).
 
 `trainingWeekdays` uses ISO weekday numbers, 1 = Monday. It is what makes a calendar day a
 training day for the planner (S15).
@@ -235,7 +243,7 @@ yet or what they have logged (`08` §4).
 | Method | Path | Auth | Purpose | Success | Failures |
 | --- | --- | --- | --- | --- | --- |
 | GET | `/api/exercises` | M | Seeded plus custom, each with the caller's effective settings. Hidden ones only with `?includeHidden=true`. Sorted by name | 200 | 401 |
-| POST | `/api/exercises` | M | Create a custom exercise | 201 / 200 | 401, 409 `id_conflict`, 422 (duplicate name included) |
+| POST | `/api/exercises` | M | Create a custom exercise | 201 / 200 | 401, 409 `id_conflict`, 422 (duplicate name or inverted rep range included) |
 | PATCH | `/api/exercises/{id}` | M | Edit a custom exercise's name, equipment or defaults. Seeded ones return 404 | 200 | 401, 404, 422 |
 | DELETE | `/api/exercises/{id}` | M | Delete a custom exercise with no sets | 204 | 401, 409 `exercise_has_history`, 409 `exercise_in_routine` |
 | PUT | `/api/exercises/{id}/setting` | M | The caller's increment, rest, rep range and `hidden` for any exercise. `null` restores the default | 200 | 401, 404, 422 |
@@ -251,6 +259,16 @@ GET /api/exercises  →  200
 
 `overrides` tells the settings screen which values are the user's own and which are defaults.
 
+- **Create.** `id`, `name` and `equipment` are required. An omitted `incrementKg` takes the equipment
+  class's increment (`04` `exercise`), `restSeconds` 120 and the rep range 6–10. A missing rep end
+  takes its default, and a range that comes out inverted is a 422 on `repLow`. A name one of the
+  caller's own exercises already has, in any case, is a 422 on `name`, for create and edit alike.
+- **Delete.** `exercise_has_history` is checked first, then `exercise_in_routine` (since slice 3,
+  with the `set` table). A seeded exercise is nobody's to delete: 204, and nothing changes.
+- **Setting.** The body is the whole setting. The effective rep range, the user's values over the
+  defaults, must be in order, or 422 on `repLow`. A setting that is all `null` and not hidden removes
+  the row, so the exercise is back to its defaults. Hiding keeps the first `hidden_at`.
+
 ### Routines
 
 | Method | Path | Auth | Purpose | Success | Failures |
@@ -258,7 +276,7 @@ GET /api/exercises  →  200
 | GET | `/api/routines` | M | Every routine with its slots, in `position` order | 200 | 401 |
 | POST | `/api/routines` | M | Create, optionally with `exercises[]` | 201 / 200 | 401, 409, 422 |
 | PATCH | `/api/routines/{id}` | M | Rename, or move in the list | 200 | 401, 404, 422 |
-| PUT | `/api/routines/{id}/exercises` | M | Replace the whole slot list. Order is array order, so a reorder is one call | 200 | 401, 404, 422 (unknown or hidden exercise) |
+| PUT | `/api/routines/{id}/exercises` | M | Replace the whole slot list. Order is array order, so a reorder is one call | 200 | 401, 404, 409 `id_conflict`, 422 (unknown exercise, or a hidden one the routine does not already hold) |
 | DELETE | `/api/routines/{id}` | M | Delete. Past workouts keep their name (`04`) | 204 | 401 |
 
 ```http
@@ -269,17 +287,29 @@ PUT /api/routines/0192r001-…/exercises
 ] }
 ```
 
+- **Slots.** Up to 40, each slot `id` once. `targetSets` defaults to 3. A slot's rep range is both
+  ends or neither: neither follows the exercise (setting, then default), and one alone is a 422 on the
+  missing end. An unknown exercise or another user's is a 422 on that slot's `exerciseId`. So is one
+  hidden by the caller, unless the routine already holds it: hiding an exercise never blocks saving
+  a routine that keeps it, but it cannot be added anew.
+- **Slot ids** are made on the device like any row's. A PUT keeps a slot's id when it keeps the slot,
+  and one already belonging to another routine is a 409 `id_conflict`.
+- **Create** puts the routine last in the list. A repeat with the same name and slots is a 200; the
+  same id with other content is a 409 `id_conflict`.
+- **`PATCH` `position`** moves the routine to that place, 0 first, and past the end means last. The
+  others close up around it, so the positions are always 0…n−1.
+
 ### Last time and suggestions, for offline use
 
 | Method | Path | Auth | Purpose | Success | Failures |
 | --- | --- | --- | --- | --- | --- |
-| GET | `/api/training/last-time` | M | For **every exercise the caller has logged**: last time per working set, and today's suggestion | 200 | 401 |
+| GET | `/api/training/last-time` | M | For **every exercise the caller has logged**: last time per working set, and today's suggestion | 200 | 401, 422 `setup_incomplete` (`missing: ["profile"]`) |
 
 **Why one call for everything:** the gym screen must show last time and the suggestion with no
-signal (S2, S3), including for an exercise added mid-workout. The client fetches this once when
-online, TanStack Query persists it, and it is refetched after every acknowledged sync batch. It is
-one row group per exercise, which is small. The suggestion is computed on the server (native-ready
-rule 2), so an offline workout shows the suggestion as of the last sync.
+signal (S2, S3). The client fetches this once when online, TanStack Query persists it, and it is
+refetched after every acknowledged sync batch. It is one row group per exercise, which is small.
+The suggestion is computed on the server (native-ready rule 2), so an offline workout shows the
+suggestion as of the last sync.
 
 ```json
 GET /api/training/last-time  →  200
@@ -287,21 +317,48 @@ GET /api/training/last-time  →  200
   "exercises": [
     { "exerciseId": "0192a001-…", "workoutId": "0192w001-…", "performedOn": "2026-11-04",
       "sets": [ { "workingSet": 1, "weightKg": 80, "reps": 10 }, { "workingSet": 2, "weightKg": 80, "reps": 10 }, { "workingSet": 3, "weightKg": 80, "reps": 10 } ],
-      "suggestion": { "weightKg": 82.5, "rule": "top_of_range_hit", "reason": "hit 10 on every set last time" } }
+      "suggestion": { "weightKg": 82.5, "rule": "top_of_range_hit", "reason": "hit 10 on every set last time" },
+      "slots": [] }
   ] }
 ```
 
 `sets` holds working sets only; `workingSet` is derived, 1…n in `position` order (`04`). `suggestion.rule` is `top_of_range_hit` or `repeat`. An exercise never logged is absent, and the
 screen shows "first workout".
 
+- **Which workout is last time:** the caller's most recent workout, by `started_at`, with at least
+  one working set of the exercise. A workout where it only had warm-ups is passed over.
+- **The suggestion** takes that workout's heaviest working weight, the `rep_high` copied into its
+  `workout_exercise`, and the exercise's increment and equipment as they are today, so a changed
+  increment applies at once. The weight is rounded up to one the equipment can make (S3).
+- **`slots`** is last time per routine slot. For each slot of the caller's routines that still
+  exists, the most recent workout holding a `workout_exercise` started from that slot
+  (`routineExerciseId`) with a working set answers
+  `{ routineExerciseId, workoutId, performedOn, sets, suggestion }`, judged on that row's sets
+  against that row's `rep_high`. At start the device gives a slot the entry with its id and falls
+  back to the exercise's own answer when there is none: a slot never logged, or rows that carry no
+  slot id. A routine holding one exercise in two slots therefore progresses each on its own, and
+  reordering the slots changes nothing.
+- **`routineExerciseId` may be left out of a synced `workoutExercises` row** and is then stored as
+  null: a row made on a device before the field existed still uploads.
+- **`performedOn`** is the workout's `started_at` as a date in the profile's time zone: the day
+  boundary. Without a profile there is no zone to read it in, hence `setup_incomplete`.
+
 ### 3.4 Sync — the only write path for workouts, workout exercises and sets
 
 | Method | Path | Auth | Purpose | Success | Failures |
 | --- | --- | --- | --- | --- | --- |
-| POST | `/api/workouts/sync` | M | Apply the device's queued rows | 200 with a result per row | 401 (nothing applied; every row stays pending), 400, 413 |
+| POST | `/api/workouts/sync` | M | Apply the device's queued rows | 200 with a result per row | 401 (nothing applied; every row stays pending), 413 over the row limit, 422 |
+
+**Built so far (slice 3):** the happy path, the clock guard, deleting a workout, ownership and the
+limit. A batch that fails request schema validation gets a 422; a database check or range violation
+on one row is reported as that row's `validation_failed` in a 200 response. Deleting a workout
+exercise or a set, and tombstones, arrive in slice 4 (`06`, 2026-10-03). Until then a
+`{ id, deletedAt }` in `workoutExercises` or `sets` is a 422, a deleted workout reports `deleted`,
+and a stale copy sent after its delete would be stored again.
 
 **Request.** Three arrays, each row the **whole current row** as the phone holds it, plus
-`clientUpdatedAt`, the phone's clock at the last edit. A deletion is `{ id, deletedAt }`.
+`clientUpdatedAt`, the phone's clock at the last edit. Only a workout can be deleted in slice 3,
+with `{ id, deletedAt }`.
 
 ```http
 POST /api/workouts/sync
@@ -312,7 +369,8 @@ POST /api/workouts/sync
       "clientUpdatedAt": "2026-11-11T09:01:40.000Z" }
   ],
   "workoutExercises": [
-    { "id": "0192x010-…", "workoutId": "0192w003-…", "exerciseId": "0192a001-…", "position": 0,
+    { "id": "0192x010-…", "workoutId": "0192w003-…", "exerciseId": "0192a001-…",
+      "routineExerciseId": "0192q001-…", "position": 0,
       "targetSets": 4, "repLow": 6, "repHigh": 10, "incrementKg": 2.5,
       "clientUpdatedAt": "2026-11-11T09:01:40.000Z" }
   ],
@@ -320,10 +378,9 @@ POST /api/workouts/sync
     { "id": "0192s020-…", "workoutExerciseId": "0192x010-…", "position": 0, "weightKg": 82.5, "reps": 10,
       "rir": 2, "rpe": null, "isWarmup": false, "performedAt": "2026-11-11T09:09:12.000Z",
       "clientUpdatedAt": "2026-11-11T09:09:12.000Z" },
-    { "id": "0192s021-…", "workoutExerciseId": "0192x010-…", "position": 1, "weightKg": 82.5, "reps": 0,
+    { "id": "0192s021-…", "workoutExerciseId": "0192x010-…", "position": 1, "weightKg": 82.5, "reps": 8,
       "rir": null, "rpe": null, "isWarmup": false, "performedAt": "2026-11-11T09:12:40.000Z",
-      "clientUpdatedAt": "2026-11-11T09:12:40.000Z" },
-    { "id": "0192s019-…", "deletedAt": "2026-11-11T09:10:03.000Z" }
+      "clientUpdatedAt": "2026-11-11T09:12:40.000Z" }
   ]
 }
 ```
@@ -342,19 +399,23 @@ POST /api/workouts/sync
   A retry of the same payload changes nothing. So does a stale copy arriving after a newer edit.
   This replaces `03` §8.1's `DO NOTHING`, and `docs/04` gains `client_updated_at` on the three
   tables.
-- **A deletion** removes the row if the stored `client_updated_at` is older than `deletedAt`, and
-  counts as `deleted` if the row is already gone. Deleting a workout cascades (`04`).
-- **A deleted row stays deleted.** Each deletion writes a `sync_tombstone` (`04`) for the row and
-  every row it cascades to. A row whose id, or whose parent's id, has a tombstone is not inserted,
-  and neither is a child of a row reported `deleted` earlier in the same batch. All of these are
+- **A workout deletion** removes the row if the stored `client_updated_at` is older than `deletedAt`,
+  and counts as `deleted` if the row is already gone. Deleting a workout cascades (`04`).
+- **Planned for slice 4: a deleted row stays deleted.** Each deletion writes a `sync_tombstone`
+  (`04`) for the row and every row it cascades to. A row whose id, or whose parent's id, has a
+  tombstone is not inserted, and neither is a child of a row reported `deleted` earlier in the
+  same batch. All of these are
   reported `deleted`. Without this, a stale copy from a second tab or a late request would bring a
   deleted set back. *Added 2026-09-22.*
 - **Ownership:** a row whose id exists under another user is refused as `not_found`, like any
-  other cross-user access. A row whose `routineId`, `workoutId`, `workoutExerciseId` or
-  `exerciseId` is not the caller's is refused as `parent_missing` (`08` §4).
+  other cross-user access. A row whose `workoutId`, `workoutExerciseId` or `exerciseId` is not the
+  caller's is refused as `parent_missing` (`08` §4). A workout whose `routineId` is not the
+  caller's, or names a routine deleted since the workout started, is stored with `routineId` null:
+  a workout outlives its routine (`04`), so its finish is never refused over it. *Changed
+  2026-10-03.*
 - **Limit:** 500 rows a request. The uploader splits larger queues.
 
-**Response.** Always 200 when authenticated, with one entry for every id sent:
+**Response.** A valid batch returns 200 with one entry for every id sent:
 
 ```json
 {
@@ -362,17 +423,15 @@ POST /api/workouts/sync
     { "table": "workouts", "id": "0192w003-…", "status": "stored", "row": { … } },
     { "table": "workoutExercises", "id": "0192x010-…", "status": "stored", "row": { … } },
     { "table": "sets", "id": "0192s020-…", "status": "stored", "row": { … } },
-    { "table": "sets", "id": "0192s021-…", "status": "refused",
-      "problem": { "code": "validation_failed", "status": 422, "errors": [{ "path": "reps", "message": "Number must be greater than 0" }] } },
-    { "table": "sets", "id": "0192s019-…", "status": "deleted" }
+    { "table": "sets", "id": "0192s021-…", "status": "stored", "row": { … } }
   ]
 }
 ```
 
 | `status` | Meaning | What the phone does |
 | --- | --- | --- |
-| `stored` | Inserted or updated | Delete the local record: **acknowledged** |
-| `unchanged` | The server already had this version or a newer one. `row` is the server's copy | Delete the local record |
+| `stored` | Inserted or updated | Mark **acknowledged**; keep an open workout's rows on the device until it ends (`03` §6) |
+| `unchanged` | The server already had this version or a newer one. `row` is the server's copy | Mark acknowledged; keep an open workout's rows until it ends. A workout the phone ended or removed whose `row` is still open is **not** acknowledged: it stays pending (`08` §7) |
 | `deleted` | Gone, now or before | Delete the local record |
 | `refused` | Refused, with `problem` | Keep the record and mark it **refused** (`03` §7, kind 3) |
 

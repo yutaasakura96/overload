@@ -37,7 +37,7 @@ lists four text tones where the files use six, omits two colours, and gives one 
 | `line/hairline` | `#1A2026` | App-bar underline, resting card borders, section dividers, chart gridlines, meter tracks, timeline rail. The default border. |
 | `line/border` | `#232B32` | Rest-bar top edge (1), chart baseline (2, 6), unconfirmed meal cards (4). |
 | `line/field` | `#2A3440` | Secondary control borders (+30s, WARM, ADJUST, REPL, pending chip), inert overlay swatches, unfilled timeline dots. Every one of these sits beside a label or a redundant state cue, so it is not the thing that identifies the control. |
-| `line/control` | `#55687A` | 3.38:1 on ground. Anything that must be seen and has no label to carry it: the inert check cell's border and check (1, 5) and the daily-weight discs and fallback rings (6). Added 2026-09-22 (§1.5). |
+| `line/control` | `#55687A` | 3.38:1 on ground. Anything that must be seen and has no label to carry it: the inert check cell's border and check (1, 5) and the daily-weight discs and fallback rings (6), and the border of a text field (§4.18), since an empty field's border is what shows where to type. Added 2026-09-22 (§1.5). |
 | `line/accent` | `#234A57` | Border of active panels and the suggested-weight chip. |
 | `line/done` | `#2E4A40` | Border of done fills. |
 | `line/flag` | `#4A3A1C` | Border of flag fills and the evidence tag. |
@@ -181,7 +181,8 @@ Every size present in the six screens, with its use.
 | 14 | Mono | `kg` unit beside a 42px figure. |
 | 15 | Sans | Exercise name (1), "meals unconfirmed" (4), the claim on the sources sheet. |
 | 15 | Mono | Prep raw/cooked gram figures (5). |
-| 17 | Mono | **Working-set kg and reps (1). The app's standard figure size.** |
+| 16 | Sans | Text typed into a field (§4.18). Not a display size: iOS zooms into a focused field under 16px. Added 2026-10-01 (`06`). |
+| 17 | Mono | **Working-set kg and reps (1). The app's standard figure size.** Also figures typed into a field (§4.18). |
 | 19 | Mono | If-confirmed kcal and protein (4). |
 | 20 | Mono | Top set, volume load (2). |
 | 22 | Mono | Avg intake, trend change (6). |
@@ -242,6 +243,9 @@ are a separate, smaller step and are read seated, not mid-set.
 - The moment the set is completed it drops to the 17px table row. There is no 56px history.
 - No other screen may introduce it. A new screen that wants a bigger figure uses 42px.
 - Its unfilled state is the same 56px in `text/placeholder` `#5A6673`, not a smaller placeholder.
+- A figure too long for its column at 56px is set at the largest size that shows it whole
+  (`min(56px, column ÷ characters)`), since a field clips what does not fit: `102.25`, or `137.8` on
+  a 375px phone. Still one size by rule, not a second step. *Added 2026-10-03.*
 
 If a second 56px use is ever proposed, it is a request to change the type scale and belongs in the
 decision log, not in a component.
@@ -328,6 +332,9 @@ One condition at a time, in the priority order of `docs/10` §7.4. Three drawn f
 | Refused | `7px 9px`, 1px `line/error`, `surface/error` fill, radius 2 | 12px info icon in `error`, 6px gap | `1 REFUSED`, 10px mono `0.08em` `error` |
 | Pending | `7px 9px`, 1px `line/field`, radius 2 | 6px `flag` dot, 7px gap | `3 PENDING`, 10px mono `0.08em` `text/secondary` |
 | Resting (last sync) | none | 5px `done` dot, 6px gap | `SYNCED 06:41`, 10px mono `text/quaternary` |
+
+The resting time belongs to the data the screen displays. Library and routine screens use their
+own last fetch; screen 1 uses the device workout records' last acknowledged upload.
 
 Cached data age uses the resting form with its own string. It is not drawn.
 
@@ -421,6 +428,11 @@ Pinned to the bottom edge, `surface/raised` with a top border in `line/border`. 
 in `line/hairline` sits on the very top edge with an `accent` fill (62% in the artboard). Below:
 `REST` at 9px `0.12em` `text/quaternary` over a 30px mono timer, and two controls right-aligned.
 
+**Rest over** (`06`, 2026-10-03, not drawn). At zero the fill is full, the label reads `REST OVER`
+and the timer counts up as `+0:12`, both in `accent`; `+30s` goes and `SKIP` becomes `DISMISS`. It
+stays until dismissed or the next set. Fixed to the bottom edge over the safe-area inset. An
+exercise whose rest is 0 seconds shows no bar.
+
 ### 4.15 Footnote rule
 Absolutely positioned at `bottom: 18px`, 12px padding above a `line/hairline` top border, holding a
 10px sans statement on the left and a 10px mono formula or metadata string on the right in
@@ -439,6 +451,15 @@ and bottom. The check cell becomes a 46 × 44 cell with a `line/error` border an
 `error`. A second row, indented to the LAST column, holds `REFUSED` (9px `0.1em` `error`) over the
 reason (10px `text/secondary`), and on the right `EDIT` (secondary, 62 × 44) and `DISCARD` (tertiary,
 78 × 44). The word, the icon and the reason are always present, so red is never the only cue.
+
+### 4.18 Field
+Added 2026-10-01 for slice 2's forms (`10` §8.1). A 9px small-caps label in `text/quaternary`, with an
+optional note on the right of the same row (`DEFAULT` / `YOURS`, 9px `text/quaternary`). Under it a
+44px input, 1px `line/control` border, radius 2, no fill: text at 16px sans, figures at 17px mono /
+500 / tabular with their unit (10px mono, `text/quaternary`) inside the right edge. Placeholders are
+`text/quaternary`, which passes at every size (§1.5), not `text/placeholder`. Focus turns the border
+`accent`. A refused field turns it `error` and prints, under it, the 12px info icon, `REFUSED` and the
+reason, as §4.17 does; a field too narrow for that sends its message under its row instead.
 
 ---
 
@@ -488,7 +509,7 @@ to match the adjacent label.
 | Icon | Path | Sizes / strokes in use |
 | --- | --- | --- |
 | Check | `M4 12.5 9.5 18 20 6.5` | 12–13px @3, 15px @2.5, 17px @2.5, 20–22px @2.5 |
-| Back chevron | `M15 5 8 12l7 7` | 18px @2 |
+| Back chevron | `M15 5 8 12l7 7` | 18px @2. Turned 90°, 180° and 270° for up, forward and down (`10` §8.1), rather than a fifth icon |
 | Swap | `M3 8h13l-3.5-3.5M21 16H8l3.5 3.5` | 13px @2 |
 | Info | `M12 8v5M12 17h.01` + `circle cx=12 cy=12 r=9` | 12px @2 (refused slot), 14px @2, 15px @2 (refused check cell) |
 

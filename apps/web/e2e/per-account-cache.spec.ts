@@ -59,7 +59,7 @@ async function openAs(page: Page, context: BrowserContext, userId: string, email
   const own = userId === userA ? OWN_A : OWN_B;
   await useCookie(context, userId);
   await markLibrary(page, own);
-  await page.goto('/');
+  await page.goto('/exercises');
   await expect(page.getByText(email)).toBeVisible();
   await expect(page.getByText(own)).toBeVisible();
   // The persister writes at most once a second.
@@ -94,7 +94,7 @@ test('after A, B on the same device never sees A’s data, and each keeps their 
     await route.continue();
   });
   const meAsked = page.waitForRequest('**/api/me');
-  await page.goto('/');
+  await page.goto('/exercises');
   await meAsked;
   await page.waitForTimeout(1000);
   await expect(page.getByText(EMAIL_A)).toHaveCount(0);
@@ -129,7 +129,7 @@ test('with no answer from /api/me, the launch opens only the last confirmed acco
   await page.route('**/api/me', () => {});
   const library = countLibraryRequests(page);
   const started = Date.now();
-  await page.goto('/');
+  await page.goto('/exercises');
   await expect(page.getByText(EMAIL_A)).toBeVisible({ timeout: 10_000 });
   expect(Date.now() - started).toBeGreaterThan(2500);
   await expect(page.getByText(OWN_A)).toBeVisible();
@@ -153,7 +153,7 @@ test('a network error at launch opens the saved copy; a later answer runs its qu
 
   await page.route('**/api/me', (route) => route.abort('internetdisconnected'));
   const library = countLibraryRequests(page);
-  await page.goto('/');
+  await page.goto('/exercises');
   await expect(page.getByText(OWN_A)).toBeVisible();
   await page.waitForTimeout(1000);
   expect(library.requests).toBe(0);
@@ -181,7 +181,7 @@ test('a failed focus account check keeps the confirmed account’s library visib
   });
   await page.evaluate(() => window.dispatchEvent(new Event('visibilitychange')));
   await meAsked;
-  await expect(page.getByText(EMAIL_A)).toHaveCount(0);
+  await expect(page.getByText(EMAIL_A)).toBeVisible();
   release();
   await meFailed;
   await expect(page.getByText(EMAIL_A)).toBeVisible();
@@ -201,7 +201,7 @@ test('a failed Google sign-in preserves the saved account for an offline reload'
     page.getByText('Sign-in didn’t finish. Check your connection and try again.'),
   ).toBeVisible();
   await page.route('**/api/me', (route) => route.abort('internetdisconnected'));
-  await page.goto('/');
+  await page.goto('/exercises');
   await expect(page.getByText(EMAIL_A)).toBeVisible({ timeout: 10_000 });
   await expect(page.getByText(OWN_A)).toBeVisible();
 });
@@ -213,7 +213,7 @@ test('with no saved copy, a slow /api/me still signs in', async ({ page, context
     await new Promise((resolve) => setTimeout(resolve, 4500));
     await route.continue();
   });
-  await page.goto('/');
+  await page.goto('/exercises');
   await expect(page.getByText(EMAIL_A)).toBeVisible({ timeout: 10_000 });
   await expect(page.getByRole('listitem')).toHaveCount(50);
   await page.unrouteAll({ behavior: 'ignoreErrors' });
@@ -229,7 +229,7 @@ test('the copy shared by every account before this version is removed and never 
   await putDeviceValue(page, 'query-cache:overload', legacy);
 
   await useCookie(context, userB);
-  await page.goto('/');
+  await page.goto('/exercises');
   await expect(page.getByText(EMAIL_B)).toBeVisible();
   await expect(page.getByText('From the shared copy')).toHaveCount(0);
   expect(await deviceKeys(page)).not.toContain('query-cache:overload');
@@ -242,8 +242,8 @@ test('a 401 keeps the account’s saved data for when they sign in again', async
   await openAs(page, context, userA, EMAIL_A);
 
   await context.clearCookies();
-  await page.goto('/');
-  await expect(page).toHaveURL('/sign-in?next=%2F');
+  await page.goto('/exercises');
+  await expect(page).toHaveURL('/sign-in?next=%2Fexercises');
   expect(await deviceKeys(page)).toEqual(
     expect.arrayContaining(['signed-in-user', cacheKey(userA)]),
   );
@@ -268,7 +268,7 @@ test('a second tab drops the previous account once another tab switches', async 
   // Tab 2 opens as B. Both tabs then save B's copy, so it carries no marker.
   await useCookie(context, userB);
   const second = await context.newPage();
-  await second.goto('/');
+  await second.goto('/exercises');
   await expect(second.getByText(EMAIL_B)).toBeVisible();
 
   // Tab 1, without any refetch of its own, reopens as B.
@@ -279,7 +279,7 @@ test('a second tab drops the previous account once another tab switches', async 
   expect(await savedCache(first, userB)).not.toContain(OWN_A);
 });
 
-test('a focus account check hides the open account until the new identity answers', async ({
+test('a focus account check keeps the open account on screen until another identity answers', async ({
   page,
   context,
 }) => {
@@ -297,15 +297,167 @@ test('a focus account check hides the open account until the new identity answer
   const meAsked = page.waitForRequest('**/api/me');
   await page.evaluate(() => window.dispatchEvent(new Event('visibilitychange')));
   await meAsked;
-  await expect(page.getByText(EMAIL_A)).toHaveCount(0);
-  await expect(page.getByText(OWN_A)).toHaveCount(0);
+  await expect(page.getByText(EMAIL_A)).toBeVisible();
+  await expect(page.getByText(OWN_A)).toBeVisible();
   await page.waitForTimeout(1500);
   expect(library.requests).toBe(0);
   expect(await savedCache(page, userA)).not.toContain(OWN_B);
   release();
   await expect(page.getByText(EMAIL_B)).toBeVisible();
   await expect(page.getByText(OWN_B)).toBeVisible();
+  await expect(page.getByText(EMAIL_A)).toHaveCount(0);
+  await expect(page.getByText(OWN_A)).toHaveCount(0);
   await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
+
+test('a new identity never sees the previous account’s workout while its own sets are read', async ({
+  page,
+  context,
+}) => {
+  await context.clock.install();
+  await useCookie(context, userA);
+  await page.goto('/routines/new');
+  await page.getByRole('textbox', { name: 'Name' }).fill('A’s routine');
+  await page.getByRole('button', { name: 'Add exercises' }).click();
+  await page.getByRole('checkbox', { name: 'Chin-Up', exact: true }).check();
+  await page.getByRole('button', { name: 'Add 1 exercise' }).click();
+  await page.getByRole('button', { name: 'Create routine' }).click();
+  await expect(page).toHaveURL('/routines');
+  await page.goto('/');
+  await page.getByRole('button', { name: /Start this workout/ }).click();
+  await expect(page).toHaveURL('/workout');
+  await page.getByRole('textbox', { name: 'Reps', exact: true }).fill('6');
+  await page.getByRole('button', { name: 'Complete set' }).click();
+  await expect(page.getByRole('row', { name: /^1 0 6/ })).toBeVisible();
+  await page.goto('/');
+  await expect(page.getByRole('link', { name: 'Resume workout' })).toBeVisible();
+
+  // The set store is slow to answer for B, so the screen B opens on is seen before B's sets are.
+  await page.evaluate(() => {
+    const rows: {
+      getAll: (this: IDBObjectStore, ...args: Parameters<IDBObjectStore['getAll']>) => IDBRequest;
+    } = IDBObjectStore.prototype;
+    const getAll = rows.getAll;
+    IDBObjectStore.prototype.getAll = function held(this: IDBObjectStore, query, count) {
+      const request = getAll.call(this, query, count);
+      if (this.transaction.db.name !== 'overload-sets') return request;
+      const released = new Promise((resolve) => {
+        window.addEventListener('release-sets', resolve, { once: true });
+      });
+      const proxy = new EventTarget();
+      Object.defineProperty(proxy, 'result', { get: () => request.result });
+      Object.defineProperty(proxy, 'error', { get: () => request.error });
+      request.addEventListener('success', () => {
+        void released.then(() => proxy.dispatchEvent(new Event('success')));
+      });
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- stands in for the request
+      return proxy as IDBRequest;
+    };
+  });
+  await useCookie(context, userB);
+  await page.evaluate(() => window.dispatchEvent(new Event('visibilitychange')));
+  await expect(page.getByText(EMAIL_B)).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Resume workout' })).toHaveCount(0);
+  await expect(page.getByText('A’s routine')).toHaveCount(0);
+
+  await page.evaluate(() => window.dispatchEvent(new Event('release-sets')));
+  await expect(page.getByRole('button', { name: 'Sign out' })).toBeEnabled();
+  await expect(page.getByRole('link', { name: 'Resume workout' })).toHaveCount(0);
+  await expect(page.getByText('A’s routine')).toHaveCount(0);
+
+  // Nor does B read that A's workout was ended by the 3-hour rule.
+  await useCookie(context, userA);
+  await context.clock.fastForward('03:00:30');
+  await page.goto('/');
+  await expect(page.getByText(/A’s routine ended at \d\d:\d\d/)).toBeVisible();
+  await useCookie(context, userB);
+  await page.evaluate(() => window.dispatchEvent(new Event('visibilitychange')));
+  await expect(page.getByText(EMAIL_B)).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Sign out' })).toBeEnabled();
+  await expect(page.getByText(/ended at/)).toHaveCount(0);
+});
+
+test('a new identity opens its own profile form, without the previous account’s unsaved edit', async ({
+  page,
+  context,
+}) => {
+  const saveProfile = async (userId: string, timezone: string, weightUnit: string) => {
+    await useCookie(context, userId);
+    const saved = await page.request.patch('/api/me/profile', {
+      headers: { Origin: new URL(page.url()).origin },
+      data: { timezone, weightUnit },
+    });
+    expect(saved.ok()).toBe(true);
+  };
+  await useCookie(context, userB);
+  await page.goto('/');
+  await saveProfile(userB, 'America/New_York', 'lb');
+  await saveProfile(userA, 'Asia/Tokyo', 'kg');
+  await page.goto('/');
+  await expect(page.getByText(EMAIL_A)).toBeVisible();
+  const timezone = page.getByRole('textbox', { name: 'Time zone' });
+  await expect(timezone).toHaveValue('Asia/Tokyo');
+  await timezone.fill('Europe/Paris');
+
+  await useCookie(context, userB);
+  await page.evaluate(() => window.dispatchEvent(new Event('visibilitychange')));
+  await expect(page.getByText(EMAIL_B)).toBeVisible();
+  await expect(timezone).toHaveValue('America/New_York');
+  await expect(page.getByRole('radio', { name: 'Pounds' })).toBeChecked();
+
+  await page.getByRole('button', { name: 'Save profile' }).click();
+  await expect(page.getByText('Saved.')).toBeVisible();
+  const me: { profile: { timezone: string; weightUnit: string } } = await (
+    await page.request.get('/api/me')
+  ).json();
+  expect(me.profile).toMatchObject({ timezone: 'America/New_York', weightUnit: 'lb' });
+});
+
+test('a slow read of the previous account’s sets cannot replace the open account’s', async ({
+  page,
+  context,
+}) => {
+  // The first read of the set store, A's at launch, is held; later ones answer at once.
+  await page.addInitScript(() => {
+    const rows: {
+      getAll: (this: IDBObjectStore, ...args: Parameters<IDBObjectStore['getAll']>) => IDBRequest;
+    } = IDBObjectStore.prototype;
+    const getAll = rows.getAll;
+    let held = false;
+    IDBObjectStore.prototype.getAll = function slow(this: IDBObjectStore, query, count) {
+      const request = getAll.call(this, query, count);
+      if (held || this.transaction.db.name !== 'overload-sets') return request;
+      held = true;
+      const released = new Promise((resolve) => {
+        window.addEventListener('release-sets', resolve, { once: true });
+      });
+      const proxy = new EventTarget();
+      Object.defineProperty(proxy, 'result', { get: () => request.result });
+      Object.defineProperty(proxy, 'error', { get: () => request.error });
+      request.addEventListener('success', () => {
+        void released.then(() => proxy.dispatchEvent(new Event('success')));
+      });
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- stands in for the request
+      return proxy as IDBRequest;
+    };
+  });
+  await useCookie(context, userA);
+  await page.goto('/');
+  await expect(page.getByText(EMAIL_A)).toBeVisible();
+  const signOut = page.getByRole('button', { name: 'Sign out' });
+  await expect(signOut).toBeDisabled();
+
+  await useCookie(context, userB);
+  await page.evaluate(() => window.dispatchEvent(new Event('visibilitychange')));
+  await expect(page.getByText(EMAIL_B)).toBeVisible();
+  await expect(signOut).toBeEnabled();
+
+  // A's read answers after B's: B's records stay the ones loaded.
+  await page.evaluate(async () => {
+    window.dispatchEvent(new Event('release-sets'));
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  });
+  await expect(signOut).toBeEnabled();
 });
 
 test('a failed server sign-out keeps the session, cache, and other tab open', async ({
@@ -314,7 +466,7 @@ test('a failed server sign-out keeps the session, cache, and other tab open', as
   const first = await context.newPage();
   await openAs(first, context, userA, EMAIL_A);
   const second = await context.newPage();
-  await second.goto('/');
+  await second.goto('/exercises');
   await expect(second.getByText(EMAIL_A)).toBeVisible();
   await first.route('**/api/auth/sign-out', (route) => route.abort('internetdisconnected'));
   await first.getByRole('button', { name: 'Sign out' }).click();
@@ -332,7 +484,7 @@ test('a successful sign-out wipes before other tabs reopen', async ({ context })
   const first = await context.newPage();
   await openAs(first, context, userA, EMAIL_A);
   const second = await context.newPage();
-  await second.goto('/');
+  await second.goto('/exercises');
   await expect(second.getByText(EMAIL_A)).toBeVisible();
   await second.evaluate(() => {
     // oxlint-disable-next-line typescript/unbound-method -- Proxy forwards the original store as thisArg
@@ -345,7 +497,7 @@ test('a successful sign-out wipes before other tabs reopen', async ({ context })
   });
   await first.getByRole('button', { name: 'Sign out' }).click();
   await expect(first).toHaveURL('/sign-in');
-  await expect(second).toHaveURL('/sign-in?next=%2F');
+  await expect(second).toHaveURL('/sign-in?next=%2Fexercises');
   await expect(second.getByText(EMAIL_A)).toHaveCount(0);
   await expect
     .poll(() => second.evaluate(() => sessionStorage.getItem('observed-second-wipe')))
@@ -357,7 +509,7 @@ test('a failed pending remember write cannot stop a confirmed sign-out', async (
   const first = await context.newPage();
   await openAs(first, context, userA, EMAIL_A);
   const second = await context.newPage();
-  await second.goto('/');
+  await second.goto('/exercises');
   await expect(second.getByText(EMAIL_A)).toBeVisible();
   await first.bringToFront();
 
@@ -417,7 +569,7 @@ test('a failed pending remember write cannot stop a confirmed sign-out', async (
 
   await first.waitForFunction(() => document.documentElement.dataset.rememberRejected === '1');
   await expect(first).toHaveURL('/sign-in');
-  await expect(second).toHaveURL('/sign-in?next=%2F');
+  await expect(second).toHaveURL('/sign-in?next=%2Fexercises');
   expect(await deviceKeys(second)).toEqual([]);
 });
 
@@ -425,7 +577,7 @@ test('a failed wipe keeps the saved copy closed on an offline reload', async ({ 
   const first = await context.newPage();
   await openAs(first, context, userA, EMAIL_A);
   const second = await context.newPage();
-  await second.goto('/');
+  await second.goto('/exercises');
   await expect(second.getByText(EMAIL_A)).toBeVisible();
   await first.bringToFront();
 
@@ -444,11 +596,11 @@ test('a failed wipe keeps the saved copy closed on an offline reload', async ({ 
 
   await first.getByRole('button', { name: 'Sign out' }).click();
   await expect(first).toHaveURL('/sign-in?wipe=failed');
-  await expect(second).toHaveURL('/sign-in?next=%2F');
+  await expect(second).toHaveURL('/sign-in?next=%2Fexercises');
   await expect(second.getByText(EMAIL_A)).toHaveCount(0);
   expect(await savedCache(first, userA)).toBe('');
   await first.route('**/api/me', (route) => route.abort('internetdisconnected'));
-  await first.goto('/');
+  await first.goto('/exercises');
   await expect(
     first.getByText('Couldn’t reach Overload. Open the app again when you have signal.'),
   ).toBeVisible();
@@ -491,7 +643,7 @@ test('a pending wipe blocks the saved copy after an account check succeeds', asy
       json: { items: [{ ...first, name: freshExercise }, ...rest] },
     });
   });
-  await page.goto('/');
+  await page.goto('/exercises');
   await exerciseAsked;
   await expect(page.getByText(EMAIL_A)).toBeVisible();
   await expect(page.getByText(OWN_A)).toHaveCount(0);
@@ -535,7 +687,7 @@ test('an exercise answer already in flight cannot enter the previous account cop
       .fulfill({ response, json: { items: [{ ...first, name: OWN_B }, ...rest] } })
       .catch(() => undefined);
   });
-  await page.goto('/');
+  await page.goto('/exercises');
   await exerciseAsked;
   await expect(page.getByText(EMAIL_A)).toBeVisible();
   await expect.poll(() => savedCache(page, userA)).toContain(EMAIL_A);
@@ -554,4 +706,95 @@ test('an exercise answer already in flight cannot enter the previous account cop
   releaseMe();
   await expect(page.getByText(EMAIL_B)).toBeVisible();
   await expect(page.getByText(OWN_B)).toBeVisible();
+});
+
+test('a retry answered under another account’s cookie never enters the open account’s copy', async ({
+  page,
+  context,
+}) => {
+  await useCookie(context, userA);
+
+  // A's launch is confirmed, then its library request fails once. Before the retry, the cookie becomes
+  // B's with no reload and no account check in between, as `pnpm dev:session` can leave an open tab
+  // (docs/08 §5).
+  const { promise: switched, resolve: switchDone } = Promise.withResolvers<void>();
+  let calls = 0;
+  await page.route('**/api/exercises', async (route) => {
+    calls += 1;
+    if (calls === 1) {
+      await switched;
+      await route.fulfill({ status: 500, contentType: 'application/problem+json', body: '{}' });
+      return;
+    }
+    const response = await route.fetch();
+    const { items }: { items: { name: string }[] } = await response.json();
+    const [first, ...rest] = items;
+    await route.fulfill({ response, json: { items: [{ ...first, name: OWN_B }, ...rest] } });
+  });
+  let meRequests = 0;
+  page.on('request', (request) => {
+    if (new URL(request.url()).pathname === '/api/me') meRequests += 1;
+  });
+  const asked = page.waitForRequest('**/api/exercises');
+  await page.goto('/exercises');
+  await asked;
+  await expect(page.getByText(EMAIL_A)).toBeVisible();
+  await expect.poll(() => savedCache(page, userA)).toContain(EMAIL_A);
+  await useCookie(context, userB);
+  switchDone();
+
+  // The retry answers as B: A's copy refuses it, shows as not updated, and nothing asks /api/me again.
+  await expect(page.getByText('Not updated')).toBeVisible();
+  await page.waitForTimeout(1500);
+  expect(calls).toBe(2);
+  expect(meRequests).toBe(1);
+  await expect(page.getByText(EMAIL_A)).toBeVisible();
+  await expect(page.getByText(OWN_B)).toHaveCount(0);
+  expect(await savedCache(page, userA)).not.toContain(OWN_B);
+
+  // The next account check, on focus, opens B's own copy.
+  await page.evaluate(() => window.dispatchEvent(new Event('visibilitychange')));
+  await expect(page.getByText(EMAIL_B)).toBeVisible();
+  await expect(page.getByText(OWN_B)).toBeVisible();
+  await page.waitForTimeout(1500);
+  expect(await savedCache(page, userA)).not.toContain(OWN_B);
+  expect(await savedCache(page, userB)).toContain(OWN_B);
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
+
+test('an answer naming no account shows as not updated without looping through /api/me', async ({
+  page,
+  context,
+}) => {
+  await useCookie(context, userA);
+  // A proxy that strips the header, or a web build live before its API.
+  await page.route('**/api/exercises', async (route) => {
+    const response = await route.fetch();
+    const headers = Object.fromEntries(
+      Object.entries(response.headers()).filter(([name]) => name !== 'overload-user'),
+    );
+    const { items }: { items: { name: string }[] } = await response.json();
+    const [first, ...rest] = items;
+    await route.fulfill({
+      response,
+      headers,
+      json: { items: [{ ...first, name: OWN_A }, ...rest] },
+    });
+  });
+  const requests = { me: 0, exercises: 0 };
+  page.on('request', (request) => {
+    const { pathname } = new URL(request.url());
+    if (pathname === '/api/me') requests.me += 1;
+    if (pathname === '/api/exercises') requests.exercises += 1;
+  });
+  await page.goto('/exercises');
+  await expect(page.getByText(EMAIL_A)).toBeVisible();
+  await expect(page.getByText('Not updated')).toBeVisible();
+
+  await page.waitForTimeout(2000);
+  expect(requests).toEqual({ me: 1, exercises: 1 });
+  await expect(page.getByText(EMAIL_A)).toBeVisible();
+  await expect(page.getByText(OWN_A)).toHaveCount(0);
+  expect(await savedCache(page, userA)).not.toContain(OWN_A);
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
 });

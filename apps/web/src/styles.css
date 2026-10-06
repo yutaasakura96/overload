@@ -104,11 +104,32 @@ button {
 }
 .app-bar__title {
   margin: 0;
+  overflow-wrap: anywhere;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--text-primary);
+}
+.app-bar__lead {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+/* Screen 2's back chevron: an 18px icon in a 44px target that reaches into the bar's padding, so the
+   icon sits on the gutter (docs/05 §3.2). */
+.app-bar__back {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: var(--target-min);
+  height: var(--target-min);
+  margin: -13px 0 -13px -13px;
+  color: var(--text-tertiary);
+}
+.app-bar--back .app-bar__title {
+  font-size: 12px;
+  letter-spacing: 0.1em;
 }
 .app-bar__subline {
   margin-top: 3px;
@@ -135,6 +156,44 @@ button {
   background: var(--done);
 }
 
+/* 4.2, the pending and refused forms */
+.data-state--pending,
+.data-state--refused {
+  padding: 7px 9px;
+  border: 1px solid var(--line-field);
+  border-radius: var(--radius);
+  letter-spacing: 0.08em;
+}
+.data-state--pending {
+  gap: 7px;
+  color: var(--text-secondary);
+}
+.data-state__dot--flag {
+  width: 6px;
+  height: 6px;
+  background: var(--flag);
+}
+.data-state--refused {
+  border-color: var(--line-error);
+  background: var(--surface-error);
+  color: var(--error);
+}
+.data-state--refused .notice__icon {
+  margin-top: 0;
+}
+
+/* Screen 1's bar stays while the screen scrolls under it (docs/10 §7.3): the same bar, on the
+   ground it already sits on, keeping its hairline. It reaches up under the status bar. */
+.app-bar--sticky {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  margin-top: calc(-1 * env(safe-area-inset-top));
+  padding-top: calc(18px + env(safe-area-inset-top));
+  padding-bottom: 14px;
+  background: var(--surface-ground);
+}
+
 /* 4.3 Section label */
 .section-label {
   margin: 0 0 8px;
@@ -143,6 +202,37 @@ button {
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--text-quaternary);
+}
+
+/* 4.8 Segmented control, as tabs between the top-level screens */
+.tabs {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 5px;
+  margin: 14px var(--gutter) 0;
+}
+.tabs__tab {
+  display: grid;
+  place-items: center;
+  min-height: var(--target-min);
+  border: 1px solid var(--line-hairline);
+  border-radius: var(--radius);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-quaternary);
+  text-decoration: none;
+}
+.tabs__tab[aria-current='page'] {
+  border-color: var(--accent);
+  background: var(--surface-accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.section-label--gutter {
+  margin: 18px var(--gutter) 8px;
 }
 
 /* 4.4 Data table: the exercise library */
@@ -174,8 +264,18 @@ button {
   padding: 0;
   list-style: none;
 }
-.library__row + .library__row {
+/* Each row opens its exercise, so it is a 44px target (docs/05 §3.2). */
+.library__row {
+  min-height: var(--target-min);
+  align-content: center;
+  color: inherit;
+  text-decoration: none;
+}
+.library__list > li + li {
   border-top: 1px solid var(--line-row);
+}
+.library__tag {
+  color: var(--text-quaternary);
 }
 .library__name {
   font-size: 12px;
@@ -247,6 +347,7 @@ button {
 }
 .button--primary {
   width: 100%;
+  text-decoration: none;
   min-height: 52px;
   border: 1px solid var(--accent);
   background: var(--surface-accent);
@@ -268,6 +369,392 @@ button {
   color: var(--text-quaternary);
   font-size: 11px;
   letter-spacing: 0.08em;
+}
+
+.button--secondary {
+  border: 1px solid var(--line-field);
+  color: var(--text-tertiary);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+}
+.button--secondary:active,
+.button--tertiary:active {
+  border-color: var(--line-control);
+  color: var(--text-secondary);
+}
+.button--icon {
+  width: var(--target-min);
+  padding: 0;
+}
+.button[aria-disabled='true'] {
+  opacity: 0.6;
+  cursor: default;
+}
+/* A screen's terminal action (docs/05 §4.6). */
+.button--terminal {
+  min-height: 60px;
+}
+
+/* Fields. docs/05 draws none; these are built from its tokens (docs/10 §8.1). Typed text is 16px so
+   iOS does not zoom the page on focus; typed figures are the 17px mono figure size. */
+.form {
+  display: grid;
+  gap: 18px;
+  padding: 18px var(--gutter) 0;
+}
+.form--secondary {
+  gap: 10px;
+  margin-top: 22px;
+  padding: 18px var(--gutter) 30px;
+  border-top: 1px solid var(--line-hairline);
+}
+.form__pair {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+.form__lede {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+.field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.field__label-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.field__label,
+.field__note {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-quaternary);
+}
+.field__input {
+  width: 100%;
+  min-height: var(--target-min);
+  margin: 0;
+  padding: 0 10px;
+  /* line/control, not line/field: an empty field's border is what shows where to type (§1.5). */
+  border: 1px solid var(--line-control);
+  border-radius: var(--radius);
+  background: none;
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 16px;
+}
+.field__input::placeholder {
+  color: var(--text-quaternary);
+  opacity: 1;
+}
+.field__input:focus {
+  border-color: var(--accent);
+}
+.field__input[aria-invalid='true'] {
+  border-color: var(--error);
+}
+.field__input--number {
+  padding-right: 26px;
+  font-family: var(--font-mono);
+  font-size: 17px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.field__select {
+  padding-right: 6px;
+}
+.field__figure {
+  position: relative;
+}
+.field__unit {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-quaternary);
+  pointer-events: none;
+}
+.field__error {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 10px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+.field__error .notice__icon {
+  margin-top: 1px;
+}
+.field__error-word {
+  font-size: 9px;
+  line-height: 15px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--error);
+}
+
+/* A destructive action asks once more, in place. */
+.confirm {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.confirm__question {
+  margin: 0 0 10px;
+  padding: 0;
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+.confirm__actions {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.empty {
+  margin: 12px var(--gutter);
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+.empty--flush {
+  margin: 0;
+}
+.section-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 14px var(--gutter) 0;
+}
+
+/* Routine list (S4) */
+.empty-state {
+  display: grid;
+  gap: 10px;
+  padding: 22px var(--gutter) 0;
+}
+.empty-state__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 400;
+  color: var(--text-primary);
+}
+.empty-state__body {
+  margin: 0 0 8px;
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+.routines {
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line-hairline);
+}
+.routines > li {
+  border-bottom: 1px solid var(--line-row);
+}
+.routines__row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 60px;
+  padding: 11px var(--gutter);
+  color: inherit;
+  text-decoration: none;
+}
+.routines__text {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.routines__name {
+  font-size: 15px;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+.routines__meta {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  color: var(--text-quaternary);
+}
+.routines__preview {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+.routines__go {
+  display: grid;
+  color: var(--text-tertiary);
+}
+
+/* Routine editor: one slot per exercise */
+.slots {
+  display: grid;
+  gap: 10px;
+}
+.slots .section-label {
+  margin: 0;
+}
+.slots__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line-hairline);
+}
+.slot {
+  display: grid;
+  gap: 8px;
+  padding: 10px 0 12px;
+  border-bottom: 1px solid var(--line-row);
+}
+.slot__head {
+  display: grid;
+  grid-template-columns: 24px 1fr auto;
+  align-items: center;
+  gap: 6px;
+}
+.slot__index {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+}
+.slot__name {
+  min-width: 0;
+  font-size: 15px;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+.slot__flag {
+  font-size: 11px;
+  color: var(--text-quaternary);
+}
+.slot__error {
+  margin: 0 0 0 30px;
+  font-size: 10px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+.slot__fields {
+  display: grid;
+  /* The figures give way first on a narrow phone, down to the 44px target, so the row fits 320px. */
+  grid-template-columns: repeat(3, minmax(var(--target-min), 62px)) 1fr;
+  align-items: end;
+  gap: 8px;
+  margin-left: 30px;
+}
+.slot__errors {
+  display: grid;
+  gap: 4px;
+  margin-left: 30px;
+}
+.slot__fields .field__input--number {
+  padding: 0 8px;
+}
+.slot__moves {
+  display: flex;
+  justify-content: flex-end;
+  gap: 5px;
+}
+
+/* Exercise picker */
+.picker {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+}
+.picker__tools {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: 8px;
+  padding: 14px var(--gutter) 0;
+}
+.picker__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line-hairline);
+}
+.picker__list > li + li {
+  border-top: 1px solid var(--line-row);
+}
+.picker__row {
+  display: grid;
+  grid-template-columns: 46px 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 12px;
+  row-gap: 2px;
+  align-items: center;
+  position: relative;
+  min-height: 56px;
+  padding: 6px var(--gutter);
+  cursor: pointer;
+}
+.picker__check {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.picker__row:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.picker__row .check-cell {
+  grid-row: 1 / span 2;
+}
+.picker__name {
+  align-self: end;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.picker__meta {
+  align-self: start;
+  font-size: 10px;
+  color: var(--text-quaternary);
+}
+.action-bar {
+  position: sticky;
+  bottom: 0;
+  margin-top: auto;
+  padding: 12px var(--gutter) calc(12px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line-hairline);
+  background: var(--surface-ground);
+}
+
+/* 4.7 Check cell */
+.check-cell {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: var(--target-min);
+  border: 1px solid var(--line-control);
+  border-radius: var(--radius);
+}
+.check-cell--done {
+  border-color: var(--line-done);
+  background: var(--surface-done);
 }
 
 /* Sign-in */
@@ -311,6 +798,524 @@ button {
   font-family: var(--font-mono);
   font-size: 10px;
   color: var(--text-quaternary);
+}
+
+/* Today (docs/09 F1–F3): the workout in progress, or the routines to start one from */
+.today__section {
+  padding: 18px var(--gutter) 0;
+}
+.card {
+  display: grid;
+  gap: 10px;
+  padding: 11px 12px;
+  border: 1px solid var(--line-hairline);
+  border-radius: var(--radius);
+}
+/* 4.5 Active card */
+.card--active {
+  padding: 14px;
+  border-color: var(--line-accent);
+  background: var(--surface-active);
+}
+.card__title {
+  font-size: 15px;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+.card__meta {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  color: var(--text-quaternary);
+}
+.starts {
+  margin: 0 calc(-1 * var(--gutter));
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line-hairline);
+}
+.starts > li {
+  border-bottom: 1px solid var(--line-row);
+}
+.starts > li:last-child {
+  border-bottom: 0;
+}
+.starts__row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 60px;
+  padding: 11px var(--gutter);
+  text-align: left;
+}
+.starts__row:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+.starts__go {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+}
+
+/* 4.8 Segmented control, as a choice between two values */
+.segments {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 5px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.segments legend {
+  margin-bottom: 6px;
+  padding: 0;
+}
+.segments__segment {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: var(--target-min);
+  border: 1px solid var(--line-hairline);
+  border-radius: var(--radius);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-quaternary);
+  cursor: pointer;
+}
+.segments__segment input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.segments__segment:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--surface-accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+.segments__segment:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.confirm--gutter {
+  margin: 16px var(--gutter) 0;
+}
+.confirm--row {
+  padding: 2px var(--gutter) 14px;
+}
+
+/* What takes focus on screen 1 comes to rest clear of the stuck app bar and the rest bar. */
+html:has(.workout) {
+  scroll-padding: calc(70px + env(safe-area-inset-top)) 0 calc(104px + env(safe-area-inset-bottom));
+}
+
+/* Screen 1, the live workout (docs/10 §1). The document scrolls; the app bar sticks and the rest
+   bar is fixed, so the screen keeps room under itself for the bar (docs/10 §7.3). */
+.workout {
+  padding-bottom: 96px;
+}
+.exercise-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 15px var(--gutter) 9px;
+}
+.exercise-head__name {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+.exercise-head__meta {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--text-quaternary);
+  white-space: nowrap;
+}
+
+/* Warm-up summary, expanding in place (docs/10 §7.2) */
+.warmups {
+  margin: 0 var(--gutter);
+  border: 1px solid var(--line-hairline);
+  border-radius: var(--radius);
+}
+.warmups__summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 42px;
+  padding: 0 11px;
+}
+.warmups__label {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--text-quaternary);
+}
+.warmups__figures {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-quaternary);
+}
+.warmups__list {
+  margin: 0;
+  padding: 0 11px 8px;
+  list-style: none;
+}
+.warmups__row {
+  display: grid;
+  grid-template-columns: 34px 1fr 50px;
+  gap: 6px;
+  padding: 3px 0;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 17px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-tertiary);
+}
+.warmups__number {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-quaternary);
+}
+
+/* 4.4 Data table: the set table. The columns are the artboard's: 24, 58, the rest, 50, 38, 46,
+   6px apart, inside the gutters. */
+.sets {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+.sets th,
+.sets td {
+  padding: 9px 6px 9px 0;
+  border-bottom: 1px solid var(--line-row);
+  text-align: left;
+  vertical-align: middle;
+}
+.sets th {
+  padding-top: 16px;
+  padding-bottom: 7px;
+  border-bottom-color: var(--line-hairline);
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-quaternary);
+}
+.sets th:first-child,
+.sets td:first-child {
+  width: calc(var(--gutter) + 30px);
+  padding-left: var(--gutter);
+}
+.sets th:nth-child(2) {
+  width: 64px;
+}
+.sets th:nth-child(4) {
+  width: 56px;
+}
+.sets th:nth-child(5) {
+  width: 44px;
+}
+.sets th:last-child,
+.sets td:last-child {
+  width: calc(var(--gutter) + 46px);
+  padding-right: var(--gutter);
+}
+.sets__number {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+}
+.sets__last {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-quaternary);
+  white-space: nowrap;
+}
+.sets__figure {
+  font-family: var(--font-mono);
+  font-size: 17px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+/* 4.5 Active card, with screen 1's 2px accent edge and the 56px figures (docs/05 §2.6) */
+.active-set {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+  margin: 14px var(--gutter) 0;
+  padding: 14px 14px 16px;
+  border: 1px solid var(--line-accent);
+  border-left: 2px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--surface-active);
+}
+/* Focus lands here only from the set just completed: the accent edge already marks the card. */
+.active-set:focus {
+  outline: none;
+}
+.active-set__label-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.active-set__label {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--accent);
+}
+.active-set__last {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+.active-set__last-word {
+  font-family: var(--font-sans);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  color: var(--text-quaternary);
+}
+.active-set__figures {
+  display: grid;
+  grid-template-columns: 1fr 88px 62px;
+  gap: 8px;
+  align-items: end;
+}
+.figure {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  container-type: inline-size;
+}
+.figure__label {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  color: var(--text-quaternary);
+}
+.figure__input {
+  width: 100%;
+  height: 50px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  /* 56px, or what its characters fit the column at: a mono character is 0.57em wide here. */
+  font-size: min(56px, calc(100cqi / (var(--chars, 1) * 0.58)));
+  font-weight: 500;
+  line-height: 0.86;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+.figure__input::placeholder {
+  color: var(--text-placeholder);
+  opacity: 1;
+}
+.active-set__suggestion {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 9px;
+  padding-top: 1px;
+}
+.active-set__chip {
+  padding: 4px 7px;
+  border: 1px solid var(--line-accent);
+  border-radius: var(--radius);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--accent);
+}
+.active-set__reason {
+  font-size: 10px;
+  color: var(--text-quaternary);
+}
+.active-set__actions {
+  display: flex;
+  gap: 8px;
+}
+.active-set__warm {
+  flex: none;
+  width: 52px;
+  height: 64px;
+  border: 1px solid var(--line-field);
+  border-radius: var(--radius);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--text-tertiary);
+}
+.active-set__warm:active,
+.rest-bar__extend:active,
+.up-next__row:active,
+.warmups__summary:active {
+  border-color: var(--line-control);
+  color: var(--text-secondary);
+}
+.rest-bar__skip:active,
+.starts__row:active .starts__go {
+  border-color: var(--accent-pressed);
+  color: var(--accent-pressed);
+}
+.active-set__warm[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--surface-accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+.active-set__complete {
+  flex: 1;
+  width: auto;
+  min-height: 64px;
+  font-size: 14px;
+}
+
+/* Up next, and the exercises already done */
+.up-next {
+  padding: 18px var(--gutter) 0;
+}
+.up-next__list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.up-next__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: var(--target-min);
+  padding: 13px 12px;
+  border: 1px solid var(--line-hairline);
+  border-radius: var(--radius);
+  text-align: left;
+}
+.up-next__name {
+  min-width: 0;
+  font-size: 12px;
+  letter-spacing: 0.03em;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+.up-next__target {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-quaternary);
+  white-space: nowrap;
+}
+.workout__finish {
+  display: grid;
+  gap: 10px;
+  padding: 22px var(--gutter) 0;
+}
+.workout__finish .notice {
+  margin: 0;
+}
+
+/* 4.14 Rest bar: fixed to the bottom edge, over the home indicator's inset */
+.rest-bar {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 2;
+  max-width: 480px;
+  margin: 0 auto;
+  border-top: 1px solid var(--line-border);
+  background: var(--surface-raised);
+}
+.rest-bar__track {
+  height: 2px;
+  background: var(--line-hairline);
+}
+.rest-bar__fill {
+  height: 2px;
+  background: var(--accent);
+}
+.rest-bar__body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px var(--gutter) calc(17px + env(safe-area-inset-bottom));
+}
+.rest-bar__label {
+  margin-bottom: 2px;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  color: var(--text-quaternary);
+}
+.rest-bar__timer {
+  font-family: var(--font-mono);
+  font-size: 30px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+/* Rest is over: the bar turns to the accent and counts up (docs/06, 2026-10-03). */
+.rest-bar--over .rest-bar__label,
+.rest-bar--over .rest-bar__timer {
+  color: var(--accent);
+}
+.rest-bar__actions {
+  display: flex;
+  gap: 8px;
+}
+.rest-bar__extend,
+.rest-bar__skip {
+  height: 46px;
+  border-radius: var(--radius);
+}
+.rest-bar__extend {
+  min-width: 62px;
+  border: 1px solid var(--line-field);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.rest-bar__skip {
+  min-width: 72px;
+  padding: 0 12px;
+  border: 1px solid var(--accent);
+  background: var(--surface-accent);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--accent);
 }
 
 .app {

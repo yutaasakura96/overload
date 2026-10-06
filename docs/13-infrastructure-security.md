@@ -34,8 +34,8 @@ unrecoverable. So:
 | --- | --- |
 | **What** | `pg_dump --format=custom` of the Neon `main` branch (production only; staging holds test data) |
 | **When** | Nightly, GitHub Actions `schedule`, `0 18 * * *` UTC (03:00 JST) — after the daily job at `0 15 * * *` UTC has finished |
-| **Connection** | `DATABASE_URL_BACKUP`: the **direct** (non-`-pooler`) host, as Neon's pg_dump guide requires, as role `overload_backup` (§5). A GitHub Actions secret, not a Vercel variable |
-| **Encryption** | The dump is encrypted with `age` to a public key committed in the repo **before** upload. The private key lives offline with Yuta, never in GitHub or AWS. The bucket also has SSE-S3 |
+| **Connection** | `DATABASE_URL_BACKUP`: the **direct** (non-`-pooler`) host, as Neon's pg_dump guide requires, as role `overload_backup` (§5). A secret of the GitHub `backup` environment, not a repository secret or a Vercel variable |
+| **Encryption** | The dump is encrypted with `age` to a public key committed in the repo **before** upload. The private key lives in Yuta's 1Password (Personal vault), never in GitHub or AWS. The bucket also has SSE-S3 |
 | **Where** | S3 bucket in Yuta's AWS account, `ap-northeast-1`. Block Public Access on, versioning on |
 | **AWS auth** | GitHub OIDC → IAM role. No long-lived AWS keys anywhere. The role's policy is `s3:PutObject` on `backups/*` of that one bucket — it cannot read, list or delete |
 | **Retention** | Lifecycle rule: current objects expire after 30 days, non-current versions after 7 |
@@ -61,7 +61,7 @@ The S3 path, by hand (Yuta's IAM user reads the bucket; the role cannot):
 ```sh
 aws s3 ls s3://overload-backups-yutaasakura96/backups/ | tail -1          # the newest dump
 aws s3 cp s3://overload-backups-yutaasakura96/backups/<name> /tmp/
-infra/backup/restore.sh /tmp/<name> <the offline age key file>            # into overload_restore
+infra/backup/restore.sh /tmp/<name> <the age key file from 1Password>     # into overload_restore
 TEST_DATABASE_URL=postgres://overload_app:overload_app_dev@localhost:5434/overload_restore \
 TEST_DATABASE_URL_DIRECT='postgres://overload_owner:overload_owner_dev@localhost:5434/overload_restore?sslmode=disable' \
 pnpm --filter @overload/api exec vitest run --exclude test/dev-session.test.ts
@@ -133,7 +133,7 @@ This is step one of the migration notes, whenever they are written.
 | --- | --- | --- | --- |
 | `DATABASE_URL` | Vercel, api | Role `overload_app` (§5) | Change the schema |
 | `DATABASE_URL_DIRECT` | Vercel, api | Role `overload_owner` | — (it is the owner). **Only `drizzle-kit migrate` reads it**, in the build. Whether Vercel can withhold a variable from the function runtime is unverified (§10), so assume the deployed function's environment holds it too: that is what threat 4 costs if the runtime is compromised |
-| `DATABASE_URL_BACKUP` | GitHub Actions secret | Role `overload_backup` | Write anything |
+| `DATABASE_URL_BACKUP` | GitHub `backup` environment secret | Role `overload_backup` | Write anything |
 | `BETTER_AUTH_SECRET` | Vercel, api | Signs sessions | — |
 | `GOOGLE_CLIENT_SECRET` | Vercel, api | The one OAuth client (`12` §1) | — |
 | `ANTHROPIC_API_KEY` | Vercel, api | A dedicated **`overload` workspace**, $10/month limit. A key belongs to one workspace and cannot be moved (Anthropic docs, checked 2026-09-21) | Spend past the workspace limit, or touch other workspaces |
@@ -141,7 +141,7 @@ This is step one of the migration notes, whenever they are written.
 | `SENTRY_AUTH_TOKEN` | Vercel, web and api | Source-map upload: `project:releases` scope only | Read events or change alerts |
 | GitHub → AWS | None stored: OIDC, trusted for the `backup` environment only | `s3:PutObject` on `backups/*` | Read, list, delete |
 | Ingest tokens | Hashed in `ingest_token` | One route, one user (`08` §9) | Anything else |
-| `age` private key | Offline, with Yuta | Decrypts backups | — |
+| `age` private key | 1Password, Personal vault, item *overload backup age key* (2026-09-30) | Decrypts backups | — |
 
 ---
 
@@ -282,14 +282,15 @@ Nothing below is needed while Yuta is the only user. All of it is needed before 
 
 ### Before M1 ships (production, even for Yuta alone)
 
-- [ ] Terraform in `infra/aws/` applied: bucket, lifecycle, OIDC provider, backup role.
-- [ ] `age` key pair made; public key committed; private key stored offline.
+- [x] Terraform in `infra/aws/` applied: bucket, lifecycle, OIDC provider, backup role (2026-10-03,
+      `06`: a plan showed nothing left to apply but the role's trust subject).
+- [x] `age` key pair made; public key committed; private key in 1Password (2026-09-30, `00`).
 - [ ] Anthropic `overload` workspace with a $10/month limit; its key in Vercel.
 - [ ] `infra/db/bootstrap.sql` run on each Neon branch, in branch order (§5), and a password set per
       role; `DATABASE_URL` switched to `overload_app`, `DATABASE_URL_DIRECT` to `overload_owner`.
-- [ ] Backup workflow run once by hand; object visible in S3.
+- [x] Backup workflow run once by hand; object visible in S3 (2026-10-03, `06`).
 - [ ] S3 restore tested into Docker (§2). Neon restore tested on `staging` (`12` §6).
-- [ ] WAF rule on the web project.
+- [x] WAF rule on the web project (2026-09-30, `00`).
 
 ---
 

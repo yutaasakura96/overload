@@ -109,7 +109,7 @@ per app, pointing at Docker Postgres — local never touches Neon.
 - Changing a variable does nothing until the next deploy, and an Instant Rollback keeps the old
   deployment's variables (Vercel docs, checked 2026-09-21). After rotating a secret, redeploy.
 - One more secret lives outside Vercel: `DATABASE_URL_BACKUP` (direct connection, role
-  `overload_backup`), a GitHub Actions secret for the nightly backup (`13` §2).
+  `overload_backup`), a secret of the GitHub `backup` environment for the nightly backup (`13` §2).
 - Rotation steps for a leaked key are the incident plan in `13` §8.
 
 ---
@@ -254,13 +254,14 @@ The restore has never been tested. Running one on `staging` before M1 ships is o
 
 ## 5. Monitoring — finding out before a user does
 
-All production-only, all $0. Sentry's Developer plan includes one uptime monitor and one cron
-monitor, with email alerts (Sentry pricing docs, checked 2026-09-21).
+All production-only, all $0. Sentry's Developer plan includes one cron monitor, with email alerts
+(Sentry pricing docs, checked 2026-09-21). Its uptime monitor could not be enabled without a paid
+seat, so a GitHub Actions workflow does that job (`06`, 2026-09-30).
 
 | What breaks | How Yuta hears |
 | --- | --- |
 | An uncaught error, web or API | Sentry email on each **new** issue, filtered to `environment:production` |
-| API down or unreachable | Sentry uptime check, `GET /api/health`, every **5 min**, 3 consecutive failures → email (about 15 min) |
+| API down or unreachable | The `Health` workflow, `GET /api/health` every **15 min** with two retries; a non-200 fails the run and GitHub emails the owner |
 | Daily job missed or failed | Sentry cron monitor: the job checks in at start and finish; a missed or failed check-in → email |
 | A deploy fails (build or migration) | Vercel's deploy-failure email |
 | An API preview (staging or a PR) answers sign-in with a 5xx | The `Smoke` workflow fails on the commit: after each ready `Preview – overload-api` deployment it POSTs `/api/auth/sign-in/social`, whose rate limiter queries the database |
@@ -276,7 +277,10 @@ monitor, with email alerts (Sentry pricing docs, checked 2026-09-21).
   from ever scaling to zero: always-on at 0.25 CU is about 180 CU-hours a month against Free's 100,
   and the database would stop partway through the month. The route answers `200` if the function
   runs. A database outage still surfaces as Sentry errors from real requests.
-- The uptime check costs about 8,600 function invocations a month, well inside Hobby's 1M.
+- The uptime check costs about 2,900 function invocations a month, well inside Hobby's 1M.
+- GitHub disables scheduled workflows in a public repository after 60 days without repository
+  activity. That stops `Health` and `backup.yml` silently, with no failed run to email. To turn one
+  back on: Actions tab → the workflow → **Enable workflow**.
 - Logging rules (what is never logged) are `03` §7.
 
 ---
@@ -292,7 +296,7 @@ monitor, with email alerts (Sentry pricing docs, checked 2026-09-21).
 - [ ] Every variable in §2, Secret type where marked, Preview values scoped to `develop`.
 - [ ] Google OAuth client with all three redirect URIs.
 - [ ] `vercel.ts` rewrite verified on the staging URL: sign-in round-trips, cookie set on the web origin.
-- [ ] Sentry: two projects (web, api), new-issue alert on production, uptime monitor, cron monitor.
+- [ ] Sentry: two projects (web, api), new-issue alert on production, cron monitor. The uptime check is the `Health` workflow.
 - [ ] A Neon restore from history, tried on `staging`.
 - [ ] `drizzle-kit migrate` confirmed to run inside Vercel's build image, as `overload_owner`, on
       `staging` (§3). dbmate never did: its Go `lib/pq` refused Neon's SCRAM `i=1` (`06`,

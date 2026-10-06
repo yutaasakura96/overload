@@ -4,6 +4,11 @@ import * as schema from './schema.js';
 
 export type Database = NodePgDatabase<typeof schema>;
 
+/** The handle inside `db.transaction(...)`. It runs the same queries as the database. */
+export type Transaction = Parameters<Parameters<Database['transaction']>[0]>[0];
+
+export type Queryable = Database | Transaction;
+
 export function createPool(connectionString: string): Pool {
   return new Pool({ connectionString });
 }
