@@ -14,7 +14,7 @@ test.beforeEach(async ({ context }) => {
 });
 
 test('a signed-in user sees the seeded exercise library', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/exercises');
 
   await expect(page.getByRole('heading', { name: 'Exercises' })).toBeVisible();
   const rows = page.getByRole('listitem');
@@ -27,7 +27,7 @@ test('a signed-in user sees the seeded exercise library', async ({ page }) => {
 });
 
 test('sign-out ends the session and wipes the device', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/exercises');
   await expect(page.getByRole('listitem')).toHaveCount(50);
   // The persister writes at most once a second.
   await expect
@@ -41,8 +41,8 @@ test('sign-out ends the session and wipes the device', async ({ page }) => {
   expect(await deviceKeys(page)).toEqual([]);
 
   // The session is gone on the server too: the library now sends the browser to sign in.
-  await page.goto('/');
-  await expect(page).toHaveURL('/sign-in?next=%2F');
+  await page.goto('/exercises');
+  await expect(page).toHaveURL('/sign-in?next=%2Fexercises');
   expect((await page.request.get('/api/me')).status()).toBe(401);
 });
 
@@ -55,7 +55,7 @@ test('the installed shell opens offline with the last loaded library', async ({
     browserName === 'webkit',
     'Playwright’s WebKit fails to reload a service-worker page offline',
   );
-  await page.goto('/');
+  await page.goto('/exercises');
   await expect(page.getByRole('listitem')).toHaveCount(50);
   // The service worker controls the page, and the library has reached IndexedDB (the persister
   // writes at most once a second).

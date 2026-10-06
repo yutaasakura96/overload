@@ -30,8 +30,10 @@ export function safeNext(next: string | null): string {
   return next;
 }
 
-/** The signed-in screens, by path. Anything unknown opens the library, as before slice 2. */
+/** The signed-in screens, by path. Anything unknown opens Today. */
 export type Route =
+  | { screen: 'today' }
+  | { screen: 'workout' }
   | { screen: 'library' }
   | { screen: 'routines' }
   | { screen: 'routine'; id: string | undefined }
@@ -39,11 +41,12 @@ export type Route =
 
 export function routeOf(pathname: string): Route {
   const [first, second, ...rest] = pathname.split('/').filter(Boolean);
-  if (rest.length > 0) return { screen: 'library' };
+  if (rest.length > 0) return { screen: 'today' };
+  if (first === 'workout' && second === undefined) return { screen: 'workout' };
   if (first === 'routines' && second === undefined) return { screen: 'routines' };
   if (first === 'routines') return { screen: 'routine', id: second === 'new' ? undefined : second };
-  if (first === 'exercises' && second !== undefined) {
+  if (first === 'exercises' && second === undefined) return { screen: 'library' };
+  if (first === 'exercises')
     return { screen: 'exercise', id: second === 'new' ? undefined : second };
-  }
-  return { screen: 'library' };
+  return { screen: 'today' };
 }

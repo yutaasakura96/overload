@@ -79,6 +79,7 @@ function fieldMessage(path: string, serverMessage: string): string {
   if (field === 'incrementKg') return 'Kilograms from 0 to 100, to two decimals';
   if (field === 'restSeconds') return 'Whole seconds, 0 to 3600';
   if (field === 'exerciseId') return 'Hidden or no longer in your library. Remove it';
+  if (field === 'timezone') return 'Not a time zone. Use a name like Asia/Tokyo';
   return serverMessage;
 }
 
@@ -104,6 +105,9 @@ function refusal(problem: Extract<SaveProblem, { kind: 'refused' }>, what: strin
   if (problem.code === 'exercise_in_routine') {
     const names = problem.routines.map((routine) => routine.name).join(', ');
     return `Used by ${names}. Take it out of ${problem.routines.length === 1 ? 'that routine' : 'those routines'} first, or hide it instead.`;
+  }
+  if (problem.code === 'exercise_has_history') {
+    return 'Your workouts have logged it, and history keeps it. Hide it instead.';
   }
   if (problem.code === 'not_found') {
     return `This ${what} no longer exists. It may have been deleted on another device.`;

@@ -89,7 +89,10 @@ const deleteExerciseRoute = createRoute({
     204: { description: 'The caller has no custom exercise with that id', headers: accountHeaders },
     400: problemResponse('A malformed id'),
     401: problemResponse('No session'),
-    409: problemResponse('`exercise_in_routine`, listing the routines that use it'),
+    409: problemResponse(
+      '`exercise_has_history`: a workout logged it, so hide it instead. ' +
+        '`exercise_in_routine`, listing the routines that use it',
+    ),
   },
 });
 
@@ -153,6 +156,7 @@ export function exerciseRoutes({ db }: RouteDeps) {
       handler: async (c) => {
         const { id } = c.req.valid('param');
         const result = await deleteExercise(db, c.get('user').id, id);
+        if (result.kind === 'has_history') return problem(c, 'exercise_has_history');
         if (result.kind === 'in_routine') {
           return problem(c, 'exercise_in_routine', { routines: result.routines });
         }

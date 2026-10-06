@@ -243,6 +243,9 @@ are a separate, smaller step and are read seated, not mid-set.
 - The moment the set is completed it drops to the 17px table row. There is no 56px history.
 - No other screen may introduce it. A new screen that wants a bigger figure uses 42px.
 - Its unfilled state is the same 56px in `text/placeholder` `#5A6673`, not a smaller placeholder.
+- A figure too long for its column at 56px is set at the largest size that shows it whole
+  (`min(56px, column ÷ characters)`), since a field clips what does not fit: `102.25`, or `137.8` on
+  a 375px phone. Still one size by rule, not a second step. *Added 2026-10-03.*
 
 If a second 56px use is ever proposed, it is a request to change the type scale and belongs in the
 decision log, not in a component.
@@ -329,6 +332,9 @@ One condition at a time, in the priority order of `docs/10` §7.4. Three drawn f
 | Refused | `7px 9px`, 1px `line/error`, `surface/error` fill, radius 2 | 12px info icon in `error`, 6px gap | `1 REFUSED`, 10px mono `0.08em` `error` |
 | Pending | `7px 9px`, 1px `line/field`, radius 2 | 6px `flag` dot, 7px gap | `3 PENDING`, 10px mono `0.08em` `text/secondary` |
 | Resting (last sync) | none | 5px `done` dot, 6px gap | `SYNCED 06:41`, 10px mono `text/quaternary` |
+
+The resting time belongs to the data the screen displays. Library and routine screens use their
+own last fetch; screen 1 uses the device workout records' last acknowledged upload.
 
 Cached data age uses the resting form with its own string. It is not drawn.
 
@@ -421,6 +427,11 @@ into the space around it, so the row keeps its height. All three are drawn on th
 Pinned to the bottom edge, `surface/raised` with a top border in `line/border`. A 2px progress track
 in `line/hairline` sits on the very top edge with an `accent` fill (62% in the artboard). Below:
 `REST` at 9px `0.12em` `text/quaternary` over a 30px mono timer, and two controls right-aligned.
+
+**Rest over** (`06`, 2026-10-03, not drawn). At zero the fill is full, the label reads `REST OVER`
+and the timer counts up as `+0:12`, both in `accent`; `+30s` goes and `SKIP` becomes `DISMISS`. It
+stays until dismissed or the next set. Fixed to the bottom edge over the safe-area inset. An
+exercise whose rest is 0 seconds shows no bar.
 
 ### 4.15 Footnote rule
 Absolutely positioned at `bottom: 18px`, 12px padding above a `line/hairline` top border, holding a

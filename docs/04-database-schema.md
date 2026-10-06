@@ -260,6 +260,7 @@ here does not touch the routine (S4).
 | `id` | uuid | no | — | PK, from the phone |
 | `workout_id` | uuid | no | — | → `workout.id`, `ON DELETE CASCADE` |
 | `exercise_id` | uuid | no | — | → `exercise.id`, `NO ACTION DEFERRABLE INITIALLY DEFERRED`, for the reason under `routine_exercise` |
+| `routine_exercise_id` | uuid | yes | — | The routine slot it was started from. **No FK**, see below. Null for rows made before 2026-10-04 and for an exercise that came from no slot |
 | `position` | integer | no | — | Order within the workout |
 | `target_sets` | smallint | yes | — | Copied from the routine slot at start |
 | `rep_low` | smallint | no | — | **Resolved and copied at start**: routine slot → user setting → exercise default |
@@ -274,6 +275,12 @@ here does not touch the routine (S4).
 - The copied rep range and increment are what make a past workout honest: changing your settings
   today does not rewrite what you were aiming for in June, and the S3 progression rule reads the
   numbers the workout was actually run with.
+- `routine_exercise_id` keys "last time" by routine slot, so a routine that holds one exercise in
+  two slots progresses each on its own, and reordering the slots moves nothing (`07` §3). It has no
+  foreign key because saving a routine deletes and re-inserts its slots under the same ids; an
+  `ON DELETE SET NULL` would clear it on every save. Last time joins it to `routine_exercise`
+  through the caller's own routines, so an id whose slot is gone, or is not the caller's, matches
+  nothing and the per-exercise answer is used.
 
 ---
 
@@ -286,7 +293,7 @@ One logged set. The row the whole offline path exists to protect (S1).
 | `id` | uuid | no | — | PK, **generated on the phone**. Sync upserts on it, guarded by `client_updated_at`, which is what makes upload exactly-once |
 | `workout_exercise_id` | uuid | no | — | → `workout_exercise.id`, `ON DELETE CASCADE` |
 | `position` | integer | no | — | Order within the exercise, warm-ups included. Never renumbered: a delete leaves a gap. *Renamed 2026-09-22* from `set_number` |
-| `weight_kg` | numeric(6,2) | no | — | |
+| `weight_kg` | numeric(6,2) | no | — | `CHECK (weight_kg >= 0)`. A bodyweight exercise logs 0. *Added 2026-10-03* |
 | `reps` | smallint | no | — | `CHECK (reps > 0)` |
 | `rir` | smallint | yes | — | 0–10 |
 | `rpe` | numeric(3,1) | yes | — | 1.0–10.0 |
@@ -344,7 +351,7 @@ arriving later is not inserted again (`docs/03` §8.1). An id and a time, no con
 | **Last time** (S2): the previous workout's weight × reps per working set, in order | `workout (user_id, started_at DESC)` → `workout_exercise (exercise_id)` → `set (workout_exercise_id, position)`, `is_warmup = false` |
 | **Suggestion** (S3): did every working set hit the top of the range last time | Same rows, plus `workout_exercise.rep_high` copied at start |
 | **Chart** (S7): best working set per workout over a span, Epley `weight × (1 + reps / 30)` | `workout (user_id, started_at DESC)` filtered by span → the same join, `is_warmup = false` |
-| **Upload a set** (S1) | `INSERT … ON CONFLICT (id) DO UPDATE … WHERE set.client_updated_at < EXCLUDED.client_updated_at` on the PK. *Changed 2026-09-21* from `DO NOTHING`, so offline edits and deletes use the same path (`docs/07` §3.4). Skipped when `sync_tombstone` holds the row's id or its parent's |
+| **Upload a set** (S1) | `INSERT … ON CONFLICT (id) DO UPDATE … WHERE set.client_updated_at < EXCLUDED.client_updated_at` on the PK. *Changed 2026-09-21* from `DO NOTHING`, so a retry or stale copy changes nothing (`docs/07` §3.4). Offline set edits and deletes, including the `sync_tombstone` guard, are planned for slice 4. |
 | **Exercise picker** (S8) | `exercise (owner_user_id)`, left joined to `exercise_setting` to drop `hidden_at` rows |
 | **Export** (S10) | Every table by `user_id`, or by join for the child tables |
 
@@ -369,6 +376,7 @@ One row per user: the facts the maths needs and the clock the rules are read aga
 | `sex` | text | yes | — | `male` \| `female`, `CHECK`. Formula input only |
 | `birth_date` | date | yes | — | Formula input only |
 | `training_weekdays` | smallint[] | no | `'{}'` | ISO weekdays, 1 = Monday. Which calendar days are training days (S15). *Added 2026-09-21*: the schema had no record of it |
+| `weight_unit` | text | no | `'kg'` | `kg` \| `lb`, `CHECK`. How lift weights are shown and typed; everything stored stays kg (`06`, 2026-09-23). In the table since slice 1, read from slice 3 |
 | `created_at` / `updated_at` | timestamptz | no | `now()` | |
 
 ---

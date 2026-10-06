@@ -1,15 +1,47 @@
 import { authClient } from './auth-client';
 import { deviceStore } from './device-store';
-import { announceSignOut, closeAccount, queryClient } from './query';
+import { announceSignOut, closeAccount, currentAccount, queryClient } from './query';
+import { discardWorkouts, openWorkout, recordsLoadedFor, useWorkoutStore } from './workout';
+
+/**
+ * What stops a sign-out before it starts (docs/08 §7): sets are never left on a device nobody is
+ * signed in to, and they are lost only by an explicit choice. A workout in progress is finished
+ * first, and its ending (or its removal) has to be acknowledged, so no workout is left open on the
+ * server; only then are rows not uploaded yet uploaded or discarded.
+ */
+export type SignOutResult =
+  | 'signed-out'
+  | 'failed'
+  | 'workout-open'
+  | 'workout-unsynced'
+  | 'rows-waiting';
 
 /** End the server session before closing the account; wipe failures are handled as in docs/08 §7. */
-export async function signOut(navigate: (path: string) => void): Promise<boolean> {
+export async function signOut(
+  navigate: (path: string) => void,
+  options: { discard?: boolean } = {},
+): Promise<SignOutResult> {
+  const state = useWorkoutStore.getState();
+  if (!recordsLoadedFor(state, currentAccount().userId)) return 'failed';
+  const { records } = state;
+  if (openWorkout(records) !== undefined) return 'workout-open';
+  if (records.some((record) => record.table === 'workouts' && record.state !== 'acknowledged')) {
+    return 'workout-unsynced';
+  }
+  if (options.discard !== true && records.some((record) => record.state !== 'acknowledged')) {
+    return 'rows-waiting';
+  }
   try {
     const result = await authClient.signOut();
-    if (result.error) return false;
+    if (result.error) return 'failed';
   } catch {
-    return false;
+    return 'failed';
   }
+  // Nothing of the user's stays readable on the device: the set store's records go with the cache.
+  const setsWiped = await discardWorkouts().then(
+    () => true,
+    () => false,
+  );
   const pendingRemember = closeAccount();
   queryClient.clear();
   await pendingRemember?.catch(() => undefined);
@@ -22,6 +54,6 @@ export async function signOut(navigate: (path: string) => void): Promise<boolean
       ),
   );
   announceSignOut();
-  navigate(wiped ? '/sign-in' : '/sign-in?wipe=failed');
-  return true;
+  navigate(wiped && setsWiped ? '/sign-in' : '/sign-in?wipe=failed');
+  return 'signed-out';
 }

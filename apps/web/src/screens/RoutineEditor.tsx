@@ -9,7 +9,7 @@ import {
   FieldError,
   Notice,
   NumberField,
-  SyncedAt,
+  DataState,
   TextField,
   parseFigure,
 } from '../components';
@@ -443,7 +443,7 @@ export function RoutineScreen({
   const confirmed = useAccount().status === 'confirmed';
   const routines = useQuery({ ...routinesQuery, enabled: confirmed });
   const exercises = useQuery({ ...allExercisesQuery, enabled: confirmed });
-  const slot = <SyncedAt at={routines.dataUpdatedAt} />;
+  const slot = <DataState at={routines.dataUpdatedAt} />;
   const back = { label: 'Back to routines', onClick: () => navigate('/routines') };
   const opens = useOpensEditor(routines);
 

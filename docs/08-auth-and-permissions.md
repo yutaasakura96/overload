@@ -158,7 +158,8 @@ on that date.
   another user's id, and a join would then show that user's exercise name or Apple workout. An id
   that is not the caller's is refused exactly like one that does not exist: 422
   `validation_failed` on that field's path, `parent_missing` inside a sync batch. *Added
-  2026-09-22.*
+  2026-09-22.* A synced workout's `routineId` is stored as null instead, the same whether the
+  routine is another user's or does not exist (`07` §3.4). *Added 2026-10-03.*
 - **Someone else's row gives 404, not 403.** A 403 would confirm the id exists.
 - **The daily job runs for every user**, and it is the only code path that is not scoped to one
   caller. It loops over users and calls the same per-user functions.
@@ -217,6 +218,17 @@ The endpoint list is `docs/07`.
   network error or timeout keeps that same account's saved copy visible offline. A 401 still follows
   the ended-session flow below without a wipe; only a successful answer naming another account
   opens that account's copy.
+- **"Nothing renders until the check answers" is the rule for the first check, at app open.** Once
+  the app has opened as an account, a later check, at focus or reconnect, runs behind the screen
+  that is open: it stays mounted, the workout screen included, and only an answer that ends the
+  session or names another account takes it away. While that check is away the account is not
+  confirmed, so nothing is fetched, uploaded or saved under it; the screen shows what it already
+  held. *Changed 2026-10-03 (`06`).*
+- **Known limit: a set-store write still queued when the account changes.** A Start, a completed
+  set or an ending waiting behind another write runs against whichever account's records are loaded
+  when its turn comes. If another account is confirmed in the same tab mid-save, that write can
+  land among the second account's records. Accepted for slice 3; binding each write to the account
+  that started it is issue #32. *Added 2026-10-05.*
 - **Back online**, a 401 from any request means the session has ended, whether it expired, was
   signed out elsewhere, or was revoked. The client cannot tell which from the 401, and it does not
   try:
@@ -270,7 +282,26 @@ The endpoint list is `docs/07`.
 - A receiving tab wipes again after a sign-out notice to clear writes made after the first tab's
   wipe. A write that lands after this second wipe can still leave a saved copy; this timing gap is
   a known limit.
-- **With pending or refused sets:** first a dialog, "*N* sets not uploaded yet", with two actions:
+- **Before the set store is read**, at launch, Sign out is not offered: what is waiting on the
+  device is not known yet, and it decides everything below. If the set store cannot be read, the
+  session stays and Sign out answers "Couldn't sign out. Try again."; Today says the device's sets
+  could not be read and offers to try again. *Added 2026-10-03.*
+- If the set store cannot be cleared after the server ends the session, sign-out reaches `/sign-in`
+  with the same warning, "Saved data couldn't be cleared from this device." The rows stay under
+  their user's id and show only to that account. *Added 2026-10-03.*
+- **With a workout in progress**, whatever is waiting: "A workout is in progress. Finish it first."
+  The session stays, and neither action below is offered. The device cannot yet bring an open
+  workout back from the server, so signing out would leave it open there for good (`06`,
+  2026-10-03; revisit with slice 4's resume).
+- **With a workout whose ending the server has not acknowledged** (a Finish, the 3-hour rule's
+  ending, or the removal of one with no sets): "Your workout has not finished uploading. It has to
+  reach the server before you sign out.", with **Try again**, which uploads and then signs out.
+  Neither action below is offered: discarding here would leave the workout open on the server.
+  An answer of `unchanged` whose row is still open is not an acknowledgment: the server kept its
+  own, newer copy (the phone's clock went back), so the ending or removal stays pending.
+  *Added 2026-10-04.*
+- **With pending or refused sets** of workouts the server has fully acknowledged: first a dialog,
+  "*N* sets not uploaded yet", with two actions:
   - **Upload now**, when online. Sign-out continues only when nothing pending is left. Refused sets
     still need the second choice.
   - **Discard and sign out**, which deletes them from the set store.

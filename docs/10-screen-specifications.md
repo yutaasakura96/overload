@@ -40,6 +40,8 @@ subordinate to the active set block.
 rest bar starts at y=763: 54px of slack. (The 2026-09-16 figure of about 66px was an estimate, and the
 warm-up summary has since grown from 37 to 44px.) Expanded warm-ups leave 6px and the refused state
 leaves 4px, so both still fit. Nothing else can be added to this screen without a scroll decision.
+That decision was made on 2026-10-03 (§7.3): the artboard fits, and the built screen scrolls when
+an exercise outgrows it.
 
 ### Structure
 
@@ -52,13 +54,13 @@ leaves 4px, so both still fit. Nothing else can be added to this screen without 
 | Completed set rows | `9px 16px`, `line/row` bottom | Set no. 13px mono `text/tertiary`; last time 11px mono `text/quaternary`; kg and reps 17px mono/500 `text/primary`; RIR 13px mono `text/tertiary`; done check cell 46 × 44 |
 | **Active set card** | `14px 16px 0`, 1px `line/accent` + 2px `accent` left edge, `surface/active`, `14px 14px 16px`, 13px gap | See below |
 | Up next | `18px 16px 0`, 8px gap | `UP NEXT` section label; then rows at `13px 12px`, 1px `line/hairline`: name 12px `text/secondary`/`0.03em`, target 11px mono `text/quaternary` |
-| Rest bar | Pinned `bottom: 0` | 2px track, `REST` label, 30px mono timer, `+30s` and `SKIP` |
+| Rest bar | Fixed `bottom: 0`, over the safe-area inset | 2px track, `REST` label, 30px mono timer, `+30s` and `SKIP`. At zero: `REST OVER`, `+0:12` counting up in `accent`, `DISMISS` (`05` §4.14) |
 
 ### Active set card
 
 | Row | Spec |
 | --- | --- |
-| Label row | `SET 3` 10px `0.12em` `accent`; right: `LAST` 9px `text/quaternary` + `80 × 10` 12px mono `text/tertiary`, 7px gap |
+| Label row | `SET 3 OF 4` 10px `0.12em` `accent` (the artboard draws `SET 3`; see *Target*, below); right: `LAST` 9px `text/quaternary` + `80 × 10` 12px mono `text/tertiary`, 7px gap |
 | Figures | Grid `1fr 88px 62px`, 8px gap, `align-items: end`. Each column: 9px `0.1em` `text/quaternary` label, 6px gap, then a 56px mono/500/`-0.03em`/0.86 figure |
 | Suggestion | 9px `SUGGESTED` label, 9px gap, then `82.5` 11px mono `accent` in a `4px 7px` box with a 1px `line/accent` border, then the reason in 10px `text/quaternary` — `hit 10 on every set last time` |
 | Actions | 8px gap. `WARM` 52 × 64 secondary; `COMPLETE SET` flex-grow × 64 primary with a 22px check and 11px gap |
@@ -74,8 +76,29 @@ control is enabled regardless; reps and RIR are pre-filled from the suggestion.
   same weight. The reason string always says which, in plain words.
 - **First time doing an exercise (S2, PRD empty states).** No LAST column value, no suggestion chip
   and no reason string; the row reads `first workout`.
+- **Target (S4), decided 2026-10-03** (`06`). The label counts working sets against
+  `target_sets`: `SET 3 OF 4`, then `SET 5 · EXTRA` past the target, and `SET 3` with no target.
+  With the warm-up toggle on it reads `WARM-UP`, and a warm-up never moves the count.
 - **Set completion** collapses the card to a 17px table row and promotes the next set to active. The
-  rest timer starts on completion.
+  rest timer starts on completion. The new card comes into view and takes focus (§7.3). The set
+  that reaches the target opens the next exercise with sets left; an extra set stays where it is.
+- **What the card opens on.** The weight is the last set logged today, else the suggestion, else
+  empty (`0` for a bodyweight exercise). Reps are a placeholder: last time's reps for that set when
+  the weight repeats, the bottom of the range when it goes up. Left empty, the placeholder is what
+  is logged. RIR is optional.
+- **A figure the server would refuse** is refused on the card before anything is written: `Refused`
+  and the reason under the figures, focus on the figure at fault. Reps 1–100, RIR 0–10, weight 0 to
+  9999.99 kg. The refused *row* below is for what the server turns away, in slice 4.
+- **Rest over, decided 2026-10-03** (`06`). A short tone at zero, and the bar counts over until
+  `DISMISS` or the next set. The screen is kept awake while rest counts, where the browser allows.
+  A rest setting of 0 seconds starts no rest bar or tone.
+- **Weights in pounds.** With the profile's unit set to `lb`, every weight on the screen is shown
+  and typed in pounds, to the tenth; the column head and the weight label read `LB`.
+- **The other exercises.** `UP NEXT` lists the exercises with sets left, then `DONE` the ones at
+  their target, as `3 / 3 × 6–10`. A row opens that exercise, in any order.
+- **Finish.** A tertiary `Finish workout` under the lists, which becomes the question in place
+  (`Finish Push A? 9 sets logged.` — `Keep going` / `Finish`), the delete pattern of §8.1. With no
+  set logged it says nothing is kept (`09` F3).
 - **Offline (S1).** Every control works offline. The pending chip counts sets not yet synced and is
   `flag`, not an error — nothing is lost. It is the screen-1 form of the data-state slot every screen carries (§7.4).
 - **Refused set** (`09` F4, drawn in `Main-Refused`). The row stays in the table on a `surface/error` band
@@ -360,8 +383,14 @@ toggle; the expanded rows are for review. Editing one from here is left to M1's 
 
 ### 7.3 Scroll behaviour and sticky headers
 
-Screens 3, 4, 5 and 6 are single-viewport artboards of screens that are longer in reality. Screen 1
-and 2 fit and need no scroll.
+Screens 3, 4, 5 and 6 are single-viewport artboards of screens that are longer in reality. Screen 2
+fits and needs no scroll. Screen 1's artboard fits, but a real exercise can outgrow it.
+
+**Screen 1, decided 2026-10-03** (`06`). The document scrolls. The app bar sticks to the top on
+`surface/ground` and keeps its `line/hairline`: no shadow, no heavier line. The rest bar is fixed
+to the bottom over the safe-area inset, and the screen keeps matching padding under itself.
+Nothing else sticks. Completing a set scrolls the new active card into view (`nearest`, instant
+under reduced motion) and focuses it. `scroll-padding` keeps a focused control clear of both bars.
 
 What the artboards imply but do not specify:
 
@@ -392,7 +421,9 @@ screen's app bar (`CONTEXT.md`; decided in `docs/06` 2026-09-19, with its priori
   2. **Pending** — *N* pending, in `flag`, with the 6px `flag` dot. This is the chip as drawn on screen 1.
   3. **Cached data age** — offline with nothing pending: the age of the data on screen, `text/quaternary`.
   4. **Last sync time** — the resting state, `text/quaternary`. Screen 6's `SYNCED 06:41` is this
-     state as drawn.
+     state as drawn. Use the last fetch time of the data on that screen; screen 1 displays device
+     workout records, so use the last acknowledged upload. A later workout upload does not change
+     the exercise library's displayed time.
 
 Drawn forms are in `docs/05` §4.2: refused (`Main-Refused`), pending (screen 1) and resting (screens 2–6).
 Cached data age is not drawn.
@@ -409,7 +440,8 @@ Flagged so they are not discovered mid-build. None of these are gaps in the six 
 screens and states the PRD requires that Phase 2 did not draw.
 
 - **Workout start** (S4) from a routine. Routine selection and the no-routines empty state are
-  specified in §8.1, from slice 2.
+  specified in §8.1, from slice 2; Today and the start itself in §8.2, from slice 3. Start empty,
+  changing a live workout and the finish summary are not designed yet.
 - **Food list management** (S12) and manual label entry.
 - **Goal phase and macro target setup** (S14), routine and meal count (S15).
 - **The grocery list proper** (S17) — only a preview card exists.
@@ -428,9 +460,9 @@ components, and pass the polish gate (`AGENTS.md`). Nothing here adds a token or
 
 **Shared parts.**
 
-- **Tabs.** `Routines` and `Exercises`, `05` §4.8's tabs as links with `aria-current`, under the app
-  bar of the two top-level screens. `/` stays the exercise library until slice 3's Today screen
-  (`06`, 2026-10-01).
+- **Tabs.** `Today`, `Routines` and `Exercises`, `05` §4.8's tabs as links with `aria-current`,
+  under the app bar of the three top-level screens. Since slice 3 `/` is Today and the library is
+  `/exercises` (`06`, 2026-10-03).
 - **Back.** Screen 2's back chevron plus a 12px title, the chevron's 44px target reaching into the
   bar's padding. Its accessible name says where it goes.
 - **Fields.** An 8px small-caps label over a 44px input with a 1px `line/control` border, since an
@@ -454,8 +486,8 @@ components, and pass the polish gate (`AGENTS.md`). Nothing here adds a token or
 - **Chevrons.** The back chevron turned 90°, 180° or 270° for up, forward and down, not a new icon.
 
 **Routine list** (`/routines`). A row per routine: name, `N EXERCISES · N SETS` in mono small caps,
-and the first three exercise names, with a forward chevron. The row opens the editor until slice 3
-starts a workout from it. `New routine` under the list. Empty: `No routines yet`, one sentence on
+and the first three exercise names, with a forward chevron. The row opens the editor; a workout
+starts from Today (§8.2). `New routine` under the list. Empty: `No routines yet`, one sentence on
 what a routine is, and a primary `Create a routine`.
 
 **Routine editor** (`/routines/new`, `/routines/{id}`). The name, then the slots as a numbered list.
@@ -476,13 +508,43 @@ nothing is ticked. Back to the editor, focus lands on `Add exercises`.
 
 **Exercise form** (`/exercises/new`, `/exercises/{id}`, and from the picker).
 
-- *New or custom:* name, equipment, then increment (kg), rest (s) and the rep range. The increment
-  follows the equipment class until the user types one.
+- *New or custom:* name, equipment, then increment, rest (s) and the rep range. The increment
+  follows the equipment class until the user types one, and is shown and typed in the profile's
+  unit, kg or lb; it is stored in kg.
 - *Seeded:* only the user's own values, each with its `Default`/`Yours` note, and `Restore
   defaults` once any is the user's.
 - Under both: `Hide from pickers` (`Show in pickers again`), and for a custom exercise the delete.
   A delete refused because routines use it names them and suggests hiding instead.
 
-**Exercise library** (`/`). Each row opens the exercise form. `New exercise` and a `Hidden
+**Exercise library** (`/exercises`). Each row opens the exercise form. `New exercise` and a `Hidden
 exercises` disclosure under the list, which fetches the hidden ones when first opened.
 
+### 8.2 Today and the start of a workout (slice 3)
+
+No artboard exists, so these were designed in the build (issue #3) from `05`'s tokens and
+components, and pass the polish gate (`AGENTS.md`). Nothing here adds a token or an icon. The meal
+cards join Today in M2.
+
+**Today** (`/`). The app bar's title is `Today` over the date in the profile's time zone, with the
+data-state slot. Under the tabs, in order:
+
+- **Ended by the 3-hour rule:** one line, `Push A ended at 10:14`, on the launch that ended it
+  (`09` F3).
+- **In progress:** `05` §4.5's active card with the workout's name, `4 SETS · STARTED 18:32` and a
+  primary `Resume workout`.
+- **Start a workout:** a row per routine, as on the routine list, with `START` in `accent` in place
+  of the chevron. One tap starts it and opens screen 1 (S4). While a workout is in progress the tap
+  asks under the row instead: `Finish Push A first?` — `Resume` / `Finish`.
+- **No routines:** the empty state of the routine list, `Create a routine`.
+- **Profile:** `Time zone` (an IANA name, opened on the device's own) and `Weights shown in` —
+  `05` §4.8's segments over two radios, `Kilograms` / `Pounds` — then a secondary save. Until the
+  first save the heading reads `Set up your profile` with one sentence on what the two are for.
+  Saved online only, like routines.
+- **Account:** the email and `Sign out`. With sets not uploaded it asks first, in place:
+  `2 sets not uploaded yet.` — `Upload now` / `Discard and sign out`. With a workout in progress it
+  says to finish it first, and with one whose ending has not uploaded it says so with `Try again`;
+  both offer neither (`08` §7).
+
+**Data-state slot (§7.4) as built.** Refused and pending are counted from the set store on every
+screen; the resting form shows the time §7.4 names for that screen. Cached data age is still not
+drawn.

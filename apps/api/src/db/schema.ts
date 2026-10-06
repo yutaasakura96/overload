@@ -4,6 +4,7 @@
 // expression index on exercise names, seed rows) lives in custom migrations beside it (docs/12 §3).
 import { sql } from 'drizzle-orm';
 import {
+  boolean,
   check,
   date,
   index,
@@ -87,7 +88,8 @@ export const auditEvent = pgTable(
 );
 
 /**
- * One row per user. Created now; the first reader of a field is slice 3. `weight_unit` is the
+ * One row per user, made by the first profile save. The time zone is the day boundary local dates
+ * are read against; the other formula inputs wait for their readers in M2. `weight_unit` is the
  * display preference decided 2026-09-23 (docs/06): weights are stored in kg whatever it says.
  */
 export const userProfile = pgTable(
@@ -106,7 +108,9 @@ export const userProfile = pgTable(
       .array()
       .notNull()
       .default(sql`'{}'`),
-    weightUnit: text('weight_unit').notNull().default('kg'),
+    weightUnit: text('weight_unit', { enum: ['kg', 'lb'] })
+      .notNull()
+      .default('kg'),
     ...timestamps,
   },
   (t) => [
@@ -223,5 +227,93 @@ export const routineExercise = pgTable(
       'routine_exercise_rep_range_check',
       sql`${t.repLow} IS NULL OR ${t.repHigh} IS NULL OR ${t.repLow} <= ${t.repHigh}`,
     ),
+  ],
+);
+
+/**
+ * One visit to the gym (docs/04 `workout`). The id is made on the phone and the row arrives only
+ * through the sync batch (docs/07 §3.4), guarded by the phone's `client_updated_at`.
+ */
+export const workout = pgTable(
+  'workout',
+  {
+    id: uuid('id').notNull().primaryKey(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    routineId: uuid('routine_id').references(() => routine.id, { onDelete: 'set null' }),
+    name: text('name').notNull(),
+    startedAt: instant('started_at').notNull(),
+    endedAt: instant('ended_at'),
+    note: text('note'),
+    clientUpdatedAt: instant('client_updated_at').notNull(),
+    ...timestamps,
+  },
+  (t) => [index('workout_user_id_started_at_idx').on(t.userId, t.startedAt.desc())],
+);
+
+/**
+ * One exercise inside one workout, with the rep range, increment and target sets resolved and
+ * copied at start (docs/04). The FK to `exercise` is deferred like `routine_exercise`'s, so it is
+ * added in a custom migration. `routine_exercise_id` names the routine slot it was started from and
+ * has no FK: saving a routine deletes and re-inserts its slots under the same ids, which would
+ * clear it. Last time reads it only where the slot still exists.
+ */
+export const workoutExercise = pgTable(
+  'workout_exercise',
+  {
+    id: uuid('id').notNull().primaryKey(),
+    workoutId: uuid('workout_id')
+      .notNull()
+      .references(() => workout.id, { onDelete: 'cascade' }),
+    exerciseId: uuid('exercise_id').notNull(),
+    routineExerciseId: uuid('routine_exercise_id'),
+    position: integer('position').notNull(),
+    targetSets: smallint('target_sets'),
+    repLow: smallint('rep_low').notNull(),
+    repHigh: smallint('rep_high').notNull(),
+    incrementKg: numeric('increment_kg', { precision: 5, scale: 2, mode: 'number' }).notNull(),
+    clientUpdatedAt: instant('client_updated_at').notNull(),
+    ...timestamps,
+  },
+  (t) => [
+    index('workout_exercise_workout_id_position_idx').on(t.workoutId, t.position),
+    index('workout_exercise_exercise_id_idx').on(t.exerciseId),
+    check(
+      'workout_exercise_target_sets_check',
+      sql`${t.targetSets} IS NULL OR ${t.targetSets} > 0`,
+    ),
+    check('workout_exercise_rep_range_check', sql`${t.repLow} <= ${t.repHigh}`),
+  ],
+);
+
+/**
+ * One logged set (S1). `position` counts warm-ups too and is never renumbered; the number on screen
+ * is derived (docs/04 `set`).
+ */
+export const set = pgTable(
+  'set',
+  {
+    id: uuid('id').notNull().primaryKey(),
+    workoutExerciseId: uuid('workout_exercise_id')
+      .notNull()
+      .references(() => workoutExercise.id, { onDelete: 'cascade' }),
+    position: integer('position').notNull(),
+    weightKg: numeric('weight_kg', { precision: 6, scale: 2, mode: 'number' }).notNull(),
+    reps: smallint('reps').notNull(),
+    rir: smallint('rir'),
+    rpe: numeric('rpe', { precision: 3, scale: 1, mode: 'number' }),
+    isWarmup: boolean('is_warmup').notNull().default(false),
+    performedAt: instant('performed_at').notNull(),
+    clientUpdatedAt: instant('client_updated_at').notNull(),
+    ...timestamps,
+  },
+  (t) => [
+    index('set_workout_exercise_id_position_idx').on(t.workoutExerciseId, t.position),
+    check('set_reps_check', sql`${t.reps} > 0`),
+    check('set_weight_kg_check', sql`${t.weightKg} >= 0`),
+    check('set_rir_check', sql`${t.rir} IS NULL OR ${t.rir} BETWEEN 0 AND 10`),
+    check('set_rpe_check', sql`${t.rpe} IS NULL OR ${t.rpe} BETWEEN 1 AND 10`),
+    check('set_effort_check', sql`${t.rir} IS NULL OR ${t.rpe} IS NULL`),
   ],
 );

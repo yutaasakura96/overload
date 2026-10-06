@@ -78,6 +78,10 @@ export function useAccount(): Account {
   return useSyncExternalStore(subscribeAccount, () => account);
 }
 
+/** The account as it stands, and a way to hear it change, for code outside React (the uploader). */
+export const currentAccount = () => account;
+export const onAccountChange = subscribeAccount;
+
 const ME_KEY = ['me'];
 const ownerOf = (client: PersistedClient) => {
   const me = client.clientState.queries.find((query) => query.queryKey[0] === 'me');
@@ -242,8 +246,8 @@ async function confirm(me: Me, generation: number) {
 
 export const meQuery = queryOptions({
   queryKey: ME_KEY,
-  // Asked at every launch, focus and reconnect, however fresh: it is the account check, and nothing
-  // renders until it answers or fails.
+  // Asked at every launch, focus and reconnect, however fresh: it is the account check. Nothing
+  // renders until the first one answers or fails; a later one runs behind the open account's screen.
   staleTime: 0,
   queryFn: async () => {
     if (accountClosed) throw new AccountCheckFailed('Account closed');
@@ -289,7 +293,7 @@ export async function forAccount<T>(request: () => Promise<T>): Promise<T> {
  * cookie changed) never reaches this account's copy. It is refused and not retried; the next /api/me
  * check, at focus or reconnect, opens the account the cookie now holds (docs/08 §5).
  */
-async function confirmedAccountData<T>(
+export async function confirmedAccountData<T>(
   request: () => Promise<{ data?: T; error?: unknown; response: Response }>,
 ): Promise<NonNullable<T>> {
   const { userId } = account;
@@ -334,6 +338,19 @@ export const routinesQuery = queryOptions({
 });
 
 /**
+ * Last time and today's suggestion for every exercise the user has logged, in one call so the gym
+ * screen has them with no signal (docs/07 §3). Asked again after every acknowledged sync batch.
+ * Enable it only once the profile exists: without one the API answers `setup_incomplete`.
+ */
+export const lastTimeQuery = queryOptions({
+  queryKey: ['last-time'],
+  refetchOnWindowFocus: false,
+  refetchOnReconnect: false,
+  queryFn: async ({ signal }) =>
+    (await confirmedAccountData(() => api.GET('/api/training/last-time', { signal }))).exercises,
+});
+
+/**
  * Whether an editor may open on this query's copy: not while a stale copy, such as the one restored
  * at launch, is being asked again, so its draft starts from the server's state. Offline (paused) or
  * after a failed ask it opens on the saved copy. Once open it stays open: its own saves refetch.
@@ -354,3 +371,25 @@ export function useOpensEditor({
 /** After a write: both exercise lists, since a setting or a new exercise changes each. */
 export const refreshExercises = () => queryClient.invalidateQueries({ queryKey: ['exercises'] });
 export const refreshRoutines = () => queryClient.invalidateQueries({ queryKey: ['routines'] });
+
+/**
+ * Asks for last time again whether or not a screen is reading it, since the next workout starts
+ * from this copy (S2). Without a profile there is nothing to ask (`setup_incomplete`). It never
+ * rejects: a failed ask leaves the copy as it was.
+ */
+export function refreshLastTime(): Promise<void> {
+  if (queryClient.getQueryData<Me>(ME_KEY)?.profile == null) return Promise.resolve();
+  return queryClient.fetchQuery({ ...lastTimeQuery, staleTime: 0 }).then(
+    () => undefined,
+    () => undefined,
+  );
+}
+
+/** The unit weights are shown and typed in (docs/06, 2026-09-23). Kilograms until a profile says. */
+export const currentWeightUnit = () =>
+  queryClient.getQueryData<Me>(ME_KEY)?.profile?.weightUnit ?? 'kg';
+
+/** After the profile is saved: /api/me carries it, so the cached answer takes the new one. */
+export function setProfile(profile: NonNullable<Me['profile']>) {
+  queryClient.setQueryData<Me>(ME_KEY, (me) => (me === undefined ? me : { ...me, profile }));
+}

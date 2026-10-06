@@ -6,10 +6,20 @@ export type { components, operations, paths } from './schema';
 
 export type Equipment = components['schemas']['Equipment'];
 export type Exercise = components['schemas']['Exercise'];
+export type LastTime = components['schemas']['LastTime'];
 export type Me = components['schemas']['Me'];
 export type Problem = components['schemas']['Problem'];
+export type Profile = components['schemas']['Profile'];
 export type Routine = components['schemas']['Routine'];
 export type RoutineSlot = components['schemas']['RoutineSlot'];
+export type SetRow = components['schemas']['SetRow'];
+export type Suggestion = components['schemas']['Suggestion'];
+export type SyncBatch = components['schemas']['SyncBatch'];
+export type SyncDeletion = components['schemas']['SyncDeletion'];
+export type SyncResult = components['schemas']['SyncResult'];
+export type WeightUnit = components['schemas']['WeightUnit'];
+export type WorkoutExerciseRow = components['schemas']['WorkoutExerciseRow'];
+export type WorkoutRow = components['schemas']['WorkoutRow'];
 
 /**
  * The header names a GET's success response declares, without the index signature every one

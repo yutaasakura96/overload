@@ -2,7 +2,7 @@
 
 **Project:** A weight-training progress tracker combining lift logging, meal planning, Apple Watch/iPhone health data, and bodyweight/diet coaching.
 **Phase:** 7 — Build (M1 first). Phase 6 — Review finished 2026-09-23.
-**Updated:** 2026-10-01
+**Updated:** 2026-10-05
 
 ## Done
 - Phase 1 — Brief + PRD: `docs/01-project-brief.md`, `docs/02-product-requirements.md`, `docs/06-decision-log.md`.
@@ -13,7 +13,10 @@
 - 2026-09-16: Phase 3 — `docs/05-design-system.md` and `docs/10-screen-specifications.md` written from the six `.dc.html` files. Every hex code, size, tracking value and grid measurement lifted from source; contrast ratios computed, not estimated. The canvas's "THE SYSTEM" sticky note was found inaccurate and is superseded by `docs/05`.
 
 ## Next
-**Phase 7 — Build, slice 1.** Two grills have run. `/grill-with-docs` on **2026-09-23** settled
+**Phase 7 — Build, slice 4.** Slice 3 is built on `fm/overload-3`; slice 4 follows its review and
+merge. The slice boundaries and deferred work are recorded in `06` (2026-10-03).
+
+**Planning record.** Two grills have run. `/grill-with-docs` on **2026-09-23** settled
 fourteen questions and cut M1 into slices; `/grill-with-docs` on **2026-09-24** settled twelve more —
 what slice 1 is made of, and the toolchain. Nine entries in `06`, dated those two days.
 
@@ -72,10 +75,20 @@ on the first write route and the cross-user writes and deletes. A new Playwright
 routine, reorders it and deletes it on Chromium and WebKit. Deferred to slice 3 with the `set`
 table: `exercise_has_history` (`06`, 2026-10-01).
 
+**Slice 3 is built, 2026-10-03**, on branch `fm/overload-3` against `develop` (`#3`). Its three open
+questions were settled first (`06`, 2026-10-03): `SET 3 OF 4`, a sound when rest ends, and a
+scrolling screen 1 with a sticky app bar and a fixed rest bar. In the repo: the `workout`,
+`workout_exercise` and `set` tables, `POST /api/workouts/sync`, `GET /api/training/last-time`,
+`PATCH /api/me/profile` with `setup_incomplete`, the progression and e1RM functions in `domain/`,
+the set store, the uploader, Today at `/` and screen 1 at `/workout`, with the kg/lb toggle. The
+screens cleared the polish gate. Vitest covers sync, last time, the profile and the cross-user
+cases; a Playwright test logs a workout offline and back on Chromium and WebKit, and two more cover
+the 3-hour rule and sign-out. Left for slice 4 or later, listed in `06`: per-row validation
+refusals, tombstones, Start empty, changing a live workout, editing a logged set, RPE entry, the
+finish summary. For the iPhone checklist: whether the rest tone plays on silent (`11` §3).
+
 **Issues are open.** Milestone `M1`, one issue per slice, `#1`–`#7`, each chained to the one before
-with GitHub's native dependencies. `#1` carries the full slice-1 specification; its `ready-for-agent`
-label is **off** until provisioning is finished (below). `#3` carries the three questions its own
-`/grill-with-docs` must settle first.
+with GitHub's native dependencies. `#3`'s three questions were settled in `06` (2026-10-03).
 Each UI feature clears the polish gate in `AGENTS.md`.
 
 ### Provisioning — done (2026-09-25)
@@ -271,8 +284,8 @@ sticky are kept open for M2 (see *Reviewed, kept*).
   2026-09-24** (`03` §11, `06`): `navigator.vibrate` does not exist on iOS at all; Web Push works in
   an installed app from iOS 16.4 but needs a user gesture to ask; the Screen Wake Lock does not work
   in a standalone app until 18.4. So the screen-1 grill chooses between **push and sound**, with a
-  wake lock as a progressive enhancement. The product half — should it alert at all — is still that
-  grill's question.
+  wake lock as a progressive enhancement. **Decided 2026-10-03: sound** (`06`). Whether the tone
+  plays with the ring switch on silent is for the iPhone checklist (`11` §3 item 3).
 
 ### Waiting for the first build — raised by group 7
 - ~~`infra/db/bootstrap.sql` does not exist yet.~~ **Written 2026-09-24**, with
@@ -286,13 +299,11 @@ sticky are kept open for M2 (see *Reviewed, kept*).
 Yuta's four stated pain points read against the docs before the first build. Two are covered as
 written (the short food list: S12, S16, S18; batch prep: S13, S17). Three gaps, full reasoning in
 `06` (2026-09-23, "the four pain points checked against the docs"):
-- **The target set count is stored and never shown.** `04` has `target_sets` and S4 promises it, but
-  screen 1 draws only `SET 3`, so the screen answers "how many have I done" and not "how many are
-  left". Candidate: `SET 3 OF 4` in the active card's label row — horizontal, so the 54px of slack in
-  `10` §1 is untouched. **Screen-1 grill, M1.**
-- **Nothing announces that rest has ended.** The timer starts by itself and survives a lock and a
-  relaunch, but no notification, sound, vibration or wake lock exists in any doc. **Screen-1 grill,
-  M1**, with the iOS feasibility half in *Check when built* above.
+- ~~**The target set count is stored and never shown.**~~ **Decided 2026-10-03** (`06`): `SET 3 OF 4`
+  in the active card's label row, `SET 5 · EXTRA` past the target. Built in slice 3.
+- ~~**Nothing announces that rest has ended.**~~ **Decided 2026-10-03** (`06`): a sound, not a push,
+  with the rest bar counting over and a wake lock while resting where the browser grants one. Built
+  in slice 3. A locked phone stays silent; that is the accepted limit.
 - **No shelf life, and a batch never runs out.** `04` `batch` is the newest row for a food, with no
   depleting portion count and no keeps-for-N-days, so the prep plan cannot say "cook the fish again
   on Wednesday" — the very reason those foods were chosen. Candidate: `keeps_days` on `food` plus a
