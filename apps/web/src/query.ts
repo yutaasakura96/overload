@@ -248,7 +248,13 @@ export const meQuery = queryOptions({
   queryKey: ME_KEY,
   // Asked at every launch, focus and reconnect, however fresh: it is the account check. Nothing
   // renders until the first one answers or fails; a later one runs behind the open account's screen.
+  // `always`, since staleness is read off the device's clock: a saved copy stamped later than the
+  // clock now says (the clock was set back) never goes stale, and the launch would wait on a check
+  // that is never made.
   staleTime: 0,
+  refetchOnMount: 'always',
+  refetchOnWindowFocus: 'always',
+  refetchOnReconnect: 'always',
   queryFn: async () => {
     if (accountClosed) throw new AccountCheckFailed('Account closed');
     const generation = ++accountGeneration;
