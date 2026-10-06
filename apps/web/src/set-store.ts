@@ -52,19 +52,37 @@ const ROWS = 'rows';
 
 let opening: Promise<IDBDatabase> | undefined;
 
+/** Lets go of a connection that is no longer usable, so the next read or write opens another. */
+function forget(connection: Promise<IDBDatabase>) {
+  if (opening === connection) opening = undefined;
+}
+
 function open(): Promise<IDBDatabase> {
-  opening ??= new Promise<IDBDatabase>((resolve, reject) => {
+  if (opening !== undefined) return opening;
+  const connection = new Promise<IDBDatabase>((resolve, reject) => {
     const request = indexedDB.open(DATABASE, 1);
     request.addEventListener('upgradeneeded', () => {
       request.result.createObjectStore(ROWS, { keyPath: 'id' });
     });
-    request.addEventListener('success', () => resolve(request.result));
+    request.addEventListener('success', () => {
+      const db = request.result;
+      // The connection does not always last as long as the page. The browser closes it when the
+      // device's storage is cleared or evicted, or under a backgrounded iOS web app (`close`), and
+      // asks for it back when the database is deleted or upgraded from elsewhere (`versionchange`).
+      db.addEventListener('close', () => forget(connection));
+      db.addEventListener('versionchange', () => {
+        db.close();
+        forget(connection);
+      });
+      resolve(db);
+    });
     request.addEventListener('error', () => reject(request.error ?? new Error('set store')));
   }).catch((error: unknown) => {
-    opening = undefined;
+    forget(connection);
     throw error;
   });
-  return opening;
+  opening = connection;
+  return connection;
 }
 
 export const setStore = {

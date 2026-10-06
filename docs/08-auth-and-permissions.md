@@ -289,6 +289,9 @@ The endpoint list is `docs/07`.
 - If the set store cannot be cleared after the server ends the session, sign-out reaches `/sign-in`
   with the same warning, "Saved data couldn't be cleared from this device." The rows stay under
   their user's id and show only to that account. *Added 2026-10-03.*
+- If the set store cannot take the server's answer during **Upload now** or **Try again** below,
+  the session stays and Sign out answers "Couldn't sign out. Try again." Nothing is discarded: the
+  rows stay pending and the next upload sends them again. *Added 2026-10-07.*
 - **With a workout in progress**, whatever is waiting: "A workout is in progress. Finish it first."
   The session stays, and neither action below is offered. The device cannot yet bring an open
   workout back from the server, so signing out would leave it open there for good (`06`,

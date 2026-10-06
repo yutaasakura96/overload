@@ -136,7 +136,11 @@ export function Today({ me, navigate }: { me: Me; navigate: (path: string) => vo
           <button
             type="button"
             className="button button--tertiary"
-            onClick={() => void loadWorkouts(me.user.id).then(() => endIdleWorkout())}
+            onClick={() =>
+              void loadWorkouts(me.user.id)
+                .then(() => endIdleWorkout())
+                .catch(() => undefined)
+            }
           >
             Try again
           </button>
