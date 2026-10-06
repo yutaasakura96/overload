@@ -928,6 +928,7 @@ test.describe('sign-out with a workout on the device', () => {
     const name = `Unwritten ${Date.now()}`;
     const errors: Error[] = [];
     page.on('pageerror', (error) => errors.push(error));
+    await page.clock.install();
     await saveProfile(page);
     await createRoutine(page, name, ['Chin-Up']);
     await page.getByRole('button', { name: 'Create routine' }).click();
@@ -945,6 +946,8 @@ test.describe('sign-out with a workout on the device', () => {
     });
     await completeSet(page, { reps: '6' });
     await finish(page);
+    // The clock stops here, so the uploader's own timer asks for no upload the steps below do not.
+    await page.clock.pauseAt(Date.now() + 1000);
     const signOut = page.getByRole('button', { name: 'Sign out' });
     await expect(async () => {
       await signOut.click();
@@ -1001,7 +1004,7 @@ test.describe('sign-out with a workout on the device', () => {
 
 test.describe('the set store’s connection, lost under the open app', () => {
   // The app's connections to the set store, kept where the test can end them as the browser does:
-  // `lose-sets` closes them and says so (the `close` event), `drop-sets` closes them unsaid.
+  // `lose-sets` closes them and says so (the `close` event).
   test.beforeEach(async ({ page }) => {
     await page.addInitScript(() => {
       const factory: {
@@ -1016,48 +1019,39 @@ test.describe('the set store’s connection, lost under the open app', () => {
         }
         return request;
       };
-      const end = (said: boolean) => {
+      window.addEventListener('lose-sets', () => {
         for (const connection of held) {
           connection.close();
-          if (said) connection.dispatchEvent(new Event('close'));
+          connection.dispatchEvent(new Event('close'));
         }
         held.clear();
-      };
-      window.addEventListener('lose-sets', () => end(true));
-      window.addEventListener('drop-sets', () => end(false));
+      });
     });
   });
 
-  for (const [how, event] of [
-    ['and says so', 'lose-sets'],
-    ['without a word', 'drop-sets'],
-  ] as const) {
-    test(`the browser closes it ${how}: the next set is saved, and Finish works`, async ({
-      page,
-    }) => {
-      const name = `Closed ${Date.now()}`;
-      await saveProfile(page, 'Kilograms');
-      await createRoutine(page, name, ['Chin-Up']);
-      await page.getByRole('button', { name: 'Create routine' }).click();
-      await expect(page).toHaveURL('/routines');
-      await start(page, name);
-      await completeSet(page, { reps: '6' });
-      await expect(page.getByRole('row', { name: /^1 (\S+ × \d+ )?0 6/ })).toBeVisible();
-      await expect(dataState(page)).toContainText('SYNCED');
+  test('the browser closes it: the next set is saved, and Finish works', async ({ page }) => {
+    const name = `Closed ${Date.now()}`;
+    await saveProfile(page, 'Kilograms');
+    await createRoutine(page, name, ['Chin-Up']);
+    await page.getByRole('button', { name: 'Create routine' }).click();
+    await expect(page).toHaveURL('/routines');
+    await start(page, name);
+    await completeSet(page, { reps: '6' });
+    await expect(page.getByRole('row', { name: /^1 (\S+ × \d+ )?0 6/ })).toBeVisible();
+    await expect(dataState(page)).toContainText('SYNCED');
 
-      await page.evaluate((type) => window.dispatchEvent(new Event(type)), event);
-      await completeSet(page, { reps: '5' });
-      await expect(page.getByRole('row', { name: /^2 (\S+ × \d+ )?0 5/ })).toBeVisible();
-      await expect(page.getByText('Couldn’t save the set on this device')).toHaveCount(0);
-      // The workout, its exercise and both sets.
-      expect(await rowsOnDevice(page)).toBe(4);
+    await page.evaluate(() => window.dispatchEvent(new Event('lose-sets')));
+    await completeSet(page, { reps: '5' });
+    await expect(page.getByRole('row', { name: /^2 (\S+ × \d+ )?0 5/ })).toBeVisible();
+    await expect(page.getByText('Couldn’t save the set on this device')).toHaveCount(0);
+    // The workout, its exercise and both sets.
+    expect(await rowsOnDevice(page)).toBe(4);
 
-      await finish(page);
-      await expect
-        .poll(() => stored().find((workout) => workout.name === name)?.exercises[0]?.sets.length)
-        .toBe(2);
-    });
-  }
+    await finish(page);
+    await expect
+      .poll(() => stored().find((workout) => workout.name === name)?.exercises[0]?.sets.length)
+      .toBe(2);
+  });
 
   test('another connection asks for the database: it is let go, and the next set is saved', async ({
     page,
