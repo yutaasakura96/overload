@@ -187,13 +187,13 @@ test('a workout is logged from a routine, offline and back, and finished', async
     await expect(dataState(relaunched)).toHaveText('1 PENDING');
   }
   expect(stored()[0]?.exercises[0]?.sets).toHaveLength(1);
-  await relaunched?.close();
 
   // The connection returns: the set uploads with no action from the user.
   await context.unrouteAll();
   await context.setOffline(false);
   await expect(dataState(page)).toContainText('SYNCED');
   await expect.poll(() => stored()[0]?.exercises[0]?.sets.length).toBe(2);
+  await relaunched?.close();
 
   // S6: a warm-up is kept and shown, but is not one of the three working sets.
   await page.getByRole('button', { name: 'Warm-up set' }).click();
