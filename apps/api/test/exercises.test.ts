@@ -11,6 +11,8 @@ type Item = {
   id: string;
   name: string;
   equipment: string;
+  muscleGroup: string | null;
+  aliases: string[];
   custom: boolean;
   hidden: boolean;
   incrementKg: number;
@@ -42,13 +44,16 @@ describe('GET /api/exercises', () => {
 
     const items = await list(cookie);
 
-    expect(items).toHaveLength(50);
+    expect(items).toHaveLength(185);
     const names = items.map((item) => item.name);
-    expect(names).toEqual(names.toSorted((a, b) => a.toLowerCase().localeCompare(b.toLowerCase())));
+    const lowered = names.map((name) => name.toLowerCase());
+    expect(lowered).toEqual(lowered.toSorted());
     expect(items.find((item) => item.name === 'Barbell Bench Press')).toEqual({
       id: expect.any(String),
       name: 'Barbell Bench Press',
       equipment: 'barbell',
+      muscleGroup: 'chest',
+      aliases: ['Flat Bench'],
       custom: false,
       hidden: false,
       incrementKg: 2.5,
@@ -57,6 +62,52 @@ describe('GET /api/exercises', () => {
       repHigh: 10,
       overrides: { incrementKg: false, restSeconds: false, repLow: false, repHigh: false },
     });
+  });
+
+  it('files every seeded exercise under a muscle group, and a custom one under none', async () => {
+    const { cookie, user } = await t.createSignedInUser('groups@example.test');
+    const custom = await addCustomExercise(user.id, 'Cable Y-Raise');
+
+    const items = await list(cookie);
+
+    const seeded = items.filter((item) => !item.custom);
+    expect(seeded.filter((item) => item.muscleGroup === null)).toEqual([]);
+    expect(new Set(seeded.map((item) => item.muscleGroup))).toEqual(
+      new Set([
+        'chest',
+        'back',
+        'shoulders',
+        'biceps',
+        'triceps',
+        'forearms',
+        'quads',
+        'hamstrings',
+        'glutes',
+        'calves',
+        'core',
+      ]),
+    );
+    expect(items.find((item) => item.id === custom.id)).toMatchObject({
+      muscleGroup: null,
+      aliases: [],
+    });
+  });
+
+  it('carries the other names search matches, and the one rename (issue #39)', async () => {
+    const { cookie } = await t.createSignedInUser('aliases@example.test');
+
+    const items = await list(cookie);
+
+    expect(items.find((item) => item.name === 'Barbell Romanian Deadlift')?.aliases).toEqual([
+      'RDL',
+    ]);
+    expect(items.find((item) => item.name === 'Smith Machine Squat')).toMatchObject({
+      equipment: 'machine_plate',
+      incrementKg: 2.5,
+      muscleGroup: 'quads',
+    });
+    expect(items.map((item) => item.name)).not.toContain('Dumbbell Fly');
+    expect(items.find((item) => item.name === 'Dumbbell Chest Fly')?.muscleGroup).toBe('chest');
   });
 
   it('seeds each equipment class with its increment (docs/04)', async () => {

@@ -18,7 +18,7 @@ test('a signed-in user sees the seeded exercise library', async ({ page }) => {
 
   await expect(page.getByRole('heading', { name: 'Exercises' })).toBeVisible();
   const rows = page.getByRole('listitem');
-  await expect(rows).toHaveCount(50);
+  await expect(rows).toHaveCount(185);
   const bench = rows.filter({ has: page.getByText('Barbell Bench Press', { exact: true }) });
   await expect(bench).toContainText('2.5');
   await expect(bench).toContainText('6–10');
@@ -26,9 +26,63 @@ test('a signed-in user sees the seeded exercise library', async ({ page }) => {
   await expect(page.getByRole('status').filter({ hasText: 'SYNCED' })).toBeVisible();
 });
 
+test('the library is filed under muscle groups and searched by name or alias', async ({ page }) => {
+  await page.goto('/exercises');
+
+  const chest = page.getByRole('region', { name: 'Chest' });
+  await expect(chest.getByRole('heading', { level: 3 })).toContainText('Chest');
+  await expect(chest.getByText('Barbell Bench Press', { exact: true })).toBeVisible();
+  await expect(chest.getByText('Barbell Back Squat', { exact: true })).toHaveCount(0);
+  await expect(page.getByRole('heading', { level: 3 })).toHaveText([
+    /^Chest/,
+    /^Back/,
+    /^Shoulders/,
+    /^Biceps/,
+    /^Triceps/,
+    /^Forearms/,
+    /^Quads/,
+    /^Hamstrings/,
+    /^Glutes/,
+    /^Calves/,
+    /^Core/,
+  ]);
+
+  // "RDL" is in no name: the naming rule keeps abbreviations out, so the alias has to match.
+  await page.getByRole('searchbox', { name: 'Search' }).fill('rdl');
+  await expect(page.getByRole('heading', { name: '4 matching' })).toBeVisible();
+  const rows = page.getByRole('listitem');
+  await expect(rows).toHaveCount(4);
+  await expect(rows.filter({ hasText: 'Barbell Romanian Deadlift' })).toContainText('RDL');
+  await expect(page.getByRole('heading', { level: 3 })).toHaveText([/^Hamstrings/]);
+
+  await page.getByRole('searchbox', { name: 'Search' }).fill('zzz');
+  await expect(page.getByText('Nothing matches.')).toBeVisible();
+  await expect(rows).toHaveCount(0);
+});
+
+test('a custom exercise is filed under the muscle group chosen for it', async ({ page }) => {
+  await page.goto('/exercises/new');
+  await page.getByRole('textbox', { name: 'Name' }).fill('Cable Y-Raise');
+  await page.getByRole('combobox', { name: 'Equipment' }).selectOption('cable');
+  await page.getByRole('combobox', { name: 'Muscle group' }).selectOption('shoulders');
+  await page.getByRole('button', { name: 'Create exercise' }).click();
+
+  await expect(page).toHaveURL('/exercises');
+  const shoulders = page.getByRole('region', { name: 'Shoulders' });
+  const row = shoulders.getByRole('listitem').filter({ hasText: 'Cable Y-Raise' });
+  await expect(row).toContainText('Yours');
+
+  // Tidy up: the run shares one user, and other tests count the library.
+  await row.getByRole('link').click();
+  await page.getByRole('button', { name: 'Delete exercise' }).click();
+  await page.getByRole('button', { name: 'Delete', exact: true }).click();
+  await expect(page).toHaveURL('/exercises');
+  await expect(page.getByRole('listitem')).toHaveCount(185);
+});
+
 test('sign-out ends the session and wipes the device', async ({ page }) => {
   await page.goto('/exercises');
-  await expect(page.getByRole('listitem')).toHaveCount(50);
+  await expect(page.getByRole('listitem')).toHaveCount(185);
   // The persister writes at most once a second.
   await expect
     .poll(() => deviceKeys(page))
@@ -56,7 +110,7 @@ test('the installed shell opens offline with the last loaded library', async ({
     'Playwright’s WebKit fails to reload a service-worker page offline',
   );
   await page.goto('/exercises');
-  await expect(page.getByRole('listitem')).toHaveCount(50);
+  await expect(page.getByRole('listitem')).toHaveCount(185);
   // The service worker controls the page, and the library has reached IndexedDB (the persister
   // writes at most once a second).
   await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
@@ -66,7 +120,7 @@ test('the installed shell opens offline with the last loaded library', async ({
   await page.reload();
 
   await expect(page.getByRole('heading', { name: 'Exercises' })).toBeVisible();
-  await expect(page.getByRole('listitem')).toHaveCount(50);
+  await expect(page.getByRole('listitem')).toHaveCount(185);
   await context.setOffline(false);
 });
 

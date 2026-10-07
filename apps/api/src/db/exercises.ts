@@ -6,16 +6,27 @@ import {
   type Equipment,
 } from '../domain/equipment.js';
 import type { Database, Queryable } from './connection.js';
-import { exercise, exerciseSetting, routine, routineExercise } from './schema.js';
+import {
+  exercise,
+  exerciseSetting,
+  routine,
+  routineExercise,
+  type muscleGroupValues,
+} from './schema.js';
 import { exercisesWithHistory } from './workouts.js';
 
 export type { Equipment };
+export type MuscleGroup = (typeof muscleGroupValues)[number];
 
 /** One exercise as one user sees it: their setting where they have one, else its default. */
 export type UserExercise = {
   id: string;
   name: string;
   equipment: Equipment;
+  /** Where the library files it. Null on a custom exercise the user has not filed. */
+  muscleGroup: MuscleGroup | null;
+  /** Other names search matches. Seeded exercises only. */
+  aliases: string[];
   custom: boolean;
   hidden: boolean;
   incrementKg: number;
@@ -29,6 +40,7 @@ export type UserExercise = {
 export type ExerciseFields = {
   name: string;
   equipment: Equipment;
+  muscleGroup: MuscleGroup | null;
   incrementKg: number;
   restSeconds: number;
   repLow: number;
@@ -54,6 +66,8 @@ function selectUserExercises(db: Queryable, userId: string) {
       id: exercise.id,
       name: exercise.name,
       equipment: exercise.equipment,
+      muscleGroup: exercise.muscleGroup,
+      aliases: exercise.aliases,
       ownerUserId: exercise.ownerUserId,
       defaultIncrementKg: exercise.defaultIncrementKg,
       defaultRestSeconds: exercise.defaultRestSeconds,
@@ -79,6 +93,8 @@ function toUserExercise(row: UserExerciseRow): UserExercise {
     id: row.id,
     name: row.name,
     equipment: row.equipment,
+    muscleGroup: row.muscleGroup,
+    aliases: row.aliases ?? [],
     custom: row.ownerUserId !== null,
     hidden: row.hiddenAt !== null,
     incrementKg: row.incrementKg ?? row.defaultIncrementKg,
@@ -107,7 +123,8 @@ export async function listExercises(
     .where(
       and(visibleTo(userId), options.includeHidden ? undefined : isNull(exerciseSetting.hiddenAt)),
     )
-    .orderBy(sql`lower(${exercise.name})`, asc(exercise.id));
+    // By code point, so the order is the same on every database whatever its default collation.
+    .orderBy(sql`lower(${exercise.name}) COLLATE "C"`, asc(exercise.id));
   return rows.map(toUserExercise);
 }
 
@@ -142,6 +159,7 @@ export async function createExercise(
   const fields: ExerciseFields = {
     name: input.name,
     equipment: input.equipment,
+    muscleGroup: input.muscleGroup ?? null,
     incrementKg: input.incrementKg ?? defaultIncrementKg[input.equipment],
     restSeconds: input.restSeconds ?? defaultRestSeconds,
     repLow: input.repLow ?? defaultRepRange.low,
@@ -165,6 +183,7 @@ export async function createExercise(
     stored.ownerUserId === userId &&
     stored.name === fields.name &&
     stored.equipment === fields.equipment &&
+    stored.muscleGroup === fields.muscleGroup &&
     stored.defaultIncrementKg === fields.incrementKg &&
     stored.defaultRestSeconds === fields.restSeconds &&
     stored.defaultRepLow === fields.repLow &&
@@ -195,6 +214,8 @@ export async function updateExercise(
   const fields: ExerciseFields = {
     name: patch.name ?? stored.name,
     equipment: patch.equipment ?? stored.equipment,
+    // Null files it under no muscle group; left out, it stays where it is.
+    muscleGroup: patch.muscleGroup === undefined ? stored.muscleGroup : patch.muscleGroup,
     incrementKg: patch.incrementKg ?? stored.defaultIncrementKg,
     restSeconds: patch.restSeconds ?? stored.defaultRestSeconds,
     repLow: patch.repLow ?? stored.defaultRepLow,
@@ -352,6 +373,7 @@ function toColumns(fields: ExerciseFields) {
   return {
     name: fields.name,
     equipment: fields.equipment,
+    muscleGroup: fields.muscleGroup,
     defaultIncrementKg: fields.incrementKg,
     defaultRestSeconds: fields.restSeconds,
     defaultRepLow: fields.repLow,

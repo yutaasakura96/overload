@@ -234,10 +234,23 @@ button {
 .section-label--gutter {
   margin: 18px var(--gutter) 8px;
 }
+/* A muscle group over its rows, with the row count at the far edge. */
+.group-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  color: var(--text-tertiary);
+}
+.group-label__count {
+  font-family: var(--font-mono);
+  letter-spacing: 0;
+  color: var(--text-quaternary);
+  font-variant-numeric: tabular-nums;
+}
 
 /* 4.4 Data table: the exercise library */
-.library {
-  padding-top: 18px;
+.library .library__list {
+  border-top: 1px solid var(--line-hairline);
 }
 .library__head,
 .library__row {
@@ -250,7 +263,7 @@ button {
 .library__head {
   padding-top: 0;
   padding-bottom: 6px;
-  margin: 0 var(--gutter);
+  margin: 18px var(--gutter) 0;
   padding-left: 0;
   padding-right: 0;
   border-bottom: 1px solid var(--line-hairline);
@@ -680,7 +693,8 @@ button {
   flex-direction: column;
   min-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
 }
-.picker__tools {
+/* Search and `New exercise`, above the picker's list and the library's. */
+.exercise-tools {
   display: grid;
   grid-template-columns: 1fr auto;
   align-items: end;

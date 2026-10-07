@@ -1,4 +1,4 @@
-import type { Equipment, Exercise, WeightUnit } from '@overload/api-contract';
+import type { Equipment, Exercise, MuscleGroup, WeightUnit } from '@overload/api-contract';
 import { useQuery } from '@tanstack/react-query';
 import { useId, useState, type ReactNode } from 'react';
 import { api, expectOk, unwrap } from '../api';
@@ -12,6 +12,7 @@ import {
   parseFigure,
 } from '../components';
 import { classIncrementKg, equipmentLabels, newExerciseDefaults } from '../equipment';
+import { muscleGroupLabels } from '../exercise-list';
 import { newId } from '../ids';
 import {
   allExercisesQuery,
@@ -75,6 +76,8 @@ export function ExerciseForm({
   const [id] = useState(() => exercise?.id ?? newId());
   const [name, setName] = useState(exercise?.name ?? '');
   const [equipment, setEquipment] = useState<Equipment>(exercise?.equipment ?? 'barbell');
+  // Empty for none: the library then lists it apart from the groups.
+  const [muscleGroup, setMuscleGroup] = useState<MuscleGroup | ''>(exercise?.muscleGroup ?? '');
   // The increment is shown and typed in the user's unit, and stored in kilograms.
   const [unit] = useState(currentWeightUnit);
   const [figures, setFigures] = useState<Figures>(
@@ -92,6 +95,7 @@ export function ExerciseForm({
   const [problem, setProblem] = useState<SaveProblem>();
   const formRef = useFocusRefused(problem);
   const equipmentId = useId();
+  const muscleGroupId = useId();
 
   const fieldError = (path: string) =>
     problem?.kind === 'refused' ? problem.fields.get(path) : undefined;
@@ -144,6 +148,7 @@ export function ExerciseForm({
               id,
               name,
               equipment,
+              muscleGroup: muscleGroup === '' ? null : muscleGroup,
               incrementKg: incrementKg() ?? undefined,
               restSeconds: figureOrOmit(figures.restSeconds),
               repLow: figureOrOmit(figures.repLow),
@@ -159,6 +164,7 @@ export function ExerciseForm({
             body: {
               name,
               equipment,
+              muscleGroup: muscleGroup === '' ? null : muscleGroup,
               incrementKg: incrementKg() ?? undefined,
               restSeconds: figureOrOmit(figures.restSeconds),
               repLow: figureOrOmit(figures.repLow),
@@ -232,7 +238,7 @@ export function ExerciseForm({
               value={name}
               onChange={setName}
               error={fieldError('name')}
-              placeholder="Incline Cable Fly…"
+              placeholder="Cable Y-Raise…"
               focusOnOpen={creating}
             />
             <div className="field">
@@ -259,6 +265,29 @@ export function ExerciseForm({
                 }}
               >
                 {Object.entries(equipmentLabels).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <div className="field__label-row">
+                <label htmlFor={muscleGroupId} className="field__label">
+                  Muscle group
+                </label>
+              </div>
+              <select
+                id={muscleGroupId}
+                className="field__input field__select"
+                value={muscleGroup}
+                onChange={(event) => {
+                  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the options are the MuscleGroup values and none
+                  setMuscleGroup(event.target.value as MuscleGroup | '');
+                }}
+              >
+                <option value="">None</option>
+                {Object.entries(muscleGroupLabels).map(([value, label]) => (
                   <option key={value} value={value}>
                     {label}
                   </option>
@@ -351,6 +380,8 @@ export function ExerciseForm({
 
 function subline(exercise: Exercise) {
   const parts = [exercise.custom ? 'YOURS' : 'LIBRARY', equipmentLabels[exercise.equipment]];
+  // Loose: a copy saved by an older build has no `muscleGroup` at all.
+  if (exercise.muscleGroup != null) parts.push(muscleGroupLabels[exercise.muscleGroup]);
   if (exercise.hidden) parts.push('HIDDEN');
   return parts.join(' · ').toUpperCase();
 }

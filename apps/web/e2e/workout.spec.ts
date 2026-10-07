@@ -99,7 +99,7 @@ test('the library keeps its fetch time after a later workout upload', async ({ p
 
   await page.clock.install({ time: new Date('2026-10-06T09:59:40') });
   await page.goto('/exercises');
-  await expect(page.getByRole('listitem')).toHaveCount(50);
+  await expect(page.getByRole('listitem')).toHaveCount(185);
   await expect(dataState(page)).toHaveText('SYNCED 09:59');
 
   // Every launch asks again for what it restored (query.ts), so from here the screens change
@@ -114,7 +114,7 @@ test('the library keeps its fetch time after a later workout upload', async ({ p
 
   await page.goBack();
   await tabs.getByRole('link', { name: 'Exercises' }).click();
-  await expect(page.getByRole('listitem')).toHaveCount(50);
+  await expect(page.getByRole('listitem')).toHaveCount(185);
   await expect(dataState(page)).toHaveText('SYNCED 09:59');
 
   // Finished with no set, the workout is not kept: the tests after this one start from none. The
@@ -137,7 +137,7 @@ test('a workout is logged from a routine, offline and back, and finished', async
 
   // The user's own rep range, increment and rest for one exercise (docs/09 F2).
   await page.goto('/exercises');
-  await page.getByRole('link', { name: /Barbell Overhead Press/ }).click();
+  await page.getByRole('link', { name: /^Barbell Overhead Press/ }).click();
   await page.getByRole('textbox', { name: /Increment/ }).fill('1.25');
   await page.getByRole('textbox', { name: /Rest/ }).fill('60');
   await page.getByRole('textbox', { name: 'Reps low' }).fill('8');
@@ -285,12 +285,12 @@ test('a workout is logged from a routine, offline and back, and finished', async
 
   // The increment is typed in the user's unit too, and stored in kilograms.
   await page.goto('/exercises');
-  await page.getByRole('link', { name: /Barbell Overhead Press/ }).click();
+  await page.getByRole('link', { name: /^Barbell Overhead Press/ }).click();
   await expect(page.getByRole('textbox', { name: /Increment/ })).toHaveValue('2.8');
   await page.getByRole('textbox', { name: /Increment/ }).fill('5');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page).toHaveURL('/exercises');
-  await expect(page.getByRole('link', { name: /Barbell Overhead Press/ })).toContainText(
+  await expect(page.getByRole('link', { name: /^Barbell Overhead Press/ })).toContainText(
     'increment 5 pounds',
   );
   await page.goto('/workout');
@@ -384,7 +384,7 @@ test('a weight left as the card opened it is logged as the stored kilograms', as
   // The increment follows the same rule: 2.5 kg shows as 5.5, which typed back is still 2.5 kg,
   // not the 2.49 that 5.5 lb converts to.
   await page.goto('/exercises');
-  await page.getByRole('link', { name: /Barbell Deadlift/ }).click();
+  await page.getByRole('link', { name: /^Barbell Deadlift/ }).click();
   await expect(page.getByRole('textbox', { name: /Increment/ })).toHaveValue('5.5');
   await page.getByRole('textbox', { name: /Increment/ }).fill('6');
   await page.getByRole('textbox', { name: /Increment/ }).fill('5.5');
@@ -456,7 +456,7 @@ test('an exercise with no rest shows no rest bar after a set', async ({ page }) 
   const name = `No rest ${Date.now()}`;
   await saveProfile(page);
   await page.goto('/exercises');
-  await page.getByRole('link', { name: /Barbell Curl/ }).click();
+  await page.getByRole('link', { name: /^Barbell Curl/ }).click();
   await page.getByRole('textbox', { name: /Rest/ }).fill('0');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page).toHaveURL('/exercises');
@@ -483,7 +483,7 @@ test('leaving the app and coming back keeps the workout screen as it was', async
   await page.clock.install();
   await saveProfile(page);
   await page.goto('/exercises');
-  await page.getByRole('link', { name: /Dumbbell Hammer Curl/ }).click();
+  await page.getByRole('link', { name: /^Dumbbell Hammer Curl/ }).click();
   await page.getByRole('textbox', { name: /Rest/ }).fill('120');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page).toHaveURL('/exercises');

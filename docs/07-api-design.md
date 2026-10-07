@@ -242,7 +242,7 @@ yet or what they have logged (`08` §4).
 
 | Method | Path | Auth | Purpose | Success | Failures |
 | --- | --- | --- | --- | --- | --- |
-| GET | `/api/exercises` | M | Seeded plus custom, each with the caller's effective settings. Hidden ones only with `?includeHidden=true`. Sorted by name | 200 | 401 |
+| GET | `/api/exercises` | M | Seeded plus custom, each with the caller's effective settings. Hidden ones only with `?includeHidden=true`. Sorted by lower-cased name in code-point order, the same on every database | 200 | 401 |
 | POST | `/api/exercises` | M | Create a custom exercise | 201 / 200 | 401, 409 `id_conflict`, 422 (duplicate name or inverted rep range included) |
 | PATCH | `/api/exercises/{id}` | M | Edit a custom exercise's name, equipment or defaults. Seeded ones return 404 | 200 | 401, 404, 422 |
 | DELETE | `/api/exercises/{id}` | M | Delete a custom exercise with no sets | 204 | 401, 409 `exercise_has_history`, 409 `exercise_in_routine` |
@@ -251,13 +251,18 @@ yet or what they have logged (`08` §4).
 ```json
 GET /api/exercises  →  200
 { "items": [
-  { "id": "0192a001-…", "name": "Barbell Bench Press", "equipment": "barbell", "custom": false, "hidden": false,
+  { "id": "0192a001-…", "name": "Barbell Bench Press", "equipment": "barbell",
+    "muscleGroup": "chest", "aliases": ["Flat Bench"], "custom": false, "hidden": false,
     "incrementKg": 2.5, "restSeconds": 180, "repLow": 6, "repHigh": 10,
     "overrides": { "incrementKg": false, "restSeconds": true, "repLow": false, "repHigh": false } }
 ] }
 ```
 
 `overrides` tells the settings screen which values are the user's own and which are defaults.
+`muscleGroup` is where the library files the exercise and `aliases` are the other names search
+matches. The client groups and searches; the API returns one flat list. A custom exercise has
+`"aliases": []`, and `"muscleGroup": null` until the user files it: create and edit take an optional
+`muscleGroup`, where `null` files it under no group.
 
 - **Create.** `id`, `name` and `equipment` are required. An omitted `incrementKg` takes the equipment
   class's increment (`04` `exercise`), `restSeconds` 120 and the rep range 6–10. A missing rep end

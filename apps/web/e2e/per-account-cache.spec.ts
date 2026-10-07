@@ -162,7 +162,7 @@ test('a network error at launch opens the saved copy; a later answer runs its qu
   await page.unrouteAll({ behavior: 'wait' });
   await page.evaluate(() => window.dispatchEvent(new Event('visibilitychange')));
   await expect.poll(() => library.requests).toBeGreaterThan(0);
-  await expect(page.getByRole('listitem')).toHaveCount(50);
+  await expect(page.getByRole('listitem')).toHaveCount(185);
 });
 
 test('a failed focus account check keeps the confirmed account’s library visible', async ({
@@ -215,7 +215,7 @@ test('with no saved copy, a slow /api/me still signs in', async ({ page, context
   });
   await page.goto('/exercises');
   await expect(page.getByText(EMAIL_A)).toBeVisible({ timeout: 10_000 });
-  await expect(page.getByRole('listitem')).toHaveCount(50);
+  await expect(page.getByRole('listitem')).toHaveCount(185);
   await page.unrouteAll({ behavior: 'ignoreErrors' });
 });
 

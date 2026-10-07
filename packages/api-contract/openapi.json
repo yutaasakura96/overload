@@ -315,6 +315,19 @@
           "equipment": {
             "$ref": "#/components/schemas/Equipment"
           },
+          "muscleGroup": {
+            "$ref": "#/components/schemas/MuscleGroup"
+          },
+          "aliases": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Other names for search to match, never shown as the name. Seeded only.",
+            "example": [
+              "Flat Bench"
+            ]
+          },
           "custom": {
             "type": "boolean",
             "description": "True for the caller’s own exercise, false for a seeded one."
@@ -367,6 +380,8 @@
           "id",
           "name",
           "equipment",
+          "muscleGroup",
+          "aliases",
           "custom",
           "hidden",
           "incrementKg",
@@ -389,6 +404,27 @@
         ],
         "description": "A load-increment class, not an equipment inventory (docs/04 `exercise`)."
       },
+      "MuscleGroup": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "enum": [
+          "chest",
+          "back",
+          "shoulders",
+          "biceps",
+          "triceps",
+          "forearms",
+          "quads",
+          "hamstrings",
+          "glutes",
+          "calves",
+          "core",
+          null
+        ],
+        "description": "The one group the library files an exercise under (docs/04 `exercise`)."
+      },
       "ExerciseCreate": {
         "type": "object",
         "properties": {
@@ -406,6 +442,9 @@
           },
           "equipment": {
             "$ref": "#/components/schemas/Equipment"
+          },
+          "muscleGroup": {
+            "$ref": "#/components/schemas/MuscleGroup"
           },
           "incrementKg": {
             "type": "number",
@@ -450,6 +489,9 @@
           },
           "equipment": {
             "$ref": "#/components/schemas/Equipment"
+          },
+          "muscleGroup": {
+            "$ref": "#/components/schemas/MuscleGroup"
           },
           "incrementKg": {
             "type": "number",
