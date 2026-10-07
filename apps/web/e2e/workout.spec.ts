@@ -172,16 +172,19 @@ test('a workout is logged from a routine, offline and back, and finished', async
   // S1 offline: saved on the phone at once, counted as pending, kept across a relaunch.
   await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
   await context.setOffline(true);
-  // Chromium's emulated offline lapses for a moment after a reload, so the API is cut here too.
   await context.route('**/api/**', (route) => route.abort('internetdisconnected'));
   await completeSet(page, { reps: '8' });
   await expect(page.getByRole('row', { name: /^2 60 8/ })).toBeVisible();
   await expect(dataState(page)).toHaveText('1 PENDING');
-  // Playwright’s WebKit fails to reload a service-worker page offline.
-  if (browserName !== 'webkit') {
-    await page.reload();
-    await expect(page.getByRole('row', { name: /^2 60 8/ })).toBeVisible();
-    await expect(dataState(page)).toHaveText('1 PENDING');
+  // The relaunch is a second page, not a reload. Chromium's emulated offline lapses for a page
+  // being unloaded: it hears `online` on its way out, and the upload that starts gets past both
+  // the emulation and the route above. So no page with a pending set is unloaded before the server
+  // is asked. Playwright’s WebKit fails to open a service-worker page offline.
+  const relaunched = browserName === 'webkit' ? undefined : await context.newPage();
+  if (relaunched !== undefined) {
+    await relaunched.goto('/workout');
+    await expect(relaunched.getByRole('row', { name: /^2 60 8/ })).toBeVisible();
+    await expect(dataState(relaunched)).toHaveText('1 PENDING');
   }
   expect(stored()[0]?.exercises[0]?.sets).toHaveLength(1);
 
@@ -190,6 +193,7 @@ test('a workout is logged from a routine, offline and back, and finished', async
   await context.setOffline(false);
   await expect(dataState(page)).toContainText('SYNCED');
   await expect.poll(() => stored()[0]?.exercises[0]?.sets.length).toBe(2);
+  await relaunched?.close();
 
   // S6: a warm-up is kept and shown, but is not one of the three working sets.
   await page.getByRole('button', { name: 'Warm-up set' }).click();
