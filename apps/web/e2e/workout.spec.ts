@@ -942,11 +942,18 @@ test.describe('sign-out with a workout on the device', () => {
 
     // The server stores the set, but its answer for it never arrives: the workout ends and is
     // acknowledged with one set still waiting.
+    let endedAnswered = false;
+    let setSentAgain = false;
     await page.route('**/api/workouts/sync', async (route) => {
+      const sent: { workouts?: { endedAt?: string | null }[] } = route.request().postDataJSON();
       const response = await route.fetch();
       const body: { results: { table: string }[] } = await response.json();
       const results = body.results.filter((result) => result.table !== 'sets');
       await route.fulfill({ response, json: { results } });
+      if (endedAnswered) setSentAgain = true;
+      if (sent.workouts?.some((workout) => typeof workout.endedAt === 'string')) {
+        endedAnswered = true;
+      }
     });
     await completeSet(page, { reps: '6' });
     await finish(page);
@@ -957,6 +964,9 @@ test.describe('sign-out with a workout on the device', () => {
       await signOut.click();
       await expect(page.getByText('1 set not uploaded yet.')).toBeVisible({ timeout: 1000 });
     }).toPass();
+    // The workout's answer changed the records, which sends the waiting set once more. That
+    // request is answered before the device and the routes change under it.
+    await expect.poll(() => setSentAgain).toBe(true);
 
     // The device stops taking writes. The uploader's own try reaches the server and cannot note
     // the answer; so does the one Upload now asks for.

@@ -1,12 +1,13 @@
 import { randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
-import { set, workout, workoutExercise } from '../src/db/schema';
+import { set, syncTombstone, workout, workoutExercise } from '../src/db/schema';
 import { WEB_ORIGIN, useTestApp } from './harness';
 
-// S1's happy path through the sync batch, and S2/S3 through last time (docs/07 §3, §3.4). Slice 3
-// carries these, the cross-user refusals on the workout tree, and the server half of the 3-hour
-// rule (docs/11 §2). Tombstones, two tabs and the refused set are slice 4's.
+// S1 through the sync batch, and S2/S3 through last time (docs/07 §3, §3.4): the happy path, the
+// cross-user refusals on the workout tree, the server half of the 3-hour rule, and slice 4's hard
+// edges, which are deletes with their tombstones and a row refused inside a 200 (docs/11 §2). Two
+// requests at once are in workouts-race.test.ts, which commits.
 const t = useTestApp();
 
 type Result = {
@@ -14,7 +15,7 @@ type Result = {
   id: string;
   status: string;
   row?: Record<string, unknown>;
-  problem?: { code: string; status: number };
+  problem?: { code: string; status: number; errors?: { path: string; message: string }[] };
 };
 
 function send(cookie: string, method: string, path: string, body?: unknown) {
@@ -212,23 +213,85 @@ describe('POST /api/workouts/sync (S1)', () => {
     expect(stored?.routineId).toBeNull();
   });
 
-  it('refuses a deletion of an exercise row or a set: only a workout is deleted', async () => {
+  it('deletes an exercise row and a set, and answers a repeat of each as deleted', async () => {
     const { cookie } = await t.createSignedInUser('child-delete@example.test');
+    const bench = await exerciseId(cookie, 'Barbell Bench Press');
+    const {
+      workout: w,
+      workoutExercise: we,
+      sets,
+    } = await logBench(cookie, {
+      startedAt: at('2026-11-11T09:00:00Z'),
+      kg: 80,
+      reps: [10, 9],
+    });
+    const other = exerciseRow(w.id, bench, { position: 1 });
+    const otherSet = setRow(other.id, 0);
+    await sync(cookie, { workoutExercises: [other], sets: [otherSet] });
+    const deletedAt = at('2026-11-11T11:00:00Z');
+    const batch = {
+      workoutExercises: [{ id: other.id, deletedAt }],
+      sets: [{ id: sets[1]?.id, deletedAt }],
+    };
+
+    expect((await sync(cookie, batch)).map((r) => r.status)).toEqual(['deleted', 'deleted']);
+    expect((await sync(cookie, batch)).map((r) => r.status)).toEqual(['deleted', 'deleted']);
+
+    const left = await t.db.select({ id: set.id }).from(set);
+    expect(new Set(left.map((row) => row.id))).toEqual(new Set([sets[0]?.id, sets[2]?.id]));
+    expect(
+      await t.db.select().from(workoutExercise).where(eq(workoutExercise.id, we.id)),
+    ).toHaveLength(1);
+  });
+
+  it('applies an edit and a delete made offline in the same batch', async () => {
+    const { cookie } = await t.createSignedInUser('edit-delete@example.test');
+    const { sets } = await logBench(cookie, {
+      startedAt: at('2026-11-11T09:00:00Z'),
+      kg: 80,
+      reps: [10, 9],
+    });
+    const later = at('2026-11-11T11:00:00Z');
+
+    const results = await sync(cookie, {
+      sets: [
+        { ...sets[1], reps: 8, clientUpdatedAt: later },
+        { id: sets[2]?.id, deletedAt: later },
+      ],
+    });
+
+    expect(results.map((r) => r.status)).toEqual(['stored', 'deleted']);
+    expect(results[0]?.row).toMatchObject({ reps: 8 });
+    expect(
+      await t.db
+        .select()
+        .from(set)
+        .where(eq(set.id, sets[2]?.id ?? '')),
+    ).toHaveLength(0);
+  });
+
+  it('lets the newer client_updated_at win, for an edit and for a delete', async () => {
+    const { cookie } = await t.createSignedInUser('newer-wins@example.test');
     const { workoutExercise: we, sets } = await logBench(cookie, {
       startedAt: at('2026-11-11T09:00:00Z'),
       kg: 80,
       reps: [10],
     });
-    const deletedAt = at('2026-11-11T11:00:00Z');
+    const edited = { ...sets[1], reps: 7, clientUpdatedAt: at('2026-11-11T12:00:00Z') };
+    await sync(cookie, { sets: [edited] });
 
-    for (const batch of [
-      { workoutExercises: [{ id: we.id, deletedAt }] },
-      { sets: [{ id: sets[1]?.id, deletedAt }] },
-    ]) {
-      expect((await send(cookie, 'POST', '/api/workouts/sync', batch)).status).toBe(422);
-    }
+    // Both were made on another tab before that edit, and arrive after it.
+    const results = await sync(cookie, {
+      workoutExercises: [{ id: we.id, deletedAt: at('2026-11-11T09:00:00Z') }],
+      sets: [
+        { ...sets[1], reps: 3, clientUpdatedAt: at('2026-11-11T11:00:00Z') },
+        { id: sets[1]?.id, deletedAt: at('2026-11-11T11:30:00Z') },
+      ],
+    });
 
-    expect(await t.db.select().from(set).where(eq(set.workoutExerciseId, we.id))).toHaveLength(2);
+    expect(results.map((r) => r.status)).toEqual(['unchanged', 'unchanged', 'unchanged']);
+    expect(results[2]?.row).toMatchObject({ reps: 7 });
+    expect(await t.db.select().from(syncTombstone)).toHaveLength(0);
   });
 
   it('derives nothing from an idle workout: until the phone writes it, endedAt stays null', async () => {
@@ -315,11 +378,62 @@ describe('POST /api/workouts/sync (S1)', () => {
     expect((await res.json()).code).toBe('payload_too_large');
   });
 
-  it('refuses a batch that does not match the schema as 422', async () => {
+  it('refuses one set that does not match its schema inside a 200, and stores the rest', async () => {
     const { cookie } = await t.createSignedInUser('bad@example.test');
+    const bench = await exerciseId(cookie, 'Barbell Bench Press');
     const w = workoutRow();
+    const we = exerciseRow(w.id, bench);
+    const good = setRow(we.id, 0);
+    const bad = setRow(we.id, 1, { reps: 0, weightKg: 82.5 });
+
+    const results = await sync(cookie, {
+      workouts: [w],
+      workoutExercises: [we],
+      sets: [bad, good],
+    });
+
+    expect(results.map((r) => [r.id, r.status])).toEqual([
+      [w.id, 'stored'],
+      [we.id, 'stored'],
+      [bad.id, 'refused'],
+      [good.id, 'stored'],
+    ]);
+    expect(results[2]?.problem).toMatchObject({ code: 'validation_failed', status: 422 });
+    // The field at fault, and never the value that was sent.
+    expect(results[2]?.problem?.errors?.map((error) => error.path)).toEqual(['reps']);
+    expect(JSON.stringify(results[2])).not.toContain('82.5');
+    const stored = await t.db
+      .select({ id: set.id })
+      .from(set)
+      .where(eq(set.workoutExerciseId, we.id));
+    expect(stored).toEqual([{ id: good.id }]);
+  });
+
+  it('refuses the children of a row that does not match its schema as parent_missing', async () => {
+    const { cookie } = await t.createSignedInUser('bad-parent@example.test');
+    const bench = await exerciseId(cookie, 'Barbell Bench Press');
+    const w = workoutRow();
+    const we = exerciseRow(w.id, bench, { repLow: 12, repHigh: 6 });
+
+    const results = await sync(cookie, {
+      workouts: [w],
+      workoutExercises: [we],
+      sets: [setRow(we.id, 0)],
+    });
+
+    expect(results.map((r) => [r.status, r.problem?.code])).toEqual([
+      ['stored', undefined],
+      ['refused', 'validation_failed'],
+      ['refused', 'parent_missing'],
+    ]);
+  });
+
+  it('refuses a batch holding a row with no id as 422, applying nothing', async () => {
+    const { cookie } = await t.createSignedInUser('no-id@example.test');
+    const w = workoutRow();
+    const { id: _id, ...nameless } = setRow(randomUUID(), 0);
     const res = await send(cookie, 'POST', '/api/workouts/sync', {
-      sets: [setRow(randomUUID(), 0, { reps: 0 })],
+      sets: [nameless],
       workouts: [w],
     });
     expect(res.status).toBe(422);
@@ -333,6 +447,148 @@ describe('POST /api/workouts/sync (S1)', () => {
       body: JSON.stringify({ workouts: [workoutRow()] }),
     });
     expect(res.status).toBe(401);
+  });
+});
+
+/** Every tombstone, as `table id`. */
+const tombstones = async () =>
+  new Set((await t.db.select().from(syncTombstone)).map((row) => `${row.tableName} ${row.id}`));
+
+describe('tombstones (docs/03 §8.1, docs/04 `sync_tombstone`)', () => {
+  it('buries a deleted workout with every row it cascades to, under the phone’s deletedAt', async () => {
+    const { cookie, user } = await t.createSignedInUser('bury@example.test');
+    const {
+      workout: w,
+      workoutExercise: we,
+      sets,
+    } = await logBench(cookie, {
+      startedAt: at('2026-11-11T09:00:00Z'),
+      kg: 80,
+      reps: [10],
+    });
+    const deletedAt = at('2026-11-11T11:00:00Z');
+
+    await sync(cookie, { workouts: [{ id: w.id, deletedAt }] });
+
+    expect(await tombstones()).toEqual(
+      new Set([
+        `workout ${w.id}`,
+        `workout_exercise ${we.id}`,
+        ...sets.map((each) => `set ${each.id}`),
+      ]),
+    );
+    const rows = await t.db.select().from(syncTombstone);
+    expect(rows.every((row) => row.userId === user.id)).toBe(true);
+    expect(rows.every((row) => row.deletedAt.toISOString() === deletedAt)).toBe(true);
+  });
+
+  it('buries a deleted exercise row with its sets, and a deleted set alone', async () => {
+    const { cookie } = await t.createSignedInUser('bury-child@example.test');
+    const bench = await exerciseId(cookie, 'Barbell Bench Press');
+    const { workout: w, sets } = await logBench(cookie, {
+      startedAt: at('2026-11-11T09:00:00Z'),
+      kg: 80,
+      reps: [10],
+    });
+    const other = exerciseRow(w.id, bench, { position: 1 });
+    const otherSet = setRow(other.id, 0);
+    await sync(cookie, { workoutExercises: [other], sets: [otherSet] });
+    const deletedAt = at('2026-11-11T11:00:00Z');
+
+    await sync(cookie, {
+      workoutExercises: [{ id: other.id, deletedAt }],
+      sets: [{ id: sets[1]?.id, deletedAt }],
+    });
+
+    expect(await tombstones()).toEqual(
+      new Set([`workout_exercise ${other.id}`, `set ${otherSet.id}`, `set ${sets[1]?.id}`]),
+    );
+  });
+
+  it('does not store a stale copy of a set, or of a workout, that arrives after its delete', async () => {
+    const { cookie } = await t.createSignedInUser('stale@example.test');
+    const first = await logBench(cookie, {
+      startedAt: at('2026-11-11T09:00:00Z'),
+      kg: 80,
+      reps: [10],
+    });
+    const second = await logBench(cookie, {
+      startedAt: at('2026-11-12T09:00:00Z'),
+      kg: 80,
+      reps: [10],
+    });
+    const deletedAt = at('2026-11-13T09:00:00Z');
+    await sync(cookie, {
+      workouts: [{ id: second.workout.id, deletedAt }],
+      sets: [{ id: first.sets[1]?.id, deletedAt }],
+    });
+
+    // A second tab still holds both, and one of its copies is even stamped after the delete.
+    const stale = await sync(cookie, {
+      workouts: [second.workout],
+      workoutExercises: [second.workoutExercise],
+      sets: [
+        ...second.sets,
+        first.sets[1],
+        { ...first.sets[1], reps: 3, clientUpdatedAt: at('2026-11-14T09:00:00Z') },
+      ],
+    });
+
+    expect(stale.map((r) => r.status)).toEqual(Array.from({ length: 6 }, () => 'deleted'));
+    expect(await t.db.select().from(workout).where(eq(workout.id, second.workout.id))).toHaveLength(
+      0,
+    );
+    const left = await t.db.select({ id: set.id }).from(set);
+    expect(left).toEqual([{ id: first.sets[0]?.id }]);
+  });
+
+  it('answers a new row under a deleted parent as deleted, in a later request too', async () => {
+    const { cookie } = await t.createSignedInUser('orphan@example.test');
+    const bench = await exerciseId(cookie, 'Barbell Bench Press');
+    const { workout: w, workoutExercise: we } = await logBench(cookie, {
+      startedAt: at('2026-11-11T09:00:00Z'),
+      kg: 80,
+      reps: [10],
+    });
+    const kept = await logBench(cookie, {
+      startedAt: at('2026-11-12T09:00:00Z'),
+      kg: 80,
+      reps: [10],
+    });
+    const deletedAt = at('2026-11-13T09:00:00Z');
+    await sync(cookie, {
+      workouts: [{ id: w.id, deletedAt }],
+      workoutExercises: [{ id: kept.workoutExercise.id, deletedAt }],
+    });
+
+    // Rows the server has never seen, logged on a tab that had not heard of either delete.
+    const results = await sync(cookie, {
+      workoutExercises: [exerciseRow(w.id, bench, { position: 1 })],
+      sets: [setRow(we.id, 7), setRow(kept.workoutExercise.id, 7)],
+    });
+
+    expect(results.map((r) => r.status)).toEqual(['deleted', 'deleted', 'deleted']);
+    expect(await t.db.select().from(set)).toHaveLength(0);
+  });
+
+  it('buries a row the server never had, so its copy from another tab is not stored', async () => {
+    const { cookie } = await t.createSignedInUser('unseen@example.test');
+    const bench = await exerciseId(cookie, 'Barbell Bench Press');
+    const w = workoutRow();
+    const we = exerciseRow(w.id, bench);
+    const deletedAt = at('2026-11-11T11:00:00Z');
+
+    expect((await sync(cookie, { workouts: [{ id: w.id, deletedAt }] }))[0]?.status).toBe(
+      'deleted',
+    );
+    const late = await sync(cookie, {
+      workouts: [w],
+      workoutExercises: [we],
+      sets: [setRow(we.id, 0)],
+    });
+
+    expect(late.map((r) => r.status)).toEqual(['deleted', 'deleted', 'deleted']);
+    expect(await t.db.select().from(workout).where(eq(workout.id, w.id))).toHaveLength(0);
   });
 });
 
@@ -367,6 +623,54 @@ describe('the workout tree across users (docs/08 §4, §10)', () => {
     const [stored] = await t.db.select().from(workout).where(eq(workout.id, w.id));
     expect(stored?.name).toBe('Push A');
     expect(await t.db.select().from(set).where(eq(set.workoutExerciseId, we.id))).toHaveLength(2);
+  });
+
+  it('refuses another user’s exercise row and set deletions as not found, burying nothing', async () => {
+    const a = await t.createSignedInUser('kept@example.test');
+    const b = await t.createSignedInUser('deleter@example.test');
+    const { workoutExercise: we, sets } = await logBench(a.cookie, {
+      startedAt: at('2026-11-11T09:00:00Z'),
+      kg: 80,
+      reps: [10],
+    });
+    const later = at('2026-11-12T09:00:00Z');
+
+    const results = await sync(b.cookie, {
+      workoutExercises: [{ id: we.id, deletedAt: later }],
+      sets: [{ id: sets[1]?.id, deletedAt: later }],
+    });
+
+    for (const result of results) {
+      expect(result).toMatchObject({ status: 'refused', problem: { code: 'not_found' } });
+    }
+    expect(await t.db.select().from(set).where(eq(set.workoutExerciseId, we.id))).toHaveLength(2);
+    expect(await t.db.select().from(syncTombstone)).toHaveLength(0);
+  });
+
+  it('answers a tombstone only to the user who made it', async () => {
+    const a = await t.createSignedInUser('buried@example.test');
+    const b = await t.createSignedInUser('reader@example.test');
+    const { workout: w, sets } = await logBench(a.cookie, {
+      startedAt: at('2026-11-11T09:00:00Z'),
+      kg: 80,
+      reps: [10],
+    });
+    await sync(a.cookie, { workouts: [{ id: w.id, deletedAt: at('2026-11-12T09:00:00Z') }] });
+    const own = await logBench(b.cookie, {
+      startedAt: at('2026-11-11T09:00:00Z'),
+      kg: 80,
+      reps: [10],
+    });
+
+    // The ids A deleted mean nothing to B: neither `deleted`, which would say they once existed.
+    const results = await sync(b.cookie, {
+      workouts: [{ ...w, name: 'Guess' }],
+      sets: [{ ...sets[1], workoutExerciseId: own.workoutExercise.id, position: 9 }],
+    });
+
+    expect(results.map((r) => r.status)).toEqual(['stored', 'stored']);
+    const buried = await t.db.select().from(syncTombstone);
+    expect(buried.every((row) => row.userId === a.user.id)).toBe(true);
   });
 
   it('refuses rows that refer to another user’s workout, exercise row or custom exercise as parent_missing, and stores a workout naming their routine without it', async () => {

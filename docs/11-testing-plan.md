@@ -21,7 +21,7 @@ Rollback-per-test is the default. Two kinds of test opt out, or they pass withou
 | Kind | Why rollback fails it | How it runs |
 | --- | --- | --- |
 | Anything asserting on a **deferred** foreign key — account deletion with a custom exercise used in a routine and in a logged workout (`04`, group 4) | `NO ACTION DEFERRABLE INITIALLY DEFERRED` is checked at **commit**. A transaction that is rolled back never reaches one, so a broken delete order still goes green | `SET CONSTRAINTS ALL IMMEDIATE` before the assertions, inside the transaction. The check fires there; the rollback still cleans up |
-| **Race** tests — two tabs uploading, the same set sent twice | Two requests inside one test transaction share a connection and serialize. The unique-violation and `ON CONFLICT` paths are never exercised | **Committed**, against a database truncated between tests, in its own Vitest file so the two modes never interleave |
+| **Race** tests — two tabs uploading, the same set sent twice | Two requests inside one test transaction share a connection and serialize. The unique-violation and `ON CONFLICT` paths are never exercised | **Committed**, in its own Vitest file so the two modes never interleave (`workouts-race.test.ts`, `useTestApp({ committed: true })`). Each test's users are deleted after it, which takes their rows with them; the app role cannot `TRUNCATE` |
 
 - **Third parties are stubbed at the HTTP boundary**: Open Food Facts, Anthropic. The ingest
   tests post recorded Health Auto Export payloads.
@@ -36,6 +36,10 @@ Rollback-per-test is the default. Two kinds of test opt out, or they pass withou
 - **Rejected:** a Neon branch per CI run (network-dependent, Free-tier limits, slower) and PGlite (not
   Postgres 18, so no `uuidv7()`; the auth tests need a real Postgres).
 - Playwright's WebKit is not iOS Safari. It catches engine differences early; it does not replace §3.
+- Under the service worker, Playwright's WebKit does not route a page's requests, so a test cannot
+  drop one response there. `setOffline` works on both engines. *Found 2026-10-08.*
+- `E2E_WEB_PORT` and `E2E_API_PORT` move the browser tests' two servers, so two checkouts on one
+  machine do not reuse each other's. *Added 2026-10-08.*
 
 ## 2. Must be automated
 
@@ -63,7 +67,7 @@ implication that the whole table is written at once.*
 | **1** — skeleton, auth, exercise library | The gate's three refusals · the admin bootstrap on an empty database · cross-user read on `exercise` · cookie and bearer swapped between routes · 401 with no session · the sign-out wipe · one browser test: a signed-in user sees the seeded list |
 | **2** — routines | Hono's `csrf()` against the first write route · cross-user write and delete on `exercise`, `exercise_setting` and `routine` · a routine referring to another user's exercise |
 | **3** — screen 1 | The S1 happy path · progression, e1RM and the resolved-at-start defaults · the 3-hour rule (`09` F3) · cross-user sync and last time · sign-out with sets waiting, before the set store is read, and when it cannot be cleared (`08` §7). *Built 2026-10-03*: `progression.test.ts`, `workouts.test.ts`, `e2e/workout.spec.ts` |
-| **4** — the hard edges | Everything else under **Set upload (S1)** · two tabs · tombstones · the refused set |
+| **4** — the hard edges | Everything else under **Set upload (S1)** · two tabs · tombstones · the refused set. *Built 2026-10-08*: `workouts.test.ts` (deletes, tombstones, a row refused inside a 200), `workouts-race.test.ts` (committed: the same set twice, two tabs, a stale copy racing its delete), `e2e/sync-edges.spec.ts` |
 | **5** — progress chart | Epley with warm-ups excluded, across spans |
 | **6** — invite administration | Revoke → cookie, bearer and ingest token each 401 · member on `/api/admin/*` → 404 · restore leaves ingest tokens revoked |
 | **7** — export and delete | Export completeness · stale-session delete · deletion with a custom exercise in a routine and a workout (the deferred-FK case) |

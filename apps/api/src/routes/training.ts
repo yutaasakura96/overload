@@ -1,17 +1,37 @@
-import { createRoute, defineOpenAPIRoute } from '@hono/zod-openapi';
+import { createRoute, defineOpenAPIRoute, type z } from '@hono/zod-openapi';
 import type { AppEnv, RouteDeps } from '../app-env.js';
 import { getProfile } from '../db/profile.js';
 import { lastTimes } from '../db/training.js';
 import { syncWorkouts } from '../db/workouts.js';
 import { accountHeaders } from '../lib/account.js';
-import { problem, problemResponse } from '../lib/problem.js';
-import { LastTimes, SyncBatch, SyncResponse, jsonBody } from './schemas.js';
+import { problem, problemResponse, validationErrors } from '../lib/problem.js';
+import {
+  LastTimes,
+  SetRow,
+  SyncBatch,
+  SyncDeletion,
+  SyncResponse,
+  WorkoutExerciseRow,
+  WorkoutRow,
+  jsonBody,
+} from './schemas.js';
 
 // S1, S2 and S3 (docs/07 §3). The sync batch is the only write path for the workout tree, because
 // it is made and edited offline; last time is one call so the gym screen has it with no signal.
 
 /** The uploader splits a larger queue (docs/07 §3.4). */
 export const SYNC_ROW_LIMIT = 500;
+
+/**
+ * One element of a batch as the sync applies it: its deletion, its row, or the fields that make it
+ * neither. The request schema lets the last through so it is refused on its own (docs/07 §3.4).
+ */
+function readRow<Row>(schema: z.ZodType<Row>, row: { id: string }) {
+  const deletion = SyncDeletion.safeParse(row);
+  if (deletion.success) return deletion.data;
+  const read = schema.safeParse(row);
+  return read.success ? read.data : { id: row.id, errors: validationErrors(read.error) };
+}
 
 const getLastTime = createRoute({
   method: 'get',
@@ -38,13 +58,16 @@ const postSync = createRoute({
   responses: {
     200: {
       description:
-        'A result per row sent. Refusals do not fail the request; each is reported on its row',
+        'A result per row sent. Refusals do not fail the request; each is reported on its row, ' +
+        'a row that does not match its schema included',
       headers: accountHeaders,
       content: { 'application/json': { schema: SyncResponse } },
     },
     401: problemResponse('No session. Nothing was applied'),
     413: problemResponse('`payload_too_large`: more than 500 rows'),
-    422: problemResponse('`validation_failed`: the batch did not match its schema'),
+    422: problemResponse(
+      '`validation_failed`: the batch is not three arrays of rows that each carry an id',
+    ),
   },
 });
 
@@ -69,9 +92,14 @@ export function trainingRoutes({ db }: RouteDeps) {
       route: postSync,
       handler: async (c) => {
         const batch = c.req.valid('json');
-        const rows = batch.workouts.length + batch.workoutExercises.length + batch.sets.length;
-        if (rows > SYNC_ROW_LIMIT) return problem(c, 'payload_too_large');
-        return c.json({ results: await syncWorkouts(db, c.get('user').id, batch) }, 200);
+        const count = batch.workouts.length + batch.workoutExercises.length + batch.sets.length;
+        if (count > SYNC_ROW_LIMIT) return problem(c, 'payload_too_large');
+        const rows = {
+          workouts: batch.workouts.map((row) => readRow(WorkoutRow, row)),
+          workoutExercises: batch.workoutExercises.map((row) => readRow(WorkoutExerciseRow, row)),
+          sets: batch.sets.map((row) => readRow(SetRow, row)),
+        };
+        return c.json({ results: await syncWorkouts(db, c.get('user').id, rows) }, 200);
       },
     }),
   ] as const;

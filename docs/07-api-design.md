@@ -354,16 +354,18 @@ screen shows "first workout".
 | --- | --- | --- | --- | --- | --- |
 | POST | `/api/workouts/sync` | M | Apply the device's queued rows | 200 with a result per row | 401 (nothing applied; every row stays pending), 413 over the row limit, 422 |
 
-**Built so far (slice 3):** the happy path, the clock guard, deleting a workout, ownership and the
-limit. A batch that fails request schema validation gets a 422; a database check or range violation
-on one row is reported as that row's `validation_failed` in a 200 response. Deleting a workout
-exercise or a set, and tombstones, arrive in slice 4 (`06`, 2026-10-03). Until then a
-`{ id, deletedAt }` in `workoutExercises` or `sets` is a 422, a deleted workout reports `deleted`,
-and a stale copy sent after its delete would be stored again.
+**Built (slices 3 and 4):** the happy path, the clock guard, ownership and the limit; and, since
+2026-10-08, deleting any of the three rows, tombstones, and a row refused on its own inside a 200
+(`06`, 2026-10-08).
 
 **Request.** Three arrays, each row the **whole current row** as the phone holds it, plus
-`clientUpdatedAt`, the phone's clock at the last edit. Only a workout can be deleted in slice 3,
-with `{ id, deletedAt }`.
+`clientUpdatedAt`, the phone's clock at the last edit. A row the phone deleted is sent as
+`{ id, deletedAt }` in its array, and nothing else.
+
+**Any object with an id is taken.** The body is a 422 only when it is not three arrays of objects
+that each carry a uuid `id`. A row that fits neither shape above is not applied: its result is
+`refused` with `validation_failed`, and the rest of the batch is applied. Otherwise one row an
+older build wrote would fail the whole batch, and every set behind it would wait for good.
 
 ```http
 POST /api/workouts/sync
@@ -404,14 +406,16 @@ POST /api/workouts/sync
   A retry of the same payload changes nothing. So does a stale copy arriving after a newer edit.
   This replaces `03` §8.1's `DO NOTHING`, and `docs/04` gains `client_updated_at` on the three
   tables.
-- **A workout deletion** removes the row if the stored `client_updated_at` is older than `deletedAt`,
-  and counts as `deleted` if the row is already gone. Deleting a workout cascades (`04`).
-- **Planned for slice 4: a deleted row stays deleted.** Each deletion writes a `sync_tombstone`
-  (`04`) for the row and every row it cascades to. A row whose id, or whose parent's id, has a
-  tombstone is not inserted, and neither is a child of a row reported `deleted` earlier in the
-  same batch. All of these are
-  reported `deleted`. Without this, a stale copy from a second tab or a late request would bring a
-  deleted set back. *Added 2026-09-22.*
+- **A deletion** removes the row if the stored `client_updated_at` is older than `deletedAt`, and
+  counts as `deleted` if the row is already gone or was never there. A stored copy that is newer
+  wins: the row stays and is answered `unchanged`. Deleting a workout or a workout exercise
+  cascades (`04`).
+- **A deleted row stays deleted.** Each deletion writes a `sync_tombstone` (`04`) for the row and
+  every row it cascades to, in its transaction. A row whose id, or whose parent's id, has a
+  tombstone is not inserted, whatever its `clientUpdatedAt`, and neither is a child of a row
+  reported `deleted` earlier in the same batch. All of these are reported `deleted`. Without this,
+  a stale copy from a second tab or a late request would bring a deleted set back. Two requests on
+  the same id take turns (`03` §8.1). *Added 2026-09-22, built 2026-10-08.*
 - **Ownership:** a row whose id exists under another user is refused as `not_found`, like any
   other cross-user access. A row whose `workoutId`, `workoutExerciseId` or `exerciseId` is not the
   caller's is refused as `parent_missing` (`08` §4). A workout whose `routineId` is not the
@@ -436,9 +440,18 @@ POST /api/workouts/sync
 | `status` | Meaning | What the phone does |
 | --- | --- | --- |
 | `stored` | Inserted or updated | Mark **acknowledged**; keep an open workout's rows on the device until it ends (`03` §6) |
-| `unchanged` | The server already had this version or a newer one. `row` is the server's copy | Mark acknowledged; keep an open workout's rows until it ends. A workout the phone ended or removed whose `row` is still open is **not** acknowledged: it stays pending (`08` §7) |
-| `deleted` | Gone, now or before | Delete the local record |
-| `refused` | Refused, with `problem` | Keep the record and mark it **refused** (`03` §7, kind 3) |
+| `unchanged` | The server already had this version or a newer one. `row` is the server's copy | Mark acknowledged; keep an open workout's rows until it ends. A workout the phone ended or removed whose `row` is still open is **not** acknowledged: it stays pending (`08` §7). A set or workout exercise the phone deleted is back, as `row`: it was edited after the delete was made |
+| `deleted` | Gone, now or before, or never stored because it or its parent was deleted | Delete the local record, and those of the rows under it |
+| `refused` | Refused, with `problem` | Keep the record and mark it **refused** (`03` §7, kind 3), with the problem's code and fields. A refused deletion is of a row that is not the caller's: the record is deleted |
+
+A refused row's `problem` is `{ code, status }`, with `errors` when the row did not match its
+schema: the fields at fault as `{ path, message }`, as in a 422 (§1.3), never a value.
+
+```json
+{ "table": "sets", "id": "0192s021-…", "status": "refused",
+  "problem": { "code": "validation_failed", "status": 422,
+               "errors": [{ "path": "reps", "message": "Too big: expected number to be <=100" }] } }
+```
 
 - **A 401 applies nothing** and refuses nothing. Every row stays pending until sign-in (`08` §5).
 - A network failure or a 5xx leaves every row pending, and the whole batch is resent. The guard

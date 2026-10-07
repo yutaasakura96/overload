@@ -878,7 +878,7 @@ export interface paths {
         };
       };
       responses: {
-        /** @description A result per row sent. Refusals do not fail the request; each is reported on its row */
+        /** @description A result per row sent. Refusals do not fail the request; each is reported on its row, a row that does not match its schema included */
         200: {
           headers: {
             /** @description The id of the user whose session answered. Keep the body for that account only. */
@@ -907,7 +907,7 @@ export interface paths {
             'application/problem+json': components['schemas']['Problem'];
           };
         };
-        /** @description `validation_failed`: the batch did not match its schema */
+        /** @description `validation_failed`: the batch is not three arrays of rows that each carry an id */
         422: {
           headers: {
             [name: string]: unknown;
@@ -1303,6 +1303,11 @@ export interface components {
             /** @enum {string} */
             code: 'not_found' | 'parent_missing' | 'validation_failed';
             status: number;
+            /** @description Present when the row did not match its schema: the fields at fault, never a value. */
+            errors?: {
+              path: string;
+              message: string;
+            }[];
           };
         };
     WorkoutRow: {
@@ -1405,16 +1410,28 @@ export interface components {
        */
       clientUpdatedAt: string;
     };
-    /** @description The device’s queued rows, each the whole current row, parents before children. At most 500 rows a request. */
+    /** @description The device’s queued rows, each the whole current row or its deletion, parents before children. At most 500 rows a request. */
     SyncBatch: {
       /** @default [] */
-      workouts: (components['schemas']['SyncDeletion'] | components['schemas']['WorkoutRow'])[];
+      workouts: (
+        | components['schemas']['SyncDeletion']
+        | components['schemas']['WorkoutRow']
+        | components['schemas']['SyncUnreadableRow']
+      )[];
       /** @default [] */
-      workoutExercises: components['schemas']['WorkoutExerciseRow'][];
+      workoutExercises: (
+        | components['schemas']['SyncDeletion']
+        | components['schemas']['WorkoutExerciseRow']
+        | components['schemas']['SyncUnreadableRow']
+      )[];
       /** @default [] */
-      sets: components['schemas']['SetRow'][];
+      sets: (
+        | components['schemas']['SyncDeletion']
+        | components['schemas']['SetRow']
+        | components['schemas']['SyncUnreadableRow']
+      )[];
     };
-    /** @description A workout the phone deleted. */
+    /** @description A row the phone deleted. It goes if the stored copy is older than `deletedAt`, and its id is kept so a stale copy cannot bring it back. */
     SyncDeletion: {
       /**
        * Format: uuid
@@ -1426,6 +1443,16 @@ export interface components {
        * @example 2026-11-11T09:01:40.000Z
        */
       deletedAt: string;
+    };
+    /** @description Any other row with an id. It is not applied: its result is `refused` with `validation_failed`, and the rest of the batch is applied as usual. */
+    SyncUnreadableRow: {
+      /**
+       * Format: uuid
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      id: string;
+    } & {
+      [key: string]: unknown;
     };
   };
   responses: never;

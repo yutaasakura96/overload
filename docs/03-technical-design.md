@@ -228,27 +228,42 @@ The error colour is `error` `#F2555A` (`docs/05` §1.4, added 2026-09-22), alway
    Background Sync, which is unverified on Safari.
 3. The server upserts with `INSERT … ON CONFLICT (id) DO UPDATE … WHERE stored.client_updated_at <
    incoming.client_updated_at` and returns a result per row (`docs/07` §3.4). A retry after a lost
-   response, or a stale copy, changes nothing. Slice 3 syncs workout deletion; editing or deleting
-   logged sets waits for slice 4 (`docs/07` §3.4). *Changed 2026-09-21* from `DO NOTHING`, which
-   could not carry an offline edit.
-   - **Slice 4: a deletion leaves a tombstone.** The guard only works while a row exists, and
+   response, or a stale copy, changes nothing. A set, a workout exercise or a workout is deleted
+   the same way, by `{ id, deletedAt }` in its array, and an edit made offline travels as the
+   whole row under a newer `client_updated_at` (`docs/07` §3.4). *Changed 2026-09-21* from
+   `DO NOTHING`, which could not carry an offline edit.
+   - **A deletion leaves a tombstone.** The guard only works while a row exists, and
      deletes are hard, so a stale copy arriving after a delete would otherwise be inserted again.
      Each sync delete writes the id to `sync_tombstone` (`docs/04`) in the same transaction, along with the ids
      it cascades to. The insert skips any row whose id or parent id has a tombstone, and reports it
-     as `deleted`. Tombstones are purged after 30 days by the daily job (§8.4). *Added 2026-09-22.*
+     as `deleted`. Tombstones are purged after 30 days by the daily job (§8.4). *Added 2026-09-22,
+     built 2026-10-08 (slice 4).*
+   - **One request at a time works on an id.** Each row's transaction first takes
+     `pg_advisory_xact_lock` on the row's id. Without it a stale copy and its delete, sent at the
+     same moment from two tabs, can each miss the other: the copy is read before the tombstone is
+     committed and inserted after the delete has run. A delete of a row the server never had is
+     buried too, since its copy may still be on its way. *Added 2026-10-08.*
 4. **The local record is deleted only after the server acknowledges the set.** A refusal (kind 3)
    marks it refused and keeps it. While its workout is open, an acknowledged record is marked
    acknowledged instead, and deleted when the workout ends (§6).
-5. **One tab uploads at a time.** Use the Web Locks API (`navigator.locks.request`) around the
-   upload loop. *Slice 4.* Slice 3's uploader runs one upload at a time within a tab, on every
-   change to the set store, on reconnect, on return to the app and every 30 s while rows wait. After
-   a launch with no signal it asks `/api/me` again on reconnect, since nothing uploads under an
-   unconfirmed account (`docs/08` §5).
+5. **One tab uploads at a time.** The upload loop runs inside `navigator.locks.request`, on one
+   lock for the origin. Within a tab one upload runs at a time, on every change to the set store,
+   on reconnect, on return to the app and every 30 s while rows wait. After a launch with no signal
+   it asks `/api/me` again on reconnect, since nothing uploads under an unconfirmed account
+   (`docs/08` §5).
+   - **The lock saves requests; it is not what keeps uploads correct.** The guard stores a row
+     once whoever sends it, and a tombstone keeps a deleted one gone. So where the browser has no
+     Web Locks, refuses the request, or another tab has held the lock for 10 s (a tab the browser
+     froze mid-request never lets go), the upload goes ahead without it. *Built 2026-10-08.*
+   - **Each tab works from the device, not from what it last saw.** A change to the set store
+     reads the records and writes in one IndexedDB transaction, and the tab that made it tells the
+     others over a `BroadcastChannel`, which read the records again. A tab granted the lock reads
+     them once more before choosing what to send, so what another tab uploaded meanwhile is not
+     sent twice. *Added 2026-10-08.*
    - **Supported** in Safari and iOS Safari since 15.4 (MDN browser-compat, checked 2026-09-24).
-     **Still unverified:** behaviour inside a standalone home-screen app, and whether a lock is shared
-     between the installed app and the same origin open in Safari. `11` §3 item 4 checks both.
-   - Once tombstones are built, a second tab uploading anyway is safe against resurrection; the
-     lock also prevents wasted requests.
+     **Still unverified:** behaviour inside a standalone home-screen app, and whether a lock, or
+     the channel, is shared between the installed app and the same origin open in Safari. `11` §3
+     item 4 checks both.
 6. `workout` and `workout_exercise` are created on the phone the same way, and uploaded before
    their sets.
 
