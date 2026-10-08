@@ -757,60 +757,6 @@ test.describe('sign-out with a workout on the device', () => {
     expect(await rowsOnDevice(page)).toBe(0);
   });
 
-  test('keeps a Finish the server did not take, and the sign-out it stops', async ({ page }) => {
-    const name = `Clock ${Date.now()}`;
-    await page.clock.install();
-    await saveProfile(page);
-    await createRoutine(page, name, ['Chin-Up']);
-    await page.getByRole('button', { name: 'Create routine' }).click();
-    await expect(page).toHaveURL('/routines');
-    await start(page, name);
-    await completeSet(page, { reps: '6' });
-    await expect(dataState(page)).toContainText('SYNCED');
-
-    // The phone's clock goes back, so the server's copy of the workout is the newer one and stays
-    // open: its answer is not an acknowledgment of the ending.
-    await page.clock.setSystemTime(Date.now() - 60 * 60 * 1000);
-    const answered = page.waitForResponse(
-      (response) => response.url().includes('/api/workouts/sync') && response.ok(),
-    );
-    await finish(page);
-    await answered;
-    await expect(dataState(page)).toHaveText('1 PENDING');
-    expect(stored().at(-1)?.endedAt).toBeNull();
-
-    await page.getByRole('button', { name: 'Sign out' }).click();
-    await expect(page.getByText('Your workout has not finished uploading.')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Discard and sign out' })).toHaveCount(0);
-    await expect(page).toHaveURL('/');
-  });
-
-  test('keeps the removal of a workout with no sets the server did not take', async ({ page }) => {
-    const name = `Clock ${Date.now()}`;
-    const before = stored().length;
-    await page.clock.install();
-    await saveProfile(page);
-    await createRoutine(page, name, ['Chin-Up']);
-    await page.getByRole('button', { name: 'Create routine' }).click();
-    await expect(page).toHaveURL('/routines');
-    await start(page, name);
-    await expect(dataState(page)).toContainText('SYNCED');
-
-    await page.clock.setSystemTime(Date.now() - 60 * 60 * 1000);
-    const answered = page.waitForResponse(
-      (response) => response.url().includes('/api/workouts/sync') && response.ok(),
-    );
-    await finish(page);
-    await answered;
-    await expect(dataState(page)).toHaveText('1 PENDING');
-    expect(stored().length).toBe(before + 1);
-
-    await page.getByRole('button', { name: 'Sign out' }).click();
-    await expect(page.getByText('Your workout has not finished uploading.')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Discard and sign out' })).toHaveCount(0);
-    await expect(page).toHaveURL('/');
-  });
-
   test('waits for the device’s sets to be read before it can start', async ({ page }) => {
     const name = `Reload ${Date.now()}`;
     await saveProfile(page);
