@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
 import { eq, isNull, sql } from 'drizzle-orm';
 import { expect, it } from 'vitest';
 import {
@@ -10,7 +11,7 @@ import {
   seededExercises,
 } from '../seed/exercises';
 import { exercise } from '../src/db/schema';
-import { useTestApp } from './harness';
+import { WEB_ORIGIN, useTestApp } from './harness';
 
 const t = useTestApp();
 
@@ -40,7 +41,21 @@ it('preserves all original ids and leaves custom namesakes untouched', async () 
     .where(isNull(exercise.ownerUserId));
   expect(before).toHaveLength(50);
 
-  const { user } = await t.createSignedInUser('namesake@example.test');
+  const { user, cookie } = await t.createSignedInUser('namesake@example.test');
+  const renamed = before.find(({ name }) => name === 'Dumbbell Fly');
+  expect(renamed).toBeDefined();
+  const routineId = randomUUID();
+  const slotId = randomUUID();
+  const saved = await t.app.request('/api/routines', {
+    method: 'POST',
+    headers: { cookie, Origin: WEB_ORIGIN, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      id: routineId,
+      name: 'Saved before migration',
+      exercises: [{ id: slotId, exerciseId: renamed!.id }],
+    }),
+  });
+  expect(saved.status).toBe(201);
   const [custom] = await t.db
     .insert(exercise)
     .values({ ownerUserId: user.id, name: 'push-up', equipment: 'bodyweight' })
@@ -59,6 +74,17 @@ it('preserves all original ids and leaves custom namesakes untouched', async () 
   for (const { id, name } of before) {
     expect(namesById.get(id)).toBe(renames.find(([from]) => from === name)?.[1] ?? name);
   }
+  const routines = await t.app.request('/api/routines', { headers: { cookie } });
+  expect(routines.status).toBe(200);
+  const routineBody: { items: { id: string; exercises: { id: string; exerciseId: string }[] }[] } =
+    await routines.json();
+  expect(routineBody.items.find(({ id }) => id === routineId)?.exercises).toEqual([
+    expect.objectContaining({ id: slotId, exerciseId: renamed!.id }),
+  ]);
+  const listed = await t.app.request('/api/exercises', { headers: { cookie } });
+  expect(listed.status).toBe(200);
+  const exerciseBody: { items: { id: string; name: string }[] } = await listed.json();
+  expect(exerciseBody.items.find(({ id }) => id === renamed!.id)?.name).toBe('Dumbbell Chest Fly');
   const [customAfter] = await t.db
     .select({ id: exercise.id, name: exercise.name, muscleGroup: exercise.muscleGroup })
     .from(exercise)
