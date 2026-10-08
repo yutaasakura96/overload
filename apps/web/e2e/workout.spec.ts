@@ -328,6 +328,34 @@ const rowsOnDevice = (page: Page) =>
   );
 
 /**
+ * Leaves the server holding a newer, still open copy of the workout on the device, as an edit made
+ * elsewhere would: what the device then sends for it is the older write.
+ */
+async function editWorkoutElsewhere(page: Page) {
+  const row = await page.evaluate(
+    () =>
+      new Promise<Record<string, unknown> | undefined>((resolve, reject) => {
+        const open = indexedDB.open('overload-sets');
+        open.addEventListener('error', () => reject(open.error));
+        open.addEventListener('success', () => {
+          const all = open.result.transaction('rows', 'readonly').objectStore('rows').getAll();
+          all.addEventListener('error', () => reject(all.error));
+          all.addEventListener('success', () => {
+            open.result.close();
+            const records: { table: string; row: Record<string, unknown> }[] = all.result;
+            resolve(records.find((record) => record.table === 'workouts')?.row);
+          });
+        });
+      }),
+  );
+  expect(row).toBeDefined();
+  const newer = { ...row, clientUpdatedAt: new Date(Date.now() + 86_400_000).toISOString() };
+  const edit = await page.request.post('/api/workouts/sync', { data: { workouts: [newer] } });
+  expect(edit.ok()).toBe(true);
+  expect((await edit.json()).results[0].status).toBe('stored');
+}
+
+/**
  * Refuses every write to the set store from here on, until `mend-sets`. Each refusal is counted on
  * the document, so a test can wait for one.
  */
@@ -755,6 +783,61 @@ test.describe('sign-out with a workout on the device', () => {
     await page.getByRole('button', { name: 'Discard and sign out' }).click();
     await expect(page).toHaveURL('/sign-in');
     expect(await rowsOnDevice(page)).toBe(0);
+  });
+
+  test('keeps a Finish the server did not take, and the sign-out it stops', async ({ page }) => {
+    const name = `Newer ${Date.now()}`;
+    await saveProfile(page);
+    await createRoutine(page, name, ['Chin-Up']);
+    await page.getByRole('button', { name: 'Create routine' }).click();
+    await expect(page).toHaveURL('/routines');
+    await start(page, name);
+    await completeSet(page, { reps: '6' });
+    await expect(dataState(page)).toContainText('SYNCED');
+
+    // The server's copy of the workout is the newer one and stays open: its answer is not an
+    // acknowledgment of the ending.
+    await editWorkoutElsewhere(page);
+    const answered = page.waitForResponse(
+      (response) => response.url().includes('/api/workouts/sync') && response.ok(),
+    );
+    await finish(page);
+    await answered;
+    await expect(dataState(page)).toHaveText('1 PENDING');
+    expect(stored().at(-1)?.endedAt).toBeNull();
+
+    await page.getByRole('button', { name: 'Sign out' }).click();
+    await expect(page.getByText('Your workout has not finished uploading.')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Discard and sign out' })).toHaveCount(0);
+    await expect(page).toHaveURL('/');
+  });
+
+  test('keeps a workout with no sets whose removal the server did not take', async ({ page }) => {
+    const name = `Newer ${Date.now()}`;
+    const before = stored().length;
+    await saveProfile(page);
+    await createRoutine(page, name, ['Chin-Up']);
+    await page.getByRole('button', { name: 'Create routine' }).click();
+    await expect(page).toHaveURL('/routines');
+    await start(page, name);
+    await expect(dataState(page)).toContainText('SYNCED');
+
+    // The server's copy is the newer one, so it survives the removal and comes back to the device
+    // still in progress.
+    await editWorkoutElsewhere(page);
+    const answered = page.waitForResponse(
+      (response) => response.url().includes('/api/workouts/sync') && response.ok(),
+    );
+    await finish(page);
+    await answered;
+    await expect(page.getByRole('link', { name: 'Resume workout' })).toBeVisible();
+    expect(stored().length).toBe(before + 1);
+    expect(stored().at(-1)?.endedAt).toBeNull();
+
+    await page.getByRole('button', { name: 'Sign out' }).click();
+    await expect(page.getByText('A workout is in progress')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Discard and sign out' })).toHaveCount(0);
+    await expect(page).toHaveURL('/');
   });
 
   test('waits for the device’s sets to be read before it can start', async ({ page }) => {
