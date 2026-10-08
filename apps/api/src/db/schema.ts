@@ -349,7 +349,7 @@ export const set = pgTable(
 export const syncTombstone = pgTable(
   'sync_tombstone',
   {
-    id: uuid('id').notNull().primaryKey(),
+    id: uuid('id').notNull(),
     userId: uuid('user_id')
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
@@ -358,6 +358,7 @@ export const syncTombstone = pgTable(
     createdAt: instant('created_at').notNull().defaultNow(),
   },
   (t) => [
+    primaryKey({ columns: [t.userId, t.id] }),
     index('sync_tombstone_created_at_idx').on(t.createdAt),
     check(
       'sync_tombstone_table_name_check',

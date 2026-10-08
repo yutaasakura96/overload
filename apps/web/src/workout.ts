@@ -434,12 +434,9 @@ export async function discardSet(id: string): Promise<void> {
 }
 
 /** A workout left with no logged set is deleted, not kept (docs/09 F3). */
-function removeWorkout(records: StoreRecord[], workout: WorkoutRecord): Change {
+function removeWorkout(workout: WorkoutRecord): Change {
   return {
     put: [{ ...workout, state: 'pending', deletedAt: stampAfter(workout.row.clientUpdatedAt) }],
-    remove: records
-      .filter((record) => record.workoutId === workout.id && record.id !== workout.id)
-      .map((record) => record.id),
   };
 }
 
@@ -449,9 +446,12 @@ export async function finishWorkout(): Promise<void> {
   await mutate((records) => {
     const workout = openWorkout(records);
     if (workout === undefined) return undefined;
-    if (setsOfWorkout(records, workout.id).length === 0)
-      return removeWorkout(records, workout);
-    const row = { ...workout.row, endedAt: now, clientUpdatedAt: now };
+    if (setsOfWorkout(records, workout.id).length === 0) return removeWorkout(workout);
+    const row = {
+      ...workout.row,
+      endedAt: now,
+      clientUpdatedAt: stampAfter(workout.row.clientUpdatedAt),
+    };
     return { put: [{ ...workout, state: 'pending', row }] };
   });
   useWorkoutStore.setState({ rest: undefined });
@@ -463,7 +463,6 @@ export async function finishWorkout(): Promise<void> {
  * derives nothing. One that never logged a set is deleted, as Finish would.
  */
 export async function endIdleWorkout(nowMs = Date.now()): Promise<void> {
-  const now = new Date(nowMs).toISOString();
   let ended: WorkoutState['idleEnded'];
   await mutate((records) => {
     const workout = openWorkout(records);
@@ -471,9 +470,13 @@ export async function endIdleWorkout(nowMs = Date.now()): Promise<void> {
     const last = lastSetOf(records, workout.id);
     const lastActivity = last?.row.performedAt ?? workout.row.startedAt;
     if (nowMs - new Date(lastActivity).getTime() < IDLE_END_MS) return undefined;
-    if (last === undefined) return removeWorkout(records, workout);
+    if (last === undefined) return removeWorkout(workout);
     ended = { name: workout.row.name, endedAt: last.row.performedAt };
-    const row = { ...workout.row, endedAt: last.row.performedAt, clientUpdatedAt: now };
+    const row = {
+      ...workout.row,
+      endedAt: last.row.performedAt,
+      clientUpdatedAt: stampAfter(workout.row.clientUpdatedAt),
+    };
     return { put: [{ ...workout, state: 'pending', row }] };
   });
   if (ended !== undefined) useWorkoutStore.setState({ rest: undefined, idleEnded: ended });

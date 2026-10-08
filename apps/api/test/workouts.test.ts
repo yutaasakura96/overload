@@ -455,6 +455,61 @@ const tombstones = async () =>
   new Set((await t.db.select().from(syncTombstone)).map((row) => `${row.tableName} ${row.id}`));
 
 describe('tombstones (docs/03 §8.1, docs/04 `sync_tombstone`)', () => {
+  it('keeps each user’s tombstones independent for workout, exercise and set ids', async () => {
+    const a = await t.createSignedInUser('tombstone-a@example.test');
+    const b = await t.createSignedInUser('tombstone-b@example.test');
+    const bench = await exerciseId(a.cookie, 'Barbell Bench Press');
+    const bOwn = await logBench(b.cookie, {
+      startedAt: at('2026-11-11T09:00:00Z'),
+      kg: 80,
+      reps: [10],
+    });
+    const w = workoutRow();
+    const we = exerciseRow(w.id, bench);
+    const s = setRow(we.id, 0);
+    const deletedAt = at('2026-11-12T09:00:00Z');
+
+    expect(
+      (
+        await sync(b.cookie, {
+          workouts: [{ id: w.id, deletedAt }],
+          workoutExercises: [{ id: we.id, deletedAt }],
+          sets: [{ id: s.id, deletedAt }],
+        })
+      ).map((result) => result.status),
+    ).toEqual(['deleted', 'deleted', 'deleted']);
+    expect(
+      (await sync(a.cookie, { workouts: [w], workoutExercises: [we], sets: [s] })).map(
+        (result) => result.status,
+      ),
+    ).toEqual(['stored', 'stored', 'stored']);
+    expect((await sync(a.cookie, { workouts: [{ id: w.id, deletedAt }] }))[0]?.status).toBe(
+      'deleted',
+    );
+
+    const stale = await sync(a.cookie, { workouts: [w], workoutExercises: [we], sets: [s] });
+    expect(stale.map((result) => result.status)).toEqual(['deleted', 'deleted', 'deleted']);
+    for (const id of [w.id, we.id, s.id]) {
+      const owners = (await t.db.select().from(syncTombstone).where(eq(syncTombstone.id, id))).map(
+        (row) => row.userId,
+      );
+      expect(new Set(owners)).toEqual(new Set([a.user.id, b.user.id]));
+    }
+    expect(await t.db.select().from(workout).where(eq(workout.id, w.id))).toHaveLength(0);
+    expect(await t.db.select().from(workout).where(eq(workout.id, bOwn.workout.id))).toHaveLength(
+      1,
+    );
+    expect(
+      await t.db
+        .select()
+        .from(workoutExercise)
+        .where(eq(workoutExercise.id, bOwn.workoutExercise.id)),
+    ).toHaveLength(1);
+    expect(await t.db.select().from(set).where(eq(set.id, bOwn.sets[0]?.id ?? ''))).toHaveLength(
+      1,
+    );
+  }, 15_000);
+
   it('buries a deleted workout with every row it cascades to, under the phone’s deletedAt', async () => {
     const { cookie, user } = await t.createSignedInUser('bury@example.test');
     const {

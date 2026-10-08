@@ -335,8 +335,8 @@ arriving later is not inserted again (`docs/03` §8.1). An id and a time, no con
 
 | Column | Type | Null | Default | Notes |
 | --- | --- | --- | --- | --- |
-| `id` | uuid | no | — | PK. **The deleted row's own id**, not a new one |
-| `user_id` | uuid | no | — | → `user.id`, `ON DELETE CASCADE`. Account deletion removes these too |
+| `id` | uuid | no | — | Composite PK with `user_id`. **The deleted row's own id**, not a new one |
+| `user_id` | uuid | no | — | Composite PK with `id`; → `user.id`, `ON DELETE CASCADE`. Account deletion removes these too |
 | `table_name` | text | no | — | `CHECK (table_name IN ('workout', 'workout_exercise', 'set'))` |
 | `deleted_at` | timestamptz | no | — | The phone's `deletedAt`, or the parent's for a cascaded id |
 | `created_at` | timestamptz | no | `now()` | Server clock. The purge reads this |
@@ -345,12 +345,12 @@ arriving later is not inserted again (`docs/03` §8.1). An id and a time, no con
   `workout_exercise` and `set` ids, which the server knows at that moment; deleting a workout
   exercise writes its `set` ids.
 - A delete of an id the server never held writes one too: the row may still be on its way from
-  another tab. An id already there is left as it is. *Built 2026-10-08.*
+  another tab. That user's tombstone for the id, if already there, is left as it is. *Built 2026-10-08.*
 - Read only for the user who wrote it. Another user sending the same id is not told it was
   deleted.
 - No `updated_at`: a tombstone is never updated (see Conventions, Exceptions).
 - `INDEX (created_at)` for the purge. The daily job deletes rows older than 30 days.
-- One PK serves all three tables: UUIDv7 ids carry 74 random bits, so a collision across tables is negligible.
+- The `(user_id, id)` PK serves all three tables. Each account can bury the same row id independently; UUIDv7 ids carry 74 random bits, so a collision across tables is negligible.
 
 ---
 
@@ -362,7 +362,7 @@ arriving later is not inserted again (`docs/03` §8.1). An id and a time, no con
 | **Suggestion** (S3): did every working set hit the top of the range last time | Same rows, plus `workout_exercise.rep_high` copied at start |
 | **Chart** (S7): best working set per workout over a span, Epley `weight × (1 + reps / 30)` | `workout (user_id, started_at DESC)` filtered by span → the same join, `is_warmup = false` |
 | **Upload a set** (S1) | `INSERT … ON CONFLICT (id) DO UPDATE … WHERE set.client_updated_at < EXCLUDED.client_updated_at` on the PK. *Changed 2026-09-21* from `DO NOTHING`, so a retry or stale copy changes nothing (`docs/07` §3.4). An edit made offline is the same upsert under a newer `client_updated_at` |
-| **Delete through sync** (S1) | `DELETE` by PK where `client_updated_at < deletedAt`, then `INSERT INTO sync_tombstone … ON CONFLICT DO NOTHING`. Every upsert first reads `sync_tombstone` by PK for the row's id and its parent's |
+| **Delete through sync** (S1) | `DELETE` by PK where `client_updated_at < deletedAt`, then `INSERT INTO sync_tombstone … ON CONFLICT (user_id, id) DO NOTHING`. Every upsert first reads `sync_tombstone` by `(user_id, id)` for the row's id and its parent's |
 | **Exercise picker** (S8) | `exercise (owner_user_id)`, left joined to `exercise_setting` to drop `hidden_at` rows |
 | **Export** (S10) | Every table by `user_id`, or by join for the child tables |
 

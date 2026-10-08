@@ -127,20 +127,18 @@ function recordsOnDevice(page: Page) {
           deletedAt?: string;
           row: Record<string, unknown> & { clientUpdatedAt: string; position?: number };
         }[]
-      >(
-        (resolve, reject) => {
-          const open = indexedDB.open('overload-sets');
-          open.addEventListener('error', () => reject(open.error));
-          open.addEventListener('success', () => {
-            const all = open.result.transaction('rows', 'readonly').objectStore('rows').getAll();
-            all.addEventListener('error', () => reject(all.error));
-            all.addEventListener('success', () => {
-              open.result.close();
-              resolve(all.result);
-            });
+      >((resolve, reject) => {
+        const open = indexedDB.open('overload-sets');
+        open.addEventListener('error', () => reject(open.error));
+        open.addEventListener('success', () => {
+          const all = open.result.transaction('rows', 'readonly').objectStore('rows').getAll();
+          all.addEventListener('error', () => reject(all.error));
+          all.addEventListener('success', () => {
+            open.result.close();
+            resolve(all.result);
           });
-        },
-      ),
+        });
+      }),
   );
 }
 
@@ -172,6 +170,33 @@ function rewriteSet(page: Page, position: number, fields: Record<string, number>
         });
       }),
     { position, fields },
+  );
+}
+
+function rewriteWorkoutVersion(page: Page, id: string, clientUpdatedAt: string) {
+  return page.evaluate(
+    ({ id, clientUpdatedAt }) =>
+      new Promise<void>((resolve, reject) => {
+        const open = indexedDB.open('overload-sets');
+        open.addEventListener('error', () => reject(open.error));
+        open.addEventListener('success', () => {
+          const transaction = open.result.transaction('rows', 'readwrite');
+          const rows = transaction.objectStore('rows');
+          const get = rows.get(id);
+          get.addEventListener('success', () => {
+            rows.put({
+              ...get.result,
+              row: { ...get.result.row, clientUpdatedAt },
+            });
+          });
+          transaction.addEventListener('error', () => reject(transaction.error));
+          transaction.addEventListener('complete', () => {
+            open.result.close();
+            resolve();
+          });
+        });
+      }),
+    { id, clientUpdatedAt },
   );
 }
 
@@ -373,6 +398,7 @@ test('a stale copy of a workout sent after its delete does not bring it back', a
   await finish(page);
   await expect(dataState(page)).toContainText('SYNCED');
   await expect.poll(() => stored().some((workout) => workout.name === name)).toBe(false);
+  await expect.poll(async () => (await recordsOnDevice(page)).length).toBe(0);
 
   const stale = await page.request.post('/api/workouts/sync', { data: copy });
   const { results }: { results: { status: string }[] } = await stale.json();
@@ -389,6 +415,10 @@ test('a newer server workout survives an older device delete', async ({ page }) 
   const workout = (await recordsOnDevice(page)).find((record) => record.table === 'workouts');
   expect(workout).toBeDefined();
   if (workout === undefined) return;
+  const exerciseIds = (await recordsOnDevice(page))
+    .filter((record) => record.table === 'workoutExercises')
+    .map((record) => record.id);
+  expect(exerciseIds).toHaveLength(2);
 
   const newer = {
     ...workout.row,
@@ -399,15 +429,28 @@ test('a newer server workout survives an older device delete', async ({ page }) 
   expect((await edit.json()).results[0].status).toBe('stored');
 
   await finish(page);
-  await expect.poll(async () => {
-    const restored = (await recordsOnDevice(page)).find((record) => record.id === workout.id);
-    return {
-      state: restored?.state,
-      deletedAt: restored?.deletedAt,
-      clientUpdatedAt: restored?.row.clientUpdatedAt,
-    };
-  }).toEqual({ state: 'acknowledged', deletedAt: undefined, clientUpdatedAt: newer.clientUpdatedAt });
+  await expect
+    .poll(async () => {
+      const restored = (await recordsOnDevice(page)).find((record) => record.id === workout.id);
+      return {
+        state: restored?.state,
+        deletedAt: restored?.deletedAt,
+        clientUpdatedAt: restored?.row.clientUpdatedAt,
+      };
+    })
+    .toEqual({
+      state: 'acknowledged',
+      deletedAt: undefined,
+      clientUpdatedAt: newer.clientUpdatedAt,
+    });
+  expect(
+    (await recordsOnDevice(page))
+      .filter((record) => record.table === 'workoutExercises')
+      .map((record) => record.id),
+  ).toEqual(exerciseIds);
   await expect(page.getByRole('link', { name: 'Resume workout' })).toBeVisible();
+  await page.getByRole('link', { name: 'Resume workout' }).click();
+  await expect(page.getByRole('region', { name: 'SET 1 OF 5' })).toBeVisible();
 });
 
 test('an empty workout delete stays newer after the phone clock goes back', async ({
@@ -430,6 +473,60 @@ test('an empty workout delete stays newer after the phone clock goes back', asyn
   expect(new Date(deletion?.deletedAt ?? '').getTime()).toBeGreaterThan(
     new Date(workout.row.clientUpdatedAt).getTime(),
   );
+});
+
+test('Finish stamps an ended workout after its version when the clock goes back', async ({
+  page,
+  context,
+}) => {
+  const name = `Finish clock ${Date.now()}`;
+  await startWorkout(page, name);
+  await completeSet(page, '60', '8');
+  await expect(dataState(page)).toContainText('SYNCED');
+  const workout = (await recordsOnDevice(page)).find((record) => record.table === 'workouts');
+  expect(workout).toBeDefined();
+  if (workout === undefined) return;
+
+  await goOffline(context);
+  await context.clock.install({ time: Date.now() - 86_400_000 });
+  await finish(page);
+  const ended = (await recordsOnDevice(page)).find((record) => record.id === workout.id);
+  expect(new Date(ended?.row.clientUpdatedAt ?? '').getTime()).toBeGreaterThan(
+    new Date(workout.row.clientUpdatedAt).getTime(),
+  );
+  await goOnline(context);
+  await expect
+    .poll(() => stored().find((row) => row.name === name)?.endedAt ?? null)
+    .not.toBeNull();
+  await expect.poll(async () => (await recordsOnDevice(page)).length).toBe(0);
+});
+
+test('idle ending stamps after a newer workout version', async ({ page }) => {
+  const name = `Idle clock ${Date.now()}`;
+  await startWorkout(page, name);
+  await completeSet(page, '60', '8');
+  await expect(dataState(page)).toContainText('SYNCED');
+  const workout = (await recordsOnDevice(page)).find((record) => record.table === 'workouts');
+  expect(workout).toBeDefined();
+  if (workout === undefined) return;
+
+  await page.clock.install();
+  await page.clock.fastForward('03:00:30');
+  const newer = {
+    ...workout.row,
+    clientUpdatedAt: new Date(Date.now() + 86_400_000).toISOString(),
+  };
+  const edit = await page.request.post('/api/workouts/sync', { data: { workouts: [newer] } });
+  expect(edit.ok()).toBe(true);
+  expect((await edit.json()).results[0].status).toBe('stored');
+  await rewriteWorkoutVersion(page, workout.id, newer.clientUpdatedAt);
+
+  await page.reload();
+  await expect(page).toHaveURL('/');
+  await expect
+    .poll(() => stored().find((row) => row.name === name)?.endedAt ?? null)
+    .not.toBeNull();
+  await expect.poll(async () => (await recordsOnDevice(page)).length).toBe(0);
 });
 
 test('two tabs open upload each set once', async ({ page, context }) => {

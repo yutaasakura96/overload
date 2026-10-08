@@ -3114,8 +3114,8 @@ What `#4` built, where it stops, and what was decided on the way.
     COMMITTED a stale copy reads "no tombstone" before the delete commits and inserts after it.
     `workouts-race.test.ts` fails without the lock, every run. *Rejected:* a check after the
     insert, which still misses an id the server never held.
-  - **A tombstone answers only the user who made it.** Another account sending the same id is
-    not told the id once existed.
+  - **A tombstone is keyed by user and row id, and answers only that user.** Another account
+    sending the same id is not told the id once existed and cannot block its owner's tombstone.
 - **A deleted row stays deleted whatever the copy's clock says.** A copy stamped after the delete
   is still a copy of a deleted row. The clock decides only between a delete and the row it finds:
   a stored copy newer than `deletedAt` wins, the row stays, and the phone puts its set or exercise

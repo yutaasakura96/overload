@@ -374,7 +374,7 @@ async function bury(
   await tx
     .insert(syncTombstone)
     .values(ids.map((each) => ({ ...each, userId, deletedAt: new Date(deletedAt) })))
-    .onConflictDoNothing();
+    .onConflictDoNothing({ target: [syncTombstone.userId, syncTombstone.id] });
 }
 
 /**
