@@ -119,7 +119,15 @@ function watchSync(context: BrowserContext) {
 function recordsOnDevice(page: Page) {
   return page.evaluate(
     () =>
-      new Promise<{ id: string; table: string; state: string; row: { position?: number } }[]>(
+      new Promise<
+        {
+          id: string;
+          table: string;
+          state: string;
+          deletedAt?: string;
+          row: Record<string, unknown> & { clientUpdatedAt: string; position?: number };
+        }[]
+      >(
         (resolve, reject) => {
           const open = indexedDB.open('overload-sets');
           open.addEventListener('error', () => reject(open.error));
@@ -372,6 +380,56 @@ test('a stale copy of a workout sent after its delete does not bring it back', a
     Array.from({ length: 4 }, () => 'deleted'),
   );
   expect(stored().some((workout) => workout.name === name)).toBe(false);
+});
+
+test('a newer server workout survives an older device delete', async ({ page }) => {
+  const name = `Newer ${Date.now()}`;
+  await startWorkout(page, name);
+  await expect(dataState(page)).toContainText('SYNCED');
+  const workout = (await recordsOnDevice(page)).find((record) => record.table === 'workouts');
+  expect(workout).toBeDefined();
+  if (workout === undefined) return;
+
+  const newer = {
+    ...workout.row,
+    clientUpdatedAt: new Date(Date.now() + 86_400_000).toISOString(),
+  };
+  const edit = await page.request.post('/api/workouts/sync', { data: { workouts: [newer] } });
+  expect(edit.ok()).toBe(true);
+  expect((await edit.json()).results[0].status).toBe('stored');
+
+  await finish(page);
+  await expect.poll(async () => {
+    const restored = (await recordsOnDevice(page)).find((record) => record.id === workout.id);
+    return {
+      state: restored?.state,
+      deletedAt: restored?.deletedAt,
+      clientUpdatedAt: restored?.row.clientUpdatedAt,
+    };
+  }).toEqual({ state: 'acknowledged', deletedAt: undefined, clientUpdatedAt: newer.clientUpdatedAt });
+  await expect(page.getByRole('link', { name: 'Resume workout' })).toBeVisible();
+});
+
+test('an empty workout delete stays newer after the phone clock goes back', async ({
+  page,
+  context,
+}) => {
+  const name = `Clock ${Date.now()}`;
+  await startWorkout(page, name);
+  await expect(dataState(page)).toContainText('SYNCED');
+  const workout = (await recordsOnDevice(page)).find((record) => record.table === 'workouts');
+  expect(workout).toBeDefined();
+  if (workout === undefined) return;
+
+  await goOffline(context);
+  await context.clock.install({ time: Date.now() - 86_400_000 });
+  await finish(page);
+  const deletion = (await recordsOnDevice(page)).find((record) => record.id === workout.id);
+  expect(deletion?.state).toBe('pending');
+  expect(deletion?.deletedAt).toBeDefined();
+  expect(new Date(deletion?.deletedAt ?? '').getTime()).toBeGreaterThan(
+    new Date(workout.row.clientUpdatedAt).getTime(),
+  );
 });
 
 test('two tabs open upload each set once', async ({ page, context }) => {

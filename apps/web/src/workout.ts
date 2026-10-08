@@ -434,9 +434,9 @@ export async function discardSet(id: string): Promise<void> {
 }
 
 /** A workout left with no logged set is deleted, not kept (docs/09 F3). */
-function removeWorkout(records: StoreRecord[], workout: WorkoutRecord, now: string): Change {
+function removeWorkout(records: StoreRecord[], workout: WorkoutRecord): Change {
   return {
-    put: [{ ...workout, state: 'pending', deletedAt: now }],
+    put: [{ ...workout, state: 'pending', deletedAt: stampAfter(workout.row.clientUpdatedAt) }],
     remove: records
       .filter((record) => record.workoutId === workout.id && record.id !== workout.id)
       .map((record) => record.id),
@@ -450,7 +450,7 @@ export async function finishWorkout(): Promise<void> {
     const workout = openWorkout(records);
     if (workout === undefined) return undefined;
     if (setsOfWorkout(records, workout.id).length === 0)
-      return removeWorkout(records, workout, now);
+      return removeWorkout(records, workout);
     const row = { ...workout.row, endedAt: now, clientUpdatedAt: now };
     return { put: [{ ...workout, state: 'pending', row }] };
   });
@@ -471,7 +471,7 @@ export async function endIdleWorkout(nowMs = Date.now()): Promise<void> {
     const last = lastSetOf(records, workout.id);
     const lastActivity = last?.row.performedAt ?? workout.row.startedAt;
     if (nowMs - new Date(lastActivity).getTime() < IDLE_END_MS) return undefined;
-    if (last === undefined) return removeWorkout(records, workout, now);
+    if (last === undefined) return removeWorkout(records, workout);
     ended = { name: workout.row.name, endedAt: last.row.performedAt };
     const row = { ...workout.row, endedAt: last.row.performedAt, clientUpdatedAt: now };
     return { put: [{ ...workout, state: 'pending', row }] };
@@ -538,7 +538,7 @@ function settled(record: StoreRecord, whole: StoreRecord[]) {
  * record is deleted, or, while its workout is open, kept and marked acknowledged. A refused row is
  * kept and marked refused, with the reason. A record changed since it was sent stays pending for
  * the next upload, and so does a workout's ending or removal the server's answer does not show: its
- * own copy won and is still open (docs/08 §7). A deleted set or exercise row the server kept is
+ * own copy won and is still open (docs/08 §7). A deleted row the server kept is
  * back as the server has it: its copy was edited after the delete was made, and the newer wins.
  * Then every ended workout with nothing left to wait for leaves the device.
  */
@@ -571,7 +571,7 @@ export async function applySyncResults(sent: SentRow[], results: SyncResult[]): 
         if (!stillOpenThere(record, result.row)) {
           put.set(record.id, { ...record, state: 'acknowledged' });
         }
-      } else if (record.table !== 'workouts') {
+      } else {
         const { deletedAt: _deletedAt, ...kept } = record;
         // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the answer's row is this record's table's
         put.set(record.id, { ...kept, state: 'acknowledged', row: result.row } as StoreRecord);
