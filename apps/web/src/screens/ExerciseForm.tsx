@@ -380,8 +380,6 @@ export function ExerciseForm({
 
 function subline(exercise: Exercise) {
   const parts = [exercise.custom ? 'YOURS' : 'LIBRARY', equipmentLabels[exercise.equipment]];
-  // Loose: a copy saved by an older build has no `muscleGroup` at all.
-  if (exercise.muscleGroup != null) parts.push(muscleGroupLabels[exercise.muscleGroup]);
   if (exercise.hidden) parts.push('HIDDEN');
   return parts.join(' · ').toUpperCase();
 }
