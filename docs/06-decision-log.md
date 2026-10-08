@@ -3116,8 +3116,7 @@ What `#4` built, where it stops, and what was decided on the way.
     insert, which still misses an id the server never held.
   - **A tombstone is keyed by user and row id, and answers only that user.** Another account
     sending the same id is not told the id once existed and cannot block its owner's tombstone.
-    Migration `0010_slice4_sync_tombstone` creates the table; `0011_slice4_tombstone_per_user`
-    changes its primary key to `(user_id, id)` for databases that already applied `0010`.
+    Migration `0012_slice4_sync_tombstone` creates the table with `(user_id, id)` as its primary key.
 - **A deleted row stays deleted whatever the copy's clock says.** A copy stamped after the delete
   is still a copy of a deleted row. The clock decides only between a delete and the row it finds:
   a stored copy newer than `deletedAt` wins, the row stays, and the phone puts its set or exercise

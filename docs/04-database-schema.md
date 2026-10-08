@@ -333,8 +333,7 @@ The id of a `workout`, `workout_exercise` or `set` deleted through sync, kept so
 arriving later is not inserted again (`docs/03` §8.1). An id and a time, no content. *Added
 2026-09-22.*
 
-Migration `0010_slice4_sync_tombstone` creates the table; `0011_slice4_tombstone_per_user`
-changes its primary key from `id` to `(user_id, id)`.
+Migration `0012_slice4_sync_tombstone` creates the table with `(user_id, id)` as its primary key.
 
 | Column | Type | Null | Default | Notes |
 | --- | --- | --- | --- | --- |
