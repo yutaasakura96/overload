@@ -173,7 +173,7 @@ function rewriteSet(page: Page, position: number, fields: Record<string, number>
   );
 }
 
-function rewriteWorkoutVersion(page: Page, id: string, clientUpdatedAt: string) {
+function rewriteWorkoutVersion(page: Page, workoutId: string, version: string) {
   return page.evaluate(
     ({ id, clientUpdatedAt }) =>
       new Promise<void>((resolve, reject) => {
@@ -196,7 +196,7 @@ function rewriteWorkoutVersion(page: Page, id: string, clientUpdatedAt: string) 
           });
         });
       }),
-    { id, clientUpdatedAt },
+    { id: workoutId, clientUpdatedAt: version },
   );
 }
 

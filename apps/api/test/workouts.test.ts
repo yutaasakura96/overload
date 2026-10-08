@@ -505,9 +505,12 @@ describe('tombstones (docs/03 §8.1, docs/04 `sync_tombstone`)', () => {
         .from(workoutExercise)
         .where(eq(workoutExercise.id, bOwn.workoutExercise.id)),
     ).toHaveLength(1);
-    expect(await t.db.select().from(set).where(eq(set.id, bOwn.sets[0]?.id ?? ''))).toHaveLength(
-      1,
-    );
+    expect(
+      await t.db
+        .select()
+        .from(set)
+        .where(eq(set.id, bOwn.sets[0]?.id ?? '')),
+    ).toHaveLength(1);
   }, 15_000);
 
   it('buries a deleted workout with every row it cascades to, under the phone’s deletedAt', async () => {
