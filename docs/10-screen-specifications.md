@@ -500,15 +500,17 @@ a slot moves focus to the slot now in its place. `Add exercises`, then the prima
 A hidden exercise still in the routine says `· Hidden`. Leaving without saving discards the edit.
 
 **Exercise picker.** Opens inside the editor, so nothing typed is lost. A search field, `New
-exercise`, then the library without hidden exercises, filtered on every word. Each row is a native
-checkbox stretched invisibly over it, drawn as `05`'s check cell, so a tap anywhere ticks it; the
-focus ring goes on the row. Ticked exercises join the routine in the order they were ticked. The
+exercise`, then the library without hidden exercises, filed and searched as the library is (below).
+Each row is a native checkbox stretched invisibly over it, drawn as `05`'s check cell, so a tap
+anywhere ticks it; the focus ring goes on the row. Ticked exercises join the routine in the order
+they were ticked. The
 sticky action bar holds the primary `Add N exercises`, which reads `Tick exercises to add` while
 nothing is ticked. Back to the editor, focus lands on `Add exercises`.
 
 **Exercise form** (`/exercises/new`, `/exercises/{id}`, and from the picker).
 
-- *New or custom:* name, equipment, then increment, rest (s) and the rep range. The increment
+- *New or custom:* name, equipment, muscle group (`None` or one of the eleven), then increment,
+  rest (s) and the rep range. The increment
   follows the equipment class until the user types one, and is shown and typed in the profile's
   unit, kg or lb; it is stored in kg.
 - *Seeded:* only the user's own values, each with its `Default`/`Yours` note, and `Restore
@@ -516,8 +518,19 @@ nothing is ticked. Back to the editor, focus lands on `Add exercises`.
 - Under both: `Hide from pickers` (`Show in pickers again`), and for a custom exercise the delete.
   A delete refused because routines use it names them and suggests hiding instead.
 
-**Exercise library** (`/exercises`). Each row opens the exercise form. `New exercise` and a `Hidden
-exercises` disclosure under the list, which fetches the hidden ones when first opened.
+**Exercise library** (`/exercises`). A search field and `New exercise` above the list, as in the
+picker. Each row opens the exercise form. A `Hidden exercises` disclosure under the list fetches the
+hidden ones when first opened.
+
+**Muscle groups and search** (library and picker; `06`, 2026-10-08). The list is filed under its
+muscle groups in a fixed order: chest, back, shoulders, biceps, triceps, forearms, quads,
+hamstrings, glutes, calves, core, then `Other` for a custom exercise filed under none. Each group is
+`05` §4.3's section label as an `h3`, one step brighter (`text/tertiary`) than the column heads;
+a group with no rows is not drawn. Rows keep name order inside a group. Search keeps the rows whose
+name and aliases together hold every word typed, so
+`rdl` finds `Barbell Romanian Deadlift`. While searching,
+the heading reads `N matching` and is announced; with nothing left it says to check the spelling or
+use `New exercise`.
 
 ### 8.2 Today and the start of a workout (slice 3)
 

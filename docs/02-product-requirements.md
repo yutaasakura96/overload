@@ -60,7 +60,7 @@ As a lifter, I want to see how an exercise has progressed over a chosen time spa
 
 **S8. Exercise library — MUST**
 As a lifter, I want a ready list of common exercises plus my own, so that setup is quick.
-- About 50 seeded barbell, dumbbell, machine and cable exercises are available to every user.
+- About 180 seeded barbell, dumbbell, machine and cable exercises are available to every user.
 - Users can create custom exercises visible only to themselves.
 - Weights are stored in kg. A user can display them in kg or lb; the seeded increments are kg-native.
 

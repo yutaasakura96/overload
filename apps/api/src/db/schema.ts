@@ -129,10 +129,27 @@ export const equipmentValues = [
   'other',
 ] as const;
 
+/** The one muscle group an exercise is filed under in the library and the picker (docs/04). */
+export const muscleGroupValues = [
+  'chest',
+  'back',
+  'shoulders',
+  'biceps',
+  'triceps',
+  'forearms',
+  'quads',
+  'hamstrings',
+  'glutes',
+  'calves',
+  'core',
+] as const;
+
 /**
  * Seeded (`owner_user_id` IS NULL) or one user's own (S8). The equipment values are a
  * load-increment taxonomy (docs/06, 2026-09-23). The unique index on `(owner_user_id, lower(name))
  * NULLS NOT DISTINCT` is in a custom migration: Drizzle's index builder has no NULLS NOT DISTINCT.
+ * `muscle_group` and `aliases` are set on every seeded row; a custom one may have neither
+ * (docs/06, 2026-10-08).
  */
 export const exercise = pgTable(
   'exercise',
@@ -147,10 +164,16 @@ export const exercise = pgTable(
     defaultRestSeconds: integer('default_rest_seconds').notNull().default(120),
     defaultRepLow: smallint('default_rep_low').notNull().default(6),
     defaultRepHigh: smallint('default_rep_high').notNull().default(10),
+    muscleGroup: text('muscle_group', { enum: muscleGroupValues }),
+    aliases: text('aliases').array(),
     ...timestamps,
   },
   (t) => [
     index('exercise_owner_user_id_idx').on(t.ownerUserId),
+    check(
+      'exercise_muscle_group_check',
+      sql`${t.muscleGroup} IN ('chest', 'back', 'shoulders', 'biceps', 'triceps', 'forearms', 'quads', 'hamstrings', 'glutes', 'calves', 'core')`,
+    ),
     check(
       'exercise_equipment_check',
       sql`${t.equipment} IN ('barbell', 'dumbbell', 'machine_plate', 'machine_stack', 'cable', 'bodyweight', 'other')`,

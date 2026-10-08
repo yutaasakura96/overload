@@ -13,6 +13,8 @@ type Item = {
   id: string;
   name: string;
   equipment: string;
+  muscleGroup: string | null;
+  aliases: string[];
   custom: boolean;
   hidden: boolean;
   incrementKg: number;
@@ -71,6 +73,7 @@ describe('POST /api/exercises', () => {
       id,
       name: '  Cable Y-Raise ',
       equipment: 'cable',
+      muscleGroup: 'shoulders',
       incrementKg: 1.25,
       restSeconds: 90,
       repLow: 12,
@@ -82,6 +85,8 @@ describe('POST /api/exercises', () => {
       id,
       name: 'Cable Y-Raise',
       equipment: 'cable',
+      muscleGroup: 'shoulders',
+      aliases: [],
       custom: true,
       hidden: false,
       incrementKg: 1.25,
@@ -102,7 +107,13 @@ describe('POST /api/exercises', () => {
       equipment: 'dumbbell',
     });
 
-    expect(created).toMatchObject({ incrementKg: 1, restSeconds: 120, repLow: 6, repHigh: 10 });
+    expect(created).toMatchObject({
+      muscleGroup: null,
+      incrementKg: 1,
+      restSeconds: 120,
+      repLow: 6,
+      repHigh: 10,
+    });
   });
 
   it('answers a repeat of the same create with 200 and the stored row, and stores it once', async () => {
@@ -239,7 +250,7 @@ describe('Hono’s csrf() on the first write route (docs/08 §2)', () => {
     expect(res.status).toBe(403);
     expect(res.headers.get('content-type')).toBe('application/problem+json');
     expect(await res.json()).toMatchObject({ code: 'cross_origin' });
-    expect(await list(cookie, '')).toHaveLength(50);
+    expect(await list(cookie, '')).toHaveLength(185);
   });
 
   it('lets the same request through from the web origin, where the body is then validated', async () => {
@@ -253,7 +264,7 @@ describe('Hono’s csrf() on the first write route (docs/08 §2)', () => {
 
     // Past csrf(), the JSON body validator refuses anything that is not application/json.
     expect(res.status).not.toBe(403);
-    expect(await list(cookie, '')).toHaveLength(50);
+    expect(await list(cookie, '')).toHaveLength(185);
   });
 });
 
@@ -275,6 +286,25 @@ describe('PATCH /api/exercises/{id}', () => {
       restSeconds: 60,
       incrementKg: created.incrementKg,
     });
+  });
+
+  it('files a custom exercise under a muscle group, keeps it when left out, and clears it on null', async () => {
+    const { cookie } = await t.createSignedInUser('filer@example.test');
+    const created = await createCustom(cookie);
+    const patch = async (body: unknown) => {
+      const res = await send(cookie, 'PATCH', `/api/exercises/${created.id}`, body);
+      const item: Item = await res.json();
+      return item.muscleGroup;
+    };
+
+    expect(await patch({ muscleGroup: 'shoulders' })).toBe('shoulders');
+    expect(await patch({ restSeconds: 60 })).toBe('shoulders');
+    expect(await patch({ muscleGroup: null })).toBeNull();
+
+    const refused = await send(cookie, 'PATCH', `/api/exercises/${created.id}`, {
+      muscleGroup: 'neck',
+    });
+    expect(refused.status).toBe(422);
   });
 
   it('answers 404 for a seeded exercise, which nobody may edit', async () => {
@@ -363,7 +393,7 @@ describe('DELETE /api/exercises/{id}', () => {
     const bench = await seeded(cookie, 'Barbell Bench Press');
 
     expect((await send(cookie, 'DELETE', `/api/exercises/${bench.id}`)).status).toBe(204);
-    expect(await list(cookie, '')).toHaveLength(50);
+    expect(await list(cookie, '')).toHaveLength(185);
   });
 });
 

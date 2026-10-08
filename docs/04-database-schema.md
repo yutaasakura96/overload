@@ -107,7 +107,7 @@ removing invite-only means dropping it and deleting the `validateUserInfo` allow
 
 ## exercise
 
-One exercise. Either **seeded** (`owner_user_id IS NULL`, visible to everyone, ~50 rows) or
+One exercise. Either **seeded** (`owner_user_id IS NULL`, visible to everyone, ~180 rows) or
 **custom** (owned by one user, visible only to them).
 
 | Column | Type | Null | Default | Notes |
@@ -120,13 +120,18 @@ One exercise. Either **seeded** (`owner_user_id IS NULL`, visible to everyone, ~
 | `default_rest_seconds` | integer | no | `120` | Fallback. S5's 120 s default lives here |
 | `default_rep_low` | smallint | no | `6` | Fallback rep range (S3) |
 | `default_rep_high` | smallint | no | `10` | |
+| `muscle_group` | text | yes | — | `chest` \| `back` \| `shoulders` \| `biceps` \| `triceps` \| `forearms` \| `quads` \| `hamstrings` \| `glutes` \| `calves` \| `core`, enforced by `CHECK`. The one group the library files it under. Set on every seeded row; `NULL` on a custom exercise the user has not filed (`06`, 2026-10-08) |
+| `aliases` | text[] | yes | — | Other names search matches ("RDL"), never shown as the name. Seeded rows only; `NULL` on a custom exercise (`06`, 2026-10-08) |
 | `created_at` | timestamptz | no | `now()` | |
 | `updated_at` | timestamptz | no | `now()` | |
 
 - `CHECK (default_rep_low <= default_rep_high)`.
 - `UNIQUE INDEX … NULLS NOT DISTINCT (owner_user_id, lower(name))` — one user cannot have two
   exercises of the same name, and seeded names are unique among themselves. An index, not a table
-  constraint, because it has an expression.
+  constraint, because it has an expression. A custom exercise may share a name with a seeded one:
+  both show, the user's marked `Yours`.
+- A seeded row's `id` never changes. A rename is an `UPDATE` in a new migration, so routines and
+  history, which hold the id and no name, follow it.
 - `INDEX (owner_user_id)` — the picker reads "seeded plus mine".
 - Deleting a custom exercise that has sets logged is refused by the API; it is hidden instead (see
   `exercise_setting.hidden_at`). With no sets logged it is deleted outright.

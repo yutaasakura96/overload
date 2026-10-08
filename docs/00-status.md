@@ -2,7 +2,7 @@
 
 **Project:** A weight-training progress tracker combining lift logging, meal planning, Apple Watch/iPhone health data, and bodyweight/diet coaching.
 **Phase:** 7 — Build (M1 first). Phase 6 — Review finished 2026-09-23.
-**Updated:** 2026-10-05
+**Updated:** 2026-10-08
 
 ## Done
 - Phase 1 — Brief + PRD: `docs/01-project-brief.md`, `docs/02-product-requirements.md`, `docs/06-decision-log.md`.
@@ -86,6 +86,10 @@ cases; a Playwright test logs a workout offline and back on Chromium and WebKit,
 the 3-hour rule and sign-out. Left for slice 4 or later, listed in `06`: per-row validation
 refusals, tombstones, Start empty, changing a live workout, editing a logged set, RPE entry, the
 finish summary. For the iPhone checklist: whether the rest tone plays on silent (`11` §3).
+
+**The seeded exercise list grew from 50 to 185, 2026-10-08** (`#39`, branch `fm/overload-39-build`),
+hand-written, with a muscle group and aliases on every seeded row. The library and the picker are
+filed under muscle groups and search matches aliases (`06`, 2026-10-08; `10` §8.1).
 
 **Issues are open.** Milestone `M1`, one issue per slice, `#1`–`#7`, each chained to the one before
 with GitHub's native dependencies. `#3`'s three questions were settled in `06` (2026-10-03).

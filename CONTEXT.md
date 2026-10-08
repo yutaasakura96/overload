@@ -65,11 +65,23 @@ A saved, ordered list of exercises with target sets and rep ranges, like "Push A
 _Avoid_: template, program, plan (plan belongs to meals); using "routine" for the weekday shape
 
 **Exercise**:
-A movement in the library, either **seeded** (shared, about 50) or **custom** (one user's own).
+A movement in the library, either **seeded** (shared, about 180) or **custom** (one user's own).
 A **hidden** exercise is off the user's pickers but still named in history.
 Named **specification → equipment → exercise**: "Barbell Bench Press", "1 Arm Dumbbell Row". One
-name per movement, so "DB Row" and "Dumbbell Row" never become two rows.
+name per movement, so "DB Row" and "Dumbbell Row" never become two rows. A Smith machine is named
+as equipment ("Smith Machine Squat"); a bodyweight movement carries no equipment word.
 _Avoid_: lift, movement (in code); abbreviating the equipment in a name
+
+**Muscle group**:
+The one group an exercise is filed under in the library and the picker: chest, back, shoulders,
+biceps, triceps, forearms, quads, hamstrings, glutes, calves or core. Every seeded exercise has one;
+a custom one may have none.
+_Avoid_: body part, category, target muscle; listing several per exercise
+
+**Alias**:
+Another name a lifter would type for a seeded exercise ("RDL", "Skullcrusher", "Pec Deck"). Search
+matches it; it is never the exercise's name.
+_Avoid_: synonym, nickname, tag
 
 **Set**:
 One logged effort of an exercise within a workout, with weight, reps and optional RIR or RPE (`set`).

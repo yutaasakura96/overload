@@ -201,9 +201,9 @@ sign in, so CI catches it.
 - **If a migration fails, the build fails** and the previous deployment keeps serving. A migration
   that succeeded before a later build step failed stays applied — which the add-first rule makes
   harmless.
-- **Seed data is migrations too** (decided by default): the ~50 seeded exercises and the MEXT
+- **Seed data is migrations too** (decided by default): the ~180 seeded exercises and the MEXT
   `reference_food` import are custom migrations whose SQL is generated (`pnpm --filter @overload/api
-  seed:exercises` writes `0003_seed_exercises.sql`), so every environment gets them the same way. A
+  seed:exercises` writes `0003_seed_exercises.sql` and `0011_grow_exercise_library.sql`), so every environment gets them the same way. A
   correction is a new migration. `apps/api/seed/` holds the generator, not a runner.
 
 ### The add-first rule (binding)

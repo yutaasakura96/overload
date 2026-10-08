@@ -19,11 +19,35 @@ export const Equipment = z
     description: 'A load-increment class, not an equipment inventory (docs/04 `exercise`).',
   });
 
+export const MuscleGroup = z
+  .enum([
+    'chest',
+    'back',
+    'shoulders',
+    'biceps',
+    'triceps',
+    'forearms',
+    'quads',
+    'hamstrings',
+    'glutes',
+    'calves',
+    'core',
+  ])
+  .openapi('MuscleGroup', {
+    description: 'The one group the library files an exercise under (docs/04 `exercise`).',
+  });
+
 export const Exercise = z
   .object({
     id: Uuid,
     name: z.string().openapi({ example: 'Barbell Bench Press' }),
     equipment: Equipment,
+    // Null on a custom exercise the caller has not filed under a group.
+    muscleGroup: MuscleGroup.nullable(),
+    aliases: z.array(z.string()).openapi({
+      description: 'Other names for search to match, never shown as the name. Seeded only.',
+      example: ['Flat Bench'],
+    }),
     custom: z
       .boolean()
       .openapi({ description: 'True for the caller’s own exercise, false for a seeded one.' }),
@@ -70,6 +94,8 @@ export const ExerciseCreate = z
     id: Uuid.openapi({ description: 'Made on the device (UUIDv7). A repeat returns the row.' }),
     name: Name.openapi({ example: 'Cable Y-Raise' }),
     equipment: Equipment,
+    // Default: none, so the library lists it apart from the groups.
+    muscleGroup: MuscleGroup.nullable().optional(),
     incrementKg: IncrementKg.optional().openapi({
       description: 'Default: the equipment class’s increment (docs/04 `exercise`).',
     }),
@@ -84,6 +110,8 @@ export const ExercisePatch = z
   .object({
     name: Name.optional(),
     equipment: Equipment.optional(),
+    // `null` files it under no group.
+    muscleGroup: MuscleGroup.nullable().optional(),
     incrementKg: IncrementKg.optional(),
     restSeconds: RestSeconds.optional(),
     repLow: Reps.optional(),

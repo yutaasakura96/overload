@@ -2,6 +2,7 @@ import type { Exercise } from '@overload/api-contract';
 import { useMemo, useState, type ReactNode } from 'react';
 import { AppBar, CheckIcon, Notice, TextField } from '../components';
 import { equipmentLabels } from '../equipment';
+import { ExerciseGroups, searchExercises } from '../exercise-list';
 
 // S8's picker, opened from the routine editor (docs/09 F2 step 2, F5 step 1; docs/10 §8.1). Several
 // exercises can be ticked at once, and they join the routine in the order they were ticked.
@@ -25,13 +26,7 @@ export function ExercisePicker({
   const [search, setSearch] = useState('');
   const [picked, setPicked] = useState<string[]>([]);
 
-  const shown = useMemo(() => {
-    const words = search.toLowerCase().split(/\s+/).filter(Boolean);
-    return (exercises ?? []).filter((exercise) => {
-      const name = exercise.name.toLowerCase();
-      return words.every((word) => name.includes(word));
-    });
-  }, [exercises, search]);
+  const shown = useMemo(() => searchExercises(exercises ?? [], search), [exercises, search]);
 
   const toggle = (id: string) =>
     setPicked((current) =>
@@ -54,13 +49,13 @@ export function ExercisePicker({
         </Notice>
       )}
 
-      <div className="picker__tools">
+      <div className="exercise-tools">
         <TextField
           label="Search"
           type="search"
           value={search}
           onChange={setSearch}
-          placeholder="Bench, row, cable…"
+          placeholder="Bench, RDL, pec deck…"
         />
         <button type="button" className="button button--secondary" onClick={onCreate}>
           New exercise
@@ -69,7 +64,11 @@ export function ExercisePicker({
 
       {exercises !== undefined && (
         <section aria-labelledby="picker-heading">
-          <h2 id="picker-heading" className="section-label section-label--gutter">
+          <h2
+            id="picker-heading"
+            className="section-label section-label--gutter"
+            aria-live="polite"
+          >
             {search === '' ? 'Library' : `${shown.length} matching`}
           </h2>
           {shown.length === 0 ? (
@@ -77,8 +76,8 @@ export function ExercisePicker({
               Nothing matches. Check the spelling, or make it with <em>New exercise</em>.
             </p>
           ) : (
-            <ul className="picker__list">
-              {shown.map((exercise) => {
+            <ExerciseGroups exercises={shown} listClassName="picker__list">
+              {(exercise) => {
                 const ticked = picked.includes(exercise.id);
                 return (
                   <li key={exercise.id}>
@@ -108,8 +107,8 @@ export function ExercisePicker({
                     </label>
                   </li>
                 );
-              })}
-            </ul>
+              }}
+            </ExerciseGroups>
           )}
         </section>
       )}

@@ -14,6 +14,25 @@ test.beforeEach(async ({ context }) => {
   await context.addCookies(cookies);
 });
 
+test('the picker files exercises under muscle groups and finds one by an alias', async ({
+  page,
+}) => {
+  await page.goto('/routines/new');
+  await page.getByRole('button', { name: 'Add exercises' }).click();
+
+  const chest = page.getByRole('region', { name: 'Chest' });
+  await expect(
+    chest.getByRole('checkbox', { name: 'Barbell Bench Press', exact: true }),
+  ).toBeVisible();
+
+  await page.getByRole('searchbox', { name: 'Search' }).fill('butterfly');
+  await expect(page.getByRole('heading', { name: '1 matching' })).toBeVisible();
+  const fly = page.getByRole('checkbox', { name: 'Machine Chest Fly', exact: true });
+  await expect(fly).toHaveAccessibleDescription('Stack machine');
+  await fly.check();
+  await expect(page.getByRole('button', { name: 'Add 1 exercise' })).toBeEnabled();
+});
+
 test('a routine is created from the picker, reordered and deleted', async ({ page }) => {
   const name = `Push ${Date.now()}`;
   await page.goto('/routines');

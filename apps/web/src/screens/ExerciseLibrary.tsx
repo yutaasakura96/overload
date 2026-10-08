@@ -1,7 +1,16 @@
 import type { Exercise, Me } from '@overload/api-contract';
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
-import { AccountFooter, AppBar, Chevron, Notice, ScreenTabs, DataState } from '../components';
+import { useMemo, useState } from 'react';
+import {
+  AccountFooter,
+  AppBar,
+  Chevron,
+  Notice,
+  ScreenTabs,
+  DataState,
+  TextField,
+} from '../components';
+import { ExerciseGroups, searchExercises } from '../exercise-list';
 import { allExercisesQuery, currentWeightUnit, exercisesQuery, useAccount } from '../query';
 import { formatWeight } from '../units';
 
@@ -12,10 +21,12 @@ export function ExerciseLibrary({ me, navigate }: { me: Me; navigate: (path: str
   // The saved copy shows until /api/me confirms the account; no fetch runs under an unconfirmed one.
   const confirmed = useAccount().status === 'confirmed';
   const exercises = useQuery({ ...exercisesQuery, enabled: confirmed });
+  const [search, setSearch] = useState('');
   const [showHidden, setShowHidden] = useState(false);
   const everything = useQuery({ ...allExercisesQuery, enabled: confirmed && showHidden });
-  const items = exercises.data ?? [];
+  const items = useMemo(() => exercises.data ?? [], [exercises.data]);
   const hidden = (everything.data ?? []).filter((exercise) => exercise.hidden);
+  const shown = useMemo(() => searchExercises(items, search), [items, search]);
 
   return (
     <main>
@@ -37,21 +48,14 @@ export function ExerciseLibrary({ me, navigate }: { me: Me; navigate: (path: str
 
       {exercises.data !== undefined && (
         <section className="library" aria-labelledby="library-heading">
-          <h2 id="library-heading" className="visually-hidden">
-            Exercise library
-          </h2>
-          <div className="library__head" aria-hidden="true">
-            <span>Exercise</span>
-            <span>Step</span>
-            <span>Reps</span>
-            <span>Rest</span>
-          </div>
-          <ul className="library__list">
-            {items.map((exercise) => (
-              <LibraryRow key={exercise.id} exercise={exercise} navigate={navigate} />
-            ))}
-          </ul>
-          <div className="section-actions">
+          <div className="exercise-tools">
+            <TextField
+              label="Search"
+              type="search"
+              value={search}
+              onChange={setSearch}
+              placeholder="Bench, RDL, pec deck…"
+            />
             <button
               type="button"
               className="button button--secondary"
@@ -59,12 +63,40 @@ export function ExerciseLibrary({ me, navigate }: { me: Me; navigate: (path: str
             >
               New exercise
             </button>
+          </div>
+          <h2
+            id="library-heading"
+            className={search === '' ? 'visually-hidden' : 'section-label section-label--gutter'}
+            aria-live="polite"
+          >
+            {search === '' ? 'Exercise library' : `${shown.length} matching`}
+          </h2>
+          {shown.length === 0 ? (
+            <p className="empty">
+              Nothing matches. Check the spelling, or make it with <em>New exercise</em>.
+            </p>
+          ) : (
+            <>
+              <div className="library__head" aria-hidden="true">
+                <span>Exercise</span>
+                <span>Step</span>
+                <span>Reps</span>
+                <span>Rest</span>
+              </div>
+              <ExerciseGroups exercises={shown} listClassName="library__list">
+                {(exercise) => (
+                  <LibraryRow key={exercise.id} exercise={exercise} navigate={navigate} />
+                )}
+              </ExerciseGroups>
+            </>
+          )}
+          <div className="section-actions">
             <button
               type="button"
               className="button button--tertiary"
               aria-expanded={showHidden}
               aria-controls="hidden-exercises"
-              onClick={() => setShowHidden((shown) => !shown)}
+              onClick={() => setShowHidden((open) => !open)}
             >
               Hidden exercises
               <Chevron direction={showHidden ? 'up' : 'down'} />

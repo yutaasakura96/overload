@@ -1014,6 +1014,14 @@ export interface components {
       /** @example Barbell Bench Press */
       name: string;
       equipment: components['schemas']['Equipment'];
+      muscleGroup: components['schemas']['MuscleGroup'];
+      /**
+       * @description Other names for search to match, never shown as the name. Seeded only.
+       * @example [
+       *       "Flat Bench"
+       *     ]
+       */
+      aliases: string[];
       /** @description True for the caller’s own exercise, false for a seeded one. */
       custom: boolean;
       hidden: boolean;
@@ -1045,6 +1053,23 @@ export interface components {
       | 'cable'
       | 'bodyweight'
       | 'other';
+    /**
+     * @description The one group the library files an exercise under (docs/04 `exercise`).
+     * @enum {string|null}
+     */
+    MuscleGroup:
+      | 'chest'
+      | 'back'
+      | 'shoulders'
+      | 'biceps'
+      | 'triceps'
+      | 'forearms'
+      | 'quads'
+      | 'hamstrings'
+      | 'glutes'
+      | 'calves'
+      | 'core'
+      | null;
     ExerciseCreate: {
       /**
        * Format: uuid
@@ -1055,6 +1080,7 @@ export interface components {
       /** @example Cable Y-Raise */
       name: string;
       equipment: components['schemas']['Equipment'];
+      muscleGroup?: components['schemas']['MuscleGroup'];
       /**
        * @description Default: the equipment class’s increment (docs/04 `exercise`).
        * @example 2.5
@@ -1073,6 +1099,7 @@ export interface components {
     ExercisePatch: {
       name?: string;
       equipment?: components['schemas']['Equipment'];
+      muscleGroup?: components['schemas']['MuscleGroup'];
       /** @example 2.5 */
       incrementKg?: number;
       /** @example 120 */
