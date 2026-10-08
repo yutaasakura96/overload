@@ -3092,13 +3092,10 @@ and none separates plate-loaded machines from weight stacks.
   match `Machine Chest Fly` and `Cable Chest Fly` and stand apart from the rear delt fly.
 - **A custom exercise that shares a name with a new seeded one is left alone.** The unique index is
   per owner, so both exist; the user's keeps its id, history and settings and shows as `Yours`. The
-  migration only files it under the seeded row's muscle group, so the two sit together. Merging
-  them would rewrite history rows and is not worth it for an app with one user so far.
+  migration leaves its muscle group untouched. Merging them would rewrite history rows and is not
+  worth it for an app with one user so far.
 - **A custom exercise can be filed too**: create and edit take an optional `muscleGroup`. Left
   empty, it lists under `Other`.
-- **`GET /api/exercises` sorts by code point** (`COLLATE "C"`), so the order no longer depends on a
-  database's default collation. Docker's and Neon's need not agree, and the test compares against
-  JavaScript's own sort.
 - **Grouping and search are the web app's.** The API returns one flat list; no route filters by
   muscle group. A push/pull/legs filter is a separate issue.
 

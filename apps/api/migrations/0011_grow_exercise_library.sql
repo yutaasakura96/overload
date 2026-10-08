@@ -199,11 +199,3 @@ VALUES
   ('Machine Torso Rotation', 'machine_stack', 5.00, 90, 10, 15, 'core', ARRAY['Rotary Torso']::text[]),
   ('Cable Crunch', 'cable', 2.50, 90, 10, 15, 'core', ARRAY[]::text[]),
   ('Cable Woodchopper', 'cable', 2.50, 90, 10, 15, 'core', ARRAY['Wood Chop', 'Cable Chop']::text[]);
---> statement-breakpoint
-UPDATE exercise AS custom
-  SET muscle_group = seeded.muscle_group
-  FROM exercise AS seeded
-  WHERE custom.owner_user_id IS NOT NULL
-    AND custom.muscle_group IS NULL
-    AND seeded.owner_user_id IS NULL
-    AND lower(custom.name) = lower(seeded.name);

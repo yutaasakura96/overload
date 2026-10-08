@@ -52,7 +52,8 @@ test('the library is filed under muscle groups and searched by name or alias', a
   await expect(page.getByRole('heading', { name: '4 matching' })).toBeVisible();
   const rows = page.getByRole('listitem');
   await expect(rows).toHaveCount(4);
-  await expect(rows.filter({ hasText: 'Barbell Romanian Deadlift' })).toContainText('RDL');
+  await expect(rows.filter({ hasText: 'Barbell Romanian Deadlift' })).toHaveCount(1);
+  await expect(rows.filter({ hasText: 'Barbell Romanian Deadlift' })).not.toContainText('RDL');
   await expect(page.getByRole('heading', { level: 3 })).toHaveText([/^Hamstrings/]);
 
   await page.getByRole('searchbox', { name: 'Search' }).fill('zzz');

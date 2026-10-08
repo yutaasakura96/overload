@@ -1,3 +1,4 @@
+import { asc, isNull, sql } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 import { exercise, exerciseSetting } from '../src/db/schema';
 import { useTestApp } from './harness';
@@ -46,8 +47,12 @@ describe('GET /api/exercises', () => {
 
     expect(items).toHaveLength(185);
     const names = items.map((item) => item.name);
-    const lowered = names.map((name) => name.toLowerCase());
-    expect(lowered).toEqual(lowered.toSorted());
+    const ordered = await t.db
+      .select({ name: exercise.name })
+      .from(exercise)
+      .where(isNull(exercise.ownerUserId))
+      .orderBy(sql`lower(${exercise.name})`, asc(exercise.id));
+    expect(names).toEqual(ordered.map((row) => row.name));
     expect(items.find((item) => item.name === 'Barbell Bench Press')).toEqual({
       id: expect.any(String),
       name: 'Barbell Bench Press',

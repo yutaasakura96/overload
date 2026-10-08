@@ -1,8 +1,7 @@
 import { readFileSync } from 'node:fs';
-import { and, eq, isNull } from 'drizzle-orm';
+import { eq, isNull, sql } from 'drizzle-orm';
 import { expect, it } from 'vitest';
 import {
-  fileCustomNamesakes,
   growMigration,
   growMigrationPath,
   renames,
@@ -32,11 +31,39 @@ it('seeds each name once, whatever the case, and no alias twice on one exercise'
   expect(repeated.map((e) => e.name)).toEqual([]);
 });
 
-it('only updates and inserts, so every seeded id survives', () => {
-  expect(growMigration()).not.toMatch(/\b(DELETE|TRUNCATE|DROP)\b/i);
-  for (const [from] of renames) {
-    expect(readFileSync(seedMigrationPath, 'utf8')).toContain(`('${from}',`);
+it('preserves all original ids and leaves custom namesakes untouched', async () => {
+  await t.db.delete(exercise).where(isNull(exercise.ownerUserId));
+  await t.db.execute(sql.raw(seedMigration()));
+  const before = await t.db
+    .select({ id: exercise.id, name: exercise.name })
+    .from(exercise)
+    .where(isNull(exercise.ownerUserId));
+  expect(before).toHaveLength(50);
+
+  const { user } = await t.createSignedInUser('namesake@example.test');
+  const [custom] = await t.db
+    .insert(exercise)
+    .values({ ownerUserId: user.id, name: 'push-up', equipment: 'bodyweight' })
+    .returning({ id: exercise.id, name: exercise.name, muscleGroup: exercise.muscleGroup });
+
+  for (const statement of growMigration().split('--> statement-breakpoint')) {
+    if (statement.trim() !== '') await t.db.execute(sql.raw(statement));
   }
+
+  const after = await t.db
+    .select({ id: exercise.id, name: exercise.name })
+    .from(exercise)
+    .where(isNull(exercise.ownerUserId));
+  expect(after).toHaveLength(185);
+  const namesById = new Map(after.map(({ id, name }) => [id, name]));
+  for (const { id, name } of before) {
+    expect(namesById.get(id)).toBe(renames.find(([from]) => from === name)?.[1] ?? name);
+  }
+  const [customAfter] = await t.db
+    .select({ id: exercise.id, name: exercise.name, muscleGroup: exercise.muscleGroup })
+    .from(exercise)
+    .where(eq(exercise.id, custom!.id));
+  expect(customAfter).toEqual(custom);
 });
 
 const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name);
@@ -52,36 +79,4 @@ it('the database holds the seeded list as the script has it', async () => {
       .map(({ name, muscleGroup, aliases }) => ({ name, muscleGroup, aliases }))
       .toSorted(byName),
   );
-});
-
-// A custom exercise made before the list grew may share a name with a new seeded one. It stays the
-// user's own; the migration only files it under the seeded row's muscle group.
-it('files a custom namesake under the seeded exercise’s muscle group and leaves the rest', async () => {
-  const { user } = await t.createSignedInUser('namesake@example.test');
-  const [namesake, filed, unrelated] = await t.db
-    .insert(exercise)
-    .values([
-      { ownerUserId: user.id, name: 'push-up', equipment: 'bodyweight' },
-      {
-        ownerUserId: user.id,
-        name: 'Barbell Shrug',
-        equipment: 'barbell',
-        muscleGroup: 'shoulders',
-      },
-      { ownerUserId: user.id, name: 'Cable Y-Raise', equipment: 'cable' },
-    ])
-    .returning({ id: exercise.id });
-
-  await t.db.execute(fileCustomNamesakes);
-
-  const groupOf = async (id: string) => {
-    const [row] = await t.db
-      .select({ name: exercise.name, muscleGroup: exercise.muscleGroup })
-      .from(exercise)
-      .where(and(eq(exercise.id, id), eq(exercise.ownerUserId, user.id)));
-    return row;
-  };
-  expect(await groupOf(namesake!.id)).toEqual({ name: 'push-up', muscleGroup: 'chest' });
-  expect(await groupOf(filed!.id)).toEqual({ name: 'Barbell Shrug', muscleGroup: 'shoulders' });
-  expect(await groupOf(unrelated!.id)).toEqual({ name: 'Cable Y-Raise', muscleGroup: null });
 });

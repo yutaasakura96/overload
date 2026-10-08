@@ -123,8 +123,7 @@ export async function listExercises(
     .where(
       and(visibleTo(userId), options.includeHidden ? undefined : isNull(exerciseSetting.hiddenAt)),
     )
-    // By code point, so the order is the same on every database whatever its default collation.
-    .orderBy(sql`lower(${exercise.name}) COLLATE "C"`, asc(exercise.id));
+    .orderBy(sql`lower(${exercise.name})`, asc(exercise.id));
   return rows.map(toUserExercise);
 }
 

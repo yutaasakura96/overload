@@ -10,7 +10,7 @@ import {
   DataState,
   TextField,
 } from '../components';
-import { ExerciseGroups, matchedAlias, searchExercises } from '../exercise-list';
+import { ExerciseGroups, searchExercises } from '../exercise-list';
 import { allExercisesQuery, currentWeightUnit, exercisesQuery, useAccount } from '../query';
 import { formatWeight } from '../units';
 
@@ -88,7 +88,6 @@ export function ExerciseLibrary({ me, navigate }: { me: Me; navigate: (path: str
                   <LibraryRow
                     key={exercise.id}
                     exercise={exercise}
-                    alias={matchedAlias(exercise, search)}
                     navigate={navigate}
                   />
                 )}
@@ -140,12 +139,9 @@ export function ExerciseLibrary({ me, navigate }: { me: Me; navigate: (path: str
 
 function LibraryRow({
   exercise,
-  alias,
   navigate,
 }: {
   exercise: Exercise;
-  /** The other name a search matched it by, shown so the match explains itself. */
-  alias?: string | undefined;
   navigate: (path: string) => void;
 }) {
   const path = `/exercises/${exercise.id}`;
@@ -163,7 +159,6 @@ function LibraryRow({
         <span className="library__name">
           {exercise.name}
           {exercise.custom && <span className="library__tag"> · Yours</span>}
-          {alias !== undefined && <span className="library__tag"> · {alias}</span>}
         </span>
         <span className="library__figure">
           <span className="visually-hidden">increment </span>

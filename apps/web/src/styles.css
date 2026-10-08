@@ -234,18 +234,8 @@ button {
 .section-label--gutter {
   margin: 18px var(--gutter) 8px;
 }
-/* A muscle group over its rows, with the row count at the far edge. */
 .group-label {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
   color: var(--text-tertiary);
-}
-.group-label__count {
-  font-family: var(--font-mono);
-  letter-spacing: 0;
-  color: var(--text-quaternary);
-  font-variant-numeric: tabular-nums;
 }
 
 /* 4.4 Data table: the exercise library */

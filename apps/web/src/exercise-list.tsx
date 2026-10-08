@@ -37,16 +37,6 @@ export function searchExercises(exercises: Exercise[], search: string): Exercise
   });
 }
 
-/** The alias that made an exercise match, when its name alone would not have: "RDL". */
-export function matchedAlias(exercise: Exercise, search: string): string | undefined {
-  const name = exercise.name.toLowerCase();
-  const missing = wordsOf(search).filter((word) => !name.includes(word));
-  if (missing.length === 0) return undefined;
-  return aliasesOf(exercise).find((alias) =>
-    missing.some((word) => alias.toLowerCase().includes(word)),
-  );
-}
-
 type Group = { key: string; label: string; exercises: Exercise[] };
 
 /** The groups that have an exercise, in `muscleGroupLabels` order, the unfiled last. */
@@ -80,10 +70,6 @@ export function ExerciseGroups({
     <section key={group.key} aria-labelledby={`${id}-${group.key}`}>
       <h3 id={`${id}-${group.key}`} className="section-label section-label--gutter group-label">
         {group.label}
-        {/* The list under it already says how many it holds. */}
-        <span className="group-label__count" aria-hidden="true">
-          {group.exercises.length}
-        </span>
       </h3>
       <ul className={listClassName}>{group.exercises.map(children)}</ul>
     </section>

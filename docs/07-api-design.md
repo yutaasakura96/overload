@@ -242,7 +242,7 @@ yet or what they have logged (`08` §4).
 
 | Method | Path | Auth | Purpose | Success | Failures |
 | --- | --- | --- | --- | --- | --- |
-| GET | `/api/exercises` | M | Seeded plus custom, each with the caller's effective settings. Hidden ones only with `?includeHidden=true`. Sorted by lower-cased name in code-point order, the same on every database | 200 | 401 |
+| GET | `/api/exercises` | M | Seeded plus custom, each with the caller's effective settings. Hidden ones only with `?includeHidden=true`. Sorted by lower-cased name | 200 | 401 |
 | POST | `/api/exercises` | M | Create a custom exercise | 201 / 200 | 401, 409 `id_conflict`, 422 (duplicate name or inverted rep range included) |
 | PATCH | `/api/exercises/{id}` | M | Edit a custom exercise's name, equipment or defaults. Seeded ones return 404 | 200 | 401, 404, 422 |
 | DELETE | `/api/exercises/{id}` | M | Delete a custom exercise with no sets | 204 | 401, 409 `exercise_has_history`, 409 `exercise_in_routine` |

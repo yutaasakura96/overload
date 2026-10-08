@@ -471,21 +471,6 @@ export const seededExercises = [
 
 const textArray = (items: string[]) => `ARRAY[${items.map(quote).join(', ')}]::text[]`;
 
-/**
- * A custom exercise that shares a name with a seeded one stays the user's own, history and all
- * (the unique index is per owner, docs/04). It takes the seeded row's muscle group, so the two sit
- * side by side in the library, the user's marked `Yours`.
- */
-export const fileCustomNamesakes = [
-  'UPDATE exercise AS custom',
-  '  SET muscle_group = seeded.muscle_group',
-  '  FROM exercise AS seeded',
-  '  WHERE custom.owner_user_id IS NOT NULL',
-  '    AND custom.muscle_group IS NULL',
-  '    AND seeded.owner_user_id IS NULL',
-  '    AND lower(custom.name) = lower(seeded.name);',
-].join('\n');
-
 export function growMigration(): string {
   const breakpoint = '--> statement-breakpoint';
   const renameStatements = renames.flatMap(([from, to]) => [
@@ -518,8 +503,6 @@ export function growMigration(): string {
     '  (name, equipment, default_increment_kg, default_rest_seconds, default_rep_low, default_rep_high, muscle_group, aliases)',
     'VALUES',
     `${rows.join(',\n')};`,
-    breakpoint,
-    fileCustomNamesakes,
     '',
   ].join('\n');
 }

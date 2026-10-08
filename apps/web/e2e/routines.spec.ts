@@ -28,7 +28,7 @@ test('the picker files exercises under muscle groups and finds one by an alias',
   await page.getByRole('searchbox', { name: 'Search' }).fill('butterfly');
   await expect(page.getByRole('heading', { name: '1 matching' })).toBeVisible();
   const fly = page.getByRole('checkbox', { name: 'Machine Chest Fly', exact: true });
-  await expect(fly).toHaveAccessibleDescription('Butterfly · Stack machine');
+  await expect(fly).toHaveAccessibleDescription('Stack machine');
   await fly.check();
   await expect(page.getByRole('button', { name: 'Add 1 exercise' })).toBeEnabled();
 });

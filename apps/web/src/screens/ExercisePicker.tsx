@@ -2,7 +2,7 @@ import type { Exercise } from '@overload/api-contract';
 import { useMemo, useState, type ReactNode } from 'react';
 import { AppBar, CheckIcon, Notice, TextField } from '../components';
 import { equipmentLabels } from '../equipment';
-import { ExerciseGroups, matchedAlias, searchExercises } from '../exercise-list';
+import { ExerciseGroups, searchExercises } from '../exercise-list';
 
 // S8's picker, opened from the routine editor (docs/09 F2 step 2, F5 step 1; docs/10 §8.1). Several
 // exercises can be ticked at once, and they join the routine in the order they were ticked.
@@ -79,7 +79,6 @@ export function ExercisePicker({
             <ExerciseGroups exercises={shown} listClassName="picker__list">
               {(exercise) => {
                 const ticked = picked.includes(exercise.id);
-                const alias = matchedAlias(exercise, search);
                 return (
                   <li key={exercise.id}>
                     <label className="picker__row">
@@ -103,7 +102,6 @@ export function ExercisePicker({
                       </span>
                       <span className="picker__meta" id={`${exercise.id}-meta`}>
                         {exercise.custom ? 'Yours · ' : ''}
-                        {alias === undefined ? '' : `${alias} · `}
                         {equipmentLabels[exercise.equipment]}
                       </span>
                     </label>
