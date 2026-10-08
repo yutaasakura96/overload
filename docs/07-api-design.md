@@ -440,7 +440,7 @@ POST /api/workouts/sync
 | `status` | Meaning | What the phone does |
 | --- | --- | --- |
 | `stored` | Inserted or updated | Mark **acknowledged**; keep an open workout's rows on the device until it ends (`03` §6) |
-| `unchanged` | The server already had this version or a newer one. `row` is the server's copy | Mark acknowledged; keep an open workout's rows until it ends. A workout the phone ended or removed whose `row` is still open is **not** acknowledged: it stays pending (`08` §7). A set or workout exercise the phone deleted is back, as `row`: it was edited after the delete was made |
+| `unchanged` | The server already had this version or a newer one. `row` is the server's copy | Mark acknowledged; keep an open workout's rows until it ends. A workout the phone ended whose `row` is still open stays pending (`08` §7). If a deleted row's server copy survived, restore it from `row`. Keep a deleted workout's exercises while its deletion is pending; if the server keeps the workout, restore it with those exercises so it can be resumed |
 | `deleted` | Gone, now or before, or never stored because it or its parent was deleted | Delete the local record, and those of the rows under it |
 | `refused` | Refused, with `problem` | Keep the record and mark it **refused** (`03` §7, kind 3), with the problem's code and fields. A refused deletion is of a row that is not the caller's: the record is deleted |
 

@@ -342,7 +342,7 @@ changes its primary key from `id` to `(user_id, id)`.
 | `user_id` | uuid | no | — | Composite PK with `id`; → `user.id`, `ON DELETE CASCADE`. Account deletion removes these too |
 | `table_name` | text | no | — | `CHECK (table_name IN ('workout', 'workout_exercise', 'set'))` |
 | `deleted_at` | timestamptz | no | — | The phone's `deletedAt`, or the parent's for a cascaded id |
-| `created_at` | timestamptz | no | `now()` | Server clock. The purge reads this |
+| `created_at` | timestamptz | no | `now()` | Server clock; indexed for the planned purge (`docs/03` §8.4) |
 
 - Written in the same transaction as the delete. Deleting a workout also writes its
   `workout_exercise` and `set` ids, which the server knows at that moment; deleting a workout
@@ -352,7 +352,6 @@ changes its primary key from `id` to `(user_id, id)`.
 - Read only for the user who wrote it. Another user sending the same id is not told it was
   deleted.
 - No `updated_at`: a tombstone is never updated (see Conventions, Exceptions).
-- `INDEX (created_at)` for the purge. The daily job deletes rows older than 30 days.
 - The `(user_id, id)` PK serves all three tables. Each account can bury the same row id independently; UUIDv7 ids carry 74 random bits, so a collision across tables is negligible.
 
 ---

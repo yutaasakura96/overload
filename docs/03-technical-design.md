@@ -236,8 +236,8 @@ The error colour is `error` `#F2555A` (`docs/05` §1.4, added 2026-09-22), alway
      deletes are hard, so a stale copy arriving after a delete would otherwise be inserted again.
      Each sync delete writes the id to `sync_tombstone` (`docs/04`) in the same transaction, along with the ids
      it cascades to. The insert skips any row whose id or parent id has a tombstone, and reports it
-     as `deleted`. Tombstones are purged after 30 days by the daily job (§8.4). *Added 2026-09-22,
-     built 2026-10-08 (slice 4).*
+     as `deleted`. The 30-day purge belongs to the unbuilt daily job (§8.4). *Added 2026-09-22,
+     sync guard built 2026-10-08 (slice 4).*
    - **One request at a time works on an id.** Each row's transaction first takes
      `pg_advisory_xact_lock` on the row's id. Without it a stale copy and its delete, sent at the
      same moment from two tabs, can each miss the other: the copy is read before the tombstone is
@@ -246,7 +246,7 @@ The error colour is `error` `#F2555A` (`docs/05` §1.4, added 2026-09-22), alway
 4. **The local record is deleted only after the server acknowledges the set.** A refusal (kind 3)
    marks it refused and keeps it. While its workout is open, an acknowledged record is marked
    acknowledged instead, and deleted when the workout ends (§6).
-5. **One tab uploads at a time.** The upload loop runs inside `navigator.locks.request`, on one
+5. **The upload loop attempts one origin lock.** It runs inside `navigator.locks.request`, on one
    lock for the origin. Within a tab one upload runs at a time, on every change to the set store,
    on reconnect, on return to the app and every 30 s while rows wait. After a launch with no signal
    it asks `/api/me` again on reconnect, since nothing uploads under an unconfirmed account
