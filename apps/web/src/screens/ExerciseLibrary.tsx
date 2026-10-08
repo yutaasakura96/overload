@@ -85,11 +85,7 @@ export function ExerciseLibrary({ me, navigate }: { me: Me; navigate: (path: str
               </div>
               <ExerciseGroups exercises={shown} listClassName="library__list">
                 {(exercise) => (
-                  <LibraryRow
-                    key={exercise.id}
-                    exercise={exercise}
-                    navigate={navigate}
-                  />
+                  <LibraryRow key={exercise.id} exercise={exercise} navigate={navigate} />
                 )}
               </ExerciseGroups>
             </>
