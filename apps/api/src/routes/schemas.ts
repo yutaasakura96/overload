@@ -389,21 +389,36 @@ export const WorkoutExerciseRow = z
   .openapi('WorkoutExerciseRow');
 export const SetRow = z.object(SetFields).superRefine(oneEffort).openapi('SetRow');
 
-const Deletion = z
+export const SyncDeletion = z
   .object({ id: Uuid, deletedAt: Instant })
   .strict()
-  .openapi('SyncDeletion', { description: 'A workout the phone deleted.' });
+  .openapi('SyncDeletion', {
+    description:
+      'A row the phone deleted. It goes if the stored copy is older than `deletedAt`, and its id ' +
+      'is kept so a stale copy cannot bring it back.',
+  });
+
+// The last member of each array's union. Without it one row an older build wrote would fail the
+// whole batch as a 422, and every set behind it would wait for good (docs/07 §3.4).
+const SyncUnreadableRow = z.looseObject({ id: Uuid }).openapi('SyncUnreadableRow', {
+  description:
+    'Any other row with an id. It is not applied: its result is `refused` with ' +
+    '`validation_failed`, and the rest of the batch is applied as usual.',
+});
+
+const rowsOf = <Row extends z.ZodType>(row: Row) =>
+  z.array(z.union([SyncDeletion, row, SyncUnreadableRow])).default([]);
 
 export const SyncBatch = z
   .object({
-    workouts: z.array(z.union([Deletion, WorkoutRow])).default([]),
-    workoutExercises: z.array(WorkoutExerciseRow).default([]),
-    sets: z.array(SetRow).default([]),
+    workouts: rowsOf(WorkoutRow),
+    workoutExercises: rowsOf(WorkoutExerciseRow),
+    sets: rowsOf(SetRow),
   })
   .openapi('SyncBatch', {
     description:
-      'The device’s queued rows, each the whole current row, parents before children. ' +
-      'At most 500 rows a request.',
+      'The device’s queued rows, each the whole current row or its deletion, parents before ' +
+      'children. At most 500 rows a request.',
   });
 
 const SyncTable = z.enum(['workouts', 'workoutExercises', 'sets']);
@@ -426,6 +441,13 @@ export const SyncResult = z
       problem: z.object({
         code: z.enum(['not_found', 'parent_missing', 'validation_failed']),
         status: z.int(),
+        errors: z
+          .array(z.object({ path: z.string(), message: z.string() }))
+          .optional()
+          .openapi({
+            description:
+              'Present when the row did not match its schema: the fields at fault, never a value.',
+          }),
       }),
     }),
   ])

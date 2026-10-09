@@ -91,6 +91,17 @@ finish summary. For the iPhone checklist: whether the rest tone plays on silent 
 hand-written, with a muscle group and aliases on every seeded row. The library and the picker are
 filed under muscle groups and search matches aliases (`06`, 2026-10-08; `10` §8.1).
 
+**Slice 4 is built, 2026-10-08**, on branch `fm/overload-4` against `develop` (`#4`). In the repo:
+`sync_tombstone`, sync deletes for all three tables, a row refused on its own inside a 200, the
+upload loop under a Web Lock with each tab reading the set store before it sends, and the refused
+set on screen 1 and on Today, to edit or discard (`06`, 2026-10-08). Vitest covers the deletes, the
+tombstones and two requests at once, in a file that commits; `e2e/sync-edges.spec.ts` covers the
+same set sent twice, a refused set inside a 200, an edit and a delete made offline, a stale copy
+after a delete, two tabs and resume, on Chromium and WebKit. Owed, and Yuta's: `11` §3 items 3, 4
+and 7 on a real iPhone, which is also where Web Locks inside the installed app gets its answer.
+Not built: a screen for editing a set the server took or changing a live workout, and the 30-day
+tombstone purge, which waits for the daily job.
+
 **Issues are open.** Milestone `M1`, one issue per slice, `#1`–`#7`, each chained to the one before
 with GitHub's native dependencies. `#3`'s three questions were settled in `06` (2026-10-03).
 Each UI feature clears the polish gate in `AGENTS.md`.

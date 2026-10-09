@@ -340,3 +340,29 @@ export const set = pgTable(
     check('set_effort_check', sql`${t.rir} IS NULL OR ${t.rpe} IS NULL`),
   ],
 );
+
+/**
+ * The id of a `workout`, `workout_exercise` or `set` deleted through sync, kept so a stale copy
+ * arriving later is not inserted again (docs/04 `sync_tombstone`). The id is the deleted row's own.
+ * No `updated_at`: a tombstone is never updated.
+ */
+export const syncTombstone = pgTable(
+  'sync_tombstone',
+  {
+    id: uuid('id').notNull(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    tableName: text('table_name').notNull(),
+    deletedAt: instant('deleted_at').notNull(),
+    createdAt: instant('created_at').notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.id] }),
+    index('sync_tombstone_created_at_idx').on(t.createdAt),
+    check(
+      'sync_tombstone_table_name_check',
+      sql`${t.tableName} IN ('workout', 'workout_exercise', 'set')`,
+    ),
+  ],
+);

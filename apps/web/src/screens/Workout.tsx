@@ -1,17 +1,19 @@
 import type { Me, WeightUnit } from '@overload/api-contract';
-import { useEffect, useId, useRef, useState, type CSSProperties } from 'react';
+import { Fragment, useEffect, useId, useRef, useState, type CSSProperties } from 'react';
 import {
   AppBar,
   CheckIcon,
   DataState,
   DeleteConfirm,
   FieldError,
+  InfoIcon,
   Notice,
-  parseFigure,
 } from '../components';
+import { readFigures, type FigureRefusal } from '../figures';
+import { RefusedSet } from '../refused';
 import { keepAwake, playTone, unlockTone } from '../rest-alert';
 import type { SetRecord, StoreRecord, WorkoutExerciseRecord, WorkoutRecord } from '../set-store';
-import { formatWeight, toKg, unitLabel } from '../units';
+import { formatWeight, unitLabel } from '../units';
 import {
   completeSet,
   dismissRest,
@@ -23,6 +25,7 @@ import {
   readFailedFor,
   recordsLoadedFor,
   recordsOf,
+  refusedSets,
   setsOf,
   useWorkoutStore,
 } from '../workout';
@@ -55,6 +58,8 @@ function duration(totalSeconds: number) {
 }
 
 const working = (sets: SetRecord[]) => sets.filter((set) => !set.row.isWarmup);
+
+const isRefused = (set: SetRecord) => set.state === 'refused';
 
 /** An exercise with a target is complete once its working sets reach it. */
 const isComplete = (exercise: WorkoutExerciseRecord, sets: SetRecord[]) =>
@@ -241,16 +246,19 @@ function ExerciseBlock({
   scrollIntoView: boolean;
   onLogged: (isWarmup: boolean) => void;
 }) {
-  const warmups = sets.filter((set) => set.row.isWarmup);
+  // A refused warm-up leaves the summary for the table, where it can be acted on.
+  const warmups = sets.filter((set) => set.row.isWarmup && !isRefused(set));
   const completed = working(sets);
+  const rows = sets.filter((set) => !set.row.isWarmup || isRefused(set));
   const heading = useId();
+  const name = useRef<HTMLHeadingElement>(null);
   const figures = (set: { weightKg: number; reps: number }) =>
     `${formatWeight(set.weightKg, unit)} × ${set.reps}`;
 
   return (
     <section aria-labelledby={heading}>
       <div className="exercise-head">
-        <h2 id={heading} className="exercise-head__name">
+        <h2 ref={name} id={heading} className="exercise-head__name" tabIndex={-1}>
           {exercise.local.name}
         </h2>
         <span className="exercise-head__meta">
@@ -262,7 +270,7 @@ function ExerciseBlock({
 
       {warmups.length > 0 && <Warmups sets={warmups} figures={figures} unit={unit} />}
 
-      {completed.length > 0 && (
+      {rows.length > 0 && (
         <table className="sets" aria-label={`${exercise.local.name}, completed sets`}>
           <thead>
             <tr className="sets__row sets__row--head">
@@ -277,22 +285,63 @@ function ExerciseBlock({
             </tr>
           </thead>
           <tbody>
-            {completed.map((set, index) => {
+            {rows.map((set) => {
+              const index = completed.indexOf(set);
               const last = exercise.local.lastTime[index];
-              return (
-                <tr key={set.id} className="sets__row">
-                  <td className="sets__number">{index + 1}</td>
+              const cells = (
+                <>
+                  <td className="sets__number">
+                    {index < 0 ? (
+                      <>
+                        <span aria-hidden="true">W</span>
+                        <span className="visually-hidden">Warm-up</span>
+                      </>
+                    ) : (
+                      index + 1
+                    )}
+                  </td>
                   <td className="sets__last">{last === undefined ? '' : figures(last)}</td>
                   <td className="sets__figure">{formatWeight(set.row.weightKg, unit)}</td>
                   <td className="sets__figure">{set.row.reps}</td>
                   <td className="sets__number">{set.row.rir ?? '—'}</td>
-                  <td className="sets__check">
-                    <span className="check-cell check-cell--done">
-                      <CheckIcon size={17} color="var(--done)" />
-                      <span className="visually-hidden">Done</span>
-                    </span>
-                  </td>
-                </tr>
+                </>
+              );
+              if (!isRefused(set)) {
+                return (
+                  <tr key={set.id} className="sets__row">
+                    {cells}
+                    <td className="sets__check">
+                      <span className="check-cell check-cell--done">
+                        <CheckIcon size={17} color="var(--done)" />
+                        <span className="visually-hidden">Done</span>
+                      </span>
+                    </td>
+                  </tr>
+                );
+              }
+              // The refused row (docs/05 §4.17): the figures as entered, then what to do about it.
+              return (
+                <Fragment key={set.id}>
+                  <tr className="sets__row sets__row--refused">
+                    {cells}
+                    <td className="sets__check">
+                      <span className="check-cell check-cell--refused">
+                        <InfoIcon size={15} color="var(--error)" />
+                        <span className="visually-hidden">Refused</span>
+                      </span>
+                    </td>
+                  </tr>
+                  <tr className="sets__row sets__row--refusal">
+                    <td colSpan={6}>
+                      <RefusedSet
+                        set={set}
+                        unit={unit}
+                        name={index < 0 ? 'the warm-up set' : `set ${index + 1}`}
+                        onSettled={() => name.current?.focus()}
+                      />
+                    </td>
+                  </tr>
+                </Fragment>
               );
             })}
           </tbody>
@@ -362,9 +411,6 @@ function Warmups({
   );
 }
 
-/** Why a set was not logged, and the figure to correct when one is at fault. */
-type Refusal = { field?: 'kg' | 'reps' | 'rir'; message: string };
-
 /** `SET 3 OF 4` while the target stands, `SET 5 · EXTRA` past it, `SET 3` with no target. */
 function setLabel(number: number, target: number | null) {
   if (target === null) return `SET ${number}`;
@@ -400,7 +446,7 @@ function ActiveSet({
   const [rir, setRir] = useState('');
   const [warm, setWarm] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [refusal, setRefusal] = useState<Refusal>();
+  const [refusal, setRefusal] = useState<FigureRefusal>();
   const card = useRef<HTMLElement>(null);
   const ids = { kg: useId(), reps: useId(), rir: useId(), error: useId(), label: useId() };
 
@@ -419,29 +465,15 @@ function ActiveSet({
     card.current?.scrollIntoView({ block: 'nearest', behavior: calm ? 'auto' : 'smooth' });
   }, [scrollIntoView]);
 
-  /** What the server would refuse is refused here, so a logged set is never one it turns away. */
-  const read = (): Refusal | { weightKg: number; reps: number; rir: number | null } => {
-    const typedWeight = parseFigure(kg);
-    const typedReps = parseFigure(reps) ?? suggestedReps;
-    const typedRir = parseFigure(rir);
-    if (typedWeight === null) return { field: 'kg', message: 'Enter the weight' };
-    if (!Number.isFinite(typedWeight) || typedWeight < 0 || toKg(typedWeight, unit) > 9999.99) {
-      return { field: 'kg', message: 'Enter the weight as a number, in digits only' };
-    }
-    if (!Number.isInteger(typedReps) || typedReps < 1 || typedReps > 100) {
-      return { field: 'reps', message: 'Reps are a whole number, 1 to 100' };
-    }
-    if (typedRir !== null && (!Number.isInteger(typedRir) || typedRir < 0 || typedRir > 10)) {
-      return { field: 'rir', message: 'RIR is a whole number, 0 to 10, or empty' };
-    }
-    const weightKg = openingKg !== null && kg === opening ? openingKg : toKg(typedWeight, unit);
-    return { weightKg, reps: typedReps, rir: typedRir };
-  };
-
   const complete = async () => {
     // The tap that completes a set is the gesture that lets the rest tone play (docs/03 §11).
     unlockTone();
-    const figures = read();
+    const figures = readFigures(
+      { kg, reps, rir },
+      unit,
+      { shown: opening, kg: openingKg },
+      suggestedReps,
+    );
     if ('message' in figures) {
       setRefusal(figures);
       // The figure to correct is the one in hand.
@@ -626,10 +658,21 @@ function ExerciseList({
         {exercises.map((exercise) => {
           const logged = working(setsOf(records, exercise.id)).length;
           const target = exercise.row.targetSets;
+          const refused = refusedSets(records).filter(
+            (set) => set.row.workoutExerciseId === exercise.id,
+          ).length;
           return (
             <li key={exercise.id}>
               <button type="button" className="up-next__row" onClick={() => onOpen(exercise.id)}>
-                <span className="up-next__name">{exercise.local.name}</span>
+                <span className="up-next__name">
+                  {exercise.local.name}
+                  {refused > 0 && (
+                    <span className="up-next__refused">
+                      <InfoIcon size={12} color="var(--error)" />
+                      {refused} REFUSED
+                    </span>
+                  )}
+                </span>
                 <span className="up-next__target">
                   {logged > 0 && (
                     <>

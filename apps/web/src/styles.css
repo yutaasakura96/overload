@@ -760,6 +760,9 @@ button {
   border-color: var(--line-done);
   background: var(--surface-done);
 }
+.check-cell--refused {
+  border-color: var(--line-error);
+}
 
 /* Sign-in */
 .sign-in {
@@ -1066,6 +1069,111 @@ html:has(.workout) {
   color: var(--text-primary);
 }
 
+/* 4.17 Refused set row: the figures on a surface/error band, then the word, the reason and the two
+   actions, indented to the LAST column. The rule above the band is a shadow, since a collapsed
+   border would lose to the row before it. */
+.sets__row--refused td,
+.sets__row--refusal td {
+  background: var(--surface-error);
+}
+.sets__row--refused td {
+  border-bottom: 0;
+  box-shadow: inset 0 1px 0 var(--line-error);
+}
+.sets .sets__row--refusal td {
+  padding-top: 0;
+  padding-left: calc(var(--gutter) + 30px);
+  border-bottom-color: var(--line-error);
+}
+.refused {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+.refused__text {
+  flex: 1 1 96px;
+  min-width: 0;
+}
+.refused__word {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 9px;
+  line-height: 15px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--error);
+}
+.refused__reason {
+  font-size: 10px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+.refused__actions {
+  display: flex;
+  gap: 8px;
+}
+.refused__edit {
+  width: 62px;
+  padding: 0;
+}
+.refused__discard {
+  width: 78px;
+  padding: 0;
+}
+.refused__form,
+.refused__confirm {
+  display: grid;
+  gap: 10px;
+  flex: 1 1 100%;
+  min-width: 0;
+}
+/* Weight is the long figure: at 320px an even split cuts `102.5` short. */
+.refused__fields {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr) minmax(0, 2fr);
+  gap: 8px;
+}
+.refused .notice {
+  margin: 0;
+}
+
+/* Refused sets of a workout that is no longer open, on Today. */
+/* The screen takes focus only when the last of them has gone, and a ring round all of it says nothing. */
+main:focus {
+  outline: none;
+}
+.refused-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.refused-list__item {
+  display: grid;
+  gap: 8px;
+  padding: 11px 12px;
+  border: 1px solid var(--line-error);
+  border-radius: var(--radius);
+  background: var(--surface-error);
+}
+.refused-list__name {
+  font-size: 13px;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+.refused-list__meta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
 /* 4.5 Active card, with screen 1's 2px accent edge and the 56px figures (docs/05 §2.6) */
 .active-set {
   display: flex;
@@ -1233,6 +1341,16 @@ html:has(.workout) {
   letter-spacing: 0.03em;
   color: var(--text-secondary);
   overflow-wrap: anywhere;
+}
+.up-next__refused {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--error);
 }
 .up-next__target {
   font-family: var(--font-mono);

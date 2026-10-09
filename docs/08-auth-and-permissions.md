@@ -301,8 +301,10 @@ The endpoint list is `docs/07`.
   reach the server before you sign out.", with **Try again**, which uploads and then signs out.
   Neither action below is offered: discarding here would leave the workout open on the server.
   An answer of `unchanged` whose row is still open is not an acknowledgment: the server kept its
-  own, newer copy (the phone's clock went back), so the ending or removal stays pending.
-  *Added 2026-10-04.*
+  own, newer copy (an edit made elsewhere; the phone stamps its own edits after the version they
+  replace, `06`, 2026-10-08), so the ending stays pending. A removal the server answers with its
+  surviving newer row puts the workout back in progress, and the case above applies.
+  *Added 2026-10-04; changed 2026-10-09.*
 - **With pending or refused sets** of workouts the server has fully acknowledged: first a dialog,
   "*N* sets not uploaded yet", with two actions:
   - **Upload now**, when online. Sign-out continues only when nothing pending is left. Refused sets

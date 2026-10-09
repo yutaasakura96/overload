@@ -1,6 +1,6 @@
 import type { Me, Routine, WeightUnit } from '@overload/api-contract';
 import { useQuery } from '@tanstack/react-query';
-import { useId, useState, type FormEvent } from 'react';
+import { useId, useRef, useState, type FormEvent } from 'react';
 import { api } from '../api';
 import { AccountFooter, AppBar, DataState, Notice, ScreenTabs, TextField } from '../components';
 import {
@@ -13,6 +13,7 @@ import {
   setProfile,
   useAccount,
 } from '../query';
+import { RefusedSet, setFigures } from '../refused';
 import { SaveNotice, saveProblem, useFocusRefused, type SaveProblem } from '../saving';
 import {
   endIdleWorkout,
@@ -23,6 +24,7 @@ import {
   readFailedFor,
   recordsLoadedFor,
   recordsOf,
+  refusedSets,
   setsOf,
   startWorkout,
   useWorkoutStore,
@@ -69,6 +71,10 @@ export function Today({ me, navigate }: { me: Me; navigate: (path: string) => vo
   }).format(new Date());
   const open = openWorkout(records);
   const items = routines.data ?? [];
+  // The open workout's refused sets are on its own screen; these have no other place to be seen.
+  const refused = refusedSets(records).filter((set) => set.workoutId !== open?.id);
+  const top = useRef<HTMLElement>(null);
+  const refusedHeading = useRef<HTMLHeadingElement>(null);
 
   const start = async (routine: Routine, finishFirst = false) => {
     if (exercises.data === undefined) {
@@ -105,7 +111,7 @@ export function Today({ me, navigate }: { me: Me; navigate: (path: string) => vo
   };
 
   return (
-    <main>
+    <main ref={top} tabIndex={-1}>
       <AppBar
         title="Today"
         subline={date.toUpperCase()}
@@ -145,6 +151,39 @@ export function Today({ me, navigate }: { me: Me; navigate: (path: string) => vo
             Try again
           </button>
         </Notice>
+      )}
+
+      {loaded && refused.length > 0 && (
+        <section className="today__section" aria-labelledby="refused-sets">
+          <h2 ref={refusedHeading} id="refused-sets" className="section-label" tabIndex={-1}>
+            Refused sets
+          </h2>
+          <ul className="refused-list">
+            {refused.map((set) => {
+              const exercise = records.find((record) => record.id === set.row.workoutExerciseId);
+              const workout = records.find((record) => record.id === set.workoutId);
+              const name = exercise?.table === 'workoutExercises' ? exercise.local.name : 'Set';
+              const unit = me.profile?.weightUnit ?? 'kg';
+              return (
+                <li key={set.id} className="refused-list__item">
+                  <div className="refused-list__name">{name}</div>
+                  <div className="refused-list__meta">
+                    {workout?.table === 'workouts' && `${workout.row.name} · `}
+                    {setFigures(set, unit)}
+                  </div>
+                  <RefusedSet
+                    set={set}
+                    unit={unit}
+                    name={`the ${name} set, ${setFigures(set, unit)}`}
+                    icon
+                    // The list stays while another set is on it; with the last one it goes.
+                    onSettled={() => (refused.length > 1 ? refusedHeading : top).current?.focus()}
+                  />
+                </li>
+              );
+            })}
+          </ul>
+        </section>
       )}
 
       {loaded && open !== undefined && (

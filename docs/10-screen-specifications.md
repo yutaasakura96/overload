@@ -88,7 +88,7 @@ control is enabled regardless; reps and RIR are pre-filled from the suggestion.
   is logged. RIR is optional.
 - **A figure the server would refuse** is refused on the card before anything is written: `Refused`
   and the reason under the figures, focus on the figure at fault. Reps 1–100, RIR 0–10, weight 0 to
-  9999.99 kg. The refused *row* below is for what the server turns away, in slice 4.
+  9999.99 kg. The refused *row* below is for what the server turns away.
 - **Rest over, decided 2026-10-03** (`06`). A short tone at zero, and the bar counts over until
   `DISMISS` or the next set. The screen is kept awake while rest counts, where the browser allows.
   A rest setting of 0 seconds starts no rest bar or tone.
@@ -106,6 +106,19 @@ control is enabled regardless; reps and RIR are pre-filled from the suggestion.
   `REFUSED`, the reason in plain words (`Weight over 500 kg`), `EDIT` and `DISCARD`. The actions are
   always visible on a refused row rather than behind a tap, because the row exists to be acted on. The
   slot shows `1 REFUSED` and outranks the pending count. `DISCARD` asks to confirm (not drawn).
+  **As built, 2026-10-08** (`06`), with what the artboard does not draw:
+  - `EDIT` replaces the second row with three fields (weight, reps, RIR; `05` §4.18) over `CANCEL`
+    and `SAVE SET`. A figure the server would refuse is refused there, as on the card.
+  - `DISCARD` replaces it with the question in place, `Discard set 2? It is removed from this
+    device and is not saved.`, over `KEEP` and `DISCARD` (the delete pattern of §8.1).
+  - A refused set still counts as a set of the exercise: the label after it is `SET 3 OF 4`.
+  - A refused warm-up leaves the warm-up summary and is listed in the table, numbered `W`.
+  - A set refused as `parent_missing` shows `DISCARD` alone.
+  - An exercise that is not the one open and holds a refused set says `1 REFUSED`, in `error`
+    with the info icon, under its name in `UP NEXT` or `DONE`.
+  - **Today** lists the refused sets of workouts that have ended under `Refused sets`, above the
+    workout in progress: one `surface/error` card each, with the exercise, the workout's name and
+    the figures (`60 kg × 500`), then the same word, reason and actions.
 
 ---
 

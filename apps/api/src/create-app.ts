@@ -9,7 +9,7 @@ import type { Auth } from './auth/auth.js';
 import { ACCOUNT_HEADER } from './lib/account.js';
 import { describeError } from './lib/error-log.js';
 import type { ReportError } from './lib/error-report.js';
-import { problem, type ProblemCode } from './lib/problem.js';
+import { problem, validationErrors, type ProblemCode } from './lib/problem.js';
 import { exerciseRoutes } from './routes/exercises.js';
 import { healthRoutes } from './routes/health.js';
 import { meRoutes } from './routes/me.js';
@@ -37,10 +37,7 @@ const isCsrfExempt = (path: string) =>
 
 const validationHook: Hook<unknown, AppEnv, string, unknown> = (result, c) => {
   if (result.success) return undefined;
-  const errors = result.error.issues.map((issue) => ({
-    path: issue.path.map(String).join('.'),
-    message: issue.message,
-  }));
+  const errors = validationErrors(result.error);
   if (result.target === 'json' || result.target === 'form') {
     return problem(c, 'validation_failed', { errors });
   }

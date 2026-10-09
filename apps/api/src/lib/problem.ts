@@ -48,6 +48,10 @@ export const Problem = z
 
 export type ProblemBody = z.infer<typeof Problem>;
 
+/** What a schema refused, as `errors` carries it: the field and the reason, never the value sent. */
+export const validationErrors = (error: z.ZodError) =>
+  error.issues.map((issue) => ({ path: issue.path.map(String).join('.'), message: issue.message }));
+
 /** An OpenAPI response entry for a problem, for a route's `responses`. */
 export function problemResponse(description: string) {
   return { description, content: { 'application/problem+json': { schema: Problem } } };

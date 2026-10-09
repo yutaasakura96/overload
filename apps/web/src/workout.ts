@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { newId } from './ids';
 import {
   setStore,
+  type Change,
   type SetRecord,
   type StoreRecord,
   type WorkoutExerciseRecord,
@@ -50,26 +51,72 @@ export const useWorkoutStore = create<WorkoutState>()(() => ({
   idleEnded: undefined,
 }));
 
-type Change = { put?: StoreRecord[]; remove?: string[] };
-
-// One change at a time, each made from the records the one before it left.
+// One change at a time in this tab, each made from the records the one before it left.
 let queue: Promise<unknown> = Promise.resolve();
 
-/** Writes a change to the set store, then shows it. A failed write shows nothing and rejects. */
+const waiting = (record: StoreRecord) => record.state === 'pending';
+
+/**
+ * Shows the records the set store holds, unless they are what is on screen or another account's.
+ * Rows that were waiting and no longer are have been answered, by this tab's upload or another's,
+ * and the data-state slot says when.
+ */
+function show(userId: string, records: StoreRecord[]) {
+  const state = useWorkoutStore.getState();
+  if (state.userId !== userId) return;
+  if (JSON.stringify(records) === JSON.stringify(state.records)) return;
+  const answered = state.records.some(waiting) && !records.some(waiting);
+  useWorkoutStore.setState(answered ? { records, lastSyncedAt: Date.now() } : { records });
+}
+
+// What `setStore.remade()` said when the records were last loaded whole.
+let remadeAtLoad = 0;
+
+/**
+ * The records this tab goes on from: the set store's. The one exception is a store emptied under
+ * the open app, its storage cleared from elsewhere. What was cleared is gone from the device, but
+ * the records on screen that it no longer holds stay until the next launch, so a workout does not
+ * vanish mid-set and Finish still ends it.
+ */
+function held(userId: string, stored: StoreRecord[], removed: string[] = []): StoreRecord[] {
+  if (setStore.remade() === remadeAtLoad) return stored;
+  const gone = new Set([...stored.map((record) => record.id), ...removed]);
+  const { records } = useWorkoutStore.getState();
+  return [
+    ...records.filter((record) => record.userId === userId && !gone.has(record.id)),
+    ...stored,
+  ];
+}
+
+/**
+ * Makes a change in the set store, from the records it holds, then shows it. A failed write shows
+ * nothing and rejects.
+ */
 function mutate(change: (records: StoreRecord[]) => Change | undefined): Promise<void> {
   const run = queue.then(async () => {
-    const { records } = useWorkoutStore.getState();
-    const result = change(records);
-    if (result === undefined) return;
-    await setStore.write(result);
-    const put = new Map((result.put ?? []).map((record) => [record.id, record]));
-    const gone = new Set(result.remove ?? []);
-    useWorkoutStore.setState({
-      records: [
-        ...records.filter((record) => !gone.has(record.id) && !put.has(record.id)),
-        ...put.values(),
-      ],
+    const { userId } = useWorkoutStore.getState();
+    if (userId === undefined) throw new Error('no account’s records are loaded');
+    let removed: string[] = [];
+    const stored = await setStore.change(userId, (records) => {
+      const made = change(held(userId, records));
+      removed = made?.remove ?? [];
+      return made;
     });
+    show(userId, held(userId, stored, removed));
+  });
+  queue = run.catch(() => undefined);
+  return run;
+}
+
+/**
+ * Reads the records again: another tab changed them, or is about to be relied on not to have
+ * (uploader.ts). Before the first load there is nothing to bring up to date.
+ */
+export function refreshWorkouts(): Promise<void> {
+  const run = queue.then(async () => {
+    const { userId, loaded } = useWorkoutStore.getState();
+    if (userId === undefined || !loaded) return;
+    show(userId, held(userId, await setStore.all(userId)));
   });
   queue = run.catch(() => undefined);
   return run;
@@ -143,9 +190,17 @@ export function lastSetOf(records: StoreRecord[], workoutId: string): SetRecord 
   )[0];
 }
 
+/** The sets the server refused, each waiting to be edited or discarded (docs/09 F4). */
+export function refusedSets(records: StoreRecord[]): SetRecord[] {
+  return records.filter(
+    (record): record is SetRecord =>
+      record.table === 'sets' && record.state === 'refused' && record.deletedAt === undefined,
+  );
+}
+
 /**
- * What the data-state slot counts (docs/10 §7.4): refused rows, and sets the server has not
- * acknowledged. With no set waiting, a workout row still waiting counts instead, so the slot never
+ * What the data-state slot counts (docs/10 §7.4): refused sets, and sets the server has not
+ * acknowledged. With no set waiting, another row still waiting counts instead, so the slot never
  * reads synced while something is not.
  */
 export function dataState(records: StoreRecord[]): { refused: number; pending: number } {
@@ -154,7 +209,7 @@ export function dataState(records: StoreRecord[]): { refused: number; pending: n
     (record) => record.table === 'sets' && record.deletedAt === undefined,
   );
   return {
-    refused: records.filter((record) => record.state === 'refused').length,
+    refused: refusedSets(records).length,
     pending: sets.length > 0 ? sets.length : pending.length,
   };
 }
@@ -175,6 +230,7 @@ export async function loadWorkouts(userId: string, nowMs = Date.now()): Promise<
   // and neither a start nor a sign-out goes ahead on records nobody has seen (docs/08 §7).
   const records = await setStore.all(userId).catch(() => undefined);
   if (load !== latestLoad) return;
+  remadeAtLoad = setStore.remade();
   // What the store says of the account before stays with that account.
   const other =
     useWorkoutStore.getState().userId === userId ? {} : { idleEnded: undefined, lastSyncedAt: 0 };
@@ -324,13 +380,63 @@ export async function completeSet(input: {
   });
 }
 
+/**
+ * The stamp of an edit or a delete: now, and always after the version it replaces. The server keeps
+ * whichever is newer (docs/07 §3.4), so a phone clock set back must not make a change lose to the
+ * row it changes.
+ */
+const stampAfter = (previous: string) =>
+  new Date(Math.max(Date.now(), new Date(previous).getTime() + 1)).toISOString();
+
+const loggedSet = (records: StoreRecord[], id: string) =>
+  records.find(
+    (record): record is SetRecord =>
+      record.table === 'sets' && record.id === id && record.deletedAt === undefined,
+  );
+
+/**
+ * Edits a logged set (docs/09 F4): the whole row is queued again under a new `clientUpdatedAt`,
+ * and a refusal it carried is over. A set records RIR or RPE, so entering one clears the other.
+ */
+export async function editSet(
+  id: string,
+  figures: { weightKg: number; reps: number; rir: number | null },
+): Promise<void> {
+  await mutate((records) => {
+    const record = loggedSet(records, id);
+    if (record === undefined) return undefined;
+    const { refusal: _refusal, ...kept } = record;
+    const row = {
+      ...record.row,
+      ...figures,
+      rpe: figures.rir === null ? record.row.rpe : null,
+      clientUpdatedAt: stampAfter(record.row.clientUpdatedAt),
+    };
+    return { put: [{ ...kept, state: 'pending', row }] };
+  });
+}
+
+/**
+ * Discards a logged set (docs/09 F4). It goes from the screen now and from the device once the
+ * server has answered its deletion, which removes a copy the server holds and keeps a stale one
+ * from coming back (docs/03 §8.1).
+ */
+export async function discardSet(id: string): Promise<void> {
+  await mutate((records) => {
+    const record = loggedSet(records, id);
+    if (record === undefined) return undefined;
+    const { refusal: _refusal, ...kept } = record;
+    const deletedAt = stampAfter(record.row.clientUpdatedAt);
+    return { put: [{ ...kept, state: 'pending', deletedAt }] };
+  });
+  // Rest does not count from a set that was never done.
+  if (useWorkoutStore.getState().rest?.setId === id) useWorkoutStore.setState({ rest: undefined });
+}
+
 /** A workout left with no logged set is deleted, not kept (docs/09 F3). */
-function removeWorkout(records: StoreRecord[], workout: WorkoutRecord, now: string): Change {
+function removeWorkout(workout: WorkoutRecord): Change {
   return {
-    put: [{ ...workout, state: 'pending', deletedAt: now }],
-    remove: records
-      .filter((record) => record.workoutId === workout.id && record.id !== workout.id)
-      .map((record) => record.id),
+    put: [{ ...workout, state: 'pending', deletedAt: stampAfter(workout.row.clientUpdatedAt) }],
   };
 }
 
@@ -340,9 +446,12 @@ export async function finishWorkout(): Promise<void> {
   await mutate((records) => {
     const workout = openWorkout(records);
     if (workout === undefined) return undefined;
-    if (setsOfWorkout(records, workout.id).length === 0)
-      return removeWorkout(records, workout, now);
-    const row = { ...workout.row, endedAt: now, clientUpdatedAt: now };
+    if (setsOfWorkout(records, workout.id).length === 0) return removeWorkout(workout);
+    const row = {
+      ...workout.row,
+      endedAt: now,
+      clientUpdatedAt: stampAfter(workout.row.clientUpdatedAt),
+    };
     return { put: [{ ...workout, state: 'pending', row }] };
   });
   useWorkoutStore.setState({ rest: undefined });
@@ -354,7 +463,6 @@ export async function finishWorkout(): Promise<void> {
  * derives nothing. One that never logged a set is deleted, as Finish would.
  */
 export async function endIdleWorkout(nowMs = Date.now()): Promise<void> {
-  const now = new Date(nowMs).toISOString();
   let ended: WorkoutState['idleEnded'];
   await mutate((records) => {
     const workout = openWorkout(records);
@@ -362,9 +470,13 @@ export async function endIdleWorkout(nowMs = Date.now()): Promise<void> {
     const last = lastSetOf(records, workout.id);
     const lastActivity = last?.row.performedAt ?? workout.row.startedAt;
     if (nowMs - new Date(lastActivity).getTime() < IDLE_END_MS) return undefined;
-    if (last === undefined) return removeWorkout(records, workout, now);
+    if (last === undefined) return removeWorkout(workout);
     ended = { name: workout.row.name, endedAt: last.row.performedAt };
-    const row = { ...workout.row, endedAt: last.row.performedAt, clientUpdatedAt: now };
+    const row = {
+      ...workout.row,
+      endedAt: last.row.performedAt,
+      clientUpdatedAt: stampAfter(workout.row.clientUpdatedAt),
+    };
     return { put: [{ ...workout, state: 'pending', row }] };
   });
   if (ended !== undefined) useWorkoutStore.setState({ rest: undefined, idleEnded: ended });
@@ -406,13 +518,32 @@ const stillOpenThere = (record: StoreRecord, row: object) =>
   'endedAt' in row &&
   row.endedAt === null;
 
+/** Whether `other` is a row a delete of `record` takes with it. */
+const isUnder = (other: StoreRecord, record: StoreRecord) =>
+  (record.table === 'workouts' && other.workoutId === record.id && other.id !== record.id) ||
+  (record.table === 'workoutExercises' &&
+    other.table === 'sets' &&
+    other.row.workoutExerciseId === record.id);
+
+/**
+ * Whether an ended workout's record has nothing left to wait for: the server has it, or it refused
+ * a workout or exercise row that holds no set. Planned sets never ticked are not stored (docs/09
+ * F3), so a row like that is nothing of the user's; a refused set is, and keeps its workout here.
+ */
+function settled(record: StoreRecord, whole: StoreRecord[]) {
+  if (record.state === 'acknowledged') return true;
+  if (record.state !== 'refused' || record.table === 'sets') return false;
+  return !whole.some((other) => other.table === 'sets' && isUnder(other, record));
+}
+
 /**
  * Applies a sync answer (docs/07 §3.4). A stored, unchanged or deleted row is acknowledged: its
  * record is deleted, or, while its workout is open, kept and marked acknowledged. A refused row is
- * kept and marked refused. A record changed since it was sent stays pending for the next upload,
- * and so does a workout's ending or removal the server's answer does not show: its own copy won
- * and is still open (docs/08 §7).
- * Then every ended workout whose records are all acknowledged leaves the device.
+ * kept and marked refused, with the reason. A record changed since it was sent stays pending for
+ * the next upload, and so does a workout's ending or removal the server's answer does not show: its
+ * own copy won and is still open (docs/08 §7). A deleted row the server kept is
+ * back as the server has it: its copy was edited after the delete was made, and the newer wins.
+ * Then every ended workout with nothing left to wait for leaves the device.
  */
 export async function applySyncResults(sent: SentRow[], results: SyncResult[]): Promise<void> {
   const sentById = new Map(sent.map((row) => [row.id, row]));
@@ -426,19 +557,27 @@ export async function applySyncResults(sent: SentRow[], results: SyncResult[]): 
       if (record === undefined || was === undefined) continue;
       const now = sentRowOf(record);
       if (now.clientUpdatedAt !== was.clientUpdatedAt || now.deletedAt !== was.deletedAt) continue;
-      if (result.status === 'refused') {
-        put.set(record.id, { ...record, state: 'refused' });
-      } else if (result.status === 'deleted') {
+      const gone = result.status === 'deleted' || (result.status === 'refused' && record.deletedAt);
+      if (gone) {
+        // A delete the server would not take was of a row it does not hold for this account.
         for (const other of records) {
-          if (
-            other.id === record.id ||
-            (record.table === 'workouts' && other.workoutId === record.id)
-          ) {
-            remove.add(other.id);
-          }
+          if (other.id === record.id || isUnder(other, record)) remove.add(other.id);
         }
-      } else if (record.deletedAt === undefined && !stillOpenThere(record, result.row)) {
-        put.set(record.id, { ...record, state: 'acknowledged' });
+      } else if (result.status === 'refused') {
+        const fields = (result.problem.errors ?? []).map((error) => error.path);
+        put.set(record.id, {
+          ...record,
+          state: 'refused',
+          refusal: { code: result.problem.code, fields },
+        });
+      } else if (record.deletedAt === undefined) {
+        if (!stillOpenThere(record, result.row)) {
+          put.set(record.id, { ...record, state: 'acknowledged' });
+        }
+      } else {
+        const { deletedAt: _deletedAt, ...kept } = record;
+        // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the answer's row is this record's table's
+        put.set(record.id, { ...kept, state: 'acknowledged', row: result.row } as StoreRecord);
       }
     }
     const after = records
@@ -447,7 +586,7 @@ export async function applySyncResults(sent: SentRow[], results: SyncResult[]): 
     for (const workout of after) {
       if (workout.table !== 'workouts' || workout.row.endedAt === null) continue;
       const whole = after.filter((record) => record.workoutId === workout.id);
-      if (whole.every((record) => record.state === 'acknowledged')) {
+      if (whole.every((record) => settled(record, whole))) {
         for (const record of whole) remove.add(record.id);
       }
     }

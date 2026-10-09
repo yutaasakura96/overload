@@ -80,9 +80,10 @@ Works identically offline. Every write below goes to the IndexedDB set store fir
    and the bar counts over until dismissed or the next set (`06`, 2026-10-03). A rest of 0 seconds
    starts no timer.
 4. **Change the workout.** Add, remove or reorder exercises; edit or delete a ticked set. None of it
-   touches the routine (S4). Edits and deletes travel in the same sync batch (`07` §3.4). *Not built
-   yet; it needs slice 4's tombstones.* Any exercise of the workout can be opened from **Up next**
-   or **Done**, in any order.
+   touches the routine (S4). Edits and deletes travel in the same sync batch (`07` §3.4). *Sync
+   carries them since slice 4 (2026-10-08), and the screen edits or discards a refused set (F4).
+   Changing the exercises, and editing or deleting a set the server took, have no screen yet.*
+   Any exercise of the workout can be opened from **Up next** or **Done**, in any order.
 5. **Finish.** Tap **Finish workout**, confirm → `ended_at` is set to now → Today. *The summary is
    not built yet.*
 
@@ -116,12 +117,20 @@ sees when it does not simply succeed.
 1. **Pending.** The data-state slot shows *N* pending. No action needed.
 2. **Uploaded.** The count drops; at zero the slot returns to its synced state.
 3. **Refused (kind 3, e.g. 422).** The set stays in the store, marked refused, on the workout screen
-   and in the slot. Tap it → **Edit** (re-queued with a new `client_updated_at`) or **Discard**
-   (removed after a confirm). Never dropped silently.
+   and in the slot, with the reason. **Edit** opens its figures in place and queues it again with a
+   new `client_updated_at`; **Discard** asks once, then removes it: from the screen at once, and
+   from the device when the server has answered its deletion, which leaves a tombstone. Never
+   dropped silently. *Built 2026-10-08.*
+   - **Its workout has ended** (the whole workout was logged with no signal): the set is listed on
+     Today under **Refused sets**, with the same two actions. The workout stays on the device
+     until its last refused set is edited or discarded.
+   - **Only its exercise's absence refused it** (`parent_missing`: a custom exercise deleted
+     elsewhere mid-workout): no edit can fix that, so it offers Discard alone.
 4. **401.** A sign-in prompt opens over the current screen (`08` §5). Pending stays pending.
    - Same user signs in → upload resumes.
    - `access_revoked` → every pending set becomes **refused, access revoked**, and the sign-in page
-     says "Your access was revoked." They can only be discarded.
+     says "Your access was revoked." They can only be discarded. *Not built; it comes with invite
+     administration (slice 6).*
    - A different Google account → F8's rule applies to the first user's sets before anything else.
 
 | Step | Goes wrong | User sees |

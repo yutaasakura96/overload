@@ -1041,6 +1041,25 @@
                   },
                   "status": {
                     "type": "integer"
+                  },
+                  "errors": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "path": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "path",
+                        "message"
+                      ]
+                    },
+                    "description": "Present when the row did not match its schema: the fields at fault, never a value."
                   }
                 },
                 "required": [
@@ -1281,6 +1300,9 @@
                 },
                 {
                   "$ref": "#/components/schemas/WorkoutRow"
+                },
+                {
+                  "$ref": "#/components/schemas/SyncUnreadableRow"
                 }
               ]
             },
@@ -1289,19 +1311,39 @@
           "workoutExercises": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/WorkoutExerciseRow"
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/SyncDeletion"
+                },
+                {
+                  "$ref": "#/components/schemas/WorkoutExerciseRow"
+                },
+                {
+                  "$ref": "#/components/schemas/SyncUnreadableRow"
+                }
+              ]
             },
             "default": []
           },
           "sets": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/SetRow"
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/SyncDeletion"
+                },
+                {
+                  "$ref": "#/components/schemas/SetRow"
+                },
+                {
+                  "$ref": "#/components/schemas/SyncUnreadableRow"
+                }
+              ]
             },
             "default": []
           }
         },
-        "description": "The device’s queued rows, each the whole current row, parents before children. At most 500 rows a request."
+        "description": "The device’s queued rows, each the whole current row or its deletion, parents before children. At most 500 rows a request."
       },
       "SyncDeletion": {
         "type": "object",
@@ -1322,7 +1364,22 @@
           "deletedAt"
         ],
         "additionalProperties": false,
-        "description": "A workout the phone deleted."
+        "description": "A row the phone deleted. It goes if the stored copy is older than `deletedAt`, and its id is kept so a stale copy cannot bring it back."
+      },
+      "SyncUnreadableRow": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": {},
+        "description": "Any other row with an id. It is not applied: its result is `refused` with `validation_failed`, and the rest of the batch is applied as usual."
       }
     },
     "parameters": {}
@@ -2263,7 +2320,7 @@
         },
         "responses": {
           "200": {
-            "description": "A result per row sent. Refusals do not fail the request; each is reported on its row",
+            "description": "A result per row sent. Refusals do not fail the request; each is reported on its row, a row that does not match its schema included",
             "headers": {
               "Overload-User": {
                 "schema": {
@@ -2304,7 +2361,7 @@
             }
           },
           "422": {
-            "description": "`validation_failed`: the batch did not match its schema",
+            "description": "`validation_failed`: the batch is not three arrays of rows that each carry an id",
             "content": {
               "application/problem+json": {
                 "schema": {

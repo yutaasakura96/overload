@@ -3100,3 +3100,73 @@ and none separates plate-loaded machines from weight stacks.
   muscle group. A push/pull/legs filter is a separate issue.
 
 **Changed:** `00`, `02`, `04`, `07`, `09`, `10`, `12`, `CONTEXT.md`.
+
+### 2026-10-08 — Slice 4's cut: tombstones, a row refused on its own, one tab uploading, the refused set
+
+What `#4` built, where it stops, and what was decided on the way.
+
+- **Tombstones, as planned on 2026-09-22**, for all three tables: sync now deletes a workout
+  exercise and a set as it already deleted a workout. Three things the plan did not say:
+  - **A delete of a row the server never had is buried too.** Finishing a workout with no set
+    deletes it, often before it was ever uploaded, while a second tab may still hold it pending.
+  - **Two requests on one id take turns**, by `pg_advisory_xact_lock` on the id at the start of
+    each row's transaction. The tombstone alone does not close the race it exists for: under READ
+    COMMITTED a stale copy reads "no tombstone" before the delete commits and inserts after it.
+    `workouts-race.test.ts` fails without the lock, every run. *Rejected:* a check after the
+    insert, which still misses an id the server never held.
+  - **A tombstone is keyed by user and row id, and answers only that user.** Another account
+    sending the same id is not told the id once existed and cannot block its owner's tombstone.
+    Migration `0012_slice4_sync_tombstone` creates the table with `(user_id, id)` as its primary key.
+- **A deleted row stays deleted whatever the copy's clock says.** A copy stamped after the delete
+  is still a copy of a deleted row. The clock decides only between a delete and the row it finds:
+  a stored copy newer than `deletedAt` wins, the row stays, and the phone puts its set or exercise
+  row back as the server has it.
+- **The phone stamps an edit or a delete after the version it replaces**, never merely "now". A
+  phone clock set back would otherwise make the user's own change lose to the row it changes.
+- **One bad row no longer fails the batch.** This reverses 2026-10-03's "sync validates the whole
+  batch". Each array now takes any object with a uuid `id`; one that fits neither a row nor a
+  deletion is answered `refused`, `validation_failed`, with the fields at fault, and the rest is
+  applied. The 422 remains for a body that is not three arrays of such objects. With the whole
+  batch refused, one row an older build wrote left every set behind it pending for good, with
+  nothing on screen to act on. *Rejected:* keeping the strict schema in the contract and
+  validating by hand, which makes the contract say something the server does not do.
+- **The upload loop runs under a Web Lock, and goes ahead without one.** No Web Locks, a refused
+  request, or 10 s of waiting on another tab: the upload runs anyway, because the lock only saves
+  requests (`03` §8.1). *Rejected:* skipping when the lock is taken. A tab the browser froze
+  mid-request would then keep every other tab's sets pending.
+- **Each tab works from the device.** The lock is no use while each tab sends what it last saw:
+  two tabs opened on the same pending set both hold it. So a change to the set store now reads
+  the records and writes in one IndexedDB transaction, the tab that made it says so on a
+  `BroadcastChannel`, and a tab granted the lock reads the records again before it chooses what
+  to send. A set logged in one tab shows in the other, and takes the next position there.
+  One exception, kept from slice 3: a store emptied under the open app (the device's storage
+  cleared or evicted) does not take the workout off the screen. That tab keeps the records it
+  was showing until the next launch, and Finish still ends the workout; what was cleared stays
+  cleared on the device. It is told from another tab's removal by the database having been made
+  anew under the page, since nothing in the app deletes it.
+- **A refused set is edited in place, not on the active set card.** The same row is needed on
+  Today, where there is no card, so one form serves both. The card stays the one place the 56px
+  figures appear. `10` §1 lists what was added to the artboard's refused row.
+- **Today lists the refused sets of workouts that have ended.** A workout logged whole with no
+  signal is finished before anything is refused, and then has no workout screen. Without the
+  list the slot would say `1 REFUSED` with nothing to act on short of signing out.
+- **Discard uploads a deletion** and does not simply drop the record: the server may hold an
+  earlier version of the set, and a second tab may still hold a copy.
+- **The slot counts refused sets**, not every refused row. A refused workout or exercise row is
+  not something the user can act on; the sets under it are refused with it (`parent_missing`) and
+  carry the count. Once it holds no set, such a row leaves the device with its ended workout:
+  planned sets never ticked are not stored (`09` F3), so nothing of the user's goes with it.
+- **Resume was already built** by slice 3's set store (`03` §6): the open workout is rebuilt from
+  the device at launch and rest counts from the last `performed_at`. Slice 4 adds the browser
+  test for it. `08` §7's "a workout in progress is finished before sign-out" stands: resume is
+  from the device, and there is still no way to bring an open workout back from the server.
+- **The browser tests' ports can be moved** (`E2E_WEB_PORT`, `E2E_API_PORT`). Two worktrees on one
+  machine otherwise reuse each other's servers and test the other's build.
+
+Not built: editing or deleting a set the server took, and adding, removing or reordering the
+exercises of a live workout (sync carries all of it; no screen is drawn); `access_revoked`
+refusals (`09` F4, with slice 6); the 30-day purge of tombstones, which waits for the daily job
+(`03` §8.4). **Still unverified, and owed on a real iPhone:** Web Locks and `BroadcastChannel`
+inside the installed app, and `11` §3 items 3, 4 and 7.
+
+**Changed:** `00`, `03`, `04`, `07`, `09`, `10`, `11`.
