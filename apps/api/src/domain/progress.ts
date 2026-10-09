@@ -1,4 +1,4 @@
-import { bestE1rmKg, epley, type LoggedSet } from './e1rm.js';
+import { bestE1rmKg, type LoggedSet } from './e1rm.js';
 
 // S7's chart (docs/07 §3): one point per workout, and the stats of the span chosen. Local dates
 // are `YYYY-MM-DD` strings, which compare in date order.
@@ -62,24 +62,31 @@ export function spanStart(span: Span, today: string): string | undefined {
   return toDate(Date.UTC(year, month - 1 - months, Math.min(day, lastDay)) + DAY_MS);
 }
 
-/** A workout's point, from its working sets alone (S6). A workout of warm-ups has none. */
-function pointOf(workout: LoggedWorkout): ProgressPoint[] {
+/**
+ * A workout's point, from its working sets alone (S6), with its e1RM before rounding. A workout
+ * of warm-ups has none.
+ */
+function pointOf(workout: LoggedWorkout): { point: ProgressPoint; e1rmKg: number }[] {
+  const e1rmKg = bestE1rmKg(workout.sets);
+  if (e1rmKg === undefined) return [];
   const working = workout.sets.filter((set) => !set.isWarmup);
-  if (working.length === 0) return [];
   const topSetKg = Math.max(...working.map((set) => set.weightKg));
   return [
     {
-      workoutId: workout.workoutId,
-      date: workout.date,
-      e1rmKg: round(Math.max(...working.map((set) => epley(set.weightKg, set.reps))), 1),
-      topSetKg,
-      topSetReps: Math.max(
-        ...working.filter((set) => set.weightKg === topSetKg).map((set) => set.reps),
-      ),
-      volumeKg: round(
-        working.reduce((sum, set) => sum + set.weightKg * set.reps, 0),
-        2,
-      ),
+      point: {
+        workoutId: workout.workoutId,
+        date: workout.date,
+        e1rmKg: round(e1rmKg, 1),
+        topSetKg,
+        topSetReps: Math.max(
+          ...working.filter((set) => set.weightKg === topSetKg).map((set) => set.reps),
+        ),
+        volumeKg: round(
+          working.reduce((sum, set) => sum + set.weightKg * set.reps, 0),
+          2,
+        ),
+      },
+      e1rmKg,
     },
   ];
 }
@@ -90,11 +97,10 @@ function pointOf(workout: LoggedWorkout): ProgressPoint[] {
  */
 export function exerciseProgress(span: Span, today: string, workouts: LoggedWorkout[]): Progress {
   const start = spanStart(span, today);
-  const inSpan = workouts.filter(
-    (workout) => (start === undefined || workout.date >= start) && workout.date <= today,
-  );
-  const points = inSpan.flatMap(pointOf);
-  const estimates = inSpan.flatMap((workout) => bestE1rmKg(workout.sets) ?? []);
+  const plotted = workouts
+    .filter((workout) => (start === undefined || workout.date >= start) && workout.date <= today)
+    .flatMap(pointOf);
+  const points = plotted.map((each) => each.point);
   const top = points.reduce<ProgressPoint | undefined>(
     (best, point) =>
       best === undefined ||
@@ -104,8 +110,8 @@ export function exerciseProgress(span: Span, today: string, workouts: LoggedWork
         : best,
     undefined,
   );
-  const first = estimates[0];
-  const last = estimates.at(-1);
+  const first = plotted[0];
+  const last = plotted.at(-1);
   return {
     span,
     from: start ?? points[0]?.date ?? null,
@@ -114,9 +120,9 @@ export function exerciseProgress(span: Span, today: string, workouts: LoggedWork
     stats: {
       bestE1rmKg: points.length === 0 ? null : Math.max(...points.map((point) => point.e1rmKg)),
       changeKg:
-        first === undefined || last === undefined || estimates.length < 2
+        first === undefined || last === undefined || plotted.length < 2
           ? null
-          : round(last - first, 3),
+          : round(last.e1rmKg - first.e1rmKg, 3),
       topSetKg: top?.topSetKg ?? null,
       topSetReps: top?.topSetReps ?? null,
       volumeKg: round(
