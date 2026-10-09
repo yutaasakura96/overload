@@ -1495,3 +1495,35 @@ main:focus {
   max-width: 480px;
   margin: 0 auto;
 }
+.combobox__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 224px;
+  overflow-y: auto;
+  border: 1px solid var(--line-control);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+}
+.combobox__option,
+.combobox__empty {
+  display: flex;
+  align-items: center;
+  min-height: var(--target-min);
+  padding: 0 10px;
+  font-size: 16px;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--line-row);
+}
+.combobox__option[aria-selected='true'] {
+  background: var(--surface-accent);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.combobox__option[data-current] span:first-child {
+  color: var(--accent);
+}
+.combobox__empty {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+}

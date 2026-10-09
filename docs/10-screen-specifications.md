@@ -566,7 +566,7 @@ data-state slot. Under the tabs, in order:
   of the chevron. One tap starts it and opens screen 1 (S4). While a workout is in progress the tap
   asks under the row instead: `Finish Push A first?` — `Resume` / `Finish`.
 - **No routines:** the empty state of the routine list, `Create a routine`.
-- **Profile:** `Time zone` (an IANA name, opened on the device's own) and `Weights shown in` —
+- **Profile:** `Time zone` (a searchable list of IANA names, initially set to the device's own; an existing saved choice takes precedence; typing narrows the list and only a chosen name is saved) and `Weights shown in` —
   `05` §4.8's segments over two radios, `Kilograms` / `Pounds` — then a secondary save. Until the
   first save the heading reads `Set up your profile` with one sentence on what the two are for.
   Saved online only, like routines.
