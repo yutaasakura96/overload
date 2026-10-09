@@ -3180,7 +3180,8 @@ Slice 5 (`#5`) builds `GET /api/exercises/{id}/progress` and screen 2. Settled w
   together, as `07`'s `stats` already said (`28800`). The artboard draws `2,475`, one workout's
   volume, beside a 12-week span. *Rejected:* the latest workout's figures, which the span selector
   would never change, against S7's "for the selected span". The headline stays the latest e1RM,
-  with its change since the span's first workout.
+  with its change since the span's first workout: `stats.changeKg`, worked out in the domain and
+  only converted by the screen.
 - **`topSetReps` joins `topSetKg`**, on each point and in `stats`, because the card prints
   `82.5 × 10`. `stats` is null where there is no workout; `from` is null for `all` with none.
 - **A span ends today and includes it**, in the profile's time zone: 4 and 12 weeks are 28 and 84
@@ -3194,7 +3195,8 @@ Slice 5 (`#5`) builds `GET /api/exercises/{id}/progress` and screen 2. Settled w
 - **The date axis is the span, in proportion to time**, not one step per workout: a fortnight's
   gap is twice a week's. The value scale is three gridlines a round step apart, chosen per chart
   (the artboard's 6 kg step is its own data's). Rings are drawn on every workout only while they
-  all stay 7px apart; past that the line carries them and the latest keeps its disc.
+  all stay 7px apart; past that the line carries them and the latest keeps its disc. A span of a
+  single day, `all` with every workout dated today, has no axis and shows `Not enough data yet`.
 - **A point is not a target; the chart is.** `05` §3.2 asked for 44px targets or a decision. A
   touch or a pointer anywhere on the chart picks out the workout nearest in time, and the headline
   reads it: its e1RM, top set and date. The keyboard and a screen reader have the same through a

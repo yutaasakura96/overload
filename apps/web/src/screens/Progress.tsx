@@ -33,7 +33,7 @@ const DEFAULT_SPAN: Span = '12w';
 
 const unitName = (unit: WeightUnit) => (unit === 'lb' ? 'pounds' : 'kilograms');
 
-/** An e1RM as the screen prints it: in the user's unit, to the tenth. */
+/** An e1RM, or a change in one, as the screen prints it: in the user's unit, to the tenth. */
 const e1rmIn = (kg: number, unit: WeightUnit) => Math.round(fromKg(kg, unit) * 10) / 10;
 
 /** A volume load in the user's unit, to the whole number, with thousands separated. */
@@ -148,12 +148,15 @@ export function Progress({
           }
           aria-busy={progress.isPlaceholderData}
         >
-          {data.points.length < 2 || data.from === null ? (
+          {data.points.length < 2 || data.from === null || data.from === data.to ? (
             <div className="progress__empty">
               <h2 className="empty-state__title">Not enough data yet</h2>
               <p className="empty-state__body">
-                The chart needs two workouts with a working set of this exercise
-                {data.span === 'all' ? '.' : ' in this span.'}
+                {data.points.length < 2
+                  ? `The chart needs two workouts with a working set of this exercise${
+                      data.span === 'all' ? '.' : ' in this span.'
+                    }`
+                  : 'The chart needs workouts with a working set of this exercise on two days.'}
               </p>
             </div>
           ) : (
@@ -264,16 +267,9 @@ function Headline({
   unit: WeightUnit;
   over: string;
 }) {
-  const first = data?.points[0];
   const latest = picked ?? data?.points.at(-1);
-  const change =
-    picked !== undefined ||
-    first === undefined ||
-    latest === undefined ||
-    data === undefined ||
-    data.points.length < 2
-      ? undefined
-      : Math.round((e1rmIn(latest.e1rmKg, unit) - e1rmIn(first.e1rmKg, unit)) * 10) / 10;
+  const changeKg = data?.stats.changeKg;
+  const change = picked !== undefined || changeKg == null ? undefined : e1rmIn(changeKg, unit);
   return (
     <section className="progress__headline" aria-labelledby="progress-headline">
       <div>

@@ -472,7 +472,7 @@ GET /api/exercises/0192a001-…/progress?span=12w&overlays=intake,trend,sleep,hr
 {
   "span": "12w", "from": "2026-08-19", "to": "2026-11-10",
   "points": [ { "workoutId": "0192w001-…", "date": "2026-11-04", "e1rmKg": 106.7, "topSetKg": 80, "topSetReps": 10, "volumeKg": 2400 } ],
-  "stats": { "bestE1rmKg": 106.7, "topSetKg": 82.5, "topSetReps": 8, "volumeKg": 28800 },
+  "stats": { "bestE1rmKg": 106.7, "changeKg": 5.4, "topSetKg": 82.5, "topSetReps": 8, "volumeKg": 28800 },
   "overlays": {
     "intake": [ { "date": "2026-11-04", "energyKcal": 2380, "complete": true } ],
     "trend":  [ { "date": "2026-11-04", "trendKg": 71.84 } ],
@@ -489,8 +489,11 @@ GET /api/exercises/0192a001-…/progress?span=12w&overlays=intake,trend,sleep,hr
   the heaviest working set as `topSetKg` with `topSetReps`, the most reps done at that weight,
   and `volumeKg`, weight × reps summed over its working sets.
 - `stats` covers the span: the best e1RM, the heaviest top set with its reps, and the volume of
-  every workout together. The first three are `null` without a workout.
+  every workout together. The best e1RM and the top set are `null` without a workout. `changeKg`
+  is the last point's `e1rmKg` less the first's, to the tenth, and `null` with fewer than 2
+  points. The client converts it to the user's unit and never works it out itself.
 - With fewer than 2 workouts, `points` has 0 or 1 items and the client shows "Not enough data yet".
+  It shows the same when `from` equals `to`: `all` with every workout dated today has no axis.
 - The 404 is an exercise that is not the caller's to see. The 422 is `setup_incomplete` with
   `missing: ["profile"]`: local dates need the time zone.
 - `overlays` omitted gives no overlay keys. The M3 series return empty arrays before M3 data exists.

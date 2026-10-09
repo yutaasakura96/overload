@@ -604,6 +604,14 @@
                 ],
                 "example": 106.7
               },
+              "changeKg": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "description": "The last workout’s e1RM less the first’s, to the tenth. Null with fewer than two.",
+                "example": 5.4
+              },
               "topSetKg": {
                 "type": [
                   "number",
@@ -625,6 +633,7 @@
             },
             "required": [
               "bestE1rmKg",
+              "changeKg",
               "topSetKg",
               "topSetReps",
               "volumeKg"

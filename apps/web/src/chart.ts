@@ -50,8 +50,8 @@ const dayOf = (date: string) => Math.round(Date.parse(`${date}T00:00:00Z`) / DAY
 const dateOf = (day: number) => new Date(day * DAY_MS).toISOString().slice(0, 10);
 
 /**
- * The x of a local date on an axis that runs from `from` to `to`, in proportion to the days
- * between: a fortnight's gap is twice as wide as a week's.
+ * The x of a local date on an axis that runs from `from` to a later `to`, in proportion to the
+ * days between: a fortnight's gap is twice as wide as a week's.
  */
 export function dateX(
   date: string,
@@ -60,7 +60,6 @@ export function dateX(
   plot: { left: number; right: number },
 ) {
   const days = dayOf(to) - dayOf(from);
-  if (days <= 0) return plot.right;
   return plot.left + ((dayOf(date) - dayOf(from)) / days) * (plot.right - plot.left);
 }
 

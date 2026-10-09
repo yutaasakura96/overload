@@ -64,6 +64,7 @@ describe('exerciseProgress (S7)', () => {
     ]);
     expect(progress.stats).toEqual({
       bestE1rmKg: 70,
+      changeKg: null,
       topSetKg: 60,
       topSetReps: 5,
       volumeKg: 300,
@@ -137,10 +138,40 @@ describe('exerciseProgress (S7)', () => {
     ]);
     expect(progress.stats).toEqual({
       bestE1rmKg: 110,
+      changeKg: 3.3,
       topSetKg: 82.5,
       topSetReps: 10,
       volumeKg: 2400 + 82.5 * 15 + 825 + 800,
     });
+  });
+
+  it('measures the change from the span’s first workout to its last', () => {
+    const workouts = [
+      // Outside 4 weeks: the change is counted from the first workout inside.
+      logged('2026-09-01', working(100, 10)),
+      logged('2026-10-20', working(80, 10)),
+      // The span’s best, which the change does not read.
+      logged('2026-10-27', working(90, 10)),
+      logged('2026-11-03', working(75, 8)),
+    ];
+    // 75 × (1 + 8/30) = 95, less 80 × (1 + 10/30) = 106.7.
+    expect(exerciseProgress('4w', '2026-11-10', workouts).stats.changeKg).toBe(-11.7);
+    // Less 100 × (1 + 10/30) = 133.3.
+    expect(exerciseProgress('all', '2026-11-10', workouts).stats.changeKg).toBe(-38.3);
+    expect(
+      exerciseProgress('4w', '2026-11-10', [
+        logged('2026-10-20', working(80, 10)),
+        logged('2026-11-03', working(80, 10)),
+      ]).stats.changeKg,
+    ).toBe(0);
+  });
+
+  it('has no change with fewer than two workouts in the span', () => {
+    const one = exerciseProgress('4w', '2026-11-10', [
+      logged('2026-09-01', working(100, 10)),
+      logged('2026-11-03', working(80, 10)),
+    ]);
+    expect(one.stats.changeKg).toBeNull();
   });
 
   it('has no best and no top set without a workout in the span', () => {
@@ -149,7 +180,13 @@ describe('exerciseProgress (S7)', () => {
       from: '2026-10-14',
       to: '2026-11-10',
       points: [],
-      stats: { bestE1rmKg: null, topSetKg: null, topSetReps: null, volumeKg: 0 },
+      stats: {
+        bestE1rmKg: null,
+        changeKg: null,
+        topSetKg: null,
+        topSetReps: null,
+        volumeKg: 0,
+      },
     });
   });
 
@@ -300,7 +337,7 @@ describe('GET /api/exercises/{id}/progress (S7)', () => {
           volumeKg: 825,
         },
       ],
-      stats: { bestE1rmKg: 110, topSetKg: 82.5, topSetReps: 10, volumeKg: 2345 },
+      stats: { bestE1rmKg: 110, changeKg: 3.3, topSetKg: 82.5, topSetReps: 10, volumeKg: 2345 },
     });
   });
 
@@ -393,7 +430,13 @@ describe('GET /api/exercises/{id}/progress (S7)', () => {
     expect(await progressOf(cookie, bench, '?span=all')).toMatchObject({
       from: null,
       points: [],
-      stats: { bestE1rmKg: null, topSetKg: null, topSetReps: null, volumeKg: 0 },
+      stats: {
+        bestE1rmKg: null,
+        changeKg: null,
+        topSetKg: null,
+        topSetReps: null,
+        volumeKg: 0,
+      },
     });
   });
 

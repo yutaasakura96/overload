@@ -29,6 +29,8 @@ export type Progress = {
   points: ProgressPoint[];
   stats: {
     bestE1rmKg: number | null;
+    /** The last workout's e1RM less the first's, to the tenth. Null with fewer than two. */
+    changeKg: number | null;
     topSetKg: number | null;
     topSetReps: number | null;
     volumeKg: number;
@@ -97,6 +99,8 @@ export function exerciseProgress(span: Span, today: string, workouts: LoggedWork
         : best,
     undefined,
   );
+  const first = points[0];
+  const last = points.at(-1);
   return {
     span,
     from: start ?? points[0]?.date ?? null,
@@ -104,6 +108,10 @@ export function exerciseProgress(span: Span, today: string, workouts: LoggedWork
     points,
     stats: {
       bestE1rmKg: points.length === 0 ? null : Math.max(...points.map((point) => point.e1rmKg)),
+      changeKg:
+        first === undefined || last === undefined || points.length < 2
+          ? null
+          : round(last.e1rmKg - first.e1rmKg, 1),
       topSetKg: top?.topSetKg ?? null,
       topSetReps: top?.topSetReps ?? null,
       volumeKg: round(
