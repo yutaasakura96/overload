@@ -150,8 +150,8 @@ Read seated. Four independently toggleable overlays are the reason the whole app
   its end label. `Progress-Overlays` has all four on, with three labels pushed apart by the collision
   rule (`docs/05` §5).
 - **Fewer than 2 workouts** (PRD empty states): no chart is drawn, message reads
-  `Not enough data yet`. The same when the span is a single day, `all` with every workout dated
-  today. The headline, span selector and overlays have no defined empty treatment.
+  `Not enough data yet`. The same on any span whose workouts all fall on one local date. The
+  headline, span selector and overlays have no defined empty treatment.
 - **Data points are r=2.5.** If a point is tappable to reach that workout, it needs a 44px target
   (`docs/05` §3.2).
 

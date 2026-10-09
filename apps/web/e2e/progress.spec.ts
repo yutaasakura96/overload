@@ -164,12 +164,13 @@ test('with fewer than two workouts it says so and draws no chart', async ({ page
   await expect(page.getByRole('definition').nth(0)).toContainText('100');
 });
 
-test('with every workout on one day of all time it draws no chart', async ({ page }) => {
+test('with every workout on one day it draws no chart, on any span', async ({ page }) => {
   const curl = await exerciseId(page, 'Barbell Curl');
   await log(page, curl, 0, 30, 10);
   await log(page, curl, 0, 32.5, 10);
 
-  await page.goto(`/exercises/${curl}/progress?span=all`);
+  await page.goto(`/exercises/${curl}/progress`);
+  await expect(page.getByRole('radio', { name: '12 weeks' })).toBeChecked();
   await expect(page.getByRole('heading', { name: 'Not enough data yet' })).toBeVisible();
   await expect(page.getByText('on two days')).toBeVisible();
   await expect(chart(page)).toHaveCount(0);
@@ -178,9 +179,11 @@ test('with every workout on one day of all time it draws no chart', async ({ pag
   await expect(headline(page)).toContainText('Up 3.3 kilograms');
   await expect(page.getByRole('definition').nth(1)).toContainText('625');
 
-  // A span with a start has an axis to draw them on.
-  await page.getByRole('radio', { name: '4 weeks' }).check();
-  await expect(chart(page)).toHaveAttribute('max', '1');
+  await page.getByRole('radio', { name: 'All time' }).check();
+  await expect(page).toHaveURL(`/exercises/${curl}/progress?span=all`);
+  await expect(headline(page)).toContainText('All time');
+  await expect(page.getByText('on two days')).toBeVisible();
+  await expect(chart(page)).toHaveCount(0);
 });
 
 test('a pounds lifter reads the chart in pounds', async ({ page }) => {
@@ -194,7 +197,7 @@ test('a pounds lifter reads the chart in pounds', async ({ page }) => {
   // 90 × (1 + 10/30) = 120 kg, and the 90 kg top set.
   await expect(headline(page)).toContainText('264.6');
   await expect(headline(page)).toContainText('pounds');
-  // The API's 13.3 kg change, 120 less 80 × (1 + 10/30) = 106.7, in pounds.
-  await expect(headline(page)).toContainText('Up 29.3 pounds');
+  // The API's 13.333 kg change, 120 less 80 × (1 + 10/30) = 106.666…, in pounds.
+  await expect(headline(page)).toContainText('Up 29.4 pounds');
   await expect(page.getByRole('definition').nth(0)).toContainText('198.4');
 });

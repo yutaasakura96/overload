@@ -138,7 +138,7 @@ describe('exerciseProgress (S7)', () => {
     ]);
     expect(progress.stats).toEqual({
       bestE1rmKg: 110,
-      changeKg: 3.3,
+      changeKg: 3.333,
       topSetKg: 82.5,
       topSetReps: 10,
       volumeKg: 2400 + 82.5 * 15 + 825 + 800,
@@ -154,16 +154,26 @@ describe('exerciseProgress (S7)', () => {
       logged('2026-10-27', working(90, 10)),
       logged('2026-11-03', working(75, 8)),
     ];
-    // 75 × (1 + 8/30) = 95, less 80 × (1 + 10/30) = 106.7.
-    expect(exerciseProgress('4w', '2026-11-10', workouts).stats.changeKg).toBe(-11.7);
-    // Less 100 × (1 + 10/30) = 133.3.
-    expect(exerciseProgress('all', '2026-11-10', workouts).stats.changeKg).toBe(-38.3);
+    // 75 × (1 + 8/30) = 95, less 80 × (1 + 10/30) = 106.666…, before either is rounded.
+    expect(exerciseProgress('4w', '2026-11-10', workouts).stats.changeKg).toBe(-11.667);
+    // Less 100 × (1 + 10/30) = 133.333…
+    expect(exerciseProgress('all', '2026-11-10', workouts).stats.changeKg).toBe(-38.333);
     expect(
       exerciseProgress('4w', '2026-11-10', [
         logged('2026-10-20', working(80, 10)),
         logged('2026-11-03', working(80, 10)),
       ]).stats.changeKg,
     ).toBe(0);
+  });
+
+  it('reads the change from working sets alone, past a workout of warm-ups', () => {
+    const progress = exerciseProgress('4w', '2026-11-10', [
+      logged('2026-10-20', warmup(200, 10)),
+      logged('2026-10-27', warmup(200, 1), working(80, 10)),
+      logged('2026-11-03', working(90, 10)),
+    ]);
+    // 90 × (1 + 10/30) = 120, less 106.666…
+    expect(progress.stats.changeKg).toBe(13.333);
   });
 
   it('has no change with fewer than two workouts in the span', () => {
@@ -337,7 +347,7 @@ describe('GET /api/exercises/{id}/progress (S7)', () => {
           volumeKg: 825,
         },
       ],
-      stats: { bestE1rmKg: 110, changeKg: 3.3, topSetKg: 82.5, topSetReps: 10, volumeKg: 2345 },
+      stats: { bestE1rmKg: 110, changeKg: 3.333, topSetKg: 82.5, topSetReps: 10, volumeKg: 2345 },
     });
   });
 

@@ -362,11 +362,15 @@ export const Progress = z
     stats: z
       .object({
         bestE1rmKg: z.number().nullable().openapi({ example: 106.7 }),
-        changeKg: z.number().nullable().openapi({
-          description:
-            'The last workout’s e1RM less the first’s, to the tenth. Null with fewer than two.',
-          example: 5.4,
-        }),
+        changeKg: z
+          .number()
+          .nullable()
+          .openapi({
+            description:
+              'The last workout’s e1RM less the first’s, from the estimates before they are rounded, ' +
+              'to the thousandth. Null with fewer than two.',
+            example: 5.367,
+          }),
         topSetKg: z.number().nullable().openapi({ example: 82.5 }),
         topSetReps: z.int().nullable().openapi({ example: 10 }),
         volumeKg: z.number().openapi({ example: 28800 }),

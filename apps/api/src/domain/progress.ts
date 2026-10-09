@@ -1,4 +1,4 @@
-import { epley, type LoggedSet } from './e1rm.js';
+import { bestE1rmKg, epley, type LoggedSet } from './e1rm.js';
 
 // S7's chart (docs/07 §3): one point per workout, and the stats of the span chosen. Local dates
 // are `YYYY-MM-DD` strings, which compare in date order.
@@ -29,7 +29,10 @@ export type Progress = {
   points: ProgressPoint[];
   stats: {
     bestE1rmKg: number | null;
-    /** The last workout's e1RM less the first's, to the tenth. Null with fewer than two. */
+    /**
+     * The last workout's e1RM less the first's, from the estimates before they are rounded, to
+     * the thousandth. Null with fewer than two.
+     */
     changeKg: number | null;
     topSetKg: number | null;
     topSetReps: number | null;
@@ -87,9 +90,11 @@ function pointOf(workout: LoggedWorkout): ProgressPoint[] {
  */
 export function exerciseProgress(span: Span, today: string, workouts: LoggedWorkout[]): Progress {
   const start = spanStart(span, today);
-  const points = workouts
-    .filter((workout) => (start === undefined || workout.date >= start) && workout.date <= today)
-    .flatMap(pointOf);
+  const inSpan = workouts.filter(
+    (workout) => (start === undefined || workout.date >= start) && workout.date <= today,
+  );
+  const points = inSpan.flatMap(pointOf);
+  const estimates = inSpan.flatMap((workout) => bestE1rmKg(workout.sets) ?? []);
   const top = points.reduce<ProgressPoint | undefined>(
     (best, point) =>
       best === undefined ||
@@ -99,8 +104,8 @@ export function exerciseProgress(span: Span, today: string, workouts: LoggedWork
         : best,
     undefined,
   );
-  const first = points[0];
-  const last = points.at(-1);
+  const first = estimates[0];
+  const last = estimates.at(-1);
   return {
     span,
     from: start ?? points[0]?.date ?? null,
@@ -109,9 +114,9 @@ export function exerciseProgress(span: Span, today: string, workouts: LoggedWork
     stats: {
       bestE1rmKg: points.length === 0 ? null : Math.max(...points.map((point) => point.e1rmKg)),
       changeKg:
-        first === undefined || last === undefined || points.length < 2
+        first === undefined || last === undefined || estimates.length < 2
           ? null
-          : round(last.e1rmKg - first.e1rmKg, 1),
+          : round(last - first, 3),
       topSetKg: top?.topSetKg ?? null,
       topSetReps: top?.topSetReps ?? null,
       volumeKg: round(

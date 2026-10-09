@@ -1217,8 +1217,8 @@ export interface components {
         /** @example 106.7 */
         bestE1rmKg: number | null;
         /**
-         * @description The last workout’s e1RM less the first’s, to the tenth. Null with fewer than two.
-         * @example 5.4
+         * @description The last workout’s e1RM less the first’s, from the estimates before they are rounded, to the thousandth. Null with fewer than two.
+         * @example 5.367
          */
         changeKg: number | null;
         /** @example 82.5 */

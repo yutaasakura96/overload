@@ -148,7 +148,7 @@ export function Progress({
           }
           aria-busy={progress.isPlaceholderData}
         >
-          {data.points.length < 2 || data.from === null || data.from === data.to ? (
+          {data.from === null || data.points[0]?.date === data.points.at(-1)?.date ? (
             <div className="progress__empty">
               <h2 className="empty-state__title">Not enough data yet</h2>
               <p className="empty-state__body">
