@@ -67,7 +67,7 @@ an exercise outgrows it.
 
 **Figure states.** Entered values are `text/primary`. Unentered are the same 56px in `text/placeholder`
 `#5A6673` — reps shows the suggested rep count as a placeholder, RIR shows `—`. The completion
-control is enabled regardless; reps and RIR are pre-filled from the suggestion.
+control is enabled regardless; reps and RIR open empty. An empty RIR is logged as absent.
 
 ### States and rules
 

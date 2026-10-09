@@ -584,10 +584,6 @@ function ActiveSet({
   );
 }
 
-/**
- * What RIR is, in plain words, under the figures, and a guide to gauging it one tap away: it opens
- * in the card, so the workout is never left. RIR stays optional, and the guide says so.
- */
 function RirHelp() {
   const [open, setOpen] = useState(false);
   const guide = useId();
