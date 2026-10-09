@@ -3,7 +3,7 @@ import { FieldError } from './components';
 import { deviceTimezone, searchTimezones, timezoneList } from './timezones';
 
 /**
- * A time zone chosen from a searchable list (docs/10 §8.1). The value is always an IANA name from
+ * A time zone chosen from a searchable list (docs/10 §8.2). The value is always an IANA name from
  * the list: typing only narrows it, and leaving the field without choosing puts the saved name back.
  */
 export function TimezoneField({

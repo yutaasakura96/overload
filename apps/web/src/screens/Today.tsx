@@ -37,8 +37,6 @@ import {
 // profile's time zone is the day boundary every local date is read against, and its weight unit is
 // how weights are shown (docs/06, 2026-09-23). The meal cards arrive with M2.
 
-/** The device's own zone, offered until the user has saved one. */
-
 const clock = (iso: string, timeZone: string) =>
   new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', timeZone }).format(
     new Date(iso),
