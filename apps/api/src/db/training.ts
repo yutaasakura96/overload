@@ -8,7 +8,7 @@ type Last = {
   workoutId: string;
   /** The workout's local date, read in the user's time zone. */
   performedOn: string;
-  sets: { workingSet: number; weightKg: number; reps: number }[];
+  sets: { workingSet: number; weightKg: number; reps: number; rir: number | null }[];
   suggestion: Suggestion;
 };
 
@@ -29,6 +29,7 @@ type Row = {
   rep_high: number;
   weight_kg: number;
   reps: number;
+  rir: number | null;
 };
 
 type SlotRow = Row & { routine_exercise_id: string };
@@ -62,7 +63,7 @@ export async function lastTimes(
       ORDER BY we.exercise_id, w.started_at DESC, w.id DESC
     )
     SELECT l.exercise_id, l.workout_id, l.started_at, we.rep_high,
-           s.weight_kg::float8 AS weight_kg, s.reps
+           s.weight_kg::float8 AS weight_kg, s.reps, s.rir
     FROM latest l
     JOIN workout_exercise we ON we.workout_id = l.workout_id AND we.exercise_id = l.exercise_id
     JOIN "set" s ON s.workout_exercise_id = we.id AND NOT s.is_warmup
@@ -86,7 +87,7 @@ export async function lastTimes(
       ORDER BY we.routine_exercise_id, w.started_at DESC, w.id DESC, we.position, we.id
     )
     SELECT l.routine_exercise_id, l.exercise_id, l.workout_id, l.started_at, l.rep_high,
-           s.weight_kg::float8 AS weight_kg, s.reps
+           s.weight_kg::float8 AS weight_kg, s.reps, s.rir
     FROM latest l
     JOIN "set" s ON s.workout_exercise_id = l.id AND NOT s.is_warmup
     ORDER BY l.exercise_id, l.routine_exercise_id, s.position, s.id
@@ -101,7 +102,7 @@ export async function lastTimes(
     const first = sets[0];
     const settings = first === undefined ? undefined : exercises.get(first.exercise_id);
     if (first === undefined || settings === undefined) return [];
-    const working = sets.map((s) => ({ weightKg: s.weight_kg, reps: s.reps }));
+    const working = sets.map((s) => ({ weightKg: s.weight_kg, reps: s.reps, rir: s.rir }));
     const suggestion = suggest({
       sets: working,
       repHigh: first.rep_high,

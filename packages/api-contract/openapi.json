@@ -940,12 +940,20 @@
                 },
                 "reps": {
                   "type": "integer"
+                },
+                "rir": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "description": "Null when the set recorded none."
                 }
               },
               "required": [
                 "workingSet",
                 "weightKg",
-                "reps"
+                "reps",
+                "rir"
               ]
             },
             "description": "Working sets only, numbered 1…n in order."
@@ -1028,12 +1036,20 @@
                 },
                 "reps": {
                   "type": "integer"
+                },
+                "rir": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "description": "Null when the set recorded none."
                 }
               },
               "required": [
                 "workingSet",
                 "weightKg",
-                "reps"
+                "reps",
+                "rir"
               ]
             },
             "description": "Working sets only, numbered 1…n in order."

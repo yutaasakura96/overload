@@ -298,7 +298,14 @@ const LastFields = {
   workoutId: Uuid,
   performedOn: z.iso.date().openapi({ description: 'The workout’s local date.' }),
   sets: z
-    .array(z.object({ workingSet: z.int(), weightKg: z.number(), reps: z.int() }))
+    .array(
+      z.object({
+        workingSet: z.int(),
+        weightKg: z.number(),
+        reps: z.int(),
+        rir: z.int().nullable().openapi({ description: 'Null when the set recorded none.' }),
+      }),
+    )
     .openapi({ description: 'Working sets only, numbered 1…n in order.' }),
   suggestion: Suggestion,
 };

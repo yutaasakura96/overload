@@ -419,8 +419,9 @@ function setLabel(number: number, target: number | null) {
 
 /**
  * The active set card (docs/10 §1): the one place the 56px figures appear. The weight opens on the
- * last set logged today, else on the suggestion; reps and RIR open empty, on placeholders, and the
- * set can be completed as it stands. The suggestion never overwrites what is typed (S3).
+ * last set logged today, else on the suggestion; reps and RIR open on the same set's, as real
+ * values the user edits or clears, so a set repeated is one tap. Nothing is filled in again once
+ * the card is open, so what is typed is never overwritten (S3).
  */
 function ActiveSet({
   exercise,
@@ -442,19 +443,21 @@ function ActiveSet({
   const openingKg = previous?.row.weightKg ?? suggestion?.weightKg ?? (bodyweight ? 0 : null);
   const opening = openingKg === null ? '' : formatWeight(openingKg, unit);
   const [kg, setKg] = useState(opening);
-  const [reps, setReps] = useState('');
-  const [rir, setRir] = useState('');
+
+  // Assume the same again: the previous set's reps and RIR. The first set opens on last time's,
+  // unless the suggestion moves the weight, where a new weight starts at the bottom of the range
+  // and last time's RIR no longer applies.
+  const repeated = suggestion?.rule !== 'top_of_range_hit';
+  const openingReps =
+    previous?.row.reps ?? (repeated ? last?.reps : undefined) ?? exercise.row.repLow;
+  const openingRir = previous === undefined ? (repeated ? last?.rir : null) : previous.row.rir;
+  const [reps, setReps] = useState(String(openingReps));
+  const [rir, setRir] = useState(openingRir == null ? '' : String(openingRir));
   const [warm, setWarm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [refusal, setRefusal] = useState<FigureRefusal>();
   const card = useRef<HTMLElement>(null);
   const ids = { kg: useId(), reps: useId(), rir: useId(), error: useId(), label: useId() };
-
-  // A new weight starts at the bottom of the range; a repeated one aims at last time's reps.
-  const suggestedReps =
-    suggestion?.rule === 'top_of_range_hit'
-      ? exercise.row.repLow
-      : (last?.reps ?? exercise.row.repLow);
 
   // The card a completed set promotes comes into view and takes focus, so the next thing read and
   // reached is the next set (docs/10 §7.3). `nearest` moves nothing when it is already in view.
@@ -468,12 +471,7 @@ function ActiveSet({
   const complete = async () => {
     // The tap that completes a set is the gesture that lets the rest tone play (docs/03 §11).
     unlockTone();
-    const figures = readFigures(
-      { kg, reps, rir },
-      unit,
-      { shown: opening, kg: openingKg },
-      suggestedReps,
-    );
+    const figures = readFigures({ kg, reps, rir }, unit, { shown: opening, kg: openingKg });
     if ('message' in figures) {
       setRefusal(figures);
       // The figure to correct is the one in hand.
@@ -525,7 +523,7 @@ function ActiveSet({
           spoken="Reps"
           value={reps}
           onChange={setReps}
-          placeholder={String(suggestedReps)}
+          placeholder="—"
           describedBy={refusal?.field === 'reps' ? ids.error : undefined}
         />
         <Figure

@@ -15,23 +15,21 @@ export const MAX_WEIGHT_KG = 9999.99;
 
 /**
  * Reads the typed figures of a set. A weight left as the field opened, or typed back to it, keeps
- * the stored kilograms, so 62.5 kg shown as 137.8 lb is not logged as 62.51. Reps left empty are
- * `repsIfEmpty`, the placeholder, where there is one.
+ * the stored kilograms, so 62.5 kg shown as 137.8 lb is not logged as 62.51.
  */
 export function readFigures(
   typed: { kg: string; reps: string; rir: string },
   unit: WeightUnit,
   opening: { shown: string; kg: number | null },
-  repsIfEmpty?: number,
 ): FigureRefusal | Figures {
   const weight = parseFigure(typed.kg);
-  const reps = parseFigure(typed.reps) ?? repsIfEmpty;
+  const reps = parseFigure(typed.reps);
   const rir = parseFigure(typed.rir);
   if (weight === null) return { field: 'kg', message: 'Enter the weight' };
   if (!Number.isFinite(weight) || weight < 0 || toKg(weight, unit) > MAX_WEIGHT_KG) {
     return { field: 'kg', message: 'Enter the weight as a number, in digits only' };
   }
-  if (reps === undefined) return { field: 'reps', message: 'Enter the reps' };
+  if (reps === null) return { field: 'reps', message: 'Enter the reps' };
   if (!Number.isInteger(reps) || reps < 1 || reps > 100) {
     return { field: 'reps', message: 'Reps are a whole number, 1 to 100' };
   }

@@ -321,13 +321,13 @@ GET /api/training/last-time  →  200
 { "asOf": "2026-11-04T10:15:02.000Z",
   "exercises": [
     { "exerciseId": "0192a001-…", "workoutId": "0192w001-…", "performedOn": "2026-11-04",
-      "sets": [ { "workingSet": 1, "weightKg": 80, "reps": 10 }, { "workingSet": 2, "weightKg": 80, "reps": 10 }, { "workingSet": 3, "weightKg": 80, "reps": 10 } ],
+      "sets": [ { "workingSet": 1, "weightKg": 80, "reps": 10, "rir": 2 }, { "workingSet": 2, "weightKg": 80, "reps": 10, "rir": 2 }, { "workingSet": 3, "weightKg": 80, "reps": 10, "rir": null } ],
       "suggestion": { "weightKg": 82.5, "rule": "top_of_range_hit", "reason": "hit 10 on every set last time" },
       "slots": [] }
   ] }
 ```
 
-`sets` holds working sets only; `workingSet` is derived, 1…n in `position` order (`04`). `suggestion.rule` is `top_of_range_hit` or `repeat`. An exercise never logged is absent, and the
+`sets` holds working sets only; `workingSet` is derived, 1…n in `position` order (`04`). `rir` is `null` where the set recorded none; it lets the next workout's first set open with last time's RIR. `suggestion.rule` is `top_of_range_hit` or `repeat`. An exercise never logged is absent, and the
 screen shows "first workout".
 
 - **Which workout is last time:** the caller's most recent workout, by `started_at`, with at least

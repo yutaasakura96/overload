@@ -39,7 +39,8 @@ type RecordBase = {
 export type WorkoutRecord = RecordBase & { table: 'workouts'; row: WorkoutRow };
 
 /** One working set as last time logged it, copied when the workout starts. */
-export type LastSet = { weightKg: number; reps: number };
+/** `rir` is absent from a copy kept before last time carried it. */
+export type LastSet = { weightKg: number; reps: number; rir?: number | null };
 
 export type WorkoutExerciseRecord = RecordBase & {
   table: 'workoutExercises';

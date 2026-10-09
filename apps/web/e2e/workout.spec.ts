@@ -177,6 +177,9 @@ test('a workout is logged from a routine, offline and back, and finished', async
   await expect(rest).toContainText('REST');
   await expect(page.getByRole('region', { name: 'SET 2 OF 3' })).toBeVisible();
   await expect(page.getByRole('textbox', { name: 'Weight in kilograms' })).toHaveValue('60');
+  // Reps and RIR open on the set just done, as values and not placeholders.
+  await expect(page.getByRole('textbox', { name: 'Reps', exact: true })).toHaveValue('8');
+  await expect(page.getByRole('textbox', { name: 'Reps in reserve, optional' })).toHaveValue('2');
   await expect(dataState(page)).toContainText('SYNCED');
   await expect.poll(() => stored()[0]?.exercises[0]?.sets.length).toBe(1);
 
@@ -204,13 +207,15 @@ test('a workout is logged from a routine, offline and back, and finished', async
   await context.setOffline(false);
   await expect(dataState(page)).toContainText('SYNCED');
   await expect.poll(() => stored()[0]?.exercises[0]?.sets.length).toBe(2);
-  expect(stored()[0]?.exercises[0]?.sets[1]?.rir).toBeNull();
+  // The RIR the card opened on is logged without being typed.
+  expect(stored()[0]?.exercises[0]?.sets[1]?.rir).toBe(2);
   await relaunched?.close();
 
   // S6: a warm-up is kept and shown, but is not one of the three working sets.
   await page.getByRole('button', { name: 'Warm-up set' }).click();
   await expect(page.getByRole('region', { name: 'WARM-UP' })).toBeVisible();
-  await completeSet(page, { weight: '40', reps: '5' });
+  // The RIR carried over is cleared, and a cleared RIR is logged as none.
+  await completeSet(page, { weight: '40', reps: '5', rir: '' });
   await expect(page.getByRole('button', { name: /1 WARM-UP SET/ })).toBeVisible();
   await expect(page.getByRole('region', { name: 'SET 3 OF 3' })).toBeVisible();
 
@@ -251,9 +256,9 @@ test('a workout is logged from a routine, offline and back, and finished', async
   ]);
   expect(workout?.exercises[0]?.sets.map(({ performedAt: _performedAt, ...set }) => set)).toEqual([
     { weightKg: 60, reps: 8, rir: 2, isWarmup: false },
-    { weightKg: 60, reps: 8, rir: null, isWarmup: false },
+    { weightKg: 60, reps: 8, rir: 2, isWarmup: false },
     { weightKg: 40, reps: 5, rir: null, isWarmup: true },
-    { weightKg: 60, reps: 8, rir: null, isWarmup: false },
+    { weightKg: 60, reps: 8, rir: 2, isWarmup: false },
   ]);
   await lastTime;
 
@@ -265,11 +270,20 @@ test('a workout is logged from a routine, offline and back, and finished', async
   await expect(next).toContainText('62.5');
   await expect(next).toContainText('hit 8 on every set last time');
   await expect(page.getByRole('textbox', { name: 'Weight in kilograms' })).toHaveValue('62.5');
+  // The weight went up, so reps start at the bottom of the range and last time's RIR is not used.
+  const reps = page.getByRole('textbox', { name: 'Reps', exact: true });
+  const rir = page.getByRole('textbox', { name: 'Reps in reserve, optional' });
+  await expect(reps).toHaveValue('5');
+  await expect(rir).toHaveValue('');
   // What is typed is never overwritten by it.
   await page.getByRole('textbox', { name: 'Weight in kilograms' }).fill('61');
+  await reps.fill('7');
+  await rir.fill('1');
   await page.getByRole('button', { name: 'Warm-up set' }).click();
   await page.getByRole('button', { name: 'Warm-up set' }).click();
   await expect(page.getByRole('textbox', { name: 'Weight in kilograms' })).toHaveValue('61');
+  await expect(reps).toHaveValue('7');
+  await expect(rir).toHaveValue('1');
 
   // Weights are shown in the user's unit; kilograms stay what is stored (docs/06, 2026-09-23).
   await page.goto('/');
