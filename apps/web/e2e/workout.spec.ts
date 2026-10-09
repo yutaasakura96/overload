@@ -159,6 +159,17 @@ test('a workout is logged from a routine, offline and back, and finished', async
   const card = page.getByRole('region', { name: 'SET 1 OF 3' });
   await expect(card).toContainText('first workout');
 
+  // RIR is explained where it is entered, and the guide opens in the card without leaving the workout.
+  await expect(card).toContainText('RIR is reps in reserve');
+  await expect(card).toContainText('Optional');
+  await expect(card.getByText('Could not do another')).toBeHidden();
+  await card.getByRole('button', { name: 'How to gauge it' }).click();
+  await expect(card.getByText('Could not do another')).toBeVisible();
+  await expect(card.getByText('Comfortable')).toBeVisible();
+  await expect(page).toHaveURL('/workout');
+  await card.getByRole('button', { name: 'Hide guide' }).click();
+  await expect(card.getByText('Could not do another')).toBeHidden();
+
   // S1 online: the set shows, rest starts on its own (S5), and the upload needs no action.
   await completeSet(page, { weight: '60', reps: '8', rir: '2' });
   await expect(page.getByRole('row', { name: '1 60 8 2 Done' })).toBeVisible();
@@ -193,6 +204,7 @@ test('a workout is logged from a routine, offline and back, and finished', async
   await context.setOffline(false);
   await expect(dataState(page)).toContainText('SYNCED');
   await expect.poll(() => stored()[0]?.exercises[0]?.sets.length).toBe(2);
+  expect(stored()[0]?.exercises[0]?.sets[1]?.rir).toBeNull();
   await relaunched?.close();
 
   // S6: a warm-up is kept and shown, but is not one of the three working sets.

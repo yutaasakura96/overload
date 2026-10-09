@@ -67,7 +67,7 @@ an exercise outgrows it.
 
 **Figure states.** Entered values are `text/primary`. Unentered are the same 56px in `text/placeholder`
 `#5A6673` — reps shows the suggested rep count as a placeholder, RIR shows `—`. The completion
-control is enabled regardless; reps and RIR are pre-filled from the suggestion.
+control is enabled regardless; reps and RIR open empty. An empty RIR is logged as absent.
 
 ### States and rules
 
@@ -86,6 +86,10 @@ control is enabled regardless; reps and RIR are pre-filled from the suggestion.
   empty (`0` for a bodyweight exercise). Reps are a placeholder: last time's reps for that set when
   the weight repeats, the bottom of the range when it goes up. Left empty, the placeholder is what
   is logged. RIR is optional.
+- **RIR explained, 2026-10-10.** Under the figures, 12px `text/tertiary`: `RIR is reps in reserve: how
+  many more reps you could have done. Optional.` and a `How to gauge it` toggle (`accent`, 44px
+  target, `aria-expanded`). It opens a bordered guide in the card, so the workout is never left: `0`
+  could not do another, `1–2` hard, `3+` comfortable, and that an empty RIR still counts the set.
 - **A figure the server would refuse** is refused on the card before anything is written: `Refused`
   and the reason under the figures, focus on the figure at fault. Reps 1–100, RIR 0–10, weight 0 to
   9999.99 kg. The refused *row* below is for what the server turns away.
