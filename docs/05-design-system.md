@@ -501,7 +501,7 @@ With all four on, the drawn case moves labels by at most 6.25px.
 and the plot ends 68px short of it. The gridlines keep their three y positions; their values are a
 round step apart, chosen so the highest value is at or under the top line and the lowest stays over
 the baseline. The date axis runs in proportion to time. A picked workout is a 1px `line/control`
-hairline from the top to the baseline and an r=3.5 `accent` disc with a 2px `surface/ground` ring.
+hairline from y=8 to the baseline and an r=3.5 `accent` disc with a 2px `surface/ground` ring.
 
 A legend appears only where raw and derived data are both plotted (6): 14 × 2px swatch or 5px dot,
 7px gap, 10px sans in `text/quaternary`, 18px between entries.
