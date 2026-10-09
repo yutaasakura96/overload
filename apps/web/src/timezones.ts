@@ -9,7 +9,8 @@ export const deviceTimezone = () => Intl.DateTimeFormat().resolvedOptions().time
  */
 export function timezoneList(extra: readonly string[] = []): string[] {
   const known = Intl.supportedValuesOf('timeZone');
-  return [...new Set([...known, ...extra])].toSorted((a, b) => a.localeCompare(b, 'en'));
+  // oxlint-disable-next-line unicorn/no-array-sort -- toSorted is unavailable on supported iOS Safari 15; this array is new.
+  return [...new Set([...known, ...extra])].sort((a, b) => a.localeCompare(b, 'en'));
 }
 
 const words = (text: string) => text.toLowerCase().replaceAll('_', ' ').replaceAll('/', ' ');
