@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { apiFixture } from './fixture';
+import { apiFixture, chooseTimezone } from './fixture';
 
 type Cookies = Parameters<import('@playwright/test').BrowserContext['addCookies']>[0];
 
@@ -51,7 +51,7 @@ const dataState = (page: Page) => page.locator('.data-state');
 async function saveProfile(page: Page, unit?: 'Kilograms' | 'Pounds') {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Today', level: 1 })).toBeVisible();
-  await page.getByRole('textbox', { name: 'Time zone' }).fill('Asia/Tokyo');
+  await chooseTimezone(page, 'Asia/Tokyo');
   if (unit !== undefined) await page.getByRole('radio', { name: unit }).check();
   await page.getByRole('button', { name: /^Save (profile|and finish setup)$/ }).click();
   await expect(page.getByText('Saved.')).toBeVisible();
@@ -458,8 +458,8 @@ test('a profile changed elsewhere reaches the open form without undoing an edit 
   page,
 }) => {
   await saveProfile(page, 'Kilograms');
-  const timezone = page.getByRole('textbox', { name: 'Time zone' });
-  await timezone.fill('Europe/Paris');
+  const timezone = page.getByRole('combobox', { name: 'Time zone' });
+  await chooseTimezone(page, 'Europe/Paris');
 
   // Another device saves pounds; coming back to the app asks /api/me again.
   const elsewhere = await page.request.patch('/api/me/profile', {

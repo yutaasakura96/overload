@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import type { Page } from '@playwright/test';
 import { WEB_ORIGIN } from '../playwright.config';
 
 // The browser tests reach the database only through apps/api's fixture script, run as a process:
@@ -33,4 +34,10 @@ export function devSession(stateDirectory: string): string {
     encoding: 'utf8',
     env: { ...process.env, E2E_WEB_ORIGIN: WEB_ORIGIN },
   });
+}
+
+/** Picks a zone in the profile form's time zone list: search for it, then choose the option. */
+export async function chooseTimezone(page: Page, zone: string) {
+  await page.getByRole('combobox', { name: 'Time zone' }).fill(zone);
+  await page.getByRole('option', { name: zone, exact: false }).first().click();
 }

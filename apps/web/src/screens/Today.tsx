@@ -2,7 +2,7 @@ import type { Me, Routine, WeightUnit } from '@overload/api-contract';
 import { useQuery } from '@tanstack/react-query';
 import { useId, useRef, useState, type FormEvent } from 'react';
 import { api } from '../api';
-import { AccountFooter, AppBar, DataState, Notice, ScreenTabs, TextField } from '../components';
+import { AccountFooter, AppBar, DataState, Notice, ScreenTabs } from '../components';
 import {
   allExercisesQuery,
   confirmedAccountData,
@@ -15,6 +15,8 @@ import {
 } from '../query';
 import { RefusedSet, setFigures } from '../refused';
 import { SaveNotice, saveProblem, useFocusRefused, type SaveProblem } from '../saving';
+import { TimezoneField } from '../timezone-field';
+import { deviceTimezone } from '../timezones';
 import {
   endIdleWorkout,
   exercisesOf,
@@ -36,7 +38,6 @@ import {
 // how weights are shown (docs/06, 2026-09-23). The meal cards arrive with M2.
 
 /** The device's own zone, offered until the user has saved one. */
-const deviceTimezone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 const clock = (iso: string, timeZone: string) =>
   new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', timeZone }).format(
@@ -339,7 +340,7 @@ function ProfileForm({ me }: { me: Me }) {
     setProblem(undefined);
     try {
       const profile = await confirmedAccountData(() =>
-        api.PATCH('/api/me/profile', { body: { timezone: timezone.trim(), weightUnit } }),
+        api.PATCH('/api/me/profile', { body: { timezone, weightUnit } }),
       );
       setProfile(profile);
       void refreshLastTime();
@@ -364,12 +365,11 @@ function ProfileForm({ me }: { me: Me }) {
           </p>
         )}
         <SaveNotice problem={problem} what="profile" />
-        <TextField
+        <TimezoneField
           label="Time zone"
-          identifier
           value={timezone}
-          onChange={(value) => {
-            setTimezone(value);
+          onChange={(zone) => {
+            setTimezone(zone);
             setSaved(false);
           }}
           error={problem?.kind === 'refused' ? problem.fields.get('timezone') : undefined}

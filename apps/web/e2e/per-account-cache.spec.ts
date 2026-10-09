@@ -1,6 +1,6 @@
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { cacheKey, deviceKeys, putDeviceValue, savedCache } from './device-store';
-import { apiFixture } from './fixture';
+import { apiFixture, chooseTimezone } from './fixture';
 
 type Cookies = Parameters<BrowserContext['addCookies']>[0];
 
@@ -395,9 +395,9 @@ test('a new identity opens its own profile form, without the previous account’
   await saveProfile(userA, 'Asia/Tokyo', 'kg');
   await page.goto('/');
   await expect(page.getByText(EMAIL_A)).toBeVisible();
-  const timezone = page.getByRole('textbox', { name: 'Time zone' });
+  const timezone = page.getByRole('combobox', { name: 'Time zone' });
   await expect(timezone).toHaveValue('Asia/Tokyo');
-  await timezone.fill('Europe/Paris');
+  await chooseTimezone(page, 'Europe/Paris');
 
   await useCookie(context, userB);
   await page.evaluate(() => window.dispatchEvent(new Event('visibilitychange')));

@@ -243,13 +243,10 @@ export function TextField({
   className,
   focusOnOpen,
   type = 'text',
-  identifier = false,
 }: FieldProps & {
   /** Focus on mount: only for a form's first field, on a screen opened to fill it in. */
   focusOnOpen?: boolean;
   type?: 'text' | 'search';
-  /** An identifier such as `Asia/Tokyo`, not prose: the keyboard leaves it as typed. */
-  identifier?: boolean;
 }) {
   const id = useId();
   return (
@@ -262,9 +259,6 @@ export function TextField({
         value={value}
         placeholder={placeholder}
         autoComplete="off"
-        spellCheck={identifier ? false : undefined}
-        autoCapitalize={identifier ? 'none' : undefined}
-        autoCorrect={identifier ? 'off' : undefined}
         // oxlint-disable-next-line jsx-a11y/no-autofocus -- only a form's first field, opened on purpose
         autoFocus={focusOnOpen}
         aria-invalid={error === undefined ? undefined : true}
