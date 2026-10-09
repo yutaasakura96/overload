@@ -540,6 +540,8 @@ function ActiveSet({
         />
       </div>
 
+      <RirHelp />
+
       {refusal !== undefined && (
         <div role="alert">
           <FieldError id={ids.error} message={refusal.message} />
@@ -579,6 +581,48 @@ function ActiveSet({
         </button>
       </div>
     </section>
+  );
+}
+
+/**
+ * What RIR is, in plain words, under the figures, and a guide to gauging it one tap away: it opens
+ * in the card, so the workout is never left. RIR stays optional, and the guide says so.
+ */
+function RirHelp() {
+  const [open, setOpen] = useState(false);
+  const guide = useId();
+  return (
+    <div className="rir-help">
+      <p className="rir-help__line">
+        <span className="rir-help__term">RIR</span> is reps in reserve: how many more reps you could
+        have done. Optional.
+        <button
+          type="button"
+          className="rir-help__toggle"
+          aria-expanded={open}
+          aria-controls={guide}
+          onClick={() => setOpen(!open)}
+        >
+          {open ? 'Hide guide' : 'How to gauge it'}
+        </button>
+      </p>
+      {open && (
+        <div id={guide} className="rir-help__guide">
+          <p className="rir-help__ask">
+            After the set, ask: how many more good reps could I have done?
+          </p>
+          <dl className="rir-help__scale">
+            <dt>0</dt>
+            <dd>Could not do another. The last rep was a grind.</dd>
+            <dt>1–2</dt>
+            <dd>Hard. One or two more would have been possible.</dd>
+            <dt>3+</dt>
+            <dd>Comfortable. Plenty left.</dd>
+          </dl>
+          <p className="rir-help__ask">Not sure? Leave it empty. The set still counts.</p>
+        </div>
+      )}
+    </div>
   );
 }
 
