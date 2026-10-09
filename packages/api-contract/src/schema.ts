@@ -479,6 +479,85 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/exercises/{id}/progress': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** One exercise’s e1RM per workout over a span, with the span’s top set and volume load */
+    get: {
+      parameters: {
+        query?: {
+          /** @description Default `12w`. */
+          span?: components['schemas']['Span'] & unknown;
+        };
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description The chart. Fewer than 2 points is not enough to draw one */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['Progress'];
+          };
+        };
+        /** @description A malformed id, or a span that is not one of the five */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No exercise with that id is visible to the caller */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `setup_incomplete` with `missing: ["profile"]`: local dates need the time zone */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/routines': {
     parameters: {
       query?: never;
@@ -1117,6 +1196,70 @@ export interface components {
       repHigh: number | null;
       /** @description Off the caller’s pickers; history still names it. */
       hidden: boolean;
+    };
+    /** @description One exercise’s chart (S7). Warm-ups are left out of every number (S6). */
+    Progress: {
+      span: components['schemas']['Span'];
+      /**
+       * Format: date
+       * @description The span’s first local date. For `all`, the first workout’s, and null without one.
+       */
+      from: string | null;
+      /**
+       * Format: date
+       * @description Today, in the caller’s time zone.
+       */
+      to: string;
+      /** @description One per workout with a working set of it, oldest first. */
+      points: components['schemas']['ProgressPoint'][];
+      /** @description Over the span: the best e1RM, the heaviest top set with the most reps done at it, and the volume load of every workout together. Null without a workout. */
+      stats: {
+        /** @example 106.7 */
+        bestE1rmKg: number | null;
+        /** @example 82.5 */
+        topSetKg: number | null;
+        /** @example 10 */
+        topSetReps: number | null;
+        /** @example 28800 */
+        volumeKg: number;
+      };
+    };
+    /**
+     * @description How far back the chart reads: 4 or 12 weeks, 6 months, 1 year, or everything.
+     * @enum {string}
+     */
+    Span: '4w' | '12w' | '6m' | '1y' | 'all';
+    ProgressPoint: {
+      /**
+       * Format: uuid
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      workoutId: string;
+      /**
+       * Format: date
+       * @description The workout’s local date.
+       */
+      date: string;
+      /**
+       * @description Epley on the best working set, to the tenth.
+       * @example 106.7
+       */
+      e1rmKg: number;
+      /**
+       * @description The heaviest working set.
+       * @example 80
+       */
+      topSetKg: number;
+      /**
+       * @description The most reps done at that weight.
+       * @example 10
+       */
+      topSetReps: number;
+      /**
+       * @description Volume load: weight × reps, summed over the working sets.
+       * @example 2400
+       */
+      volumeKg: number;
     };
     RoutineList: {
       items: components['schemas']['Routine'][];

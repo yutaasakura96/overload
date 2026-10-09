@@ -1,4 +1,5 @@
 import { z } from '@hono/zod-openapi';
+import { SPANS } from '../domain/progress.js';
 
 // Response schemas shared by the routes. These generate packages/api-contract (docs/03 §2).
 
@@ -325,6 +326,54 @@ export const LastTimes = z
   .object({ asOf: Instant, exercises: z.array(LastTime) })
   .openapi('LastTimes', {
     description: 'Every exercise the caller has logged. One never logged is absent.',
+  });
+
+export const Span = z.enum(SPANS).openapi('Span', {
+  description: 'How far back the chart reads: 4 or 12 weeks, 6 months, 1 year, or everything.',
+});
+
+export const ProgressPoint = z
+  .object({
+    workoutId: Uuid,
+    date: z.iso.date().openapi({ description: 'The workout’s local date.' }),
+    e1rmKg: z
+      .number()
+      .openapi({ description: 'Epley on the best working set, to the tenth.', example: 106.7 }),
+    topSetKg: z.number().openapi({ description: 'The heaviest working set.', example: 80 }),
+    topSetReps: z.int().openapi({ description: 'The most reps done at that weight.', example: 10 }),
+    volumeKg: z.number().openapi({
+      description: 'Volume load: weight × reps, summed over the working sets.',
+      example: 2400,
+    }),
+  })
+  .openapi('ProgressPoint');
+
+export const Progress = z
+  .object({
+    span: Span,
+    from: z.iso.date().nullable().openapi({
+      description:
+        'The span’s first local date. For `all`, the first workout’s, and null without one.',
+    }),
+    to: z.iso.date().openapi({ description: 'Today, in the caller’s time zone.' }),
+    points: z
+      .array(ProgressPoint)
+      .openapi({ description: 'One per workout with a working set of it, oldest first.' }),
+    stats: z
+      .object({
+        bestE1rmKg: z.number().nullable().openapi({ example: 106.7 }),
+        topSetKg: z.number().nullable().openapi({ example: 82.5 }),
+        topSetReps: z.int().nullable().openapi({ example: 10 }),
+        volumeKg: z.number().openapi({ example: 28800 }),
+      })
+      .openapi({
+        description:
+          'Over the span: the best e1RM, the heaviest top set with the most reps done at it, ' +
+          'and the volume load of every workout together. Null without a workout.',
+      }),
+  })
+  .openapi('Progress', {
+    description: 'One exercise’s chart (S7). Warm-ups are left out of every number (S6).',
   });
 
 const WorkoutFields = {

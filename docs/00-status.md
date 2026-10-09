@@ -2,7 +2,7 @@
 
 **Project:** A weight-training progress tracker combining lift logging, meal planning, Apple Watch/iPhone health data, and bodyweight/diet coaching.
 **Phase:** 7 — Build (M1 first). Phase 6 — Review finished 2026-09-23.
-**Updated:** 2026-10-08
+**Updated:** 2026-10-10
 
 ## Done
 - Phase 1 — Brief + PRD: `docs/01-project-brief.md`, `docs/02-product-requirements.md`, `docs/06-decision-log.md`.
@@ -13,8 +13,9 @@
 - 2026-09-16: Phase 3 — `docs/05-design-system.md` and `docs/10-screen-specifications.md` written from the six `.dc.html` files. Every hex code, size, tracking value and grid measurement lifted from source; contrast ratios computed, not estimated. The canvas's "THE SYSTEM" sticky note was found inaccurate and is superseded by `docs/05`.
 
 ## Next
-**Phase 7 — Build, slice 4.** Slice 3 is built on `fm/overload-3`; slice 4 follows its review and
-merge. The slice boundaries and deferred work are recorded in `06` (2026-10-03).
+**Phase 7 — Build, slice 6.** Slice 5 is built on `fm/overload-5`, in review against `develop`;
+invite administration (S9) follows. The slice boundaries and deferred work are recorded in `06`
+(2026-10-03).
 
 **Planning record.** Two grills have run. `/grill-with-docs` on **2026-09-23** settled
 fourteen questions and cut M1 into slices; `/grill-with-docs` on **2026-09-24** settled twelve more —
@@ -101,6 +102,15 @@ after a delete, two tabs and resume, on Chromium and WebKit. Owed, and Yuta's: `
 and 7 on a real iPhone, which is also where Web Locks inside the installed app gets its answer.
 Not built: a screen for editing a set the server took or changing a live workout, and the 30-day
 tombstone purge, which waits for the daily job.
+
+**Slice 5 is built, 2026-10-10**, on branch `fm/overload-5` against `develop` (`#5`). In the repo:
+`GET /api/exercises/{id}/progress`, with Epley and the span as pure functions in
+`domain/progress.ts`, and screen 2 at `/exercises/{id}/progress`, opened from the exercise's own
+screen (`06`, 2026-10-10; `10` §2). The screen cleared the polish gate. Vitest covers the
+functions, the route and its cross-user cases; `e2e/progress.spec.ts` covers the chart, the spans,
+reading a workout from the keyboard, the empty state and pounds, on Chromium and WebKit. Not built:
+the S20 overlays, which wait for M2 and M3. Owed, and Yuta's: the chart on a real iPhone, where
+dragging a finger across it has only been tried in an emulated browser.
 
 **Issues are open.** Milestone `M1`, one issue per slice, `#1`–`#7`, each chained to the one before
 with GitHub's native dependencies. `#3`'s three questions were settled in `06` (2026-10-03).

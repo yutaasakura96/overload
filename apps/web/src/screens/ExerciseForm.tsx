@@ -4,6 +4,7 @@ import { useId, useState, type ReactNode } from 'react';
 import { api, expectOk, unwrap } from '../api';
 import {
   AppBar,
+  Chevron,
   DeleteConfirm,
   Notice,
   NumberField,
@@ -62,12 +63,15 @@ export function ExerciseForm({
   exercise,
   slot,
   back,
+  progress,
   onDone,
 }: {
   /** Absent for a new custom exercise. */
   exercise: Exercise | undefined;
   slot: ReactNode;
   back: { label: string; onClick: () => void };
+  /** The way to the exercise's chart (S7). Absent inside the picker, where leaving loses the routine. */
+  progress?: { href: string; onOpen: () => void };
   /** After a save, with the exercise as it now is; after a delete, with nothing. */
   onDone: (saved: Exercise | undefined) => void;
 }) {
@@ -222,6 +226,22 @@ export function ExerciseForm({
         back={back}
       />
       <SaveNotice problem={problem} what="exercise" />
+      {progress !== undefined && (
+        <a
+          href={progress.href}
+          className="link-row"
+          onClick={(event) => {
+            event.preventDefault();
+            progress.onOpen();
+          }}
+        >
+          <span>
+            <span className="link-row__name">Progress</span>
+            <span className="link-row__meta">Estimated 1RM over time</span>
+          </span>
+          <Chevron direction="forward" />
+        </a>
+      )}
       <form
         ref={formRef}
         className="form"
@@ -425,7 +445,15 @@ export function ExerciseScreen({
       </main>
     );
   }
+  const progressPath = `/exercises/${exercise.id}/progress`;
   return (
-    <ExerciseForm key={exercise.id} exercise={exercise} slot={slot} back={back} onDone={done} />
+    <ExerciseForm
+      key={exercise.id}
+      exercise={exercise}
+      slot={slot}
+      back={back}
+      progress={{ href: progressPath, onOpen: () => navigate(progressPath) }}
+      onDone={done}
+    />
   );
 }

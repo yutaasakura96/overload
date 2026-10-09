@@ -68,7 +68,7 @@ implication that the whole table is written at once.*
 | **2** — routines | Hono's `csrf()` against the first write route · cross-user write and delete on `exercise`, `exercise_setting` and `routine` · a routine referring to another user's exercise |
 | **3** — screen 1 | The S1 happy path · progression, e1RM and the resolved-at-start defaults · the 3-hour rule (`09` F3) · cross-user sync and last time · sign-out with sets waiting, before the set store is read, and when it cannot be cleared (`08` §7). *Built 2026-10-03*: `progression.test.ts`, `workouts.test.ts`, `e2e/workout.spec.ts` |
 | **4** — the hard edges | Everything else under **Set upload (S1)** · two tabs · tombstones · the refused set. *Built 2026-10-08*: `workouts.test.ts` (deletes, tombstones, a row refused inside a 200), `workouts-race.test.ts` (committed: the same set twice, two tabs, a stale copy racing its delete), `e2e/sync-edges.spec.ts` |
-| **5** — progress chart | Epley with warm-ups excluded, across spans |
+| **5** — progress chart | Epley with warm-ups excluded, across spans. *Built 2026-10-10*: `progress.test.ts` (the pure functions, then the route with its cross-user cases), `e2e/progress.spec.ts` |
 | **6** — invite administration | Revoke → cookie, bearer and ingest token each 401 · member on `/api/admin/*` → 404 · restore leaves ingest tokens revoked |
 | **7** — export and delete | Export completeness · stale-session delete · deletion with a custom exercise in a routine and a workout (the deferred-FK case) |
 | **M2 / M3** | Planner, trend and expenditure · ingest · model-call cap · the remaining flows |

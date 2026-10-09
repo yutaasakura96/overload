@@ -12,9 +12,12 @@ export type Me = components['schemas']['Me'];
 export type MuscleGroup = NonNullable<components['schemas']['MuscleGroup']>;
 export type Problem = components['schemas']['Problem'];
 export type Profile = components['schemas']['Profile'];
+export type Progress = components['schemas']['Progress'];
+export type ProgressPoint = components['schemas']['ProgressPoint'];
 export type Routine = components['schemas']['Routine'];
 export type RoutineSlot = components['schemas']['RoutineSlot'];
 export type SetRow = components['schemas']['SetRow'];
+export type Span = components['schemas']['Span'];
 export type Suggestion = components['schemas']['Suggestion'];
 export type SyncBatch = components['schemas']['SyncBatch'];
 export type SyncDeletion = components['schemas']['SyncDeletion'];
@@ -39,4 +42,4 @@ type DeclaredHeaders<Path extends keyof paths> = paths[Path] extends {
  * declares on each member route's success response.
  */
 export const ACCOUNT_HEADER =
-  'Overload-User' satisfies DeclaredHeaders<'/api/me'> satisfies DeclaredHeaders<'/api/exercises'> satisfies DeclaredHeaders<'/api/routines'>;
+  'Overload-User' satisfies DeclaredHeaders<'/api/me'> satisfies DeclaredHeaders<'/api/exercises'> satisfies DeclaredHeaders<'/api/routines'> satisfies DeclaredHeaders<'/api/exercises/{id}/progress'>;

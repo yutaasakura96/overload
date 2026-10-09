@@ -1,4 +1,4 @@
-import { ACCOUNT_HEADER, type Me } from '@overload/api-contract';
+import { ACCOUNT_HEADER, type Me, type Span } from '@overload/api-contract';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
 import { QueryClient, queryOptions, type FetchStatus } from '@tanstack/react-query';
 import {
@@ -357,6 +357,24 @@ export const lastTimeQuery = queryOptions({
 });
 
 /**
+ * One exercise's chart over a span (S7, docs/07 §3). Enable it only once the profile exists:
+ * without one the API answers `setup_incomplete`.
+ */
+export const progressQuery = (exerciseId: string, span: Span) =>
+  queryOptions({
+    queryKey: ['progress', exerciseId, span],
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    queryFn: async ({ signal }) =>
+      confirmedAccountData(() =>
+        api.GET('/api/exercises/{id}/progress', {
+          params: { path: { id: exerciseId }, query: { span } },
+          signal,
+        }),
+      ),
+  });
+
+/**
  * Whether an editor may open on this query's copy: not while a stale copy, such as the one restored
  * at launch, is being asked again, so its draft starts from the server's state. Offline (paused) or
  * after a failed ask it opens on the saved copy. Once open it stays open: its own saves refetch.
@@ -377,6 +395,8 @@ export function useOpensEditor({
 /** After a write: both exercise lists, since a setting or a new exercise changes each. */
 export const refreshExercises = () => queryClient.invalidateQueries({ queryKey: ['exercises'] });
 export const refreshRoutines = () => queryClient.invalidateQueries({ queryKey: ['routines'] });
+/** After an acknowledged sync batch: a chart on screen is asked again, the rest when next opened. */
+export const refreshProgress = () => queryClient.invalidateQueries({ queryKey: ['progress'] });
 
 /**
  * Asks for last time again whether or not a screen is reading it, since the next workout starts

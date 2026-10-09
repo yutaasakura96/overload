@@ -4,10 +4,14 @@ import type { AppEnv, RouteDeps } from '../app-env.js';
 import {
   createExercise,
   deleteExercise,
+  getExercise,
   listExercises,
   putExerciseSetting,
   updateExercise,
 } from '../db/exercises.js';
+import { getProfile } from '../db/profile.js';
+import { localDateIn, loggedWorkouts } from '../db/training.js';
+import { exerciseProgress, spanStart } from '../domain/progress.js';
 import { accountHeaders } from '../lib/account.js';
 import { problem, problemResponse } from '../lib/problem.js';
 import {
@@ -17,6 +21,8 @@ import {
   ExercisePatch,
   ExerciseSettingPut,
   IdParam,
+  Progress,
+  Span,
   jsonBody,
 } from './schemas.js';
 
@@ -110,6 +116,32 @@ const putSetting = createRoute({
   },
 });
 
+// S7 (docs/07 §3). The S20 overlays join this route with the data they draw, in M2 and M3.
+const getProgress = createRoute({
+  method: 'get',
+  path: '/api/exercises/{id}/progress',
+  summary: 'One exercise’s e1RM per workout over a span, with the span’s top set and volume load',
+  request: {
+    params: IdParam,
+    query: z.object({
+      span: Span.default('12w').openapi({ description: 'Default `12w`.' }),
+    }),
+  },
+  responses: {
+    200: {
+      description: 'The chart. Fewer than 2 points is not enough to draw one',
+      headers: accountHeaders,
+      content: { 'application/json': { schema: Progress } },
+    },
+    400: problemResponse('A malformed id, or a span that is not one of the five'),
+    401: problemResponse('No session'),
+    404: problemResponse('No exercise with that id is visible to the caller'),
+    422: problemResponse(
+      '`setup_incomplete` with `missing: ["profile"]`: local dates need the time zone',
+    ),
+  },
+});
+
 const fieldRefused = (c: Context<AppEnv>, path: string, message: string) =>
   problem(c, 'validation_failed', { errors: [{ path, message }] });
 
@@ -171,6 +203,26 @@ export function exerciseRoutes({ db }: RouteDeps) {
         if (result.kind === 'saved') return c.json(result.exercise, 200);
         if (result.kind === 'not_found') return problem(c, 'not_found');
         return fieldRefused(c, 'repLow', 'repLow must not exceed repHigh');
+      },
+    }),
+    defineOpenAPIRoute<typeof getProgress, AppEnv>({
+      route: getProgress,
+      handler: async (c) => {
+        const userId = c.get('user').id;
+        const { id } = c.req.valid('param');
+        const { span } = c.req.valid('query');
+        if ((await getExercise(db, userId, id)) === undefined) return problem(c, 'not_found');
+        const profile = await getProfile(db, userId);
+        if (profile === null) return problem(c, 'setup_incomplete', { missing: ['profile'] });
+        const today = localDateIn(profile.timezone)(new Date());
+        const workouts = await loggedWorkouts(
+          db,
+          userId,
+          id,
+          profile.timezone,
+          spanStart(span, today),
+        );
+        return c.json(exerciseProgress(span, today, workouts), 200);
       },
     }),
   ] as const;

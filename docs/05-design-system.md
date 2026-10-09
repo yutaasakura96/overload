@@ -293,7 +293,8 @@ The rule is 44px minimum. It holds across the six screens. The one drawn excepti
 
 Two further elements read as tappable but have no target: the `+ 4 more` grocery link (5, 11px text
 only) and the chart data points (2, r=2.5–3.5). Both need 44px targets or an explicit decision that
-they are not interactive.
+they are not interactive. **Decided for the chart 2026-10-10** (`06`): a point is not a target. The
+whole chart is, and picks out the workout nearest the touch (`10` §2).
 
 ### 3.3 Spacing
 
@@ -495,6 +496,12 @@ because the headline names it.
 pushed apart as a group, keeping their order by value, spaced exactly 11px and centred on the group's
 mean y. A pushed label gets a 1px leader in its series colour from (291, line end) to (295, label).
 With all four on, the drawn case moves labels by at most 6.25px.
+
+**As built for the e1RM chart, 2026-10-10** (`06`). The canvas is as wide as the screen's content
+and the plot ends 68px short of it. The gridlines keep their three y positions; their values are a
+round step apart, chosen so the highest value is at or under the top line and the lowest stays over
+the baseline. The date axis runs in proportion to time. A picked workout is a 1px `line/control`
+hairline from the top to the baseline and an r=3.5 `accent` disc with a 2px `surface/ground` ring.
 
 A legend appears only where raw and derived data are both plotted (6): 14 × 2px swatch or 5px dot,
 7px gap, 10px sans in `text/quaternary`, 18px between entries.
