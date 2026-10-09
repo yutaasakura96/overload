@@ -1,6 +1,6 @@
 import { useId, useMemo, useState, type KeyboardEvent } from 'react';
 import { FieldError } from './components';
-import { deviceTimezone, searchTimezones, timezoneList, timezoneOffset } from './timezones';
+import { deviceTimezone, searchTimezones, timezoneList } from './timezones';
 
 /**
  * A time zone chosen from a searchable list (docs/10 §8.1). The value is always an IANA name from
@@ -119,7 +119,6 @@ export function TimezoneField({
               onClick={() => choose(zone)}
             >
               <span>{zone}</span>
-              <span className="combobox__hint">{timezoneOffset(zone)}</span>
             </li>
           ))}
           {matches.length === 0 && <li className="combobox__empty">No time zone matches.</li>}

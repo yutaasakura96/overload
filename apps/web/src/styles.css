@@ -1457,8 +1457,6 @@ main:focus {
 .combobox__option,
 .combobox__empty {
   display: flex;
-  justify-content: space-between;
-  gap: 8px;
   align-items: center;
   min-height: var(--target-min);
   padding: 0 10px;
@@ -1473,7 +1471,6 @@ main:focus {
 .combobox__option[data-current] span:first-child {
   color: var(--accent);
 }
-.combobox__hint,
 .combobox__empty {
   font-family: var(--font-mono);
   font-size: 11px;
