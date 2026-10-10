@@ -28,11 +28,12 @@ function apply() {
   const theme: Theme = choice === 'system' ? (deviceLight.matches ? 'light' : 'dark') : choice;
   document.documentElement.dataset.theme = theme;
   // The browser's own surfaces follow: the canvas and form controls, and the bar around the page,
-  // whose two colours are surface/ground's and sit on the tag itself.
+  // which takes the theme's surface/ground.
   document.querySelector('meta[name="color-scheme"]')?.setAttribute('content', theme);
-  const bar = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
-  const ground = bar?.dataset[theme];
-  if (bar && ground !== undefined) bar.content = ground;
+  const ground = getComputedStyle(document.documentElement)
+    .getPropertyValue('--surface-ground')
+    .trim();
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', ground);
 }
 
 function changed() {

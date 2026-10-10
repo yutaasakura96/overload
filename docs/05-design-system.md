@@ -212,7 +212,9 @@ are one block under `:root[data-theme='light']`. A script in the page's `<head>`
 first paint, from the choice remembered on the device (`localStorage`, `overload:theme`) or, with
 none, from the device's own setting, which it then follows as it changes. The choice is made in the
 profile section (`docs/10` §8.2). `color-scheme` and the page's `theme-color` follow the theme, so
-native controls and the browser's own bar match.
+native controls and the browser's own bar match. `theme-color` is written nowhere: it is read from
+`surface/ground` as the browser computes it, by a script in `<body>` once the stylesheet has loaded
+and again whenever the theme changes.
 
 **The status bar.** The installed app draws under the iPhone's status bar (`black-translucent`),
 and iOS always draws that bar's text in white. In the light theme a strip of `surface/status-bar`,
