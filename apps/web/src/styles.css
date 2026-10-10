@@ -1491,6 +1491,305 @@ main:focus {
   color: var(--accent);
 }
 
+/* A row that opens another screen of the same thing: the exercise's chart, from its form. */
+.link-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: var(--target-min);
+  margin: 18px var(--gutter) 0;
+  padding: 11px 12px;
+  border: 1px solid var(--line-hairline);
+  border-radius: var(--radius);
+  color: var(--text-tertiary);
+  text-decoration: none;
+}
+.link-row:active {
+  border-color: var(--line-field);
+}
+.link-row__name {
+  display: block;
+  font-size: 12px;
+  letter-spacing: 0.03em;
+  color: var(--text-secondary);
+}
+.link-row__meta {
+  display: block;
+  margin-top: 4px;
+  font-size: 10px;
+  color: var(--text-quaternary);
+}
+
+/* Screen 2: exercise progress (docs/10 §2). One viewport tall, with the footnote at its foot. */
+.progress {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+}
+.progress .app-bar {
+  padding-bottom: 14px;
+}
+.progress .notice a {
+  color: var(--accent);
+}
+.progress__headline {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px var(--gutter) 0;
+}
+.progress__headline .section-label {
+  margin-bottom: 6px;
+}
+.progress__e1rm {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-height: 38px;
+  margin: 0;
+}
+.progress__e1rm-figure {
+  font-family: var(--font-mono);
+  font-size: 42px;
+  font-weight: 500;
+  line-height: 0.9;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+.progress__e1rm-unit {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--text-quaternary);
+}
+.progress__change {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+  margin: 0;
+  padding-bottom: 3px;
+}
+.progress__change-figure {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-tertiary);
+}
+.progress__change-figure--up {
+  color: var(--done);
+}
+.progress__change-figure--set {
+  color: var(--text-secondary);
+}
+.progress__change-span {
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-quaternary);
+}
+
+/* 4.8, the span selector: five segments, their labels mono (docs/05 §2.2). */
+.segments--spans {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  margin: 16px var(--gutter) 0;
+}
+.segments--spans .segments__segment {
+  font-family: var(--font-mono);
+  letter-spacing: 0;
+}
+
+.progress__body {
+  padding-bottom: 20px;
+  transition: opacity 120ms ease-out;
+}
+/* Another span is loading: the last one holds the frame, set back. */
+.progress__body--stale {
+  opacity: 0.5;
+}
+.progress__empty {
+  display: grid;
+  align-content: center;
+  gap: 10px;
+  min-height: 192px;
+  margin: 20px var(--gutter) 0;
+}
+.progress__empty .empty-state__body {
+  margin: 0;
+}
+
+/* 5 Charts: the e1RM chart */
+.chart {
+  position: relative;
+  margin: 20px var(--gutter) 0;
+}
+.chart:has(.chart__scrub:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.chart__canvas {
+  display: block;
+  /* A sideways drag picks out a workout; an up-and-down one still scrolls the screen. */
+  touch-action: pan-y;
+  -webkit-tap-highlight-color: transparent;
+}
+.chart__gridline {
+  stroke: var(--line-hairline);
+}
+.chart__baseline {
+  stroke: var(--line-border);
+}
+.chart__crosshair {
+  stroke: var(--line-control);
+}
+.chart__label {
+  fill: var(--text-quaternary);
+  font-family: var(--font-mono);
+  font-size: 9px;
+}
+.chart__line {
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.chart__ring {
+  fill: var(--surface-ground);
+  stroke: var(--accent);
+  stroke-width: 1.5;
+}
+.chart__latest {
+  fill: var(--accent);
+}
+.chart__picked {
+  fill: var(--accent);
+  stroke: var(--surface-ground);
+  stroke-width: 2;
+}
+/* The keyboard's and a screen reader's way to pick a workout: there, and drawn as the chart. */
+.chart__scrub {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.progress__stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 6px var(--gutter) 0;
+}
+.progress__stat {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid var(--line-hairline);
+  border-radius: var(--radius);
+}
+.progress__stat-label {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-quaternary);
+}
+.progress__stat-value {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-height: 26px;
+  margin: 0;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.progress__stat-figure {
+  font-size: 20px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.progress__stat-unit {
+  font-size: 11px;
+  color: var(--text-quaternary);
+}
+
+/* 4.4 Data table: the chart's workouts */
+.progress__table {
+  width: 100%;
+  margin-top: 14px;
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.progress__table th,
+.progress__table td {
+  padding: 9px 0;
+  text-align: right;
+  font-weight: 400;
+}
+.progress__table tr > :first-child {
+  padding-left: var(--gutter);
+  text-align: left;
+}
+.progress__table tr > :last-child {
+  padding-right: var(--gutter);
+}
+.progress__table thead th {
+  padding: 0 0 7px;
+  border-bottom: 1px solid var(--line-hairline);
+  font-family: var(--font-sans);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-quaternary);
+}
+.progress__table thead th:nth-child(2) {
+  text-transform: none;
+}
+.progress__table tbody tr {
+  border-bottom: 1px solid var(--line-row);
+}
+.progress__table tbody th {
+  font-size: 11px;
+  color: var(--text-quaternary);
+}
+.progress__table tbody td {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+}
+.progress__table tbody td:first-of-type {
+  color: var(--text-primary);
+}
+
+/* 4.15 Footnote rule: at the foot of the screen, under whatever the screen holds. */
+.footnote {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 12px;
+  margin: auto var(--gutter) 0;
+  padding: 12px 0 18px;
+  border-top: 1px solid var(--line-hairline);
+  font-size: 10px;
+  color: var(--text-quaternary);
+}
+.footnote__formula {
+  font-family: var(--font-mono);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progress__body {
+    transition: none;
+  }
+}
+
 .app {
   max-width: 480px;
   margin: 0 auto;

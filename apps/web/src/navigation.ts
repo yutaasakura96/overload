@@ -37,10 +37,13 @@ export type Route =
   | { screen: 'library' }
   | { screen: 'routines' }
   | { screen: 'routine'; id: string | undefined }
-  | { screen: 'exercise'; id: string | undefined };
+  | { screen: 'exercise'; id: string | undefined }
+  | { screen: 'progress'; id: string };
 
 export function routeOf(pathname: string): Route {
   const [first, second, ...rest] = pathname.split('/').filter(Boolean);
+  if (first === 'exercises' && second !== undefined && rest.length === 1 && rest[0] === 'progress')
+    return { screen: 'progress', id: second };
   if (rest.length > 0) return { screen: 'today' };
   if (first === 'workout' && second === undefined) return { screen: 'workout' };
   if (first === 'routines' && second === undefined) return { screen: 'routines' };

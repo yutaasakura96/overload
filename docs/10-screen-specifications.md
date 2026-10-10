@@ -154,9 +154,37 @@ Read seated. Four independently toggleable overlays are the reason the whole app
   its end label. `Progress-Overlays` has all four on, with three labels pushed apart by the collision
   rule (`docs/05` §5).
 - **Fewer than 2 workouts** (PRD empty states): no chart is drawn, message reads
-  `Not enough data yet`. The headline, span selector and overlays have no defined empty treatment.
+  `Not enough data yet`. The same on any span whose workouts all fall on one local date. The
+  headline, span selector and overlays have no defined empty treatment.
 - **Data points are r=2.5.** If a point is tappable to reach that workout, it needs a 44px target
   (`docs/05` §3.2).
+
+**As built, 2026-10-10** (slice 5, `06`), with what the artboard does not draw:
+
+- **The way in** is a `Progress` row above the form on the exercise's screen (§8.1), at
+  `/exercises/{id}/progress`. Back returns there. The span is in the address (`?span=6m`).
+- **Headline.** The latest e1RM in the span, and its change since the span's first workout over
+  `OVER 12W` (`ALL TIME` for all): `done` when up, `text/tertiary` when down or level. With one
+  workout there is no change; with none the figure is an em dash.
+- **Cards.** Both are the span's: the heaviest top set with the most reps done at it, and the
+  volume load of every workout in the span together.
+- **Chart.** Drawn at the width of the screen, the plot ending 68px short as on the artboard. The
+  date axis is the span and runs in proportion to time; its labels carry the year when the span
+  crosses one. The value scale is three gridlines a round step apart. Rings are drawn only while
+  every workout stays 7px from the next.
+- **Reading a workout.** A touch or pointer on the chart picks out the workout nearest in time,
+  with a `line/control` hairline and a solid disc, and the headline reads it: its e1RM, with its
+  top set over its date where the change was. A finger lifting leaves it; the keyboard has a
+  slider over the chart, whose focus ring is drawn round the chart. A point is not a target.
+- **`Workouts in this span`**, a tertiary disclosure under the cards, lists every point as `05`
+  §4.4's table: date, e1RM, top set and volume, newest first.
+- **Another span loading** keeps the last one at half opacity. The chart's place is kept by the
+  empty state, `Not enough data yet` over one sentence, so the cards do not move.
+- **Overlays** are not drawn in M1: no `OVERLAY` block and no chips.
+- **Footnote.** A normal bottom block: the screen is at least one viewport tall and grows with
+  the list.
+- **Pounds.** Every weight is shown in the profile's unit, e1RM to the tenth and volume whole.
+- **Without a profile** the screen says to save one on Today, as local dates need the time zone.
 
 ---
 
@@ -532,6 +560,8 @@ nothing is ticked. Back to the editor, focus lands on `Add exercises`.
   unit, kg or lb; it is stored in kg.
 - *Seeded:* only the user's own values, each with its `Default`/`Yours` note, and `Restore
   defaults` once any is the user's.
+- Above the form of an existing exercise, outside the picker: a `Progress` row with a forward
+  chevron, which opens screen 2 for it (§2).
 - Under both: `Hide from pickers` (`Show in pickers again`), and for a custom exercise the delete.
   A delete refused because routines use it names them and suggests hiding instead.
 

@@ -1,4 +1,5 @@
 import { sql } from 'drizzle-orm';
+import type { LoggedWorkout } from '../domain/progress.js';
 import { suggest, type Suggestion } from '../domain/progression.js';
 import type { Database } from './connection.js';
 import { listExercises } from './exercises.js';
@@ -94,12 +95,7 @@ export async function lastTimes(
   const exercises = new Map(
     (await listExercises(db, userId, { includeHidden: true })).map((e) => [e.id, e]),
   );
-  const localDate = new Intl.DateTimeFormat('en-CA', {
-    timeZone: timezone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  });
+  const localDate = localDateIn(timezone);
 
   const lastOf = (sets: Row[]): Last[] => {
     const first = sets[0];
@@ -116,7 +112,7 @@ export async function lastTimes(
     return [
       {
         workoutId: first.workout_id,
-        performedOn: localDate.format(new Date(first.started_at)),
+        performedOn: localDate(new Date(first.started_at)),
         sets: working.map((s, index) => ({ workingSet: index + 1, ...s })),
         suggestion,
       },
@@ -133,4 +129,54 @@ export async function lastTimes(
       ),
     })),
   );
+}
+
+/** A local date, `YYYY-MM-DD`, as the user's time zone reads an instant. */
+export const localDateIn = (timezone: string) => {
+  const format = new Intl.DateTimeFormat('en-CA', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  return (instant: Date) => format.format(instant);
+};
+
+type LoggedRow = {
+  workout_id: string;
+  started_at: Date;
+  weight_kg: number;
+  reps: number;
+  is_warmup: boolean;
+};
+
+/**
+ * The user's workouts that logged one exercise, oldest first, each with every set of it, warm-ups
+ * included, and its local date (S7, docs/04 *Queries the indexes are for*). `since` is a local
+ * date: workouts that started before it are left unread.
+ */
+export async function loggedWorkouts(
+  db: Database,
+  userId: string,
+  exerciseId: string,
+  timezone: string,
+  since?: string,
+): Promise<LoggedWorkout[]> {
+  const { rows } = await db.execute<LoggedRow>(sql`
+    SELECT w.id AS workout_id, w.started_at, s.weight_kg::float8 AS weight_kg, s.reps, s.is_warmup
+    FROM workout w
+    JOIN workout_exercise we ON we.workout_id = w.id
+    JOIN "set" s ON s.workout_exercise_id = we.id
+    WHERE w.user_id = ${userId}
+      AND we.exercise_id = ${exerciseId}
+      AND (${since ?? null}::date IS NULL
+        OR w.started_at >= (${since ?? null}::date::timestamp AT TIME ZONE ${timezone}))
+    ORDER BY w.started_at, w.id, we.position, we.id, s.position, s.id
+  `);
+  const localDate = localDateIn(timezone);
+  return [...groupBy(rows, (row) => row.workout_id)].map(([workoutId, sets]) => ({
+    workoutId,
+    date: localDate(new Date(sets[0]?.started_at ?? 0)),
+    sets: sets.map((set) => ({ weightKg: set.weight_kg, reps: set.reps, isWarmup: set.is_warmup })),
+  }));
 }

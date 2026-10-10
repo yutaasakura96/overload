@@ -568,6 +568,142 @@
         ],
         "description": "The whole setting. `null` restores the exercise’s default for that value."
       },
+      "Progress": {
+        "type": "object",
+        "properties": {
+          "span": {
+            "$ref": "#/components/schemas/Span"
+          },
+          "from": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date",
+            "description": "The span’s first local date. For `all`, the first workout’s, and null without one."
+          },
+          "to": {
+            "type": "string",
+            "format": "date",
+            "description": "Today, in the caller’s time zone."
+          },
+          "points": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProgressPoint"
+            },
+            "description": "One per workout with a working set of it, oldest first."
+          },
+          "stats": {
+            "type": "object",
+            "properties": {
+              "bestE1rmKg": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "example": 106.7
+              },
+              "changeKg": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "description": "The last workout’s e1RM less the first’s, from the estimates before they are rounded, to the thousandth. Null with fewer than two.",
+                "example": 5.367
+              },
+              "topSetKg": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "example": 82.5
+              },
+              "topSetReps": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "example": 10
+              },
+              "volumeKg": {
+                "type": "number",
+                "example": 28800
+              }
+            },
+            "required": [
+              "bestE1rmKg",
+              "changeKg",
+              "topSetKg",
+              "topSetReps",
+              "volumeKg"
+            ],
+            "description": "Over the span: the best e1RM, the heaviest top set with the most reps done at it, and the volume load of every workout together. Null without a workout."
+          }
+        },
+        "required": [
+          "span",
+          "from",
+          "to",
+          "points",
+          "stats"
+        ],
+        "description": "One exercise’s chart (S7). Warm-ups are left out of every number (S6)."
+      },
+      "Span": {
+        "type": "string",
+        "enum": [
+          "4w",
+          "12w",
+          "6m",
+          "1y",
+          "all"
+        ],
+        "description": "How far back the chart reads: 4 or 12 weeks, 6 months, 1 year, or everything."
+      },
+      "ProgressPoint": {
+        "type": "object",
+        "properties": {
+          "workoutId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "description": "The workout’s local date."
+          },
+          "e1rmKg": {
+            "type": "number",
+            "description": "Epley on the best working set, to the tenth.",
+            "example": 106.7
+          },
+          "topSetKg": {
+            "type": "number",
+            "description": "The heaviest working set.",
+            "example": 80
+          },
+          "topSetReps": {
+            "type": "integer",
+            "description": "The most reps done at that weight.",
+            "example": 10
+          },
+          "volumeKg": {
+            "type": "number",
+            "description": "Volume load: weight × reps, summed over the working sets.",
+            "example": 2400
+          }
+        },
+        "required": [
+          "workoutId",
+          "date",
+          "e1rmKg",
+          "topSetKg",
+          "topSetReps",
+          "volumeKg"
+        ]
+      },
       "RoutineList": {
         "type": "object",
         "properties": {
@@ -1880,6 +2016,102 @@
           },
           "422": {
             "description": "`validation_failed`, including an effective rep range that is inverted",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/exercises/{id}/progress": {
+      "get": {
+        "summary": "One exercise’s e1RM per workout over a span, with the span’s top set and volume load",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Span"
+                },
+                {
+                  "description": "Default `12w`."
+                }
+              ]
+            },
+            "required": false,
+            "description": "Default `12w`.",
+            "name": "span",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The chart. Fewer than 2 points is not enough to draw one",
+            "headers": {
+              "Overload-User": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "The id of the user whose session answered. Keep the body for that account only."
+                },
+                "required": true,
+                "description": "The id of the user whose session answered. Keep the body for that account only."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Progress"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A malformed id, or a span that is not one of the five",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No exercise with that id is visible to the caller",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`setup_incomplete` with `missing: [\"profile\"]`: local dates need the time zone",
             "content": {
               "application/problem+json": {
                 "schema": {

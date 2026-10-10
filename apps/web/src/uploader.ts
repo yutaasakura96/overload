@@ -6,6 +6,7 @@ import {
   onAccountChange,
   queryClient,
   refreshLastTime,
+  refreshProgress,
 } from './query';
 import { onChangeElsewhere, type StoreRecord } from './set-store';
 import {
@@ -101,6 +102,7 @@ async function uploadPending(): Promise<void> {
     await applySyncResults(chunk.map(sentRowOf), results);
     markSynced();
     void refreshLastTime();
+    void refreshProgress();
     if (pending.length <= BATCH_ROWS) return;
   }
 }

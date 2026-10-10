@@ -3170,3 +3170,47 @@ refusals (`09` F4, with slice 6); the 30-day purge of tombstones, which waits fo
 inside the installed app, and `11` §3 items 3, 4 and 7.
 
 **Changed:** `00`, `03`, `04`, `07`, `09`, `10`, `11`.
+
+### 2026-10-10 — Slice 5's cut: the progress chart, its span stats, and how a workout is read off it
+
+Slice 5 (`#5`) builds `GET /api/exercises/{id}/progress` and screen 2. Settled while building:
+
+- **The two cards are the span's, not the latest workout's.** `TOP SET` is the heaviest working
+  set in the span with the most reps done at it, and `VOLUME LOAD` is every workout in the span
+  together, as `07`'s `stats` already said (`28800`). The artboard draws `2,475`, one workout's
+  volume, beside a 12-week span. *Rejected:* the latest workout's figures, which the span selector
+  would never change, against S7's "for the selected span". The headline stays the latest e1RM,
+  with its change since the span's first workout: `stats.changeKg`, worked out in the domain
+  from the estimates before they are rounded, to the thousandth, and only converted and rounded
+  once by the screen.
+- **`topSetReps` joins `topSetKg`**, on each point and in `stats`, because the card prints
+  `82.5 × 10`. `stats` is null where there is no workout; `from` is null for `all` with none.
+- **A span ends today and includes it**, in the profile's time zone: 4 and 12 weeks are 28 and 84
+  days, and 6 months and 1 year start the day after the same day of the month. A workout dated
+  after today is in no span. `span` defaults to `12w`; one that is not of the five is a 400 like
+  any parameter of the wrong type, and the route's 422 is `setup_incomplete` without a profile.
+- **Epley and the span are pure functions** in `domain/progress.ts`. The query reads the sets of
+  the span, warm-ups included, and the function leaves them out, so S6 is tested without a database.
+- **No overlays, and no overlay chips.** The `overlays` parameter and the `OVERLAY` block wait for
+  the data they draw (M2, M3). The 64px end-label gutter is kept, so the plot does not move then.
+- **The date axis is the span, in proportion to time**, not one step per workout: a fortnight's
+  gap is twice a week's. The value scale is three gridlines a round step apart, chosen per chart
+  (the artboard's 6 kg step is its own data's). Rings are drawn on every workout only while they
+  all stay 7px apart; past that the line carries them and the latest keeps its disc. Workouts
+  that all fall on one local date, on any span, are not drawn: `Not enough data yet`.
+- **A point is not a target; the chart is.** `05` §3.2 asked for 44px targets or a decision. A
+  touch or a pointer anywhere on the chart picks out the workout nearest in time, and the headline
+  reads it: its e1RM, top set and date. The keyboard and a screen reader have the same through a
+  slider laid over the chart. *Rejected:* a tooltip on the point, which at 390px covers the line
+  and the axis it is read against; and tapping through to the workout, which has no screen yet.
+- **Every value drawn is also listed.** `Workouts in this span` opens a table, newest first.
+- **The way in is the exercise's own screen**, a `Progress` row above its form, at
+  `/exercises/{id}/progress`; the span is in the address (`?span=6m`). The picker's copy of the
+  form has no such row, since leaving it would lose the routine being edited.
+- **The footnote is a normal bottom block**, at the foot of a screen at least one viewport tall,
+  as `10` §7.3 says of screen 6, since the open table makes the screen longer than the artboard.
+
+Not built: the overlays (S20), a way from a point to its workout, and a link to the chart from
+screen 1.
+
+**Changed:** `00`, `05`, `07`, `10`, `11`.

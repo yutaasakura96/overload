@@ -6,6 +6,7 @@ import { routeOf, safeNext, useLocation } from './navigation';
 import { meQuery, useAccount } from './query';
 import { ExerciseScreen } from './screens/ExerciseForm';
 import { ExerciseLibrary } from './screens/ExerciseLibrary';
+import { Progress } from './screens/Progress';
 import { RoutineScreen } from './screens/RoutineEditor';
 import { RoutineList } from './screens/RoutineList';
 import { SignIn } from './screens/SignIn';
@@ -68,6 +69,16 @@ export function App() {
     if (route.screen === 'routines') return <RoutineList me={me.data} navigate={navigate} />;
     if (route.screen === 'routine') return <RoutineScreen id={route.id} navigate={navigate} />;
     if (route.screen === 'exercise') return <ExerciseScreen id={route.id} navigate={navigate} />;
+    if (route.screen === 'progress')
+      return (
+        <Progress
+          key={route.id}
+          id={route.id}
+          me={me.data}
+          searchParams={searchParams}
+          navigate={navigate}
+        />
+      );
     if (route.screen === 'library') return <ExerciseLibrary me={me.data} navigate={navigate} />;
     return <Today me={me.data} navigate={navigate} />;
   }

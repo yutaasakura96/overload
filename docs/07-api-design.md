@@ -463,7 +463,7 @@ schema: the fields at fault as `{ path, message }`, as in a 422 (§1.3), never a
 | --- | --- | --- | --- | --- | --- |
 | GET | `/api/workouts` | M | History, newest `startedAt` first, paged. Each item is a summary: name, times, exercise names, working-set count | 200 | 401 |
 | GET | `/api/workouts/{id}` | M | One workout with exercises, sets and the linked Apple workout | 200 | 401, 404 |
-| GET | `/api/exercises/{id}/progress` | M | The S7 chart, with S20 overlays when asked | 200 | 401, 404, 422 |
+| GET | `/api/exercises/{id}/progress` | M | The S7 chart, with S20 overlays when asked | 200 | 400, 401, 404, 422 |
 
 ```http
 GET /api/exercises/0192a001-…/progress?span=12w&overlays=intake,trend,sleep,hrv
@@ -471,8 +471,8 @@ GET /api/exercises/0192a001-…/progress?span=12w&overlays=intake,trend,sleep,hr
 ```json
 {
   "span": "12w", "from": "2026-08-19", "to": "2026-11-10",
-  "points": [ { "workoutId": "0192w001-…", "date": "2026-11-04", "e1rmKg": 106.7, "topSetKg": 80, "volumeKg": 2400 } ],
-  "stats": { "bestE1rmKg": 106.7, "topSetKg": 82.5, "volumeKg": 28800 },
+  "points": [ { "workoutId": "0192w001-…", "date": "2026-11-04", "e1rmKg": 106.7, "topSetKg": 80, "topSetReps": 10, "volumeKg": 2400 } ],
+  "stats": { "bestE1rmKg": 106.7, "changeKg": 5.367, "topSetKg": 82.5, "topSetReps": 8, "volumeKg": 28800 },
   "overlays": {
     "intake": [ { "date": "2026-11-04", "energyKcal": 2380, "complete": true } ],
     "trend":  [ { "date": "2026-11-04", "trendKg": 71.84 } ],
@@ -482,9 +482,24 @@ GET /api/exercises/0192a001-…/progress?span=12w&overlays=intake,trend,sleep,hr
 }
 ```
 
-- `span` is one of `4w`, `12w`, `6m`, `1y`, `all`.
+- `span` is one of `4w`, `12w`, `6m`, `1y`, `all`, and `12w` when omitted. Any other value is a
+  400 (§1.3). A span ends today and includes it, in the caller's time zone: `from` is its first
+  local date. For `all` it is the first point's date, and `null` without one.
+- A point is one workout with a working set of the exercise, oldest first: `e1rmKg` to the tenth,
+  the heaviest working set as `topSetKg` with `topSetReps`, the most reps done at that weight,
+  and `volumeKg`, weight × reps summed over its working sets.
+- `stats` covers the span: the best e1RM, the heaviest top set with its reps, and the volume of
+  every workout together. The best e1RM and the top set are `null` without a workout. `changeKg`
+  is the last point's e1RM less the first's, taken from the estimates before they are rounded and
+  carried to the thousandth, and `null` with fewer than 2 points. The client converts it to the
+  user's unit, rounds it once to the tenth, and never works it out itself.
 - With fewer than 2 workouts, `points` has 0 or 1 items and the client shows "Not enough data yet".
+  It shows the same on any span whose points all fall on one local date: a chart needs two days.
+- The 404 is an exercise that is not the caller's to see. The 422 is `setup_incomplete` with
+  `missing: ["profile"]`: local dates need the time zone.
 - `overlays` omitted gives no overlay keys. The M3 series return empty arrays before M3 data exists.
+  **As built in slice 5** (`06`, 2026-10-10) the parameter is not read and the key is never
+  sent: the overlays arrive with their data, in M2 and M3.
 - Warm-ups are excluded from every number here (S6).
 
 ### Apple workout links (S19)
