@@ -3224,9 +3224,10 @@ Issue `#41`, which `#39` left open: which splits, and whether a split is stored.
   core. Every group is in exactly one split, so there is no column, no migration and no second
   place to keep in step. *Rejected:* a stored split per exercise, which would let it disagree with
   the group and need a value for every custom exercise.
-- **One control, `Show`**: all, a split, or one muscle group, in the library and the picker. A
-  select rather than chips, since fifteen options do not fit a 390px row and a native select
-  is what iOS does best. It narrows first and the search matches inside it.
+- **One control, `Show`**: all, a split, or one of the ten muscle groups other than core, in the
+  library and the picker. `Core` under Split covers the core group. A select rather than chips,
+  since fifteen options do not fit a 390px row and a native select is what iOS does best. It
+  narrows first and the search matches inside it.
 - **A custom exercise with no muscle group is only in `all`**; it belongs to no split.
 - **The filter is the web app's and is not remembered**: each screen opens on `all`, as the search
   field opens empty. The API still returns one flat list.

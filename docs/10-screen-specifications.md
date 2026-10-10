@@ -568,7 +568,8 @@ nothing is ticked. Back to the editor, focus lands on `Add exercises`.
 
 **Exercise library** (`/exercises`). A search field and `New exercise` above the list, as in the
 picker. Under them `Show`, a select of `All exercises`, the four splits (`Push`, `Pull`, `Legs`,
-`Core`) and the eleven muscle groups: it narrows the list before the search matches within it, and a
+`Core`) and the ten muscle groups other than core; selecting `Core` under Split covers the core
+group. The filter narrows the list before the search matches within it, and a
 custom exercise with no group is only in `All exercises`. A heading counts `N matching` while
 either is in use. The filter is not remembered. Each row opens the exercise form. A `Hidden exercises` disclosure under the list fetches the
 hidden ones when first opened.

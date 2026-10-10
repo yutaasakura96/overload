@@ -134,11 +134,13 @@ export function ExerciseFilterField({
           ))}
         </optgroup>
         <optgroup label="Muscle group">
-          {Object.entries(muscleGroupLabels).map(([key, label]) => (
-            <option key={key} value={key}>
-              {label}
-            </option>
-          ))}
+          {Object.entries(muscleGroupLabels)
+            .filter(([key]) => key !== 'core')
+            .map(([key, label]) => (
+              <option key={key} value={key}>
+                {label}
+              </option>
+            ))}
         </optgroup>
       </select>
     </div>

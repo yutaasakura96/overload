@@ -68,6 +68,14 @@ test('the library narrows to a split or a muscle group, and to a search within i
   const show = page.getByRole('combobox', { name: 'Show' });
   const headings = page.getByRole('heading', { level: 3 });
   await expect(headings).toHaveCount(11);
+  await expect(show.locator('optgroup[label="Split"] option')).toHaveText([
+    'Push',
+    'Pull',
+    'Legs',
+    'Core',
+  ]);
+  await expect(show.locator('optgroup[label="Muscle group"] option')).toHaveCount(10);
+  await expect(show.locator('option[value="core"]')).toHaveCount(1);
 
   await show.selectOption('push');
   await expect(headings).toHaveText([/^Chest/, /^Shoulders/, /^Triceps/]);
