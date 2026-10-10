@@ -61,6 +61,41 @@ test('the library is filed under muscle groups and searched by name or alias', a
   await expect(rows).toHaveCount(0);
 });
 
+test('the library narrows to a split or a muscle group, and to a search within it', async ({
+  page,
+}) => {
+  await page.goto('/exercises');
+  const show = page.getByRole('combobox', { name: 'Show' });
+  const headings = page.getByRole('heading', { level: 3 });
+  await expect(headings).toHaveCount(11);
+
+  await show.selectOption('push');
+  await expect(headings).toHaveText([/^Chest/, /^Shoulders/, /^Triceps/]);
+  await expect(page.getByRole('heading', { name: /^\d+ matching$/ })).toBeVisible();
+
+  await show.selectOption('pull');
+  await expect(headings).toHaveText([/^Back/, /^Biceps/, /^Forearms/]);
+
+  await show.selectOption('legs');
+  await expect(headings).toHaveText([/^Quads/, /^Hamstrings/, /^Glutes/, /^Calves/]);
+
+  await show.selectOption('core');
+  await expect(headings).toHaveText([/^Core/]);
+
+  await show.selectOption('biceps');
+  await expect(headings).toHaveText([/^Biceps/]);
+
+  // A search narrows within the filter: a bench press is not a biceps exercise.
+  await page.getByRole('searchbox', { name: 'Search' }).fill('bench');
+  await expect(page.getByText('Nothing matches.')).toBeVisible();
+  await show.selectOption('push');
+  await expect(page.getByText('Barbell Bench Press', { exact: true })).toBeVisible();
+
+  await show.selectOption('all');
+  await page.getByRole('searchbox', { name: 'Search' }).fill('');
+  await expect(headings).toHaveCount(11);
+});
+
 test('a custom exercise is filed under the muscle group chosen for it', async ({ page }) => {
   await page.goto('/exercises/new');
   await page.getByRole('textbox', { name: 'Name' }).fill('Cable Y-Raise');

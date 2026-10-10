@@ -333,7 +333,7 @@ export function NumberField({
 /** The spoken form of a unit printed beside a figure, which is hidden from screen readers. */
 const unitNames: Record<string, string> = { kg: 'kilograms', lb: 'pounds', s: 'seconds' };
 
-function FieldLabel({
+export function FieldLabel({
   htmlFor,
   label,
   note,

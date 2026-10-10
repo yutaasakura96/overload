@@ -545,7 +545,8 @@ a slot moves focus to the slot now in its place. `Add exercises`, then the prima
 A hidden exercise still in the routine says `· Hidden`. Leaving without saving discards the edit.
 
 **Exercise picker.** Opens inside the editor, so nothing typed is lost. A search field, `New
-exercise`, then the library without hidden exercises, filed and searched as the library is (below).
+exercise`, the `Show` filter, then the library without hidden exercises, filed, filtered and
+searched as the library is (below).
 Each row is a native checkbox stretched invisibly over it, drawn as `05`'s check cell, so a tap
 anywhere ticks it; the focus ring goes on the row. Ticked exercises join the routine in the order
 they were ticked. The
@@ -566,7 +567,10 @@ nothing is ticked. Back to the editor, focus lands on `Add exercises`.
   A delete refused because routines use it names them and suggests hiding instead.
 
 **Exercise library** (`/exercises`). A search field and `New exercise` above the list, as in the
-picker. Each row opens the exercise form. A `Hidden exercises` disclosure under the list fetches the
+picker. Under them `Show`, a select of `All exercises`, the four splits (`Push`, `Pull`, `Legs`,
+`Core`) and the eleven muscle groups: it narrows the list before the search matches within it, and a
+custom exercise with no group is only in `All exercises`. A heading counts `N matching` while
+either is in use. The filter is not remembered. Each row opens the exercise form. A `Hidden exercises` disclosure under the list fetches the
 hidden ones when first opened.
 
 **Muscle groups and search** (library and picker; `06`, 2026-10-08). The list is filed under its

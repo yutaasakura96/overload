@@ -78,6 +78,11 @@ biceps, triceps, forearms, quads, hamstrings, glutes, calves or core. Every seed
 a custom one may have none.
 _Avoid_: body part, category, target muscle; listing several per exercise
 
+**Split**:
+A broader way to narrow the exercise list: push, pull, legs or core. Derived from the muscle group,
+never stored; a custom exercise with no group is in none.
+_Avoid_: day, program, routine
+
 **Alias**:
 Another name a lifter would type for a seeded exercise ("RDL", "Skullcrusher", "Pec Deck"). Search
 matches it; it is never the exercise's name.

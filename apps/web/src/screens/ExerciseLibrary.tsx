@@ -10,7 +10,13 @@ import {
   DataState,
   TextField,
 } from '../components';
-import { ExerciseGroups, searchExercises } from '../exercise-list';
+import {
+  ExerciseFilterField,
+  ExerciseGroups,
+  filterExercises,
+  searchExercises,
+  type ExerciseFilter,
+} from '../exercise-list';
 import { allExercisesQuery, currentWeightUnit, exercisesQuery, useAccount } from '../query';
 import { formatWeight } from '../units';
 
@@ -22,11 +28,16 @@ export function ExerciseLibrary({ me, navigate }: { me: Me; navigate: (path: str
   const confirmed = useAccount().status === 'confirmed';
   const exercises = useQuery({ ...exercisesQuery, enabled: confirmed });
   const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState<ExerciseFilter>('all');
   const [showHidden, setShowHidden] = useState(false);
   const everything = useQuery({ ...allExercisesQuery, enabled: confirmed && showHidden });
   const items = useMemo(() => exercises.data ?? [], [exercises.data]);
+  const narrowed = search !== '' || filter !== 'all';
   const hidden = (everything.data ?? []).filter((exercise) => exercise.hidden);
-  const shown = useMemo(() => searchExercises(items, search), [items, search]);
+  const shown = useMemo(
+    () => searchExercises(filterExercises(items, filter), search),
+    [items, filter, search],
+  );
 
   return (
     <main>
@@ -64,16 +75,18 @@ export function ExerciseLibrary({ me, navigate }: { me: Me; navigate: (path: str
               New exercise
             </button>
           </div>
+          <ExerciseFilterField value={filter} onChange={setFilter} />
           <h2
             id="library-heading"
-            className={search === '' ? 'visually-hidden' : 'section-label section-label--gutter'}
+            className={narrowed ? 'section-label section-label--gutter' : 'visually-hidden'}
             aria-live="polite"
           >
-            {search === '' ? 'Exercise library' : `${shown.length} matching`}
+            {narrowed ? `${shown.length} matching` : 'Exercise library'}
           </h2>
           {shown.length === 0 ? (
             <p className="empty">
-              Nothing matches. Check the spelling, or make it with <em>New exercise</em>.
+              Nothing matches. Check the spelling or the filter, or make it with{' '}
+              <em>New exercise</em>.
             </p>
           ) : (
             <>

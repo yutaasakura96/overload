@@ -1826,3 +1826,7 @@ main:focus {
   font-size: 11px;
   color: var(--text-secondary);
 }
+/* The split and muscle group filter, a row of its own under the search. */
+.exercise-filter {
+  padding: 8px var(--gutter) 0;
+}
