@@ -327,7 +327,7 @@ GET /api/training/last-time  →  200
   ] }
 ```
 
-`sets` holds working sets only; `workingSet` is derived, 1…n in `position` order (`04`). `rir` is `null` where the set recorded none; it lets the next workout's first set open with last time's RIR. `suggestion.rule` is `top_of_range_hit` or `repeat`. An exercise never logged is absent, and the
+`sets` holds working sets only; `workingSet` is derived, 1…n in `position` order (`04`). `rir` is `null` where the set recorded none. `suggestion.rule` is `top_of_range_hit` or `repeat`. An exercise never logged is absent, and the
 screen shows "first workout".
 
 - **Which workout is last time:** the caller's most recent workout, by `started_at`, with at least
