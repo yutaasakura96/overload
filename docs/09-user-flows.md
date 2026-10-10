@@ -141,7 +141,7 @@ sees when it does not simply succeed.
 
 ### F5. Exercise library
 
-1. From the picker (F2, F3) or Settings → Exercises: search the seeded ~180 plus the user's own, by name or alias (S8).
+1. From the picker (F2, F3) or Settings → Exercises: browse, filter or search the seeded ~180 plus the user's own (`10` §8.1).
 2. **Create custom:** name, equipment, optional muscle group, default rest, increment → save. Visible only to this user.
 3. **Remove:** a seeded exercise, or a custom one with history, is hidden (`exercise_setting`), never
    deleted — the API refuses with 409 `exercise_has_history` (`07` §3). It leaves the picker and stays

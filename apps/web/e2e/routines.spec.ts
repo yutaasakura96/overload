@@ -25,6 +25,11 @@ test('the picker files exercises under muscle groups and finds one by an alias',
     chest.getByRole('checkbox', { name: 'Barbell Bench Press', exact: true }),
   ).toBeVisible();
 
+  await page.getByRole('combobox', { name: 'Show' }).selectOption('pull');
+  await expect(page.getByRole('region', { name: 'Chest' })).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'Back' })).toBeVisible();
+  await page.getByRole('combobox', { name: 'Show' }).selectOption('all');
+
   await page.getByRole('searchbox', { name: 'Search' }).fill('butterfly');
   await expect(page.getByRole('heading', { name: '1 matching' })).toBeVisible();
   const fly = page.getByRole('checkbox', { name: 'Machine Chest Fly', exact: true });

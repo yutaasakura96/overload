@@ -2,7 +2,13 @@ import type { Exercise } from '@overload/api-contract';
 import { useMemo, useState, type ReactNode } from 'react';
 import { AppBar, CheckIcon, Notice, TextField } from '../components';
 import { equipmentLabels } from '../equipment';
-import { ExerciseGroups, searchExercises } from '../exercise-list';
+import {
+  ExerciseFilterField,
+  ExerciseGroups,
+  filterExercises,
+  searchExercises,
+  type ExerciseFilter,
+} from '../exercise-list';
 
 // S8's picker, opened from the routine editor (docs/09 F2 step 2, F5 step 1; docs/10 §8.1). Several
 // exercises can be ticked at once, and they join the routine in the order they were ticked.
@@ -24,9 +30,15 @@ export function ExercisePicker({
   onCreate: () => void;
 }) {
   const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState<ExerciseFilter>('all');
   const [picked, setPicked] = useState<string[]>([]);
 
-  const shown = useMemo(() => searchExercises(exercises ?? [], search), [exercises, search]);
+  const shown = useMemo(
+    () => searchExercises(filterExercises(exercises ?? [], filter), search),
+    [exercises, filter, search],
+  );
+
+  const narrowed = search !== '' || filter !== 'all';
 
   const toggle = (id: string) =>
     setPicked((current) =>
@@ -61,6 +73,7 @@ export function ExercisePicker({
           New exercise
         </button>
       </div>
+      <ExerciseFilterField value={filter} onChange={setFilter} />
 
       {exercises !== undefined && (
         <section aria-labelledby="picker-heading">
@@ -69,11 +82,12 @@ export function ExercisePicker({
             className="section-label section-label--gutter"
             aria-live="polite"
           >
-            {search === '' ? 'Library' : `${shown.length} matching`}
+            {narrowed ? `${shown.length} matching` : 'Library'}
           </h2>
           {shown.length === 0 ? (
             <p className="empty">
-              Nothing matches. Check the spelling, or make it with <em>New exercise</em>.
+              Nothing matches. Check the spelling or the filter, or make it with{' '}
+              <em>New exercise</em>.
             </p>
           ) : (
             <ExerciseGroups exercises={shown} listClassName="picker__list">
