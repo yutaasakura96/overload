@@ -825,7 +825,8 @@ test('a workout left for three hours ends at its last set', async ({ page }) => 
 
   await start(page, name);
   await completeSet(page, { reps: '6' });
-  await expect(page.getByRole('row', { name: /^1 0 6/ })).toBeVisible();
+  // The Last cell is there once an earlier test has left the account a chin-up to compare with.
+  await expect(page.getByRole('row', { name: /^1 (0 × \d+ )?0 6/ })).toBeVisible();
   await expect(dataState(page)).toContainText('SYNCED');
 
   // Just short of three hours it is still in progress.
