@@ -60,7 +60,9 @@ test('loaded colour tokens resolve in both themes and meet their contrast rules'
   const { dark, light, darkNames, lightNames, outside } = await page.evaluate(() => {
     const descendants = (rules: CSSRuleList): CSSRule[] =>
       Array.from(rules).flatMap((rule) =>
-        rule instanceof CSSGroupingRule ? [rule, ...descendants(rule.cssRules)] : [rule],
+        'cssRules' in rule && rule.cssRules instanceof CSSRuleList
+          ? [rule, ...descendants(rule.cssRules)]
+          : [rule],
       );
     const rules = Array.from(document.styleSheets).flatMap((sheet) => descendants(sheet.cssRules));
     const styles = rules.filter((rule): rule is CSSStyleRule => rule instanceof CSSStyleRule);
@@ -103,16 +105,23 @@ test('loaded colour tokens resolve in both themes and meet their contrast rules'
     const light = values('light');
     probe.remove();
     const literalColour = /#[0-9a-f]{3,8}\b|\b(?:rgb|hsl|oklch|oklab|lab|lch|color)a?\(/i;
-    const outside = styles
+    type Declaring = CSSRule & {
+      style: CSSStyleDeclaration;
+      selectorText?: string;
+      keyText?: string;
+    };
+    const outside = rules
+      .filter(
+        (rule): rule is Declaring => 'style' in rule && rule.style instanceof CSSStyleDeclaration,
+      )
       .filter((rule) => rule !== darkRule && rule !== lightRule)
-      .flatMap((rule) => [
-        [rule.selectorText, 'cssText', rule.style.cssText],
-        ...Array.from(rule.style).map((name) => [
-          rule.selectorText,
-          name,
-          rule.style.getPropertyValue(name),
-        ]),
-      ])
+      .flatMap((rule) => {
+        const label = rule.selectorText ?? rule.keyText ?? '';
+        return [
+          [label, 'cssText', rule.style.cssText],
+          ...Array.from(rule.style).map((name) => [label, name, rule.style.getPropertyValue(name)]),
+        ];
+      })
       .filter(
         ([, name, value]) =>
           name !== undefined &&
