@@ -48,21 +48,21 @@ an exercise outgrows it.
 | Block | Geometry | Content |
 | --- | --- | --- |
 | App bar | `18px 16px 14px`, bottom `line/hairline` | Left: routine name (`PUSH A`) 11px/600/`0.12em` over elapsed time 11px mono `text/quaternary`, 3px gap. Right: the data-state slot, drawn in its pending form |
-| Exercise header | `15px 16px 9px`, baseline-aligned row | `Bench Press` 15px/600/`0.06em` uppercase; right: `6–10 · +2.5` 10px mono `text/quaternary` — the rep range and this exercise's increment |
+| Exercise header | `15px 16px 9px`, baseline-aligned row | `Bench Press` 15px/600/`0.06em` uppercase; right: `1 OF 5` 10px mono `text/quaternary`, the exercise's place in the workout. The artboard draws `6–10 · +2.5` there; the target line says both since 2026-10-10 |
+| **Last time and target** | Inset 16px, 1px `line/hairline`, two rows (`05` §4.19). 8px above the warm-up summary | `LAST TIME`, its date and `80 kg × 10 · 10 · 10 · 9`; then `TODAY'S TARGET`, a `SAME WEIGHT` or `+2.5 KG` tag, `80 kg × 6–10` and the reason as a sentence. See *Last time and today's target*, below |
 | Warm-up summary | Inset 16px, 44px tall, `0 11px`, 1px `line/hairline`. The whole row is the target that expands it (§7.2) | 13px `done` check, `2 WARM-UP SETS` 11px `text/quaternary`; right: `40 × 10 · 60 × 6` 11px mono `text/quaternary` |
 | Column heads | `16px 16px 7px`, then 1px `line/hairline` inset | `SET · LAST · KG · REPS · RIR` 9px/`0.1em` `text/quaternary`; sixth column unlabelled |
 | Completed set rows | `9px 16px`, `line/row` bottom | Set no. 13px mono `text/tertiary`; last time 11px mono `text/quaternary`; kg and reps 17px mono/500 `text/primary`; RIR 13px mono `text/tertiary`; done check cell 46 × 44 |
 | **Active set card** | `14px 16px 0`, 1px `line/accent` + 2px `accent` left edge, `surface/active`, `14px 14px 16px`, 13px gap | See below |
 | Up next | `18px 16px 0`, 8px gap | `UP NEXT` section label; then rows at `13px 12px`, 1px `line/hairline`: name 12px `text/secondary`/`0.03em`, target 11px mono `text/quaternary` |
-| Rest bar | Fixed `bottom: 0`, over the safe-area inset | 2px track, `REST` label, 30px mono timer, `+30s` and `SKIP`. At zero: `REST OVER`, `+0:12` counting up in `accent`, `DISMISS` (`05` §4.14) |
+| Rest bar | Fixed `bottom: 0`, over the safe-area inset, for the whole workout | With no rest counting: `REST TIMER` over `Starts by itself after each set: 3:00`. Counting: 2px track, `REST · NEXT: SET 3 OF 4`, 42px mono timer, `+30s` and `SKIP`. At zero: `REST OVER`, `+0:12` counting up in `accent`, `DISMISS` (`05` §4.14) |
 
 ### Active set card
 
 | Row | Spec |
 | --- | --- |
-| Label row | `SET 3 OF 4` 10px `0.12em` `accent` (the artboard draws `SET 3`; see *Target*, below); right: `LAST` 9px `text/quaternary` + `80 × 10` 12px mono `text/tertiary`, 7px gap |
+| Label row | `SET 3 OF 4` 10px `0.12em` `accent` (the artboard draws `SET 3`; see *Target*, below); right: `LAST TIME` 9px `text/quaternary` + `80 × 10` 12px mono `text/tertiary`, 7px gap: the same set last time |
 | Figures | Grid `1fr 88px 62px`, 8px gap, `align-items: end`. Each column: 9px `0.1em` `text/quaternary` label, 6px gap, then a 56px mono/500/`-0.03em`/0.86 figure |
-| Suggestion | 9px `SUGGESTED` label, 9px gap, then `82.5` 11px mono `accent` in a `4px 7px` box with a 1px `line/accent` border, then the reason in 10px `text/quaternary` — `hit 10 on every set last time` |
 | Actions | 8px gap. `WARM` 52 × 64 secondary; `COMPLETE SET` flex-grow × 64 primary with a 22px check and 11px gap |
 
 **Figure states.** Entered values are `text/primary`. Unentered are the same 56px in `text/placeholder`
@@ -75,9 +75,27 @@ completion control is enabled regardless; a missing weight or reps is refused on
 
 - **Suggestion source (S3).** Double progression. A suggestion always shows once the exercise has a
   last time: plus the increment if every working set reached the top of the rep range, otherwise the
-  same weight. The reason string always says which, in plain words.
-- **First time doing an exercise (S2, PRD empty states).** No LAST column value, no suggestion chip
-  and no reason string; the row reads `first workout`.
+  same weight. The reason always says which, in plain words.
+- **Last time and today's target, decided 2026-10-10** (`06`; reference `docs/prototype/`). Each
+  exercise opens with the two-row block of `05` §4.19, in place of the `SUGGESTED` chip the card
+  carried and the coded range in the header. The suggestion is labelled `TODAY'S TARGET` on screen
+  only (`CONTEXT.md`). The weight and its rule are the API's; the screen words them:
+  - Weight up: `You reached 10 reps on every set last time, so the weight goes up by 2.5 kg. Aim
+    for 6 or more.` The step named is the one the suggestion took, so a dumbbell that goes 30 to 32
+    says 2 kg.
+  - Same weight: `1 set of 4 stopped short of 10 reps last time. Reach 10 on all 4 and next time
+    goes up to 82.5 kg.` (`All 4 sets` when none reached it.) The next weight is named only where
+    the equipment makes every step its increment adds; for a dumbbell the sentence ends `and next
+    time the weight goes up`, since which weight the rack makes is the API's to say.
+  - With one set last time the sentences say `your only set` and `Your set`. Where the rep range has
+    changed since and the count no longer fits the rule, the API's own reason is shown as a sentence.
+  - The block is read, not tapped. The way from it to the exercise's past sets comes with `#48`.
+- **First time doing an exercise (S2, PRD empty states).** The block says so in words: `LAST TIME`
+  reads `None yet`, with `This is your first time logging Bench Press, so there is nothing to
+  compare with.` `TODAY'S TARGET` reads `Find your weight × 6–10`, tagged `FIRST WORKOUT`, with
+  `Pick a weight you can lift for 6–10 reps with one to three left in you. From the next workout,
+  this line shows what you did and what to aim for.` (`Bodyweight × 6–10` and `Do 6–10 reps…` for a
+  bodyweight exercise.) No LAST column value; the card's label row reads `FIRST WORKOUT`.
 - **Target (S4), decided 2026-10-03** (`06`). The label counts working sets against
   `target_sets`: `SET 3 OF 4`, then `SET 5 · EXTRA` past the target, and `SET 3` with no target.
   With the warm-up toggle on it reads `WARM-UP`, and a warm-up never moves the count.
@@ -100,7 +118,10 @@ completion control is enabled regardless; a missing weight or reps is refused on
   9999.99 kg. The refused *row* below is for what the server turns away.
 - **Rest over, decided 2026-10-03** (`06`). A short tone at zero, and the bar counts over until
   `DISMISS` or the next set. The screen is kept awake while rest counts, where the browser allows.
-  A rest setting of 0 seconds starts no rest bar or tone.
+  A rest setting of 0 seconds starts no rest or tone.
+- **The rest bar is always there, decided 2026-10-10** (`06`). From the start of the workout, before
+  any set, it says the timer starts by itself and how long the open exercise rests; it returns to
+  that after `SKIP` or `DISMISS`. While counting, its label names the set that comes next.
 - **Weights in pounds.** With the profile's unit set to `lb`, every weight on the screen is shown
   and typed in pounds, to the tenth; the column head and the weight label read `LB`.
 - **The other exercises.** `UP NEXT` lists the exercises with sets left, then `DONE` the ones at

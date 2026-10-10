@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0B0D0F" />
+    <title>Overload: clickable prototype for #47 to #51</title>
+    <style>
+/*FONTS*/
+    </style>
+    <style>
+/*APP_CSS*/
+    </style>
+    <style>
+/*PROTO_CSS*/
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <div class="page__phone">
+        <div class="phone-caption"><span id="phone-caption"></span><span>390 PT · SAMPLE DATA</span></div>
+        <div class="phone"><div class="phone__scroll" id="phone-scroll"></div></div>
+      </div>
+
+      <div class="page__side side">
+        <section>
+          <h1>Overload: a prototype to correct before building</h1>
+          <p class="lede">
+            The phone is clickable: it behaves like the app, on a year of sample workouts. It covers the workout screen
+            (#47), history (#48), the strength overview (#49), muscle balance (#50), full-screen mode with the iPhone Focus
+            guide (#51) and the exercise filter (#41). It uses the app's own stylesheet, so the look is today's. Structure
+            and wording are what is new.
+          </p>
+          <p class="lede">
+            Click a button and it works. Click anything else, a line of text or a figure, to leave a comment on it.
+          </p>
+        </section>
+
+        <section>
+          <h2>Screens</h2>
+          <div class="screen-map" id="map"></div>
+        </section>
+
+        <section class="now" id="now" aria-live="polite"></section>
+
+        <section>
+          <h2>Open product questions</h2>
+          <p class="lede" style="margin-bottom: 14px">
+            Sixteen choices the prototype had to make. Each one is already applied as recommended, so no answer is needed
+            where you agree. To change one, choose an option, queue it, then press Send to Agent.
+          </p>
+          <div class="questions" id="questions"></div>
+        </section>
+
+        <section>
+          <h2>What each issue would need to build</h2>
+          <div class="table-scroll">
+            <table class="build">
+              <thead>
+                <tr><th scope="col">Issue</th><th scope="col">What it takes</th><th scope="col">Size</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>#47 Last time, target, rest timer</td>
+                  <td>Web only. The last-time route already returns the date, the sets and the suggestion with its rule. Rework the top of the exercise block and the rest bar in <code>Workout.tsx</code>; the wording of the reason comes from <code>domain/progression.ts</code>. Design-system entries for the two-line block and the 42px timer.</td>
+                  <td class="build__size">Small</td>
+                </tr>
+                <tr>
+                  <td>#41 Exercise filter</td>
+                  <td>Web only. Every exercise already has its muscle group; the split is a fixed map over it. Filter state in the library and the routine editor's picker. Already in review as pull request 58, which derives the splits the same way.</td>
+                  <td class="build__size">Small, in review</td>
+                </tr>
+                <tr>
+                  <td>#48 History, with edit and delete</td>
+                  <td>Two read routes that are designed but not built (<code>GET /api/workouts</code>, <code>GET /api/workouts/{id}</code>), each with cross-user tests. An exercise's past sets added to the progress route. Edit and delete go through sync, which already takes updates and deletes with tombstones; the web app needs a way to put a past set back in the set store. Three screens, the Progress tab, and the same editor in the live workout.</td>
+                  <td class="build__size">Large</td>
+                </tr>
+                <tr>
+                  <td>#49 Strength overview</td>
+                  <td>A pure trend function in <code>domain/</code> beside the e1RM and span functions, one route returning every lift's points, trend and status, and one screen. Needs the Progress tab from #48.</td>
+                  <td class="build__size">Medium</td>
+                </tr>
+                <tr>
+                  <td>#51 Full screen and Focus guide</td>
+                  <td>Web only. A second layout of the workout screen, the screen kept awake for the whole workout while it is on, and a static guide whose "done" is kept on the phone. Real blocking waits for the native app.</td>
+                  <td class="build__size">Small to medium</td>
+                </tr>
+                <tr>
+                  <td>#50 Muscle balance</td>
+                  <td>Secondary muscle groups on exercises: a schema change, a seed migration for 185 exercises, and a field on the custom-exercise form. A pure weekly-sets function, one route, one screen. The evidence tag and sources sheet are specified but not built, so this builds them, with the three citations as content.</td>
+                  <td class="build__size">Medium to large</td>
+                </tr>
+                <tr>
+                  <td>#50 second step: suggestions</td>
+                  <td>Rules as pure functions (which groups are low, which lift has stalled), a catalogue of exercises per muscle group and of close variations, and routine creation through the route that exists. Overlaps the plateau protocols planned for M3. Wants its own design session before a build.</td>
+                  <td class="build__size">Large</td>
+                </tr>
+                <tr>
+                  <td>#52 Bulk and cut advice</td>
+                  <td>Nothing now: it stays in M2 and M3. The evidence tag and sources sheet built for #50 are what it needs to show its research.</td>
+                  <td class="build__size">None now</td>
+                </tr>
+                <tr>
+                  <td>#53 Polish</td>
+                  <td>Stays last. Each screen above still clears the polish gate when it is built.</td>
+                  <td class="build__size">Last</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section>
+          <h2>Sources checked for this prototype</h2>
+          <ul class="sources">
+            <li>Schoenfeld, Ogborn &amp; Krieger. Dose-response relationship between weekly resistance training volume and increases in muscle mass. <em>J Sports Sci</em> 2017;35(11).</li>
+            <li>Baz-Valle et al. A systematic review of the effects of different resistance training volumes on muscle hypertrophy. <em>J Hum Kinet</em> 2022;81.</li>
+            <li>Pelland et al. The resistance training dose response: meta-regressions of weekly volume and frequency. <em>Sports Med</em> 2026;56(2).</li>
+            <li>Kassiano et al. Does varying resistance exercises promote superior muscle hypertrophy and strength gains? <em>J Strength Cond Res</em> 2022;36(6).</li>
+            <li>Apple, iPhone User Guide for iOS 27: Set up a Focus; Allow or silence notifications for a Focus; Turn on or schedule a Focus.</li>
+          </ul>
+        </section>
+      </div>
+    </div>
+
+    <script>
+/*DATA_JS*/
+    </script>
+    <script>
+/*APP_JS*/
+    </script>
+    <script>
+/*SIDE_JS*/
+    </script>
+  </body>
+</html>

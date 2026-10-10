@@ -331,7 +331,9 @@ export async function startWorkout(input: {
             reps: set.reps,
             rir: set.rir,
           })),
+          lastTimeOn: last?.performedOn ?? null,
           suggestion: last?.suggestion ?? null,
+          equipment: exercise.equipment,
         },
       },
     ];

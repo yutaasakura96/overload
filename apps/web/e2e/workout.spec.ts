@@ -47,6 +47,8 @@ test.beforeEach(async ({ context }) => {
 });
 
 const dataState = (page: Page) => page.locator('.data-state');
+// Last time and today's target, in words, on top of the open exercise (docs/05 §4.19).
+const brief = (page: Page) => page.locator('.brief');
 
 async function saveProfile(page: Page, unit?: 'Kilograms' | 'Pounds') {
   await page.goto('/');
@@ -155,9 +157,24 @@ test('a workout is logged from a routine, offline and back, and finished', async
   // One tap starts it (S4). The defaults are resolved here: the slot's range wins.
   await start(page, name);
   await expect(page.getByRole('heading', { name: 'Barbell Bench Press', level: 2 })).toBeVisible();
-  await expect(page.getByText('Reps 5–8 · increment +2.5')).toBeVisible();
+  await expect(page.getByText('Exercise 1 OF 2')).toBeVisible();
+  // A first workout says in words why there is no last time and no target yet.
+  await expect(brief(page)).toContainText('Last timeNone yet');
+  await expect(brief(page)).toContainText(
+    'This is your first time logging Barbell Bench Press, so there is nothing to compare with.',
+  );
+  await expect(brief(page)).toContainText('Today’s targetFirst workout');
+  await expect(brief(page)).toContainText('Find your weight × 5–8');
+  await expect(brief(page)).toContainText(
+    'Pick a weight you can lift for 5–8 reps with one to three left in you. From the next workout, this line shows what you did and what to aim for.',
+  );
   const card = page.getByRole('region', { name: 'SET 1 OF 3' });
-  await expect(card).toContainText('first workout');
+  await expect(card).toContainText('FIRST WORKOUT');
+  // The rest bar is there before the first set, saying the timer starts by itself.
+  const rest = page.getByRole('region', { name: 'Rest timer' });
+  await expect(rest).toContainText('REST TIMER');
+  await expect(rest).toContainText('Starts by itself after each set: 3:00');
+  await expect(rest.getByRole('timer')).toHaveCount(0);
 
   // RIR is explained where it is entered, and the guide opens in the card without leaving the workout.
   await expect(card).toContainText('RIR is reps in reserve');
@@ -173,8 +190,8 @@ test('a workout is logged from a routine, offline and back, and finished', async
   // S1 online: the set shows, rest starts on its own (S5), and the upload needs no action.
   await completeSet(page, { weight: '60', reps: '8', rir: '2' });
   await expect(page.getByRole('row', { name: '1 60 8 2 Done' })).toBeVisible();
-  const rest = page.getByRole('region', { name: 'Rest timer' });
-  await expect(rest).toContainText('REST');
+  await expect(rest).toContainText('REST · NEXT: SET 2 OF 3');
+  await expect(rest.getByRole('timer')).toHaveText(/^(3:00|2:5\d)$/);
   await expect(page.getByRole('region', { name: 'SET 2 OF 3' })).toBeVisible();
   await expect(page.getByRole('textbox', { name: 'Weight in kilograms' })).toHaveValue('60');
   // Reps and RIR open on the set just done, as values and not placeholders.
@@ -235,7 +252,8 @@ test('a workout is logged from a routine, offline and back, and finished', async
   await expect(
     page.getByRole('heading', { name: 'Barbell Overhead Press', level: 2 }),
   ).toBeVisible();
-  await expect(page.getByText('Reps 8–12 · increment +1.25')).toBeVisible();
+  await expect(page.getByText('Exercise 2 OF 2')).toBeVisible();
+  await expect(brief(page)).toContainText('Find your weight × 8–12');
   await expect(page.getByRole('button', { name: /Barbell Bench Press 3 sets done/ })).toBeVisible();
 
   // S5: rest runs out. The bar says so and counts over until dismissed; +30s extends it first.
@@ -247,7 +265,9 @@ test('a workout is logged from a routine, offline and back, and finished', async
   await expect(rest).toContainText('REST OVER');
   await expect(rest.getByRole('timer')).toHaveText(/^\+0:0\d$/);
   await rest.getByRole('button', { name: 'Dismiss rest' }).click();
-  await expect(rest).toHaveCount(0);
+  // Dismissed, the bar stays and goes back to saying how long the next rest is.
+  await expect(rest.getByRole('timer')).toHaveCount(0);
+  await expect(rest).toContainText('Starts by itself after each set: 1:00');
 
   // Finish: the workout ends and everything reaches the server as it was logged.
   await expect(dataState(page)).toContainText('SYNCED');
@@ -276,9 +296,18 @@ test('a workout is logged from a routine, offline and back, and finished', async
   // the top of 5–8, the warm-up left out, so it is last weight plus the increment.
   await start(page, name);
   const next = page.getByRole('region', { name: 'SET 1 OF 3' });
-  await expect(next).toContainText('LAST60 × 8');
-  await expect(next).toContainText('62.5');
-  await expect(next).toContainText('hit 8 on every set last time');
+  await expect(next).toContainText('LAST TIME60 × 8');
+  // Both are said in words on top of the exercise, the target with its reason.
+  await expect(brief(page)).toContainText(/Last time\w{3} \d{1,2} \w{3} · today/);
+  await expect(brief(page)).toContainText('60 kg × 8 · 8 · 8');
+  await expect(brief(page)).toContainText('Today’s target+2.5 kg');
+  await expect(brief(page)).toContainText('62.5 kg × 5–8');
+  await expect(brief(page)).toContainText(
+    'You reached 8 reps on every set last time, so the weight goes up by 2.5 kg. Aim for 5 or more.',
+  );
+  // The chip in the set card and the coded range in the header are gone.
+  await expect(page.getByText('SUGGESTED')).toHaveCount(0);
+  await expect(page.getByText('hit 8 on every set last time')).toHaveCount(0);
   await expect(page.getByRole('textbox', { name: 'Weight in kilograms' })).toHaveValue('62.5');
   // The weight went up, so reps start at the bottom of the range and last time's RIR is not used.
   const reps = page.getByRole('textbox', { name: 'Reps', exact: true });
@@ -301,7 +330,12 @@ test('a workout is logged from a routine, offline and back, and finished', async
   await page.getByRole('button', { name: 'Save profile' }).click();
   await expect(page.getByText('Saved.')).toBeVisible();
   await page.getByRole('link', { name: 'Resume workout' }).click();
-  await expect(page.getByRole('region', { name: 'SET 1 OF 3' })).toContainText('LAST132.3 × 8');
+  await expect(page.getByRole('region', { name: 'SET 1 OF 3' })).toContainText(
+    'LAST TIME132.3 × 8',
+  );
+  await expect(brief(page)).toContainText('132.3 lb × 8 · 8 · 8');
+  await expect(brief(page)).toContainText('Today’s target+5.5 lb');
+  await expect(brief(page)).toContainText('137.8 lb × 5–8');
   await expect(page.getByRole('textbox', { name: 'Weight in pounds' })).toHaveValue('137.8');
 
   // One workout at a time: starting another asks first, and Resume goes back to the one open.
@@ -516,7 +550,9 @@ test('a profile changed elsewhere reaches the open form without undoing an edit 
   expect(me.profile).toMatchObject({ timezone: 'Europe/Paris', weightUnit: 'lb' });
 });
 
-test('an exercise with no rest shows no rest bar after a set', async ({ page }) => {
+test('an exercise with no rest starts no rest after a set, and the bar says so', async ({
+  page,
+}) => {
   const name = `No rest ${Date.now()}`;
   await saveProfile(page);
   await page.goto('/exercises');
@@ -529,16 +565,19 @@ test('an exercise with no rest shows no rest bar after a set', async ({ page }) 
   await expect(page).toHaveURL('/routines');
 
   await start(page, name);
+  const rest = page.getByRole('region', { name: 'Rest timer' });
+  await expect(rest).toContainText('This exercise has no rest set, so no timer starts.');
   await completeSet(page, { weight: '30', reps: '10' });
   await expect(page.getByRole('region', { name: 'SET 2 OF 3' })).toBeVisible();
-  await expect(page.getByRole('region', { name: 'Rest timer' })).toHaveCount(0);
+  await expect(rest.getByRole('timer')).toHaveCount(0);
   await completeSet(page, { reps: '10' });
   await expect(page.getByRole('region', { name: 'SET 3 OF 3' })).toBeVisible();
   await completeSet(page, { reps: '10' });
   await expect(page.getByRole('region', { name: 'SET 4 · EXTRA' })).toBeVisible();
   await completeSet(page, { reps: '10' });
   await expect(page.getByRole('region', { name: 'SET 5 · EXTRA' })).toBeVisible();
-  await expect(page.getByRole('region', { name: 'Rest timer' })).toHaveCount(0);
+  await expect(rest.getByRole('timer')).toHaveCount(0);
+  await expect(rest).toContainText('This exercise has no rest set, so no timer starts.');
   await finish(page);
 });
 
@@ -598,7 +637,7 @@ test('leaving the app and coming back keeps the workout screen as it was', async
   await rest.getByRole('button', { name: 'Skip rest' }).click();
   await comeBack(async () => {
     await expect(page.getByRole('textbox', { name: /^Weight in/ })).toHaveValue('7.5');
-    await expect(rest).toHaveCount(0);
+    await expect(rest.getByRole('timer')).toHaveCount(0);
   });
   await page.getByRole('button', { name: 'Complete set' }).click();
   await expect(page.getByRole('button', { name: /1 WARM-UP SET/ })).toBeVisible();
@@ -658,9 +697,9 @@ test('each slot of an exercise a routine holds twice keeps its own last time thr
 
   // The 5–8 slot reaches 8; the 8–12 slot stops at 10.
   await start(page, name);
-  await expect(page.getByText('Reps 5–8')).toBeVisible();
+  await expect(brief(page)).toContainText('× 5–8');
   await completeSet(page, { weight: '80', reps: '8' });
-  await expect(page.getByText('Reps 8–12')).toBeVisible();
+  await expect(brief(page)).toContainText('× 8–12');
   await completeSet(page, { weight: '60', reps: '10' });
   await expect(dataState(page)).toContainText('SYNCED');
   const lastTime = page.waitForResponse(
@@ -682,15 +721,20 @@ test('each slot of an exercise a routine holds twice keeps its own last time thr
 
   // Each slot opens on its own sets, judged against its own range.
   await start(page, name);
-  await expect(page.getByText('Reps 8–12')).toBeVisible();
+  await expect(brief(page)).toContainText('60 kg × 8–12');
   const card = page.getByRole('region', { name: 'SET 1 OF 1' });
-  await expect(card).toContainText('LAST60 × 10');
-  await expect(card).toContainText('set 1 stopped at 10 of 12 last time');
+  await expect(card).toContainText('LAST TIME60 × 10');
+  await expect(brief(page)).toContainText('Today’s targetSame weight');
+  await expect(brief(page)).toContainText(
+    'Your set stopped short of 12 reps last time. Reach 12 and next time goes up to 62.5 kg.',
+  );
   await expect(page.getByRole('textbox', { name: 'Weight in kilograms' })).toHaveValue('60');
   await completeSet(page, { reps: '12' });
-  await expect(page.getByText('Reps 5–8')).toBeVisible();
-  await expect(card).toContainText('LAST80 × 8');
-  await expect(card).toContainText('hit 8 on the only set last time');
+  await expect(brief(page)).toContainText('82.5 kg × 5–8');
+  await expect(card).toContainText('LAST TIME80 × 8');
+  await expect(brief(page)).toContainText(
+    'You reached 8 reps on your only set last time, so the weight goes up by 2.5 kg. Aim for 5 or more.',
+  );
   await expect(page.getByRole('textbox', { name: 'Weight in kilograms' })).toHaveValue('82.5');
 });
 

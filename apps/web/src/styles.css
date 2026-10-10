@@ -923,13 +923,13 @@ button {
 
 /* What takes focus on screen 1 comes to rest clear of the stuck app bar and the rest bar. */
 html:has(.workout) {
-  scroll-padding: calc(70px + env(safe-area-inset-top)) 0 calc(104px + env(safe-area-inset-bottom));
+  scroll-padding: calc(70px + env(safe-area-inset-top)) 0 calc(108px + env(safe-area-inset-bottom));
 }
 
 /* Screen 1, the live workout (docs/10 §1). The document scrolls; the app bar sticks and the rest
    bar is fixed, so the screen keeps room under itself for the bar (docs/10 §7.3). */
 .workout {
-  padding-bottom: 96px;
+  padding-bottom: max(124px, calc(96px + env(safe-area-inset-bottom)));
 }
 .exercise-head {
   display: flex;
@@ -953,6 +953,84 @@ html:has(.workout) {
   letter-spacing: 0.04em;
   color: var(--text-quaternary);
   white-space: nowrap;
+}
+
+/* 4.19 Last time and today's target, in words, on top of each exercise */
+.brief {
+  display: grid;
+  margin: 0 var(--gutter);
+  border: 1px solid var(--line-hairline);
+  border-radius: var(--radius);
+  overflow-wrap: anywhere;
+}
+.brief__row {
+  display: grid;
+  gap: 5px;
+  padding: 10px 12px 11px;
+}
+.brief__row + .brief__row {
+  border-top: 1px solid var(--line-hairline);
+}
+.brief__row--target {
+  background: var(--surface-active);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.brief__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+.brief__label {
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-quaternary);
+}
+.brief__row--target .brief__label {
+  color: var(--accent);
+}
+.brief__when {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text-quaternary);
+}
+.brief__figures {
+  font-family: var(--font-mono);
+  font-size: 17px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+.brief__row--target .brief__figures {
+  color: var(--text-primary);
+}
+.brief__unit {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-quaternary);
+}
+.brief__tag {
+  padding: 3px 7px;
+  border: 1px solid var(--line-accent);
+  border-radius: var(--radius);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+  white-space: nowrap;
+}
+.brief__why {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+.brief + .warmups {
+  margin-top: 8px;
 }
 
 /* Warm-up summary, expanding in place (docs/10 §7.2) */
@@ -1305,25 +1383,6 @@ main:focus {
 .rir-help__scale dd {
   margin: 0;
 }
-.active-set__suggestion {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 9px;
-  padding-top: 1px;
-}
-.active-set__chip {
-  padding: 4px 7px;
-  border: 1px solid var(--line-accent);
-  border-radius: var(--radius);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--accent);
-}
-.active-set__reason {
-  font-size: 10px;
-  color: var(--text-quaternary);
-}
 .active-set__actions {
   display: flex;
   gap: 8px;
@@ -1418,7 +1477,7 @@ main:focus {
   margin: 0;
 }
 
-/* 4.14 Rest bar: fixed to the bottom edge, over the home indicator's inset */
+/* 4.14 Rest bar: fixed to the bottom edge, over the home indicator's inset, for the whole workout */
 .rest-bar {
   position: fixed;
   right: 0;
@@ -1443,7 +1502,9 @@ main:focus {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 13px var(--gutter) calc(17px + env(safe-area-inset-bottom));
+  /* As tall as its 46px controls with none showing, so the bar keeps its height before a rest. */
+  min-height: calc(72px + env(safe-area-inset-bottom));
+  padding: 12px var(--gutter) calc(14px + env(safe-area-inset-bottom));
 }
 .rest-bar__label {
   margin-bottom: 2px;
@@ -1453,11 +1514,22 @@ main:focus {
 }
 .rest-bar__timer {
   font-family: var(--font-mono);
-  font-size: 30px;
+  font-size: 42px;
   font-weight: 500;
-  line-height: 1;
-  letter-spacing: -0.01em;
+  line-height: 0.9;
+  letter-spacing: -0.03em;
   font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+/* No rest counting: the bar says the timer starts by itself. */
+.rest-bar__idle {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+.rest-bar__idle b {
+  font-family: var(--font-mono);
+  font-weight: 500;
   color: var(--text-primary);
 }
 /* Rest is over: the bar turns to the accent and counts up (docs/06, 2026-10-03). */
@@ -1475,14 +1547,14 @@ main:focus {
   border-radius: var(--radius);
 }
 .rest-bar__extend {
-  min-width: 62px;
+  min-width: 56px;
   border: 1px solid var(--line-field);
   font-family: var(--font-mono);
   font-size: 12px;
   color: var(--text-secondary);
 }
 .rest-bar__skip {
-  min-width: 72px;
+  min-width: 64px;
   padding: 0 12px;
   border: 1px solid var(--accent);
   background: var(--surface-accent);
