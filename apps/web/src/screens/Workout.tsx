@@ -455,7 +455,7 @@ function ActiveSet({
   scrollIntoView: boolean;
   onLogged: (isWarmup: boolean) => void;
 }) {
-  const { lastTime, suggestion, bodyweight } = exercise.local;
+  const { lastTime, lastTimeKnown, suggestion, bodyweight } = exercise.local;
   const number = completed.length + 1;
   const last = lastTime[completed.length];
   const previous = completed.at(-1);
@@ -466,7 +466,7 @@ function ActiveSet({
   // Assume the same again: the previous set's reps and RIR. The first set opens on last time's,
   // unless the suggestion moves the weight, where a new weight starts at the bottom of the range
   // and last time's RIR no longer applies.
-  const repeated = suggestion?.rule !== 'top_of_range_hit';
+  const repeated = suggestion === null || suggestion.weightKg === Math.max(...lastTime.map((set) => set.weightKg));
   const openingReps =
     previous?.row.reps ?? (repeated ? last?.reps : undefined) ?? exercise.row.repLow;
   const openingRir = previous === undefined ? (repeated ? last?.rir : null) : previous.row.rir;
@@ -525,7 +525,9 @@ function ActiveSet({
             {formatWeight(last.weightKg, unit)} × {last.reps}
           </span>
         )}
-        {lastTime.length === 0 && <span className="active-set__last-word">FIRST WORKOUT</span>}
+        {lastTime.length === 0 && lastTimeKnown && (
+          <span className="active-set__last-word">FIRST WORKOUT</span>
+        )}
       </div>
 
       <div className="active-set__figures">

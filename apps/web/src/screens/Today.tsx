@@ -95,12 +95,12 @@ export function Today({ me, navigate }: { me: Me; navigate: (path: string) => vo
           new Promise((resolve) => setTimeout(resolve, 1500)),
         ]);
       }
-      const lastTimes = queryClient.getQueryData(lastTimeQuery.queryKey) ?? [];
+      const lastTimes = queryClient.getQueryData(lastTimeQuery.queryKey);
       await startWorkout({
         userId: me.user.id,
         routine,
         exercises: new Map(exercises.data.map((exercise) => [exercise.id, exercise])),
-        lastTimes: new Map(lastTimes.map((last) => [last.exerciseId, last])),
+        lastTimes: lastTimes && new Map(lastTimes.map((last) => [last.exerciseId, last])),
       });
       navigate('/workout');
     } catch {

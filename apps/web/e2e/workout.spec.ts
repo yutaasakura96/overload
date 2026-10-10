@@ -92,6 +92,37 @@ async function completeSet(page: Page, figures: { weight?: string; reps?: string
   await page.getByRole('button', { name: 'Complete set' }).click();
 }
 
+test('an offline start without cached last time does not claim a first workout', async ({
+  page,
+  context,
+}) => {
+  const email = `unknown-history-${Date.now()}@example.test`;
+  const { userId: offlineUser }: { userId: string } = JSON.parse(apiFixture('user', email));
+  try {
+    await context.clearCookies();
+    const cookies: Cookies = JSON.parse(apiFixture('cookies', offlineUser, 'localhost'));
+    await context.addCookies(cookies);
+    await page.route('**/api/training/last-time', (route) => route.abort());
+    await saveProfile(page);
+    const name = `Unknown history ${Date.now()}`;
+    await createRoutine(page, name, ['Barbell Bench Press']);
+    await page.getByRole('button', { name: 'Create routine' }).click();
+    await expect(page).toHaveURL('/routines');
+
+    await context.setOffline(true);
+    await page.getByRole('link', { name: 'Today' }).click();
+    await page.getByRole('button', { name: new RegExp(`${name}.*Start this workout`) }).click();
+    await expect(page).toHaveURL('/workout');
+    await expect(brief(page)).toContainText('Last time is not available offline.');
+    await expect(brief(page)).not.toContainText('First workout');
+    await expect(brief(page)).not.toContainText('This is your first time logging');
+    await expect(page.getByRole('region', { name: 'SET 1 OF 3' })).not.toContainText('FIRST WORKOUT');
+  } finally {
+    await context.setOffline(false);
+    apiFixture('delete', email);
+  }
+});
+
 test('the library keeps its fetch time after a later workout upload', async ({ page }) => {
   const name = `Sync time ${Date.now()}`;
   await saveProfile(page);

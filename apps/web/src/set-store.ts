@@ -59,6 +59,7 @@ export type WorkoutExerciseRecord = RecordBase & {
     lastTime: LastSet[];
     /** Last time's local date. Absent from a copy kept before it was carried. */
     lastTimeOn?: string | null;
+    lastTimeKnown?: boolean;
     suggestion: Suggestion | null;
     /** Absent from a copy kept before it was carried. */
     equipment?: Equipment;

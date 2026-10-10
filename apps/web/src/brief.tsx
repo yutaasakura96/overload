@@ -77,6 +77,9 @@ function why(exercise: WorkoutExerciseRecord, unit: WeightUnit, riseKg: number) 
         : `${short} ${short === 1 ? 'set' : 'sets'} of ${count}`;
   const head = `${stopped} stopped short of ${repHigh} reps last time.`;
   const reach = count === 1 ? `Reach ${repHigh}` : `Reach ${repHigh} on all ${count}`;
+  if (riseKg > 0) {
+    return `${head} The weight rounds up by ${kg(riseKg)} to a makeable weight. ${reach} this time.`;
+  }
   if (incrementKg <= 0) return `${head} ${reach} this time.`;
   // The weight the rule moves to is the API's to work out: a dumbbell rack does not make every
   // weight (docs/06, 2026-09-23), so only a class that makes what its increment adds is named.
@@ -95,9 +98,22 @@ export function Brief({
   unit: WeightUnit;
   timeZone: string;
 }) {
-  const { name, bodyweight, lastTime, lastTimeOn, suggestion } = exercise.local;
+  const { name, bodyweight, lastTime, lastTimeOn, lastTimeKnown, suggestion } = exercise.local;
   const reps = range(exercise);
   const unitWord = unitLabel(unit).toLowerCase();
+
+  if (lastTime.length === 0 && !lastTimeKnown) {
+    return (
+      <div className="brief">
+        <div className="brief__row">
+          <div className="brief__head">
+            <span className="brief__label">Last time</span>
+          </div>
+          <p className="brief__why">Last time is not available offline.</p>
+        </div>
+      </div>
+    );
+  }
 
   // The first workout of an exercise says so, instead of showing nothing.
   if (lastTime.length === 0) {
@@ -135,7 +151,7 @@ export function Brief({
   const sameWeight = lastTime.every((set) => set.weightKg === lastTime[0]?.weightKg);
   const lastKg = Math.max(...lastTime.map((set) => set.weightKg));
   const riseKg = suggestion === null ? 0 : Math.round((suggestion.weightKg - lastKg) * 100) / 100;
-  const up = suggestion?.rule === 'top_of_range_hit' && riseKg > 0;
+  const up = riseKg > 0;
   return (
     <div className="brief">
       <div className="brief__row">
