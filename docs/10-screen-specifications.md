@@ -66,9 +66,10 @@ an exercise outgrows it.
 | Actions | 8px gap. `WARM` 52 × 64 secondary; `COMPLETE SET` flex-grow × 64 primary with a 22px check and 11px gap |
 
 **Figure states.** Entered values are `text/primary`. Unentered are the same 56px in `text/placeholder`
-`#5A6673` — a figure the user has cleared shows `—`. The card opens with weight, reps and RIR already
-entered (*What the card opens on*), so the tone appears only after a clear. The completion control
-is enabled while they stand.
+`#5A6673` — an empty figure shows `—`. The card opens with the figures it has a source for already
+entered (*What the card opens on*), so the tone appears after a clear, or where there was nothing to
+carry over: RIR with none recorded or a weight that goes up, weight with no suggestion. The
+completion control is enabled regardless; a missing weight or reps is refused on the tap.
 
 ### States and rules
 
