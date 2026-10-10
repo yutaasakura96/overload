@@ -88,8 +88,9 @@ completion control is enabled regardless; a missing weight or reps is refused on
   empty (`0` for a bodyweight exercise). Reps and RIR open as real values, on the assumption that the
   set is done again (`06`, 2026-10-10): the previous working set's today. The first set takes last
   time's reps and RIR when the weight repeats, and the bottom of the range with no RIR when it goes
-  up. The user edits or clears them; reps cleared are refused, RIR cleared is none. They are filled
-  once, when the card opens, so nothing typed is ever replaced.
+  up. The user edits or clears them; reps cleared are refused, RIR cleared is none. A warm-up is not
+  that set again: with the `WARM` toggle on, reps and RIR the user has not typed are empty, and they
+  come back when it is turned off. Nothing typed is ever replaced.
 - **RIR explained, 2026-10-10.** Under the figures, 12px `text/tertiary`: `RIR is reps in reserve: how
   many more reps you could have done. Optional.` and a `How to gauge it` toggle (`accent`, 44px
   target, `aria-expanded`). It opens a bordered guide in the card, so the workout is never left: `0`

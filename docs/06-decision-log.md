@@ -3018,6 +3018,10 @@ What `#3` built, where it stops, and what was decided on the way.
   suggestion arriving later never overwrites what is typed. Reps cleared are refused (`Enter the
   reps`) instead of logging a placeholder; RIR cleared is none. *Rejected:* keeping placeholders
   and filling them on focus, which still costs a tap per figure.
+- **A warm-up does not take the carried reps and RIR, 2026-10-10.** Review found a warm-up toggled
+  on a card that opened on a working set's figures logged with that set's RIR unless it was
+  cleared. With `WARM` on, reps and RIR the user has not typed are empty; turning it off brings
+  them back. What is typed stays either way.
 - **The set that reaches the target moves on** to the next exercise with sets left. An extra set
   stays where the user chose to be.
 - **A reconnect after an offline launch asks `/api/me` again** when rows are waiting. TanStack

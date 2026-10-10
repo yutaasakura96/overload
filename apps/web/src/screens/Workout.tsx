@@ -420,8 +420,9 @@ function setLabel(number: number, target: number | null) {
 /**
  * The active set card (docs/10 §1): the one place the 56px figures appear. The weight opens on the
  * last set logged today, else on the suggestion; reps and RIR open on the same set's, as real
- * values the user edits or clears, so a set repeated is one tap. Nothing is filled in again once
- * the card is open, so what is typed is never overwritten (S3).
+ * values the user edits or clears, so a set repeated is one tap. A warm-up is not that set again:
+ * with the toggle on, reps and RIR left as they opened are empty. What is typed is never
+ * overwritten (S3).
  */
 function ActiveSet({
   exercise,
@@ -451,9 +452,14 @@ function ActiveSet({
   const openingReps =
     previous?.row.reps ?? (repeated ? last?.reps : undefined) ?? exercise.row.repLow;
   const openingRir = previous === undefined ? (repeated ? last?.rir : null) : previous.row.rir;
-  const [reps, setReps] = useState(String(openingReps));
-  const [rir, setRir] = useState(openingRir == null ? '' : String(openingRir));
+  const [filled] = useState({
+    reps: String(openingReps),
+    rir: openingRir == null ? '' : String(openingRir),
+  });
+  const [typed, setTyped] = useState<{ reps?: string; rir?: string }>({});
   const [warm, setWarm] = useState(false);
+  const reps = typed.reps ?? (warm ? '' : filled.reps);
+  const rir = typed.rir ?? (warm ? '' : filled.rir);
   const [saving, setSaving] = useState(false);
   const [refusal, setRefusal] = useState<FigureRefusal>();
   const card = useRef<HTMLElement>(null);
@@ -522,7 +528,7 @@ function ActiveSet({
           label="REPS"
           spoken="Reps"
           value={reps}
-          onChange={setReps}
+          onChange={(value) => setTyped({ ...typed, reps: value })}
           placeholder="—"
           describedBy={refusal?.field === 'reps' ? ids.error : undefined}
         />
@@ -532,7 +538,7 @@ function ActiveSet({
           label="RIR"
           spoken="Reps in reserve, optional"
           value={rir}
-          onChange={setRir}
+          onChange={(value) => setTyped({ ...typed, rir: value })}
           placeholder="—"
           describedBy={refusal?.field === 'rir' ? ids.error : undefined}
         />

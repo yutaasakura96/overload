@@ -214,8 +214,18 @@ test('a workout is logged from a routine, offline and back, and finished', async
   // S6: a warm-up is kept and shown, but is not one of the three working sets.
   await page.getByRole('button', { name: 'Warm-up set' }).click();
   await expect(page.getByRole('region', { name: 'WARM-UP' })).toBeVisible();
-  // The RIR carried over is cleared, and a cleared RIR is logged as none.
-  await completeSet(page, { weight: '40', reps: '5', rir: '' });
+  // A warm-up is not the set again: the reps and RIR the card opened on are gone, and come back
+  // with the working set while neither has been typed.
+  const carriedReps = page.getByRole('textbox', { name: 'Reps', exact: true });
+  const carriedRir = page.getByRole('textbox', { name: 'Reps in reserve, optional' });
+  await expect(carriedReps).toHaveValue('');
+  await expect(carriedRir).toHaveValue('');
+  await page.getByRole('button', { name: 'Warm-up set' }).click();
+  await expect(carriedReps).toHaveValue('8');
+  await expect(carriedRir).toHaveValue('2');
+  await page.getByRole('button', { name: 'Warm-up set' }).click();
+  // The RIR left empty is logged as none.
+  await completeSet(page, { weight: '40', reps: '5' });
   await expect(page.getByRole('button', { name: /1 WARM-UP SET/ })).toBeVisible();
   await expect(page.getByRole('region', { name: 'SET 3 OF 3' })).toBeVisible();
 

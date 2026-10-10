@@ -74,7 +74,7 @@ Works identically offline. Every write below goes to the IndexedDB set store fir
 2. **Log a set.** The active set row is pre-filled with the suggestion, or last time's numbers
    (S2, S3), and from the second set with the previous set's weight, reps and RIR. Edit or clear
    what is not the same again, and the warm-up flag (S6), then tap the
-   tick. RPE entry waits for a later slice (`06`, 2026-10-03). The set is written locally before
+   tick. The warm-up flag empties the reps and RIR that have not been typed (`10` §1). RPE entry waits for a later slice (`06`, 2026-10-03). The set is written locally before
    the screen updates.
 3. **Rest.** The timer starts from the exercise's default rest, or 120 s (S5). Skip or +30 s. It
    counts from the set's `performed_at`, so a locked phone does not stop it. At zero a tone plays
