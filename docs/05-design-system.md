@@ -54,7 +54,7 @@ WCAG AA and were merged (§1.5, `docs/06` 2026-09-22).
 | `text/secondary` | `#A8B4C0` | 9.23:1 | Named things next to a figure: meal names, food names, exercise names in a list, secondary button labels. |
 | `text/tertiary` | `#8A96A3` | 6.46:1 | Supporting figures (set number, RIR, per-food grams), the WARM and ADJUST/REPL control labels, the back chevron. |
 | `text/quaternary` | `#738393` | 5.00:1 | Metadata under a title, the "last time" reference value, food-list strings, unit suffixes, 9px small-caps column heads and section labels, inline qualifiers (`cooked`), chart axis labels, macro-target denominators (`/180`), em-dash empty values, footer metadata. |
-| `text/placeholder` | `#5A6673` | 3.32:1 | **Large text only (≥24px).** The unfilled figures in the active set: the REPS `10` and RIR `—` are 56px in this tone until entered. Never used below 24px. |
+| `text/placeholder` | `#5A6673` | 3.32:1 | **Large text only (≥24px).** The empty figures in the active set: a figure cleared, or opened with nothing to carry over, shows `—` at 56px in this tone (`10` §1, *Figure states*). Never used below 24px. |
 
 With the bottom of the ladder flattened, rank below `text/tertiary` is carried by size, case and
 tracking, not tone: a 9px uppercase head at `0.1em` and an 11px mono value are both

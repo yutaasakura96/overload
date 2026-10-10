@@ -74,9 +74,12 @@ async function completeSet(page: Page, weight: string, reps: string) {
   const typedReps = page.getByRole('textbox', { name: 'Reps', exact: true });
   await page.getByRole('textbox', { name: /^Weight in/ }).fill(weight);
   await typedReps.fill(reps);
+  const card = await typedReps.getAttribute('id');
   await page.getByRole('button', { name: 'Complete set' }).click();
-  // The card that takes the next set opens empty: until then a figure typed would be lost.
-  await expect(typedReps).toHaveValue('');
+  // The card that takes the next set is a new one, opening on this set's reps: until then a figure
+  // typed would be lost.
+  await expect(typedReps).not.toHaveAttribute('id', card ?? '');
+  await expect(typedReps).toHaveValue(reps);
 }
 
 /**

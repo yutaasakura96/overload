@@ -66,8 +66,10 @@ an exercise outgrows it.
 | Actions | 8px gap. `WARM` 52 × 64 secondary; `COMPLETE SET` flex-grow × 64 primary with a 22px check and 11px gap |
 
 **Figure states.** Entered values are `text/primary`. Unentered are the same 56px in `text/placeholder`
-`#5A6673` — reps shows the suggested rep count as a placeholder, RIR shows `—`. The completion
-control is enabled regardless; reps and RIR open empty. An empty RIR is logged as absent.
+`#5A6673` — an empty figure shows `—`. The card opens with the figures it has a source for already
+entered (*What the card opens on*), so the tone appears after a clear, or where there was nothing to
+carry over: RIR with none recorded or a weight that goes up, weight with no suggestion. The
+completion control is enabled regardless; a missing weight or reps is refused on the tap.
 
 ### States and rules
 
@@ -83,9 +85,12 @@ control is enabled regardless; reps and RIR open empty. An empty RIR is logged a
   rest timer starts on completion. The new card comes into view and takes focus (§7.3). The set
   that reaches the target opens the next exercise with sets left; an extra set stays where it is.
 - **What the card opens on.** The weight is the last set logged today, else the suggestion, else
-  empty (`0` for a bodyweight exercise). Reps are a placeholder: last time's reps for that set when
-  the weight repeats, the bottom of the range when it goes up. Left empty, the placeholder is what
-  is logged. RIR is optional.
+  empty (`0` for a bodyweight exercise). Reps and RIR open as real values, on the assumption that the
+  set is done again (`06`, 2026-10-10): the previous working set's today. The first set takes last
+  time's reps and RIR when the weight repeats, and the bottom of the range with no RIR when it goes
+  up. The user edits or clears them; reps cleared are refused, RIR cleared is none. A warm-up is not
+  that set again: with the `WARM` toggle on, reps and RIR the user has not typed are empty, and they
+  come back when it is turned off. Nothing typed is ever replaced.
 - **RIR explained, 2026-10-10.** Under the figures, 12px `text/tertiary`: `RIR is reps in reserve: how
   many more reps you could have done. Optional.` and a `How to gauge it` toggle (`accent`, 44px
   target, `aria-expanded`). It opens a bordered guide in the card, so the workout is never left: `0`

@@ -92,14 +92,26 @@ function setRow(workoutExerciseId: string, position: number, fields: Record<stri
 /** One workout of bench: a warm-up, then working sets with the given reps at `kg`. */
 async function logBench(
   cookie: string,
-  options: { startedAt: string; kg: number; reps: number[]; repHigh?: number },
+  options: {
+    startedAt: string;
+    kg: number;
+    reps: number[];
+    rir?: (number | null)[];
+    repHigh?: number;
+  },
 ) {
   const bench = await exerciseId(cookie, 'Barbell Bench Press');
   const w = workoutRow({ startedAt: options.startedAt, clientUpdatedAt: options.startedAt });
   const we = exerciseRow(w.id, bench, { repHigh: options.repHigh ?? 10 });
   const sets = [
     setRow(we.id, 0, { weightKg: 40, reps: 12, isWarmup: true, rir: null }),
-    ...options.reps.map((reps, i) => setRow(we.id, i + 1, { weightKg: options.kg, reps })),
+    ...options.reps.map((reps, i) =>
+      setRow(we.id, i + 1, {
+        weightKg: options.kg,
+        reps,
+        ...(options.rir && { rir: options.rir[i] }),
+      }),
+    ),
   ];
   const results = await sync(cookie, { workouts: [w], workoutExercises: [we], sets });
   expect(results.every((r) => r.status === 'stored')).toBe(true);
@@ -795,9 +807,9 @@ describe('GET /api/training/last-time (S2, S3)', () => {
         workoutId: latest.workout.id,
         performedOn: '2026-11-05',
         sets: [
-          { workingSet: 1, weightKg: 80, reps: 10 },
-          { workingSet: 2, weightKg: 80, reps: 10 },
-          { workingSet: 3, weightKg: 80, reps: 10 },
+          { workingSet: 1, weightKg: 80, reps: 10, rir: 2 },
+          { workingSet: 2, weightKg: 80, reps: 10, rir: 2 },
+          { workingSet: 3, weightKg: 80, reps: 10, rir: 2 },
         ],
         suggestion: {
           weightKg: 82.5,
@@ -806,6 +818,25 @@ describe('GET /api/training/last-time (S2, S3)', () => {
         },
         slots: [],
       },
+    ]);
+  });
+
+  it('answers each working set’s RIR, null where the set recorded none', async () => {
+    const { cookie } = await t.createSignedInUser('rir@example.test');
+    await setUpProfile(cookie);
+    await logBench(cookie, {
+      startedAt: at('2026-11-04T09:00:00Z'),
+      kg: 80,
+      reps: [10, 9],
+      rir: [1, null],
+    });
+
+    const res = await t.app.request('/api/training/last-time', { headers: { cookie } });
+    const body = await res.json();
+
+    expect(body.exercises[0]?.sets.map((logged: { rir: number | null }) => logged.rir)).toEqual([
+      1,
+      null,
     ]);
   });
 
@@ -868,8 +899,8 @@ describe('GET /api/training/last-time (S2, S3)', () => {
       workoutId: w.id,
       performedOn: '2026-11-04',
       sets: [
-        { workingSet: 1, weightKg: 80, reps: 8 },
-        { workingSet: 2, weightKg: 80, reps: 8 },
+        { workingSet: 1, weightKg: 80, reps: 8, rir: 2 },
+        { workingSet: 2, weightKg: 80, reps: 8, rir: 2 },
       ],
       suggestion: {
         weightKg: 82.5,
@@ -881,7 +912,7 @@ describe('GET /api/training/last-time (S2, S3)', () => {
       routineExerciseId: lightSlot.id,
       workoutId: w.id,
       performedOn: '2026-11-04',
-      sets: [{ workingSet: 1, weightKg: 60, reps: 10 }],
+      sets: [{ workingSet: 1, weightKg: 60, reps: 10, rir: 2 }],
       suggestion: {
         weightKg: 60,
         rule: 'repeat',

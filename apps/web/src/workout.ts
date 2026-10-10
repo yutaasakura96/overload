@@ -326,7 +326,11 @@ export async function startWorkout(input: {
           name: exercise.name,
           bodyweight: exercise.equipment === 'bodyweight',
           restSeconds: exercise.restSeconds,
-          lastTime: (last?.sets ?? []).map((set) => ({ weightKg: set.weightKg, reps: set.reps })),
+          lastTime: (last?.sets ?? []).map((set) => ({
+            weightKg: set.weightKg,
+            reps: set.reps,
+            rir: set.rir,
+          })),
           suggestion: last?.suggestion ?? null,
         },
       },

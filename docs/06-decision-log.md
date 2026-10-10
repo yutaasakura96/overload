@@ -3008,7 +3008,20 @@ What `#3` built, where it stops, and what was decided on the way.
   would clear because it deletes and re-inserts the slots.
 - **Reps open on a placeholder**: last time's reps for that working set when the weight repeats,
   the bottom of the range when the suggestion adds the increment. Left empty, the placeholder is
-  what is logged.
+  what is logged. *Superseded 2026-10-10, below.*
+- **Reps and RIR open filled in, 2026-10-10.** The owner's staging review found reps and RIR typed
+  again for every set while the weight carried over. The card now assumes the same again: reps and
+  RIR open as real values from the previous working set today, and the first set takes last time's
+  (reps from that working set, RIR from `07` §3 `sets[].rir`) when the weight repeats. When the
+  suggestion adds the increment, reps open at the bottom of the range and RIR empty, since last
+  time's figures were for a lighter weight. They are filled once, when the card opens, so a
+  suggestion arriving later never overwrites what is typed. Reps cleared are refused (`Enter the
+  reps`) instead of logging a placeholder; RIR cleared is none. *Rejected:* keeping placeholders
+  and filling them on focus, which still costs a tap per figure.
+- **A warm-up does not take the carried reps and RIR, 2026-10-10.** Review found a warm-up toggled
+  on a card that opened on a working set's figures logged with that set's RIR unless it was
+  cleared. With `WARM` on, reps and RIR the user has not typed are empty; turning it off brings
+  them back. What is typed stays either way.
 - **The set that reaches the target moves on** to the next exercise with sets left. An extra set
   stays where the user chose to be.
 - **A reconnect after an offline launch asks `/api/me` again** when rows are waiting. TanStack

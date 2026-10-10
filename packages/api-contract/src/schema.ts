@@ -1365,6 +1365,8 @@ export interface components {
         workingSet: number;
         weightKg: number;
         reps: number;
+        /** @description Null when the set recorded none. */
+        rir: number | null;
       }[];
       suggestion: components['schemas']['Suggestion'];
       /** @description Last time for each of the caller’s routine slots that has logged the exercise. */
@@ -1402,6 +1404,8 @@ export interface components {
         workingSet: number;
         weightKg: number;
         reps: number;
+        /** @description Null when the set recorded none. */
+        rir: number | null;
       }[];
       suggestion: components['schemas']['Suggestion'];
     };
