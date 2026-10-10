@@ -113,7 +113,7 @@ test('an offline start without cached last time does not claim a first workout',
     await page.getByRole('link', { name: 'Today' }).click();
     await page.getByRole('button', { name: new RegExp(`${name}.*Start this workout`) }).click();
     await expect(page).toHaveURL('/workout');
-    await expect(brief(page)).toContainText('Last time is not available offline.');
+    await expect(brief(page)).toContainText('Last time could not be loaded.');
     await expect(brief(page)).not.toContainText('First workout');
     await expect(brief(page)).not.toContainText('This is your first time logging');
     await expect(page.getByRole('region', { name: 'SET 1 OF 3' })).not.toContainText('FIRST WORKOUT');

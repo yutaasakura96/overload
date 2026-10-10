@@ -108,7 +108,7 @@ export function Brief({
           <div className="brief__head">
             <span className="brief__label">Last time</span>
           </div>
-          <p className="brief__why">Last time is not available offline.</p>
+          <p className="brief__why">Last time could not be loaded.</p>
         </div>
       </div>
     );
