@@ -36,11 +36,6 @@ function apply() {
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', ground);
 }
 
-function changed() {
-  apply();
-  for (const listener of listeners) listener();
-}
-
 export function chooseTheme(next: ThemeChoice) {
   choice = next;
   try {
@@ -49,7 +44,8 @@ export function chooseTheme(next: ThemeChoice) {
   } catch {
     // Storage refused: the choice holds until the app is closed.
   }
-  changed();
+  apply();
+  for (const listener of listeners) listener();
 }
 
 export function useThemeChoice(): ThemeChoice {
@@ -62,13 +58,8 @@ export function useThemeChoice(): ThemeChoice {
   );
 }
 
-/** Follows the device's setting while the choice is `system`, and a choice made in another tab. */
+/** Follows the device's setting while the choice is `system`. */
 export function startTheme() {
   apply();
   deviceLight.addEventListener('change', apply);
-  window.addEventListener('storage', (event) => {
-    if (event.key !== THEME && event.key !== null) return;
-    choice = remembered();
-    changed();
-  });
 }

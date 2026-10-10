@@ -105,13 +105,14 @@ test('loaded colour tokens resolve in both themes and meet their contrast rules'
     const literalColour = /#[0-9a-f]{3,8}\b|\b(?:rgb|hsl|oklch|oklab|lab|lch|color)a?\(/i;
     const outside = styles
       .filter((rule) => rule !== darkRule && rule !== lightRule)
-      .flatMap((rule) =>
-        Array.from(rule.style).map((name) => [
+      .flatMap((rule) => [
+        [rule.selectorText, 'cssText', rule.style.cssText],
+        ...Array.from(rule.style).map((name) => [
           rule.selectorText,
           name,
           rule.style.getPropertyValue(name),
         ]),
-      )
+      ])
       .filter(
         ([, name, value]) =>
           name !== undefined &&
