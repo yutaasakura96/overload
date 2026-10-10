@@ -98,7 +98,8 @@ Planned sets that were never ticked are not stored. Only ticked sets become `set
 
 | Step | Goes wrong | User sees |
 | --- | --- | --- |
-| 1 | No cached last time (first run offline, or a new exercise) | The exercise opens on "None yet" and "Find your weight", each with a sentence saying why (`10` §1, PRD empty state) |
+| 1 | No cached last time on an offline start | The exercise says "Last time is not available offline" without calling it a first workout (`10` §1) |
+| 1 | Cached last time confirms no history for an exercise | The exercise opens on "None yet" and "Find your weight", each with a sentence saying why (`10` §1, PRD empty state) |
 | 2 | No signal | Nothing different. The data-state slot shows the pending count (`10` §7.4) |
 | 2 | Double tap on the tick | One set: the tick is disabled until the local write returns, and the id makes a repeat harmless anyway |
 | 2 | Tab killed or phone locked with sets pending | Nothing lost; they upload on the next open (S1) |

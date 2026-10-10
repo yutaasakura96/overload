@@ -42,14 +42,6 @@ const range = (exercise: WorkoutExerciseRecord) =>
     ? String(exercise.row.repLow)
     : `${exercise.row.repLow}–${exercise.row.repHigh}`;
 
-/** The suggestion's own reason as a sentence, for a last time the words below do not fit. */
-const sentence = (reason: string) => `${reason.charAt(0).toUpperCase()}${reason.slice(1)}.`;
-
-/**
- * Why the target is what it is. The rule is the API's (`suggestion.rule`); the counts are read off
- * last time's sets against the rep range. A range changed since last time can disagree with the
- * rule, and then the API's reason is shown as it came.
- */
 function why(exercise: WorkoutExerciseRecord, unit: WeightUnit, riseKg: number) {
   const { lastTime, suggestion, equipment } = exercise.local;
   if (suggestion === null) return '';
@@ -58,24 +50,29 @@ function why(exercise: WorkoutExerciseRecord, unit: WeightUnit, riseKg: number) 
   const kg = (value: number) =>
     `${formatWeight(value, unit)}\u00a0${unitLabel(unit).toLowerCase()}`;
   const count = lastTime.length;
-  const short = lastTime.filter((set) => set.reps < repHigh).length;
+  const priorHighText = suggestion.reason.match(
+    suggestion.rule === 'top_of_range_hit' ? /\bhit (\d+)\b/ : /\bof (\d+)\b/,
+  )?.[1];
+  const priorHigh = priorHighText === undefined ? undefined : Number(priorHighText);
+  const priorTarget = priorHigh === undefined ? 'the top of the rep range' : `${priorHigh} reps`;
 
   if (suggestion.rule === 'top_of_range_hit') {
-    if (short > 0) return sentence(suggestion.reason);
-    const reached = `You reached ${repHigh} reps on ${count === 1 ? 'your only set' : 'every set'} last time`;
+    const reached = `You reached ${priorTarget} on ${count === 1 ? 'your only set' : 'every set'} last time`;
     return riseKg > 0
       ? `${reached}, so the weight goes up by ${kg(riseKg)}. Aim for ${repLow} or more.`
       : `${reached}. This exercise has no increment, so the weight stays the same.`;
   }
 
-  if (short === 0) return sentence(suggestion.reason);
+  const short = lastTime.filter((set) => priorHigh !== undefined && set.reps < priorHigh).length;
   const stopped =
     count === 1
       ? 'Your set'
+      : priorHigh === undefined
+        ? 'Some sets'
       : short === count
         ? `All ${count} sets`
         : `${short} ${short === 1 ? 'set' : 'sets'} of ${count}`;
-  const head = `${stopped} stopped short of ${repHigh} reps last time.`;
+  const head = `${stopped} stopped short of ${priorTarget} last time.`;
   const reach = count === 1 ? `Reach ${repHigh}` : `Reach ${repHigh} on all ${count}`;
   if (riseKg > 0) {
     return `${head} The weight rounds up by ${kg(riseKg)} to a makeable weight. ${reach} this time.`;

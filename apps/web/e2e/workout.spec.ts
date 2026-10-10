@@ -739,7 +739,6 @@ test('each slot of an exercise a routine holds twice keeps its own last time thr
   await finish(page);
   await lastTime;
 
-  // The 8–12 slot is moved above the other.
   await page.goto('/routines');
   await page.getByRole('link', { name: new RegExp(name) }).click();
   await page
@@ -747,25 +746,28 @@ test('each slot of an exercise a routine holds twice keeps its own last time thr
     .nth(1)
     .click();
   await expect(figures('Reps high', 0)).toHaveValue('12');
+  await figures('Reps high', 0).fill('14');
+  await figures('Reps high', 1).fill('12');
   await page.getByRole('button', { name: 'Save routine' }).click();
   await expect(page).toHaveURL('/routines');
 
-  // Each slot opens on its own sets, judged against its own range.
   await start(page, name);
-  await expect(brief(page)).toContainText('60 kg × 8–12');
+  await expect(brief(page)).toContainText('60 kg × 8–14');
   const card = page.getByRole('region', { name: 'SET 1 OF 1' });
   await expect(card).toContainText('LAST TIME60 × 10');
   await expect(brief(page)).toContainText('Today’s targetSame weight');
   await expect(brief(page)).toContainText(
-    'Your set stopped short of 12 reps last time. Reach 12 and next time goes up to 62.5 kg.',
+    'Your set stopped short of 12 reps last time. Reach 14 and next time goes up to 62.5 kg.',
   );
+  await expect(brief(page)).not.toContainText('stopped short of 14 reps last time');
   await expect(page.getByRole('textbox', { name: 'Weight in kilograms' })).toHaveValue('60');
-  await completeSet(page, { reps: '12' });
-  await expect(brief(page)).toContainText('82.5 kg × 5–8');
+  await completeSet(page, { reps: '14' });
+  await expect(brief(page)).toContainText('82.5 kg × 5–12');
   await expect(card).toContainText('LAST TIME80 × 8');
   await expect(brief(page)).toContainText(
     'You reached 8 reps on your only set last time, so the weight goes up by 2.5 kg. Aim for 5 or more.',
   );
+  await expect(brief(page)).not.toContainText('You reached 12 reps');
   await expect(page.getByRole('textbox', { name: 'Weight in kilograms' })).toHaveValue('82.5');
 });
 
