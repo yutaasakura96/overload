@@ -155,6 +155,34 @@ test('loaded colour tokens resolve in both themes and meet their contrast rules'
   }
 });
 
+test("the manifest's colours are the dark ground", async ({ page }) => {
+  await page.goto('/sign-in');
+  const colours = await page.evaluate(async () => {
+    const link = document.querySelector<HTMLLinkElement>('link[rel="manifest"]');
+    if (link === null) throw new Error('The page links no manifest');
+    const manifest: { background_color?: string; theme_color?: string } = await (
+      await fetch(link.href)
+    ).json();
+    document.documentElement.dataset.theme = 'dark';
+    const probe = document.createElement('span');
+    document.body.append(probe);
+    const resolved = (colour: string | undefined) => {
+      probe.style.color = '';
+      probe.style.color = colour ?? '';
+      return probe.style.color === '' ? '' : getComputedStyle(probe).color;
+    };
+    return {
+      ground: resolved('var(--surface-ground)'),
+      background: resolved(manifest.background_color),
+      theme: resolved(manifest.theme_color),
+    };
+  });
+
+  expect(colours.ground).toBe(DARK_GROUND);
+  expect(colours.background).toBe(colours.ground);
+  expect(colours.theme).toBe(colours.ground);
+});
+
 const ground = (page: import('@playwright/test').Page) =>
   page.evaluate(() => getComputedStyle(document.body).backgroundColor);
 // The browser's bar, as the colour its meta tag resolves to.

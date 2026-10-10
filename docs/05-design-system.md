@@ -220,8 +220,14 @@ and again whenever the theme changes.
 and iOS always draws that bar's text in white. In the light theme a strip of `surface/status-bar`,
 as tall as the top safe-area inset, sits behind it so the clock stays readable. In a browser tab the inset is zero and there is no strip.
 
-**Not themed.** The app icon, and the manifest's `background_color` and `theme_color`, which hold
-one value each and stay the dark ground.
+**Colours written outside the tokens.** These are the only ones, and none is themed:
+
+- The manifest's `background_color` and `theme_color` (`apps/web/vite.config.ts`). A manifest is
+  static and cannot read a token, so each holds the dark `surface/ground`.
+  `apps/web/e2e/theme.spec.ts` fails when either differs from the token.
+- The app icon (`apps/web/public/icon.svg` and the PNGs made from it), which is artwork.
+
+Nothing else is: the page's `theme-color` has no first-paint literal, as above.
 
 ---
 
