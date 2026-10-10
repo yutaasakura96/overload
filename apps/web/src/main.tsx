@@ -12,10 +12,14 @@ import { registerSW } from 'virtual:pwa-register';
 import { App } from './App';
 import { openCache, queryClient } from './query';
 import { initSentry } from './sentry';
+import { startTheme } from './theme';
 import { startUploader } from './uploader';
 
 // First, so an error anywhere after this is reported (docs/12 §5). A no-op without VITE_SENTRY_DSN.
 const rootOptions = initSentry();
+
+// index.html has already set the theme; from here it follows the device and the profile's choice.
+startTheme();
 
 // The shell-only service worker: the installed app opens without signal (docs/03 §4).
 registerSW({ immediate: true });

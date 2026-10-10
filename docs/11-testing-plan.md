@@ -52,6 +52,7 @@ Rollback-per-test is the default. Two kinds of test opt out, or they pass withou
 | **Ingest** | A repeated or late sample replaces the earlier copy and is never added twice. An unknown metric or bad point is skipped and counted, never a 4xx. Workout matching picks the greatest overlap | `03` §9, `07` §6.1 |
 | **Contract** | A breaking change to `openapi.json` fails CI unless the PR carries the breaking-change label | `07` §1.6 |
 | **Flows** | Until the phone writes it, a workout idle for 3 h still reads `endedAt: null` — the server derives nothing (the client half is in the offline row). Finishing with zero ticked sets deletes the workout. Confirming a plan day more than 7 days old returns 409 `day_locked`. A hand-set target newer than the applied estimate is the one in force, and the next estimate clamps ±150 kcal from it. A day left incomplete is not re-asked by the evening card or the "Yesterday" card; the flag is in IndexedDB only, so signing out and back in asks that day again | `09` F3, F11, F13 |
+| **Theme** | Both themes give every colour token a value, and no colour is written outside the two token blocks. Every text tone and unlabelled control reaches its WCAG AA ratio on each surface it may sit on, computed from the stylesheet for both themes. With no choice the app opens in the device's theme; a choice made in the profile section applies at once, is in place before the first paint after a reload, and wins over the device; `System` follows the device again as it changes. *Built 2026-10-10*: `e2e/theme.spec.ts` | `05` §1.5, §1.7 |
 | **Model calls** | One per-user daily counter covers label reads and meal estimates together: calls of both kinds count against it, and the one past the cap returns `429 model_cap_reached`. Lands with the cap itself, which is set before the first invitee (`13` §9) | `09` F15, `07` §1.3 |
 
 The planner's tolerance tests are written before the planner, so the solver choice in `03` §8.2 can be
@@ -95,6 +96,9 @@ uploader**. The result goes in the PR as pass/fail per item.
    if that source is chosen, everything in M3).
 7. **401 mid-workout.** "Sign out everywhere" on another device, keep logging on the phone: the prompt
    opens over the screen, and the sets upload after signing in again.
+8. **The light theme in the installed app** (`05` §1.7). The clock and battery stay readable on
+   their dark strip, on Today and with a sheet open; the strip is absent in the dark theme. With
+   `System` chosen, changing the iPhone's appearance changes the app without a reload.
 
 ## 4. Deliberately untested in v1
 

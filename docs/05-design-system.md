@@ -3,6 +3,8 @@
 **Direction:** Instrument (picked 2026-09-16 — see `docs/06-decision-log.md`).
 **Extracted from:** the six `.dc.html` artboards in `design/`, 2026-09-16. Updated 2026-09-22 from the
 scoped design pass (review 2b): the artboards now carry these tokens, and seven state artboards were added.
+A light theme was added 2026-10-10 under the same token names (§1.7): the artboards are dark, and
+every statement below about a hex or a ratio is the dark theme's unless it says otherwise.
 
 Every value here was lifted from the artboard source. Nothing is rounded to a 4/8px grid and nothing
 is invented. Where a value appears once, or where two artboards disagree, that is recorded rather
@@ -18,43 +20,44 @@ lists four text tones where the files use six, omits two colours, and gives one 
 
 ### 1.1 Surfaces
 
-| Token | Hex | Where it is used |
-| --- | --- | --- |
-| `surface/ground` | `#0B0D0F` | Body background of all six screens. |
-| `surface/raised` | `#12161A` | Rest bar (screen 1) and the sheet (§4.16). The system's only raised surface. |
-| `surface/active` | `#0F171B` | Active set card (1), active meal card (3), maintenance check (6). |
-| `surface/accent` | `#10262E` | Fill behind every accent control: COMPLETE SET, SKIP, active span, active tab, EATEN AS PLANNED, CONFIRM ALL, APPLY TO TARGETS. |
-| `surface/done` | `#15241E` | Completed set check cell (1), completed prep row check cell (5). |
-| `surface/flag` | `#15110A` | Warning panel (4). |
-| `surface/error` | `#170B0C` | Fill behind a refused item: the refused set row and the refused slot (1). Added 2026-09-22 (§1.4). |
-| `scrim` | `rgba(11, 13, 15, 0.72)` | `surface/ground` at 72%, behind a sheet. Added 2026-09-22 (review 2b). |
+| Token | Dark | Light | Where it is used |
+| --- | --- | --- | --- |
+| `surface/ground` | `#0B0D0F` | `#F4F6F8` | Body background of all six screens. |
+| `surface/raised` | `#12161A` | `#FFFFFF` | Rest bar (screen 1) and the sheet (§4.16). The system's only raised surface. |
+| `surface/active` | `#0F171B` | `#EBF4F7` | Active set card (1), active meal card (3), maintenance check (6). |
+| `surface/accent` | `#10262E` | `#D6EDF4` | Fill behind every accent control: COMPLETE SET, SKIP, active span, active tab, EATEN AS PLANNED, CONFIRM ALL, APPLY TO TARGETS. |
+| `surface/done` | `#15241E` | `#DCF1E7` | Completed set check cell (1), completed prep row check cell (5). |
+| `surface/flag` | `#15110A` | `#FAF0DA` | Warning panel (4). |
+| `surface/error` | `#170B0C` | `#FBE9E9` | Fill behind a refused item: the refused set row and the refused slot (1). Added 2026-09-22 (§1.4). |
+| `scrim` | `rgba(11, 13, 15, 0.72)` | `rgba(15, 20, 24, 0.48)` | Behind a sheet. Dark: `surface/ground` at 72%. Light: `text/primary` at 48%, since a veil of the light ground would wash the screen out, not set it back. Added 2026-09-22 (review 2b). |
+| `surface/status-bar` | `#0B0D0F` | `#0B0D0F` | The strip behind the installed app's status bar. The same in both themes, and painted only in the light one, where the ground would hide the status bar's white text (§1.7). Added 2026-10-10. |
 
 ### 1.2 Lines
 
-| Token | Hex | Where it is used |
-| --- | --- | --- |
-| `line/row` | `#14191E` | Divider between rows inside a table (set rows on 1, prep rows on 5). Deliberately weaker than the hairline. |
-| `line/hairline` | `#1A2026` | App-bar underline, resting card borders, section dividers, chart gridlines, meter tracks, timeline rail. The default border. |
-| `line/border` | `#232B32` | Rest-bar top edge (1), chart baseline (2, 6), unconfirmed meal cards (4). |
-| `line/field` | `#2A3440` | Secondary control borders (+30s, WARM, ADJUST, REPL, pending chip), inert overlay swatches, unfilled timeline dots. Every one of these sits beside a label or a redundant state cue, so it is not the thing that identifies the control. |
-| `line/control` | `#55687A` | 3.38:1 on ground. Anything that must be seen and has no label to carry it: the inert check cell's border and check (1, 5) and the daily-weight discs and fallback rings (6), and the border of a text field (§4.18), since an empty field's border is what shows where to type. Added 2026-09-22 (§1.5). |
-| `line/accent` | `#234A57` | Border of active panels and the tag on today's target (§4.19). |
-| `line/done` | `#2E4A40` | Border of done fills. |
-| `line/flag` | `#4A3A1C` | Border of flag fills and the evidence tag. |
-| `line/error` | `#501C1E` | Border of a refused item. Always beside a label, so it is not held to 3:1. Added 2026-09-22. |
+| Token | Dark | Light | Where it is used |
+| --- | --- | --- | --- |
+| `line/row` | `#14191E` | `#E8ECF0` | Divider between rows inside a table (set rows on 1, prep rows on 5). Deliberately weaker than the hairline. |
+| `line/hairline` | `#1A2026` | `#DEE3E8` | App-bar underline, resting card borders, section dividers, chart gridlines, meter tracks, timeline rail. The default border. |
+| `line/border` | `#232B32` | `#CED5DC` | Rest-bar top edge (1), chart baseline (2, 6), unconfirmed meal cards (4). |
+| `line/field` | `#2A3440` | `#BAC4CE` | Secondary control borders (+30s, WARM, ADJUST, REPL, pending chip), inert overlay swatches, unfilled timeline dots. Every one of these sits beside a label or a redundant state cue, so it is not the thing that identifies the control. |
+| `line/control` | `#55687A` | `#75838F` | 3.38:1 on ground. Anything that must be seen and has no label to carry it: the inert check cell's border and check (1, 5) and the daily-weight discs and fallback rings (6), and the border of a text field (§4.18), since an empty field's border is what shows where to type. Added 2026-09-22 (§1.5). |
+| `line/accent` | `#234A57` | `#96CBDA` | Border of active panels and the tag on today's target (§4.19). |
+| `line/done` | `#2E4A40` | `#9FD2B9` | Border of done fills. |
+| `line/flag` | `#4A3A1C` | `#DCC289` | Border of flag fills and the evidence tag. |
+| `line/error` | `#501C1E` | `#EAAEB0` | Border of a refused item. Always beside a label, so it is not held to 3:1. Added 2026-09-22. |
 
 ### 1.3 Text
 
 Four text tones and one placeholder tone. Until 2026-09-22 there were six; the bottom three failed
 WCAG AA and were merged (§1.5, `docs/06` 2026-09-22).
 
-| Token | Hex | Contrast on ground | Where it is used |
-| --- | --- | --- | --- |
-| `text/primary` | `#E6EDF3` | 16.48:1 | Every figure that is the answer to the screen's question, and every app-bar title. |
-| `text/secondary` | `#A8B4C0` | 9.23:1 | Named things next to a figure: meal names, food names, exercise names in a list, secondary button labels. |
-| `text/tertiary` | `#8A96A3` | 6.46:1 | Supporting figures (set number, RIR, per-food grams), the WARM and ADJUST/REPL control labels, the back chevron. |
-| `text/quaternary` | `#738393` | 5.00:1 | Metadata under a title, the "last time" reference value, food-list strings, unit suffixes, 9px small-caps column heads and section labels, inline qualifiers (`cooked`), chart axis labels, macro-target denominators (`/180`), em-dash empty values, footer metadata. |
-| `text/placeholder` | `#5A6673` | 3.32:1 | **Large text only (≥24px).** The empty figures in the active set: a figure cleared, or opened with nothing to carry over, shows `—` at 56px in this tone (`10` §1, *Figure states*). Never used below 24px. |
+| Token | Dark | On ground | Light | On ground | Where it is used |
+| --- | --- | --- | --- | --- | --- |
+| `text/primary` | `#E6EDF3` | 16.48:1 | `#0F1418` | 17.10:1 | Every figure that is the answer to the screen's question, and every app-bar title. |
+| `text/secondary` | `#A8B4C0` | 9.23:1 | `#3B4753` | 8.76:1 | Named things next to a figure: meal names, food names, exercise names in a list, secondary button labels. |
+| `text/tertiary` | `#8A96A3` | 6.46:1 | `#505E6B` | 6.15:1 | Supporting figures (set number, RIR, per-food grams), the WARM and ADJUST/REPL control labels, the back chevron. |
+| `text/quaternary` | `#738393` | 5.00:1 | `#5C6A77` | 5.12:1 | Metadata under a title, the "last time" reference value, food-list strings, unit suffixes, 9px small-caps column heads and section labels, inline qualifiers (`cooked`), chart axis labels, macro-target denominators (`/180`), em-dash empty values, footer metadata. |
+| `text/placeholder` | `#5A6673` | 3.32:1 | `#7B8894` | 3.35:1 | **Large text only (≥24px).** The empty figures in the active set: a figure cleared, or opened with nothing to carry over, shows `—` at 56px in this tone (`10` §1, *Figure states*). Never used below 24px. |
 
 With the bottom of the ladder flattened, rank below `text/tertiary` is carried by size, case and
 tracking, not tone: a 9px uppercase head at `0.1em` and an 11px mono value are both
@@ -63,14 +66,14 @@ so do not rely on those two tones alone to separate adjacent items.
 
 ### 1.4 Accents
 
-| Token | Hex | Contrast on ground | Where it is used |
-| --- | --- | --- | --- |
-| `accent` | `#3FB6D4` | 8.21:1 | The one accent. Active state, primary action, the e1RM and trend line, the "now" marker on the timeline. |
-| `accent/pressed` | `#6FCDE3` | 10.68:1 | The label and border colour of an accent control while it is pressed. 8.6:1 on `surface/accent`. Renamed from `accent/hover` 2026-09-22: the app runs from the iPhone home screen and has no hover. Pressed motion and timing belong to the polish gate. |
-| `done` | `#57C99A` | 9.48:1 | Completed, confirmed, on-target. Check marks, macro meter fills, the synced dot, positive deltas. |
-| `flag` | `#E0A83C` | 9.12:1 | Needs attention, not an error. Pending count, unconfirmed count, `CARBS ↑`. Also the low-logging line on screen 6. The weight-trend overlay has the same hex but uses its own token, `series/weight` (§1.6). |
-| `flag/dim` | `#947B45` | 4.80:1 | One use: the strength label in the evidence tag (3), at 9px. Raised from `#8A7340` 2026-09-22; 4.64:1 on `surface/flag`. |
-| `error` | `#F2555A` | 5.77:1 | **The server refused the data**, and nothing else: a refused set, a rejected save, revoked access. Added 2026-09-22; 5.71:1 on `surface/error`. |
+| Token | Dark | On ground | Light | On ground | Where it is used |
+| --- | --- | --- | --- | --- | --- |
+| `accent` | `#3FB6D4` | 8.21:1 | `#025C71` | 6.99:1 | The one accent. Active state, primary action, the e1RM and trend line, the "now" marker on the timeline. |
+| `accent/pressed` | `#6FCDE3` | 10.68:1 | `#013F4E` | 10.64:1 | The label and border colour of an accent control while it is pressed. 8.6:1 on `surface/accent`. Renamed from `accent/hover` 2026-09-22: the app runs from the iPhone home screen and has no hover. Pressed motion and timing belong to the polish gate. |
+| `done` | `#57C99A` | 9.48:1 | `#08785C` | 5.03:1 | Completed, confirmed, on-target. Check marks, macro meter fills, the synced dot, positive deltas. |
+| `flag` | `#E0A83C` | 9.12:1 | `#995600` | 5.26:1 | Needs attention, not an error. Pending count, unconfirmed count, `CARBS ↑`. Also the low-logging line on screen 6. The weight-trend overlay has the same hex but uses its own token, `series/weight` (§1.6). |
+| `flag/dim` | `#947B45` | 4.80:1 | `#846424` | 5.06:1 | One use: the strength label in the evidence tag (3), at 9px. Raised from `#8A7340` 2026-09-22; 4.64:1 on `surface/flag`. |
+| `error` | `#F2555A` | 5.77:1 | `#901117` | 8.51:1 | **The server refused the data**, and nothing else: a refused set, a rejected save, revoked access. Added 2026-09-22; 5.71:1 on `surface/error`. |
 
 **Rules for `error`.**
 - It never carries meaning alone (WCAG 1.4.1). A refused item always shows the word `REFUSED` and
@@ -130,6 +133,21 @@ Weight's chip fill and border are the values drawn on screen 2. The other three 
 series colour on its own chip fill is at least 5.29:1 (intake). Chip borders are below 3:1 and allowed,
 because the chip is labelled (§1.5).
 
+The light theme's series (§1.7), with every chip fill and border at the same 7% and 30% over the
+light ground:
+
+| Token | Hex | On ground | Chip fill | Chip border | Dash |
+| --- | --- | --- | --- | --- | --- |
+| `series/weight` | `#995600` | 5.26:1 | `#EEEBE7` | `#D9C6AE` | `3 3` |
+| `series/intake` | `#5B48C9` | 6.03:1 | `#E9EAF5` | `#C6C2EA` | `6 3` |
+| `series/sleep` | `#26241F` | 14.31:1 | `#E6E7E9` | `#B6B7B7` | `1.5 3` |
+| `series/hrv` | `#723311` | 8.82:1 | `#EBE8E8` | `#CDBCB3` | `8 3 2 3` |
+
+Each is at least 4.80:1 on its own chip fill (weight). Sleep is the near-white series in the dark
+theme and the near-black one here. Measured the same way as below, the worst pair with all five
+lines on is `series/sleep`–`series/hrv` at 0.113, and `series/hrv`–`error` is 0.024, the same known
+collision.
+
 **Rules.**
 - **Colour is the third cue, not the first.** A series is identified by its end label (§5) and its
   dash pattern, and only after that by its colour, so the chart passes WCAG 1.4.1 however the colours
@@ -142,6 +160,66 @@ because the chip is labelled (§1.5).
 - **Known collision.** `series/hrv` and `error` read almost the same under deuteranopia (0.026).
   Allowed, because `error` never appears on a chart, and the chip always names its series.
 - Pinks and magentas are out: under deuteranopia they collapse onto `accent` (0.01–0.04).
+
+### 1.7 Themes
+
+Two themes, dark and light, under one set of token names. Added 2026-10-10 (`docs/06`). Dark is
+what the artboards draw and is unchanged. A component names tokens and never a theme, so a screen
+built from the tokens is right in both; the one exception is the status bar's strip below.
+
+**How the light values were chosen.** Each token keeps its place in the ladder:
+
+- `surface/ground` is a cool off-white and `surface/raised` is white, so raised is the lighter of
+  the two in both themes. The five state fills are tints of their colour, as they are shades of it
+  in the dark theme.
+- The lines keep their order and nearly their ratios on ground: row 1.10, hairline 1.19, border
+  1.37, field 1.63, control 3.59 (dark: 1.10, 1.19, 1.36, 1.54, 3.38).
+- The text tones keep theirs (§1.3). Tertiary against quaternary is 1.20:1, so the rule against
+  separating neighbours by those two tones alone holds here too.
+- `accent`, `done`, `flag` and `error` are darker and less bright than the dark theme's, because
+  they are text on a light ground and each must reach 4.5:1 there and on its own fill.
+  `accent/pressed` is the darker accent here and the lighter one in the dark theme: pressed is
+  always the step with more contrast.
+- Those four were searched, not picked by eye: within each hue's family, the set with the greatest
+  worst-case separation under normal, deuteranopic and protanopic vision (§1.4's measure) that
+  still passes contrast. The worst pair is `flag`–`done` at 0.093, against 0.100 (`error`–`done`)
+  in the dark theme. `error` against `flag` is 0.102 / 0.153 and against `done` 0.103 / 0.209.
+  As before, none of them carries meaning by colour alone.
+
+**Contrast, light theme**, measured as in §1.5:
+
+| Tone | On ground | Lowest surface it sits on | Verdict |
+| --- | --- | --- | --- |
+| `text/primary` `#0F1418` | 17.10 | 15.24 on `surface/accent` | Passes everywhere. |
+| `text/secondary` `#3B4753` | 8.76 | 7.81 on `surface/accent` | Passes everywhere. |
+| `text/tertiary` `#505E6B` | 6.15 | 5.48 on `surface/accent` | Passes everywhere. |
+| `text/quaternary` `#5C6A77` | 5.12 | 4.74 on `surface/error` | Passes AA at every size. It passes on `surface/accent` (4.57) and `surface/done` (4.70) too, but §1.5's rule against placing it there stays, since the dark theme fails. |
+| `text/placeholder` `#7B8894` | 3.35 | 3.25 on `surface/active` | Passes AA-large. 24px and up only, as in the dark theme. |
+| `accent` `#025C71` | 6.99 | 6.23 on `surface/accent` | Passes everywhere. |
+| `accent/pressed` `#013F4E` | 10.64 | 9.48 on `surface/accent` | Passes everywhere. |
+| `done` `#08785C` | 5.03 | 4.62 on `surface/done` | Passes on ground, `surface/active` (4.89) and its own fill. Not for text on `surface/accent` (4.49). |
+| `flag` `#995600` | 5.26 | 5.03 on `surface/flag` | Passes on ground and its own fill. |
+| `error` `#901117` | 8.51 | 7.87 on `surface/error` | Passes everywhere. |
+| `flag/dim` `#846424` | 5.06 | 4.84 on `surface/flag` | Passes AA. |
+| `line/control` `#75838F` | 3.59 | 3.32 on `surface/error` | Passes 1.4.11 for unlabelled controls and chart observations. |
+| `line/field` `#BAC4CE` | 1.63 | — | Below 3.0, and allowed for the reason §1.5 gives. |
+
+`apps/web/e2e/theme.spec.ts` computes these pairs from the stylesheet for both themes, and fails
+on a colour written anywhere but the two token blocks.
+
+**How a theme is applied.** `<html>` carries `data-theme="light"` or `"dark"`, and the light values
+are one block under `:root[data-theme='light']`. A script in the page's `<head>` sets it before the
+first paint, from the choice remembered on the device (`localStorage`, `overload:theme`) or, with
+none, from the device's own setting, which it then follows as it changes. The choice is made in the
+profile section (`docs/10` §8.2). `color-scheme` and the page's `theme-color` follow the theme, so
+native controls and the browser's own bar match.
+
+**The status bar.** The installed app draws under the iPhone's status bar (`black-translucent`),
+and iOS always draws that bar's text in white. In the light theme a strip of `surface/status-bar`,
+as tall as the top safe-area inset, sits behind it so the clock stays readable. In a browser tab the inset is zero and there is no strip.
+
+**Not themed.** The app icon, and the manifest's `background_color` and `theme_color`, which hold
+one value each and stay the dark ground.
 
 ---
 
@@ -595,6 +673,7 @@ Names for implementation. Values are exactly as extracted.
 --surface-done:     #15241E;
 --surface-flag:     #15110A;
 --surface-error:    #170B0C;
+--surface-status-bar: #0B0D0F;   /* the same in both themes */
 --scrim:            rgba(11, 13, 15, 0.72);
 
 --line-row:         #14191E;
@@ -632,4 +711,46 @@ Names for implementation. Values are exactly as extracted.
 --gutter:           16px;
 --content:          358px;
 --target-min:       44px;
+```
+
+The light theme's values (§1.7), under `:root[data-theme='light']`. Fonts, radius and sizes are
+shared.
+
+```
+--surface-ground:   #F4F6F8;
+--surface-raised:   #FFFFFF;
+--surface-active:   #EBF4F7;
+--surface-accent:   #D6EDF4;
+--surface-done:     #DCF1E7;
+--surface-flag:     #FAF0DA;
+--surface-error:    #FBE9E9;
+--scrim:            rgba(15, 20, 24, 0.48);
+
+--line-row:         #E8ECF0;
+--line-hairline:    #DEE3E8;
+--line-border:      #CED5DC;
+--line-field:       #BAC4CE;
+--line-control:     #75838F;
+--line-accent:      #96CBDA;
+--line-done:        #9FD2B9;
+--line-flag:        #DCC289;
+--line-error:       #EAAEB0;
+
+--text-primary:     #0F1418;
+--text-secondary:   #3B4753;
+--text-tertiary:    #505E6B;
+--text-quaternary:  #5C6A77;
+--text-placeholder: #7B8894;   /* >= 24px only */
+
+--accent:           #025C71;
+--accent-pressed:   #013F4E;
+--done:             #08785C;
+--flag:             #995600;
+--flag-dim:         #846424;
+--error:            #901117;
+
+--series-weight:    #995600;   /* chip #EEEBE7 / #D9C6AE, dash 3 3 */
+--series-intake:    #5B48C9;   /* chip #E9EAF5 / #C6C2EA, dash 6 3 */
+--series-sleep:     #26241F;   /* chip #E6E7E9 / #B6B7B7, dash 1.5 3 */
+--series-hrv:       #723311;   /* chip #EBE8E8 / #CDBCB3, dash 8 3 2 3 */
 ```

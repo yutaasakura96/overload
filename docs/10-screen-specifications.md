@@ -631,6 +631,10 @@ data-state slot. Under the tabs, in order:
   `05` §4.8's segments over two radios, `Kilograms` / `Pounds` — then a secondary save. Until the
   first save the heading reads `Set up your profile` with one sentence on what the two are for.
   Saved online only, like routines.
+- **Theme:** `05` §4.8's segments over three radios, `System` / `Light` / `Dark`, under the
+  profile's save and outside its form: it takes effect on the tap, and it is there before the
+  profile is set up. `System` follows the device's setting as it changes. One sentence under it
+  says so, and that the choice is kept on this device (`05` §1.7; `06`, 2026-10-10).
 - **Account:** the email and `Sign out`. With sets not uploaded it asks first, in place:
   `2 sets not uploaded yet.` — `Upload now` / `Discard and sign out`. With a workout in progress it
   says to finish it first, and with one whose ending has not uploaded it says so with `Try again`;

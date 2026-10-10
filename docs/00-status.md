@@ -2,7 +2,7 @@
 
 **Project:** A weight-training progress tracker combining lift logging, meal planning, Apple Watch/iPhone health data, and bodyweight/diet coaching.
 **Phase:** 7 — Build (M1 first). Phase 6 — Review finished 2026-09-23.
-**Updated:** 2026-10-10
+**Updated:** 2026-10-11
 
 ## Done
 - Phase 1 — Brief + PRD: `docs/01-project-brief.md`, `docs/02-product-requirements.md`, `docs/06-decision-log.md`.
@@ -120,6 +120,18 @@ that `#47` to `#51` are built against is in `docs/prototype/`. `e2e/workout.spec
 sentences, the first-workout state and the bar before, during and after a rest, on Chromium and
 WebKit. Not built here, and in the prototype's workout screen: `FULL SCREEN` on the rest bar
 (`#51`), a logged set edited from its tick and the way from last time to past sets (`#48`).
+
+**A light theme is built, 2026-10-11**, on branch `fm/overload-59` against `develop` (`#59`). In
+the repo: light values for every colour token under the same names, `data-theme` on `<html>` set
+before the first paint, and `System` / `Light` / `Dark` in the profile section, kept on the device
+(`05` §1.7; `06`, 2026-10-10; `10` §8.2). No dark value changed. It cleared the polish gate.
+`e2e/theme.spec.ts` computes the contrast pairs for both themes from the stylesheet, fails on a
+colour written outside the two token blocks, and covers the choice, on Chromium and WebKit. Checked
+in a browser at 390px in both themes: every built screen, the rest bar, the chart and the status
+colours, and the twelve prototype screens of `#47`–`#51` with the light values applied. For `#50`:
+the prototype's meter band is `line/control` at 16% written as a literal, which the token test
+will refuse; it wants `color-mix` over the token, or a token of its own. Owed, and Yuta's: `11` §3
+item 8 on a real iPhone, where the status bar's strip has only been reasoned about.
 
 **Issues are open.** Milestone `M1`, one issue per slice, `#1`–`#7`, each chained to the one before
 with GitHub's native dependencies. `#3`'s three questions were settled in `06` (2026-10-03).

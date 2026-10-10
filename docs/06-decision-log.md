@@ -3293,3 +3293,49 @@ a logged set edited from its tick, and the last-time row opening the exercise's 
 values, where the prototype draws the first set's reps as a placeholder.
 
 **Changed:** `CONTEXT.md`, `00`, `05` §1.2 §2 §4.14 §4.19, `09` F3, `10` §1, `docs/prototype/`.
+
+### 2026-10-10 — A light theme under the same token names, chosen on the device
+
+Issue `#59`, asked for at the prototype review. The app was dark only.
+
+- **One set of names, two sets of values.** The light values are one block under
+  `:root[data-theme='light']` (`05` §1.7, §8). A component names tokens and never a theme, so no
+  dark value changed, and a screen built from the tokens, the prototype's included, is right in
+  both. *Rejected:* a second stylesheet, or per-component light rules, which
+  every later screen would have to remember to write.
+- **The values keep the ladder, and the status colours were searched.** Ground is a cool off-white
+  and raised is white; the lines keep their ratios on ground and the text tones theirs. `accent`,
+  `done`, `flag` and `error` are text on a light ground, so each is darker than its dark twin and
+  reaches 4.5:1 on ground and on its own fill. Within each hue they are the set with the greatest
+  worst-case separation under normal, deuteranopic and protanopic vision that still passes.
+  *Rejected:* inverting the dark values, which puts the dark theme's bright accents on white at
+  under 3:1.
+- **`data-theme` on `<html>`, set by a script in `<head>`.** A stylesheet cannot read the
+  remembered choice, and the app's own script runs after the first paint, so a short script in
+  `index.html` sets it first. `theme.ts` applies the same rule from then on. The web app sends no
+  Content-Security-Policy; one that restricts `script-src` has to allow this script by hash.
+  *Rejected:* `prefers-color-scheme` alone, which cannot be overridden from the profile.
+- **Light, Dark or System, kept on the device.** `localStorage`, `overload:theme`; `System` is the
+  absence of the key and follows the device as it changes. It is the device's and not the
+  account's: the sign-in screen follows it, the sign-out wipe leaves it, and a phone can be light
+  while a laptop is dark. *Rejected:* a column on the profile, which is only known after `/api/me`
+  answers, so every cold launch would paint the wrong theme first.
+- **The control is in the profile section and outside the profile form** (`10` §8.2): `05` §4.8's
+  segments over three radios. It takes effect on the tap, so it has no save and is there before
+  the profile is set up.
+- **The status bar keeps a dark strip in the light theme.** The installed app draws under the
+  status bar (`black-translucent`), and iOS always draws that bar's text in white whatever is
+  behind it (web.dev, *Learn PWA: Enhancements*, checked 2026-10-11). `surface/status-bar`, the
+  one colour that is the same in both themes, is painted behind it, as tall as the top inset.
+  *Rejected:* another status bar style, which stops the app drawing under the bar and so changes
+  the dark theme too. Whether iOS picks up a style changed after install is not documented, so
+  nothing depends on it.
+- **Not themed:** the app icon, and the manifest's `background_color` and `theme_color`, which
+  hold one value each.
+- **The chart overlays' light values are recorded and not yet in the stylesheet**, as the dark
+  ones are not: no overlay is drawn until M2 (`05` §1.6).
+
+`e2e/theme.spec.ts` computes the contrast pairs from the stylesheet for both themes and fails on a
+colour written outside the two token blocks.
+
+**Changed:** `00`, `05`, `10`, `11`.

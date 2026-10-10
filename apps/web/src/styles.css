@@ -1,5 +1,6 @@
 /* docs/05 §8, the token export, exactly as extracted. Nothing here is invented: a value missing from
-   docs/05 is a question for the design system, not a new token. */
+   docs/05 is a question for the design system, not a new token. These are the dark theme's values
+   and the default; the light theme's follow, under the same names (docs/05 §1.7). */
 :root {
   --surface-ground: #0b0d0f;
   --surface-raised: #12161a;
@@ -8,6 +9,7 @@
   --surface-done: #15241e;
   --surface-flag: #15110a;
   --surface-error: #170b0c;
+  --surface-status-bar: #0b0d0f; /* the same in both themes */
   --scrim: rgba(11, 13, 15, 0.72);
 
   --line-row: #14191e;
@@ -44,6 +46,45 @@
   color-scheme: dark;
 }
 
+/* The light theme (docs/05 §1.7). `data-theme` is set on <html> before the first paint by the
+   script in index.html, and afterwards by theme.ts. Every colour is a token, so nothing below this
+   block names a theme, apart from the status bar's strip. */
+:root[data-theme='light'] {
+  --surface-ground: #f4f6f8;
+  --surface-raised: #ffffff;
+  --surface-active: #ebf4f7;
+  --surface-accent: #d6edf4;
+  --surface-done: #dcf1e7;
+  --surface-flag: #faf0da;
+  --surface-error: #fbe9e9;
+  --scrim: rgba(15, 20, 24, 0.48);
+
+  --line-row: #e8ecf0;
+  --line-hairline: #dee3e8;
+  --line-border: #ced5dc;
+  --line-field: #bac4ce;
+  --line-control: #75838f;
+  --line-accent: #96cbda;
+  --line-done: #9fd2b9;
+  --line-flag: #dcc289;
+  --line-error: #eaaeb0;
+
+  --text-primary: #0f1418;
+  --text-secondary: #3b4753;
+  --text-tertiary: #505e6b;
+  --text-quaternary: #5c6a77;
+  --text-placeholder: #7b8894; /* >= 24px only */
+
+  --accent: #025c71;
+  --accent-pressed: #013f4e;
+  --done: #08785c;
+  --flag: #995600;
+  --flag-dim: #846424;
+  --error: #901117;
+
+  color-scheme: light;
+}
+
 *,
 *::before,
 *::after {
@@ -66,6 +107,17 @@ body {
   /* The installed app draws under the status bar (black-translucent). */
   padding-top: env(safe-area-inset-top);
   padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* That status bar's text is always white, whatever is behind it. The light ground would hide it,
+   so the light theme keeps the dark ground behind it (docs/05 §1.7). */
+:root[data-theme='light'] body::before {
+  content: '';
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 3;
+  height: env(safe-area-inset-top);
+  background: var(--surface-status-bar);
 }
 
 button {
@@ -410,6 +462,10 @@ button {
   margin-top: 22px;
   padding: 18px var(--gutter) 30px;
   border-top: 1px solid var(--line-hairline);
+}
+/* A second block straight after one: the first's bottom padding is already the break. */
+.form--after {
+  margin-top: 0;
 }
 .form__pair {
   display: grid;
@@ -868,7 +924,7 @@ button {
   color: var(--accent);
 }
 
-/* 4.8 Segmented control, as a choice between two values */
+/* 4.8 Segmented control, as a choice between two values, or three */
 .segments {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -877,6 +933,9 @@ button {
   margin: 0;
   padding: 0;
   border: 0;
+}
+.segments--three {
+  grid-template-columns: repeat(3, 1fr);
 }
 .segments legend {
   margin-bottom: 6px;
