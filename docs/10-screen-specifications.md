@@ -571,8 +571,8 @@ picker. Under them `Show`, a select of `All exercises`, the four splits (`Push`,
 `Core`) and the ten muscle groups other than core; selecting `Core` under Split covers the core
 group. The filter narrows the list before the search matches within it, and a
 custom exercise with no group is only in `All exercises`. A heading counts `N matching` while
-either is in use. The filter is not remembered. Each row opens the exercise form. A `Hidden exercises` disclosure under the list fetches the
-hidden ones when first opened.
+either is in use. The filter is not remembered. Each row opens the exercise form. A `Hidden
+exercises` disclosure under the list fetches the hidden ones when first opened.
 
 **Muscle groups and search** (library and picker; `06`, 2026-10-08). The list is filed under its
 muscle groups in a fixed order: chest, back, shoulders, biceps, triceps, forearms, quads,
@@ -580,9 +580,9 @@ hamstrings, glutes, calves, core, then `Other` for a custom exercise filed under
 `05` §4.3's section label as an `h3`, one step brighter (`text/tertiary`) than the column heads;
 a group with no rows is not drawn. Rows keep name order inside a group. Search keeps the rows whose
 name and aliases together hold every word typed, so
-`rdl` finds `Barbell Romanian Deadlift`. While searching,
+`rdl` finds `Barbell Romanian Deadlift`. While searching or filtering,
 the heading reads `N matching` and is announced; with nothing left it says to check the spelling or
-use `New exercise`.
+filter, or use `New exercise`.
 
 ### 8.2 Today and the start of a workout (slice 3)
 

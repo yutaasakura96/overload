@@ -260,7 +260,7 @@ GET /api/exercises  →  200
 
 `overrides` tells the settings screen which values are the user's own and which are defaults.
 `muscleGroup` is where the library files the exercise and `aliases` are the other names search
-matches. The client groups and searches; the API returns one flat list. A custom exercise has
+matches. The client groups, filters and searches; the API returns one flat list. A custom exercise has
 `"aliases": []`, and `"muscleGroup": null` until the user files it: create and edit take an optional
 `muscleGroup`, where `null` files it under no group.
 
