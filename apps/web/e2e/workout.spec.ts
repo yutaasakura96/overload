@@ -410,6 +410,49 @@ async function finish(page: Page) {
   await expect(page).toHaveURL('/');
 }
 
+test('bodyweight history describes reps without a zero-weight target', async ({ page }) => {
+  const name = `Bodyweight ${Date.now()}`;
+  await saveProfile(page, 'Kilograms');
+  await createRoutine(page, name, ['Chin-Up']);
+  await page.getByRole('textbox', { name: 'Sets for Chin-Up' }).fill('1');
+  await page.getByRole('button', { name: 'Create routine' }).click();
+  await expect(page).toHaveURL('/routines');
+
+  await start(page, name);
+  await completeSet(page, { reps: '10' });
+  await expect(dataState(page)).toContainText('SYNCED');
+  const reached = page.waitForResponse(
+    (response) => response.url().includes('/api/training/last-time') && response.ok(),
+  );
+  await finish(page);
+  await reached;
+
+  await start(page, name);
+  await expect(brief(page)).toContainText('Bodyweight × 10');
+  await expect(brief(page)).toContainText('Today’s targetBodyweight × 6–10');
+  await expect(brief(page)).toContainText(
+    'You reached 10 reps on your only set last time. Aim for 6 or more.',
+  );
+  await expect(brief(page)).not.toContainText('0 kg');
+  await expect(brief(page)).not.toContainText('Same weight');
+
+  await completeSet(page, { reps: '6' });
+  await expect(dataState(page)).toContainText('SYNCED');
+  const repeated = page.waitForResponse(
+    (response) => response.url().includes('/api/training/last-time') && response.ok(),
+  );
+  await finish(page);
+  await repeated;
+
+  await start(page, name);
+  await expect(brief(page)).toContainText('Bodyweight × 6');
+  await expect(brief(page)).toContainText('Today’s targetBodyweight × 6–10');
+  await expect(brief(page)).toContainText(
+    'Your set stopped short of 10 reps last time. Reach 10 this time.',
+  );
+  await finish(page);
+});
+
 /** How many records the set store holds, read over a connection of the test's own. */
 const rowsOnDevice = (page: Page) =>
   page.evaluate(

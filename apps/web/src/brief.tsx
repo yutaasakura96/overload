@@ -43,7 +43,7 @@ const range = (exercise: WorkoutExerciseRecord) =>
     : `${exercise.row.repLow}–${exercise.row.repHigh}`;
 
 function why(exercise: WorkoutExerciseRecord, unit: WeightUnit, riseKg: number) {
-  const { lastTime, suggestion, equipment } = exercise.local;
+  const { lastTime, suggestion, equipment, bodyweight } = exercise.local;
   if (suggestion === null) return '';
   const { repLow, repHigh, incrementKg } = exercise.row;
   // A no-break space: the figure and its unit never part at the end of a line.
@@ -58,6 +58,7 @@ function why(exercise: WorkoutExerciseRecord, unit: WeightUnit, riseKg: number) 
 
   if (suggestion.rule === 'top_of_range_hit') {
     const reached = `You reached ${priorTarget} on ${count === 1 ? 'your only set' : 'every set'} last time`;
+    if (bodyweight && suggestion.weightKg === 0) return `${reached}. Aim for ${repLow} or more.`;
     return riseKg > 0
       ? `${reached}, so the weight goes up by ${kg(riseKg)}. Aim for ${repLow} or more.`
       : `${reached}. This exercise has no increment, so the weight stays the same.`;
@@ -74,6 +75,7 @@ function why(exercise: WorkoutExerciseRecord, unit: WeightUnit, riseKg: number) 
         : `${short} ${short === 1 ? 'set' : 'sets'} of ${count}`;
   const head = `${stopped} stopped short of ${priorTarget} last time.`;
   const reach = count === 1 ? `Reach ${repHigh}` : `Reach ${repHigh} on all ${count}`;
+  if (bodyweight && suggestion.weightKg === 0) return `${head} ${reach} this time.`;
   if (riseKg > 0) {
     return `${head} The weight rounds up by ${kg(riseKg)} to a makeable weight. ${reach} this time.`;
   }
@@ -149,6 +151,7 @@ export function Brief({
   const lastKg = Math.max(...lastTime.map((set) => set.weightKg));
   const riseKg = suggestion === null ? 0 : Math.round((suggestion.weightKg - lastKg) * 100) / 100;
   const up = riseKg > 0;
+  const bodyweightTarget = bodyweight && suggestion?.weightKg === 0;
   return (
     <div className="brief">
       <div className="brief__row">
@@ -157,14 +160,25 @@ export function Brief({
           {lastTimeOn != null && <span className="brief__when">{when(lastTimeOn, timeZone)}</span>}
         </div>
         <div className="brief__figures">
-          {sameWeight ? (
+          {bodyweight && sameWeight && lastKg === 0 ? (
+            <>
+              Bodyweight <span className="brief__unit">×</span>{' '}
+              {lastTime.map((set) => set.reps).join(' · ')}
+            </>
+          ) : sameWeight ? (
             <>
               {formatWeight(lastTime[0]?.weightKg ?? 0, unit)}{' '}
               <span className="brief__unit">{unitWord} ×</span>{' '}
               {lastTime.map((set) => set.reps).join(' · ')}
             </>
           ) : (
-            lastTime.map((set) => `${formatWeight(set.weightKg, unit)}×${set.reps}`).join(' · ')
+            lastTime
+              .map((set) =>
+                bodyweight && set.weightKg === 0
+                  ? `Bodyweight × ${set.reps}`
+                  : `${formatWeight(set.weightKg, unit)}×${set.reps}`,
+              )
+              .join(' · ')
           )}
         </div>
       </div>
@@ -172,13 +186,15 @@ export function Brief({
         <div className="brief__row brief__row--target">
           <div className="brief__head">
             <span className="brief__label">Today’s target</span>
-            <span className="brief__tag">
-              {up ? `+${formatWeight(riseKg, unit)} ${unitWord}` : 'Same weight'}
-            </span>
+            {!bodyweightTarget && (
+              <span className="brief__tag">
+                {up ? `+${formatWeight(riseKg, unit)} ${unitWord}` : 'Same weight'}
+              </span>
+            )}
           </div>
           <div className="brief__figures">
-            {formatWeight(suggestion.weightKg, unit)}{' '}
-            <span className="brief__unit">{unitWord} ×</span> {reps}
+            {bodyweightTarget ? 'Bodyweight' : formatWeight(suggestion.weightKg, unit)}{' '}
+            <span className="brief__unit">{bodyweightTarget ? '×' : `${unitWord} ×`}</span> {reps}
           </div>
           <p className="brief__why">{why(exercise, unit, riseKg)}</p>
         </div>
