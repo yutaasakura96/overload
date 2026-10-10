@@ -878,6 +878,134 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/workouts': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** History: the caller’s finished workouts, newest first, a page at a time */
+    get: {
+      parameters: {
+        query?: {
+          /** @description Default 30, at most 100. */
+          limit?: number;
+          /** @description The previous page’s `nextCursor`. */
+          cursor?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description One page, and the cursor of the next */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['WorkoutList'];
+          };
+        };
+        /** @description A limit outside 1 to 100, or a cursor this route did not make */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/workouts/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** One workout with its exercises and every set */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description The workout */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['WorkoutDetail'];
+          };
+        };
+        /** @description A malformed id */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No workout with that id is the caller’s */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/training/last-time': {
     parameters: {
       query?: never;
@@ -1240,6 +1368,8 @@ export interface components {
        * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
        */
       workoutId: string;
+      /** @example Push A */
+      workoutName: string;
       /**
        * Format: date
        * @description The workout’s local date.
@@ -1265,6 +1395,11 @@ export interface components {
        * @example 2400
        */
       volumeKg: number;
+      /** @description The working sets as logged, in order: the exercise’s past sets. */
+      sets: {
+        weightKg: number;
+        reps: number;
+      }[];
     };
     RoutineList: {
       items: components['schemas']['Routine'][];
@@ -1334,6 +1469,156 @@ export interface components {
     };
     RoutineExercisesPut: {
       exercises: components['schemas']['RoutineSlotInput'][];
+    };
+    /** @description Finished workouts, newest `startedAt` first. One in progress is not listed. */
+    WorkoutList: {
+      items: components['schemas']['WorkoutSummary'][];
+      /** @description Opaque. Send it back as `cursor` for the next page. */
+      nextCursor: string | null;
+      /** @description How many finished workouts the caller has in all. */
+      total: number;
+    };
+    WorkoutSummary: {
+      /**
+       * Format: uuid
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      id: string;
+      /** @example Push A */
+      name: string;
+      /**
+       * Format: date-time
+       * @example 2026-11-11T09:01:40.000Z
+       */
+      startedAt: string;
+      /**
+       * Format: date-time
+       * @example 2026-11-11T09:01:40.000Z
+       */
+      endedAt: string;
+      /**
+       * @description Warm-ups are not counted (S6).
+       * @example 13
+       */
+      workingSets: number;
+      /** @description Each exercise that logged a working set, in the workout’s order. */
+      exercises: {
+        /** @example Barbell Bench Press */
+        name: string;
+        /**
+         * @description The heaviest working set.
+         * @example 80
+         */
+        topSetKg: number;
+        /**
+         * @description The most reps done at that weight.
+         * @example 10
+         */
+        topSetReps: number;
+      }[];
+    };
+    /** @description One workout whole. Every row is as the sync batch holds it, so a set can be sent back edited, or deleted, through `/api/workouts/sync`. */
+    WorkoutDetail: {
+      /**
+       * Format: uuid
+       * @description Made on the phone (UUIDv7).
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      id: string;
+      /**
+       * Format: uuid
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      routineId: string | null;
+      /** @example Push A */
+      name: string;
+      /**
+       * Format: date-time
+       * @example 2026-11-11T09:01:40.000Z
+       */
+      startedAt: string;
+      /**
+       * Format: date-time
+       * @description Null while the workout is in progress.
+       * @example 2026-11-11T09:01:40.000Z
+       */
+      endedAt: string | null;
+      note: string | null;
+      /**
+       * Format: date-time
+       * @description The phone’s clock at the last edit.
+       * @example 2026-11-11T09:01:40.000Z
+       */
+      clientUpdatedAt: string;
+      /** @description In order. One that logged no set is still listed. */
+      exercises: {
+        /**
+         * Format: uuid
+         * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+         */
+        id: string;
+        /**
+         * Format: uuid
+         * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+         */
+        workoutId: string;
+        /**
+         * Format: uuid
+         * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+         */
+        exerciseId: string;
+        /**
+         * Format: uuid
+         * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+         */
+        routineExerciseId: string | null;
+        position: number;
+        /** @description Copied from the routine at start. */
+        targetSets: number | null;
+        repLow: number;
+        repHigh: number;
+        /** @example 2.5 */
+        incrementKg: number;
+        /**
+         * Format: date-time
+         * @example 2026-11-11T09:01:40.000Z
+         */
+        clientUpdatedAt: string;
+        /** @example Barbell Bench Press */
+        name: string;
+        /** @description In `position` order, warm-ups included. */
+        sets: {
+          /**
+           * Format: uuid
+           * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+           */
+          id: string;
+          /**
+           * Format: uuid
+           * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+           */
+          workoutExerciseId: string;
+          /** @description Order within the exercise, warm-ups included. Never renumbered. */
+          position: number;
+          /** @example 82.5 */
+          weightKg: number;
+          /** @example 10 */
+          reps: number;
+          rir: number | null;
+          rpe: number | null;
+          isWarmup: boolean;
+          /**
+           * Format: date-time
+           * @example 2026-11-11T09:01:40.000Z
+           */
+          performedAt: string;
+          /**
+           * Format: date-time
+           * @example 2026-11-11T09:01:40.000Z
+           */
+          clientUpdatedAt: string;
+        }[];
+      }[];
     };
     /** @description Every exercise the caller has logged. One never logged is absent. */
     LastTimes: {

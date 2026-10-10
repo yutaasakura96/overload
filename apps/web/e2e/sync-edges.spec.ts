@@ -83,19 +83,31 @@ async function completeSet(page: Page, weight: string, reps: string) {
 }
 
 /**
- * A row of the set table: its number, weight and reps, and `Done` or `Refused`. The tests share a
+ * A row of the set table: its number, weight and reps, and its tick or `Refused`. The tests share a
  * user, so a row may also show last time's figures, which are no part of what is checked here.
  */
 const setRow = (page: Page, row: string, word: 'Done' | 'Refused' = 'Done') => {
   const [number, weight, reps] = row.split(' ');
+  const end = word === 'Done' ? `Set ${number} done\\. Edit` : word;
   return page.getByRole('row', {
-    name: new RegExp(`^${number} (\\S+ × \\S+ )?${weight} ${reps} — ${word}$`),
+    name: new RegExp(`^${number} (\\S+ × \\S+ )?${weight} ${reps} — ${end}$`),
   });
 };
 
-async function finish(page: Page) {
+/** Finish. A workout with a set opens its page in History; one with none is not kept: Today. */
+async function finish(page: Page, kept = true) {
   await page.getByRole('button', { name: 'Finish workout' }).click();
   await page.getByRole('button', { name: 'Finish', exact: true }).click();
+  await expect(page).toHaveURL(kept ? /\/workouts\/[0-9a-f-]{36}$/ : '/');
+}
+
+/** From a workout's page in History back to Today, with no reload. */
+async function toToday(page: Page) {
+  await page.getByRole('button', { name: 'Back' }).click();
+  await page
+    .getByRole('navigation', { name: 'Sections' })
+    .getByRole('link', { name: 'Today' })
+    .click();
   await expect(page).toHaveURL('/');
 }
 
@@ -337,6 +349,7 @@ test('a set refused after its workout ended is acted on from Today', async ({ pa
   await completeSet(page, '60', '7');
   await rewriteSet(page, 1, { reps: 500 });
   await finish(page);
+  await toToday(page);
   await goOnline(context);
 
   // The workout is over, so its refused set has no workout screen to be on: Today holds it.
@@ -398,7 +411,7 @@ test('a stale copy of a workout sent after its delete does not bring it back', a
   expect(copy.workoutExercises).toHaveLength(2);
 
   // Finished with no set, the workout is deleted (docs/09 F3).
-  await finish(page);
+  await finish(page, false);
   await expect(dataState(page)).toContainText('SYNCED');
   await expect.poll(() => stored().some((workout) => workout.name === name)).toBe(false);
   await expect.poll(async () => (await recordsOnDevice(page)).length).toBe(0);
@@ -431,7 +444,7 @@ test('a newer server workout survives an older device delete', async ({ page }) 
   expect(edit.ok()).toBe(true);
   expect((await edit.json()).results[0].status).toBe('stored');
 
-  await finish(page);
+  await finish(page, false);
   await expect
     .poll(async () => {
       const restored = (await recordsOnDevice(page)).find((record) => record.id === workout.id);
@@ -469,7 +482,7 @@ test('an empty workout delete stays newer after the phone clock goes back', asyn
 
   await goOffline(context);
   await context.clock.install({ time: Date.now() - 86_400_000 });
-  await finish(page);
+  await finish(page, false);
   const deletion = (await recordsOnDevice(page)).find((record) => record.id === workout.id);
   expect(deletion?.state).toBe('pending');
   expect(deletion?.deletedAt).toBeDefined();

@@ -1,6 +1,11 @@
 import { ACCOUNT_HEADER, type Me, type Span } from '@overload/api-contract';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
-import { QueryClient, queryOptions, type FetchStatus } from '@tanstack/react-query';
+import {
+  QueryClient,
+  infiniteQueryOptions,
+  queryOptions,
+  type FetchStatus,
+} from '@tanstack/react-query';
 import {
   persistQueryClientRestore,
   persistQueryClientSubscribe,
@@ -30,15 +35,13 @@ class AccountCheckFailed extends Error {
   }
 }
 
+// A 401 means the session has ended; retrying cannot change that (docs/08 §5).
+const retries = (failureCount: number, error: unknown) =>
+  !isUnauthenticated(error) && !(error instanceof AccountCheckFailed) && failureCount < 2;
+
 export const queryClient = new QueryClient({
   defaultOptions: {
-    queries: {
-      gcTime: CACHE_MAX_AGE_MS,
-      staleTime: 60 * 1000,
-      // A 401 means the session has ended; retrying cannot change that (docs/08 §5).
-      retry: (failureCount, error) =>
-        !isUnauthenticated(error) && !(error instanceof AccountCheckFailed) && failureCount < 2,
-    },
+    queries: { gcTime: CACHE_MAX_AGE_MS, staleTime: 60 * 1000, retry: retries },
   },
 });
 
@@ -375,6 +378,40 @@ export const progressQuery = (exerciseId: string, span: Span) =>
   });
 
 /**
+ * History (docs/07 §3): the finished workouts, newest first, a page at a time. A workout the
+ * device still holds rows of is read from the set store over this (history.ts).
+ */
+export const workoutsQuery = infiniteQueryOptions({
+  queryKey: ['workouts', 'list'],
+  refetchOnWindowFocus: false,
+  refetchOnReconnect: false,
+  initialPageParam: undefined as string | undefined,
+  queryFn: async ({ pageParam, signal }) =>
+    confirmedAccountData(() =>
+      api.GET('/api/workouts', {
+        params: { query: pageParam === undefined ? {} : { cursor: pageParam } },
+        signal,
+      }),
+    ),
+  getNextPageParam: (last) => last.nextCursor ?? undefined,
+});
+
+/** One workout whole, every row as the sync batch holds it (docs/07 §3). */
+export const workoutQuery = (id: string) =>
+  queryOptions({
+    queryKey: ['workouts', 'one', id],
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    // A workout that is not the account's stays that way: asking again cannot change a 404.
+    retry: (failureCount, error) =>
+      !(error instanceof ApiError && error.status === 404) && retries(failureCount, error),
+    queryFn: async ({ signal }) =>
+      confirmedAccountData(() =>
+        api.GET('/api/workouts/{id}', { params: { path: { id } }, signal }),
+      ),
+  });
+
+/**
  * Whether an editor may open on this query's copy: not while a stale copy, such as the one restored
  * at launch, is being asked again, so its draft starts from the server's state. Offline (paused) or
  * after a failed ask it opens on the saved copy. Once open it stays open: its own saves refetch.
@@ -397,6 +434,8 @@ export const refreshExercises = () => queryClient.invalidateQueries({ queryKey: 
 export const refreshRoutines = () => queryClient.invalidateQueries({ queryKey: ['routines'] });
 /** After an acknowledged sync batch: a chart on screen is asked again, the rest when next opened. */
 export const refreshProgress = () => queryClient.invalidateQueries({ queryKey: ['progress'] });
+/** The same for History: the list, and each workout read whole. */
+export const refreshHistory = () => queryClient.invalidateQueries({ queryKey: ['workouts'] });
 
 /**
  * Asks for last time again whether or not a screen is reading it, since the next workout starts

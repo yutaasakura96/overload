@@ -92,11 +92,12 @@ export function ScreenTabs({
   current,
   navigate,
 }: {
-  current: '/' | '/routines' | '/exercises';
+  current: '/' | '/progress' | '/routines' | '/exercises';
   navigate: (path: string) => void;
 }) {
   const tabs = [
     { path: '/', label: 'Today' },
+    { path: '/progress', label: 'Progress' },
     { path: '/routines', label: 'Routines' },
     { path: '/exercises', label: 'Exercises' },
   ] as const;

@@ -1,10 +1,12 @@
 import type { SyncBatch } from '@overload/api-contract';
 import { api, isUnauthenticated } from './api';
+import { keepHistory } from './history';
 import {
   confirmedAccountData,
   currentAccount,
   onAccountChange,
   queryClient,
+  refreshHistory,
   refreshLastTime,
   refreshProgress,
 } from './query';
@@ -99,10 +101,14 @@ async function uploadPending(): Promise<void> {
       if (isUnauthenticated(error)) void queryClient.invalidateQueries({ queryKey: ['me'] });
       return;
     }
+    // The answer lets an ended workout's rows leave the device: History reads them from the cache
+    // from then on, so the cache is told what they say first (history.ts).
+    keepHistory(useWorkoutStore.getState().records);
     await applySyncResults(chunk.map(sentRowOf), results);
     markSynced();
     void refreshLastTime();
     void refreshProgress();
+    void refreshHistory();
     if (pending.length <= BATCH_ROWS) return;
   }
 }

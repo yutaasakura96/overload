@@ -342,6 +342,7 @@ export const Span = z.enum(SPANS).openapi('Span', {
 export const ProgressPoint = z
   .object({
     workoutId: Uuid,
+    workoutName: z.string().openapi({ example: 'Push A' }),
     date: z.iso.date().openapi({ description: 'The workout’s local date.' }),
     e1rmKg: z
       .number()
@@ -352,6 +353,9 @@ export const ProgressPoint = z
       description: 'Volume load: weight × reps, summed over the working sets.',
       example: 2400,
     }),
+    sets: z
+      .array(z.object({ weightKg: z.number(), reps: z.int() }))
+      .openapi({ description: 'The working sets as logged, in order: the exercise’s past sets.' }),
   })
   .openapi('ProgressPoint');
 
@@ -453,6 +457,66 @@ export const WorkoutExerciseRow = z
   .superRefine(rangeInOrder)
   .openapi('WorkoutExerciseRow');
 export const SetRow = z.object(SetFields).superRefine(oneEffort).openapi('SetRow');
+
+// History (docs/07 §3, Reading workouts).
+
+export const WorkoutSummary = z
+  .object({
+    id: Uuid,
+    name: z.string().openapi({ example: 'Push A' }),
+    startedAt: Instant,
+    endedAt: Instant,
+    workingSets: z.int().openapi({ description: 'Warm-ups are not counted (S6).', example: 13 }),
+    exercises: z
+      .array(
+        z.object({
+          name: z.string().openapi({ example: 'Barbell Bench Press' }),
+          topSetKg: z.number().openapi({ description: 'The heaviest working set.', example: 80 }),
+          topSetReps: z
+            .int()
+            .openapi({ description: 'The most reps done at that weight.', example: 10 }),
+        }),
+      )
+      .openapi({
+        description: 'Each exercise that logged a working set, in the workout’s order.',
+      }),
+  })
+  .openapi('WorkoutSummary');
+
+export const WorkoutList = z
+  .object({
+    items: z.array(WorkoutSummary),
+    nextCursor: z
+      .string()
+      .nullable()
+      .openapi({ description: 'Opaque. Send it back as `cursor` for the next page.' }),
+    total: z.int().openapi({ description: 'How many finished workouts the caller has in all.' }),
+  })
+  .openapi('WorkoutList', {
+    description: 'Finished workouts, newest `startedAt` first. One in progress is not listed.',
+  });
+
+export const WorkoutDetail = z
+  .object({
+    ...WorkoutFields,
+    exercises: z
+      .array(
+        z.object({
+          ...WorkoutExerciseFields,
+          routineExerciseId: Uuid.nullable(),
+          name: z.string().openapi({ example: 'Barbell Bench Press' }),
+          sets: z
+            .array(z.object(SetFields))
+            .openapi({ description: 'In `position` order, warm-ups included.' }),
+        }),
+      )
+      .openapi({ description: 'In order. One that logged no set is still listed.' }),
+  })
+  .openapi('WorkoutDetail', {
+    description:
+      'One workout whole. Every row is as the sync batch holds it, so a set can be sent back ' +
+      'edited, or deleted, through `/api/workouts/sync`.',
+  });
 
 export const SyncDeletion = z
   .object({ id: Uuid, deletedAt: Instant })

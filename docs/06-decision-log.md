@@ -3217,6 +3217,7 @@ Slice 5 (`#5`) builds `GET /api/exercises/{id}/progress` and screen 2. Settled w
   slider laid over the chart. *Rejected:* a tooltip on the point, which at 390px covers the line
   and the axis it is read against; and tapping through to the workout, which has no screen yet.
 - **Every value drawn is also listed.** `Workouts in this span` opens a table, newest first.
+  *Superseded 2026-10-11, below: the list is the exercise's past sets.*
 - **The way in is the exercise's own screen**, a `Progress` row above its form, at
   `/exercises/{id}/progress`; the span is in the address (`?span=6m`). The picker's copy of the
   form has no such row, since leaving it would lose the routine being edited.
@@ -3390,7 +3391,7 @@ Settled while building:
   as it does outside. Choosing another exercise, the table, `Finish` and the data-state slot are a
   tap on `Exit full screen` away. A pending or refused set is not shown in full screen and nothing
   is dropped: the count is in the slot on the way out, and the refused row is where it was.
-- **A rest takes the card's place** (`05` §4.20): the countdown, the track, `+30s` and `Skip rest`,
+- **A rest takes the card's place** (`05` §4.22): the countdown, the track, `+30s` and `Skip rest`,
   and under it the set that comes next, read off the card's figures as they stand. At zero it turns
   to the accent, counts over, and one control, `Start set 3 of 4`, gives the screen back to the
   card. An exercise with no rest shows no countdown.
@@ -3419,5 +3420,66 @@ in sentence case and set in capitals by the stylesheet, so a screen reader reads
 
 Owed, and Yuta's: the wake lock on a real iPhone, in the installed app (`11` §3 item 3).
 
-**Changed:** `CONTEXT.md`, `00`, `03` §11, `05` §2.2 §2.5 §2.6 §3.2 §4.14 §4.19 §4.20, `09` F3,
+**Changed:** `CONTEXT.md`, `00`, `03` §11, `05` §2.2 §2.5 §2.6 §3.2 §4.14 §4.19 §4.22, `09` F3,
 `10` §1 §8 §8.3, `11` §3.
+### 2026-10-11 — History, the Progress tab, and correcting a logged set
+
+Issue `#48`. The owner reviewed staging on 2026-10-09 and asked for a way to look back at past
+workouts and correct them. It was drawn first as a clickable prototype with sixteen questions,
+each already answered as recommended, and approved on 2026-10-10 with no changes and one
+instruction: build it exactly as shown (`docs/prototype/`, committed by `#47`). Five of the
+sixteen are this issue's.
+
+- **One new tab, Progress, holding History, Strength and Balance** (Q9). *Rejected:* History as a
+  tab of its own, since five tabs do not fit 390px at the tabs' size. Strength (`#49`) and Balance
+  (`#50`) have their addresses and an empty state now, so the tab is laid out as approved.
+- **What History may change** (Q8): a set's weight, reps and RIR, and deleting a set. Deleting a
+  workout's last set deletes the workout. *Rejected:* adding a set to a past workout, moving a
+  set, changing a date, a `Delete workout` action, and an "edited" mark. A log that can be
+  rewritten freely stops being a record; these are the corrections a mistyped set needs.
+- **A set logged today is corrected from its tick, with the same editor** (Q5), which closes the
+  gap `09` F3 step 4 carried since slice 3. *Rejected:* the word `EDIT` on the row, which the
+  six-column set table has no room for at 390px.
+- **An exercise's past sets go under its chart**, in place of `Workouts in this span` (Q10).
+  `ProgressPoint` gains `sets` and `workoutName` for it. The per-workout volume the table printed
+  is not listed any more; the span's volume card stays. *Rejected:* a separate past-sets screen.
+- **Finish lands on the workout's page in History**, which is the finish summary F3 owed (Q11).
+  *Rejected:* back to Today, as before, which showed nothing of what was just done.
+
+Settled while building:
+
+- **No second write path.** A correction is the set's whole row sent again through
+  `/api/workouts/sync` under a new `client_updated_at`, and a delete is a tombstone, exactly as
+  during the workout. So it works offline, retries safely and is refused per row, with nothing
+  new to prove. *Rejected:* `PATCH` and `DELETE` on a set, which would need their own idempotency
+  and an offline queue of their own.
+- **`GET /api/workouts/{id}` answers the rows as the sync batch holds them**, field for field, so
+  the phone can put a past workout back in its set store and send one row back changed.
+  *Rejected:* keeping every past workout in the set store, which would grow without bound on the
+  phone and make it a second copy of the server's truth (`03` §6).
+- **The whole workout goes back, in the write that queues the change**, every row marked
+  acknowledged, and leaves again once the server has answered. Until then the device's rows win
+  on screen, and the cached list and workout are told what the rows said just before they go
+  (`03` §6). *Rejected:* an optimistic edit of the query cache alone, which would not survive a
+  reload and has no retry.
+- **The phone deletes the workout with its last set**, as two tombstones in one batch. The server
+  derives nothing, as with the 3-hour rule: a workout in progress legitimately has no set.
+- **Only finished workouts are History.** The list leaves out one in progress, and its response
+  adds `total` to §1.4's `{ items, nextCursor }`, for the app bar's `194 WORKOUTS`. Each item
+  carries every exercise's top set, since the row prints it, where `07` had sketched names only.
+  The linked Apple workout joins `GET /api/workouts/{id}` in M3, with its data.
+- **Back returns to where the screen was opened from.** A workout's page is reached from History,
+  Today, an exercise's past sets and Finish; the chart from the exercise's form and from a
+  workout. The history entry remembers that it was opened from another screen, and Back goes
+  there; opened by its address, it goes to the screen's parent.
+- **A line said once** (`05` §4.21) tells what Finish, a save or a delete just did. It rides in
+  the history entry's state and is dropped as the screen opens, so a reload does not repeat it.
+- **Two components join `05`**: the set editor (§4.20) and the said-once line (§4.21). No token
+  and no icon is added.
+
+Not built here: the prototype's Today also says when each routine was last done and gives one-line
+strength and balance verdicts under `How it is going`. The verdicts arrive with `#49` and `#50`;
+the last-done line is in no issue yet. Today's `Last workout` row is built, as the way into
+History from there.
+
+**Changed:** `00`, `03`, `05`, `07`, `09`, `10`, `11`, `CONTEXT.md`.

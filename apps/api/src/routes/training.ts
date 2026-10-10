@@ -1,23 +1,29 @@
-import { createRoute, defineOpenAPIRoute, type z } from '@hono/zod-openapi';
+import { createRoute, defineOpenAPIRoute, z } from '@hono/zod-openapi';
 import type { AppEnv, RouteDeps } from '../app-env.js';
+import { getWorkout, listWorkouts, type WorkoutCursor } from '../db/history.js';
 import { getProfile } from '../db/profile.js';
 import { lastTimes } from '../db/training.js';
 import { syncWorkouts } from '../db/workouts.js';
 import { accountHeaders } from '../lib/account.js';
 import { problem, problemResponse, validationErrors } from '../lib/problem.js';
 import {
+  IdParam,
   LastTimes,
   SetRow,
   SyncBatch,
   SyncDeletion,
   SyncResponse,
+  Uuid,
+  WorkoutDetail,
   WorkoutExerciseRow,
+  WorkoutList,
   WorkoutRow,
   jsonBody,
 } from './schemas.js';
 
 // S1, S2 and S3 (docs/07 §3). The sync batch is the only write path for the workout tree, because
 // it is made and edited offline; last time is one call so the gym screen has it with no signal.
+// History reads what the batch wrote: the list of finished workouts, and one workout whole.
 
 /** The uploader splits a larger queue (docs/07 §3.4). */
 export const SYNC_ROW_LIMIT = 500;
@@ -71,8 +77,97 @@ const postSync = createRoute({
   },
 });
 
+/** A page's default and largest size (docs/07 §1.4). */
+const PAGE_DEFAULT = 30;
+const PAGE_MAX = 100;
+
+const CursorFields = z.tuple([z.iso.datetime({ offset: true }), Uuid]);
+
+/** The cursor is opaque to the client: the last row's sort key and id, encoded (docs/07 §1.4). */
+const encodeCursor = (cursor: WorkoutCursor) =>
+  Buffer.from(JSON.stringify([cursor.startedAt, cursor.id])).toString('base64url');
+
+function decodeCursor(text: string): WorkoutCursor | undefined {
+  try {
+    const read = CursorFields.safeParse(JSON.parse(Buffer.from(text, 'base64url').toString()));
+    return read.success ? { startedAt: read.data[0], id: read.data[1] } : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+const getWorkouts = createRoute({
+  method: 'get',
+  path: '/api/workouts',
+  summary: 'History: the caller’s finished workouts, newest first, a page at a time',
+  request: {
+    query: z.object({
+      limit: z.coerce
+        .number()
+        .int()
+        .min(1)
+        .max(PAGE_MAX)
+        .default(PAGE_DEFAULT)
+        .openapi({ description: 'Default 30, at most 100.' }),
+      cursor: z.string().optional().openapi({ description: 'The previous page’s `nextCursor`.' }),
+    }),
+  },
+  responses: {
+    200: {
+      description: 'One page, and the cursor of the next',
+      headers: accountHeaders,
+      content: { 'application/json': { schema: WorkoutList } },
+    },
+    400: problemResponse('A limit outside 1 to 100, or a cursor this route did not make'),
+    401: problemResponse('No session'),
+  },
+});
+
+const getWorkoutById = createRoute({
+  method: 'get',
+  path: '/api/workouts/{id}',
+  summary: 'One workout with its exercises and every set',
+  request: { params: IdParam },
+  responses: {
+    200: {
+      description: 'The workout',
+      headers: accountHeaders,
+      content: { 'application/json': { schema: WorkoutDetail } },
+    },
+    400: problemResponse('A malformed id'),
+    401: problemResponse('No session'),
+    404: problemResponse('No workout with that id is the caller’s'),
+  },
+});
+
 export function trainingRoutes({ db }: RouteDeps) {
   return [
+    defineOpenAPIRoute<typeof getWorkouts, AppEnv>({
+      route: getWorkouts,
+      handler: async (c) => {
+        const { limit, cursor } = c.req.valid('query');
+        const after = cursor === undefined ? undefined : decodeCursor(cursor);
+        if (cursor !== undefined && after === undefined) {
+          return problem(c, 'bad_request', { detail: 'Invalid parameter: cursor' });
+        }
+        const page = await listWorkouts(db, c.get('user').id, { limit, after });
+        return c.json(
+          {
+            items: page.items,
+            nextCursor: page.next === null ? null : encodeCursor(page.next),
+            total: page.total,
+          },
+          200,
+        );
+      },
+    }),
+    defineOpenAPIRoute<typeof getWorkoutById, AppEnv>({
+      route: getWorkoutById,
+      handler: async (c) => {
+        const found = await getWorkout(db, c.get('user').id, c.req.valid('param').id);
+        return found === undefined ? problem(c, 'not_found') : c.json(found, 200);
+      },
+    }),
     defineOpenAPIRoute<typeof getLastTime, AppEnv>({
       route: getLastTime,
       handler: async (c) => {

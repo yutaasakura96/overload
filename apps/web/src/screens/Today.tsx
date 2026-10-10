@@ -1,8 +1,11 @@
 import type { Me, Routine, WeightUnit } from '@overload/api-contract';
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useId, useRef, useState, type FormEvent } from 'react';
 import { api } from '../api';
-import { AccountFooter, AppBar, DataState, Notice, ScreenTabs } from '../components';
+import { AccountFooter, AppBar, Chevron, DataState, Notice, ScreenTabs } from '../components';
+import { agoLabel, dayLabel, minutesBetween } from '../dates';
+import { historyOnDevice } from '../history';
+import type { Navigate } from '../navigation';
 import {
   allExercisesQuery,
   confirmedAccountData,
@@ -12,6 +15,7 @@ import {
   routinesQuery,
   setProfile,
   useAccount,
+  workoutsQuery,
 } from '../query';
 import { RefusedSet, setFigures } from '../refused';
 import { SaveNotice, saveProblem, useFocusRefused, type SaveProblem } from '../saving';
@@ -36,20 +40,22 @@ import {
 // Today (docs/09 F1, F2, F3): where sign-in lands and a workout starts. A routine starts a workout
 // in one tap (S4); one in progress is resumed instead, since only one is open at a time. The
 // profile's time zone is the day boundary every local date is read against, and its weight unit is
-// how weights are shown (docs/06, 2026-09-23). The meal cards arrive with M2.
+// how weights are shown (docs/06, 2026-09-23). The last workout is the way into History from here
+// (docs/10 §9). The meal cards arrive with M2.
 
 const clock = (iso: string, timeZone: string) =>
   new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', timeZone }).format(
     new Date(iso),
   );
 
-export function Today({ me, navigate }: { me: Me; navigate: (path: string) => void }) {
+export function Today({ me, navigate }: { me: Me; navigate: Navigate }) {
   const account = useAccount();
   const confirmed = account.status === 'confirmed';
   const routines = useQuery({ ...routinesQuery, enabled: confirmed });
   const exercises = useQuery({ ...allExercisesQuery, enabled: confirmed });
   // Kept warm here so a start has it offline (S2); `start` reads the cache's copy.
   useQuery({ ...lastTimeQuery, enabled: confirmed && me.profile !== null });
+  const history = useInfiniteQuery({ ...workoutsQuery, enabled: confirmed });
   const userId = me.user.id;
   const loaded = useWorkoutStore((state) => recordsLoadedFor(state, userId));
   const readFailed = useWorkoutStore((state) => readFailedFor(state, userId));
@@ -73,6 +79,19 @@ export function Today({ me, navigate }: { me: Me; navigate: (path: string) => vo
   const items = routines.data ?? [];
   // The open workout's refused sets are on its own screen; these have no other place to be seen.
   const refused = refusedSets(records).filter((set) => set.workoutId !== open?.id);
+  // The newest finished workout, as the device has it: one just finished is here before it uploads.
+  const pages = history.data?.pages;
+  const [latest] =
+    pages === undefined
+      ? []
+      : historyOnDevice(
+          {
+            items: pages.flatMap((page) => page.items),
+            total: pages[0]?.total ?? 0,
+            more: history.hasNextPage,
+          },
+          records,
+        ).items;
   const top = useRef<HTMLElement>(null);
   const refusedHeading = useRef<HTMLHeadingElement>(null);
 
@@ -288,6 +307,34 @@ export function Today({ me, navigate }: { me: Me; navigate: (path: string) => vo
               </li>
             ))}
           </ul>
+        </section>
+      )}
+
+      {loaded && latest !== undefined && (
+        <section className="today__section" aria-labelledby="last-workout">
+          <h2 id="last-workout" className="section-label">
+            Last workout
+          </h2>
+          <a
+            href={`/workouts/${latest.id}`}
+            className="link-row link-row--flush"
+            onClick={(event) => {
+              event.preventDefault();
+              navigate(`/workouts/${latest.id}`, { returns: true });
+            }}
+          >
+            <span>
+              <span className="link-row__name">
+                {latest.name} · {dayLabel(latest.startedAt, timeZone)}
+              </span>
+              <span className="link-row__meta">
+                {latest.workingSets} {latest.workingSets === 1 ? 'working set' : 'working sets'} ·{' '}
+                {minutesBetween(latest.startedAt, latest.endedAt)} min ·{' '}
+                {agoLabel(latest.startedAt, timeZone)}
+              </span>
+            </span>
+            <Chevron direction="forward" />
+          </a>
         </section>
       )}
 

@@ -559,7 +559,7 @@ function setColumns(row: SetRow) {
   };
 }
 
-function toWorkoutRow(row: typeof workout.$inferSelect): WorkoutRow {
+export function toWorkoutRow(row: typeof workout.$inferSelect): WorkoutRow {
   return {
     id: row.id,
     routineId: row.routineId,
@@ -571,7 +571,7 @@ function toWorkoutRow(row: typeof workout.$inferSelect): WorkoutRow {
   };
 }
 
-function toWorkoutExerciseRow(row: typeof workoutExercise.$inferSelect): WorkoutExerciseRow {
+export function toWorkoutExerciseRow(row: typeof workoutExercise.$inferSelect): WorkoutExerciseRow {
   return {
     id: row.id,
     workoutId: row.workoutId,
@@ -586,7 +586,7 @@ function toWorkoutExerciseRow(row: typeof workoutExercise.$inferSelect): Workout
   };
 }
 
-function toSetRow(row: typeof set.$inferSelect): SetRow {
+export function toSetRow(row: typeof set.$inferSelect): SetRow {
   return {
     id: row.id,
     workoutExerciseId: row.workoutExerciseId,

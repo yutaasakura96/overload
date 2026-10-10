@@ -183,6 +183,25 @@ rebuild the open workout, show Resume (`docs/09` F3) and restart the rest timer 
 so the data-state slot is unaffected. The TanStack cache is not a substitute: its persister writes
 at most once a second (`06`, 2026-09-19, client state). *Added 2026-09-22.*
 
+**A past workout comes back to the set store to be changed.** *Added 2026-10-11 (`06`).* History
+(`docs/10` §9) is API data: the list and each workout are TanStack queries. Editing or deleting a
+set of a workout the device has let go writes the whole workout back into the set store from the
+query's copy, every row marked acknowledged, in the same IndexedDB transaction that queues the
+change; `GET /api/workouts/{id}` returns the rows exactly as the sync batch holds them so that this
+is a copy, not a conversion (`docs/07` §3). From there the change is an ordinary pending row: it
+uploads through `/api/workouts/sync`, is retried, and can be refused like any other. Two rules keep
+the screens honest while it waits:
+
+- **The device's rows win on screen.** History, a workout's page and Today's last workout read an
+  ended workout from the set store whenever it holds one, over the query's copy. So a finish, an
+  edit and a delete show at once, offline included, and survive a reload. This is still one copy
+  per fact: the server's answer is the history, and the set store holds only what it has not yet
+  been told.
+- **The cache is told before the rows go.** An acknowledged batch lets an ended workout's rows
+  leave the device. Just before that, the uploader writes what those rows say into the cached list
+  and workout, then asks the server for History, last time and the charts again. The screen never
+  falls back to a copy older than the change.
+
 ---
 
 ## 7. Errors and logging

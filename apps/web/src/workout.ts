@@ -1,4 +1,10 @@
-import type { Exercise, LastTime, Routine, SyncResult } from '@overload/api-contract';
+import type {
+  Exercise,
+  LastTime,
+  Routine,
+  SyncResult,
+  WorkoutDetail,
+} from '@overload/api-contract';
 import { create } from 'zustand';
 import { newId } from './ids';
 import {
@@ -411,15 +417,7 @@ export async function editSet(
 ): Promise<void> {
   await mutate((records) => {
     const record = loggedSet(records, id);
-    if (record === undefined) return undefined;
-    const { refusal: _refusal, ...kept } = record;
-    const row = {
-      ...record.row,
-      ...figures,
-      rpe: figures.rir === null ? record.row.rpe : null,
-      clientUpdatedAt: stampAfter(record.row.clientUpdatedAt),
-    };
-    return { put: [{ ...kept, state: 'pending', row }] };
+    return record === undefined ? undefined : { put: [asEdit(record, figures)] };
   });
 }
 
@@ -431,20 +429,119 @@ export async function editSet(
 export async function discardSet(id: string): Promise<void> {
   await mutate((records) => {
     const record = loggedSet(records, id);
-    if (record === undefined) return undefined;
-    const { refusal: _refusal, ...kept } = record;
-    const deletedAt = stampAfter(record.row.clientUpdatedAt);
-    return { put: [{ ...kept, state: 'pending', deletedAt }] };
+    return record === undefined ? undefined : { put: [asDeletion(record)] };
   });
   // Rest does not count from a set that was never done.
   if (useWorkoutStore.getState().rest?.setId === id) useWorkoutStore.setState({ rest: undefined });
 }
 
+/**
+ * A past workout's rows as the set store holds them: every row acknowledged, as the server has it.
+ * The device let them go once the workout ended and uploaded, so this is the way back for a set
+ * that is to be changed (docs/03 §6). Rest, last time and the suggestion belong to a workout in
+ * progress and are left empty.
+ */
+function recordsOfPast(userId: string, workout: WorkoutDetail): StoreRecord[] {
+  const { exercises, ...row } = workout;
+  const base = { userId, workoutId: workout.id, state: 'acknowledged' } as const;
+  return [
+    { ...base, table: 'workouts', id: row.id, row },
+    ...exercises.flatMap(({ name, sets, ...exercise }): StoreRecord[] => [
+      {
+        ...base,
+        table: 'workoutExercises',
+        id: exercise.id,
+        row: exercise,
+        local: { name, bodyweight: false, restSeconds: 0, lastTime: [], suggestion: null },
+      },
+      ...sets.map((set): SetRecord => ({ ...base, table: 'sets', id: set.id, row: set })),
+    ]),
+  ];
+}
+
+/**
+ * Makes a change to a workout from History (docs/09 F3a): on the rows the device holds of it, and
+ * for one it let go, on the rows `workout` puts back, which are written with the change. The rows
+ * are read inside the change, so a workout another tab put back is not put back over it.
+ */
+function mutatePast(
+  workout: WorkoutDetail,
+  change: (records: StoreRecord[]) => StoreRecord[],
+): Promise<void> {
+  return mutate((records) => {
+    const { userId } = useWorkoutStore.getState();
+    if (userId === undefined) return undefined;
+    const here = records.some((record) => record.id === workout.id);
+    const back = here ? [] : recordsOfPast(userId, workout);
+    const changed = change([...records, ...back]);
+    if (changed.length === 0) return undefined;
+    const ids = new Set(changed.map((record) => record.id));
+    return { put: [...back.filter((record) => !ids.has(record.id)), ...changed] };
+  });
+}
+
+/** `record` queued again as an edit of its figures (docs/09 F4). */
+function asEdit(
+  record: SetRecord,
+  figures: { weightKg: number; reps: number; rir: number | null },
+): SetRecord {
+  const { refusal: _refusal, ...kept } = record;
+  const row = {
+    ...record.row,
+    ...figures,
+    rpe: figures.rir === null ? record.row.rpe : null,
+    clientUpdatedAt: stampAfter(record.row.clientUpdatedAt),
+  };
+  return { ...kept, state: 'pending', row };
+}
+
+/** `record` queued as a deletion. */
+function asDeletion<Kept extends StoreRecord>(record: Kept): Kept {
+  const { refusal: _refusal, ...kept } = record;
+  const deletedAt = stampAfter(record.row.clientUpdatedAt);
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the same record, less its refusal
+  return { ...kept, state: 'pending', deletedAt } as Kept;
+}
+
+/**
+ * Edits a set of a past workout (docs/09 F3a): the whole row is queued under a new
+ * `clientUpdatedAt`, exactly as an edit made during the workout is.
+ */
+export function editPastSet(
+  workout: WorkoutDetail,
+  id: string,
+  figures: { weightKg: number; reps: number; rir: number | null },
+): Promise<void> {
+  return mutatePast(workout, (records) => {
+    const record = loggedSet(records, id);
+    return record === undefined ? [] : [asEdit(record, figures)];
+  });
+}
+
+/**
+ * Deletes a set of a past workout (docs/09 F3a). A workout left with no set at all is deleted with
+ * it, as Finish deletes one that never logged a set. Resolves to whether the workout went.
+ */
+export async function deletePastSet(workout: WorkoutDetail, id: string): Promise<boolean> {
+  let emptied = false;
+  await mutatePast(workout, (records) => {
+    const record = loggedSet(records, id);
+    const parent = records.find(
+      (each): each is WorkoutRecord => each.table === 'workouts' && each.id === workout.id,
+    );
+    if (record === undefined || parent === undefined) return [];
+    // One still in progress is Finish's to remove, not a delete's.
+    emptied =
+      parent.row.endedAt !== null &&
+      setsOfWorkout(records, workout.id).every((set) => set.id === id);
+    return emptied ? [asDeletion(record), asDeletion(parent)] : [asDeletion(record)];
+  });
+  return emptied;
+}
+
 /** A workout left with no logged set is deleted, not kept (docs/09 F3). */
 function removeWorkout(workout: WorkoutRecord): Change {
-  return {
-    put: [{ ...workout, state: 'pending', deletedAt: stampAfter(workout.row.clientUpdatedAt) }],
-  };
+  return { put: [asDeletion(workout)] };
 }
 
 /** Finish (docs/09 F3 step 5): `ended_at` is now. With no logged set the workout is deleted. */

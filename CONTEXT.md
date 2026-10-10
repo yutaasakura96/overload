@@ -50,6 +50,11 @@ _Avoid_: launch, go-live, production (production exists from M1)
 One visit to the gym, logged in the app (`workout`). The UI may say "session"; nothing else does.
 _Avoid_: session, training session, gym session
 
+**History**:
+The user's finished workouts, newest first. A workout in progress is not history yet. A set in
+it can be corrected or deleted; nothing else about a past workout changes.
+_Avoid_: log, journal, past sessions, archive
+
 **Apple workout**:
 An exercise session recorded by the watch and imported from Apple Health (`health_workout`). May be
 linked to a workout, or not.
@@ -96,6 +101,11 @@ Its id is made on the phone.
 A set that is not a warm-up. Only working sets count towards e1RM, volume and the suggestion.
 _Avoid_: work set, top set (top set is the heaviest working set, a narrower thing)
 
+**Top set**:
+An exercise's heaviest working set in a workout, with the most reps done at that weight. History
+prints it for each exercise, and the chart's stats use it.
+_Avoid_: best set (the best set is the one with the highest e1RM, which can be a lighter one)
+
 **Warm-up set**:
 A set flagged `is_warmup`. Stored and shown, excluded from every calculation.
 
@@ -132,7 +142,8 @@ the app can describe and cannot turn on), distraction-free mode, the browser's f
 **Set store**:
 The device's own IndexedDB store holding one record per set, and per `workout` and `workout_exercise`
 row, until the server acknowledges it. The open workout's rows stay until the workout ends, so the
-workout can be rebuilt after iOS closes the app.
+workout can be rebuilt after iOS closes the app. A past workout's rows come back while a change
+to one of its sets waits to upload.
 _Avoid_: queue (in code), cache, outbox
 
 **Tombstone**:

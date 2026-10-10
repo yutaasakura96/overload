@@ -86,11 +86,16 @@ Works identically offline. Every write below goes to the IndexedDB set store fir
    (`10` §1, §8.3).
 4. **Change the workout.** Add, remove or reorder exercises; edit or delete a ticked set. None of it
    touches the routine (S4). Edits and deletes travel in the same sync batch (`07` §3.4). *Sync
-   carries them since slice 4 (2026-10-08), and the screen edits or discards a refused set (F4).
-   Changing the exercises, and editing or deleting a set the server took, have no screen yet.*
-   Any exercise of the workout can be opened from **Up next** or **Done**, in any order.
-5. **Finish.** Tap **Finish workout**, confirm → `ended_at` is set to now → Today. *The summary is
-   not built yet.*
+   carries them since slice 4 (2026-10-08), and the screen edits or discards a refused set (F4).*
+   **A ticked set is corrected from its tick** (built 2026-10-11, `06`): the tick opens the set
+   editor of F3a under the row, which changes the weight, reps and RIR or deletes the set, uploaded
+   or not. The card under the table is then made again from the corrected set. *Changing the
+   exercises has no screen yet.* Any exercise of the workout can be opened from **Up next** or
+   **Done**, in any order.
+5. **Finish.** Tap **Finish workout**, confirm → `ended_at` is set to now → the workout's own page
+   in History (F3a), which says `Workout finished. It is in History from now on.` once and serves
+   as the summary (built 2026-10-11, `06`). Back from it goes to History. A workout finished with
+   no set is deleted, and lands on Today.
 
 **Ending a workout that was not finished cleanly** (decided 2026-09-21):
 
@@ -114,6 +119,51 @@ Planned sets that were never ticked are not stored. Only ticked sets become `set
 | any | Session ended while offline | F4 |
 
 **Abandon:** every ticked set is kept. The open workout ends by the 3-hour rule.
+
+### F3a. Look back at a workout, and correct it
+
+Built 2026-10-11 (`06`). Screens are `10` §9. Works identically offline for every workout the
+device has already loaded: a change is written to the set store first and uploads later, like a
+set logged in the gym (`03` §8.1).
+
+1. **Open History.** The **Progress** tab opens on History: the finished workouts by month, newest
+   first (`GET /api/workouts`, a page of 30 at a time; **Show earlier workouts** asks for the
+   next). Today's **Last workout** row opens the newest one directly.
+2. **Open a workout.** Its page lists every exercise with every set as logged, warm-ups included
+   (`GET /api/workouts/{id}`). An exercise's name opens its chart, whose **Past sets** list each
+   workout that trained it; a row there opens that workout.
+3. **Correct a set.** Tap the set. It opens into three fields, weight, reps and RIR, over **Cancel**
+   and **Save set**, with **Delete set** under them. Save queues the whole row again under a new
+   `client_updated_at`; the page says `Set saved. Charts, last time and the target use the new
+   figures.`
+4. **Delete a set.** **Delete set** asks once, in place: `Delete set 2? It leaves this workout, your
+   charts and last time.` — **Keep** / **Delete**. The set goes as a tombstone in the sync batch.
+   **Deleting a workout's last set deletes the workout with it**, and lands on History with `That
+   was its last set, so the workout was removed.`
+5. **It reaches everything derived from the set.** Once the server has answered, last time, the
+   suggestion and the charts are asked again, so the next workout's target and the exercise's e1RM
+   follow the corrected figures. Nothing is recalculated on the phone.
+
+Not offered, by decision (`06`, 2026-10-11): adding a set to a past workout, moving a set, changing
+a workout's date or name, deleting a whole workout in one action, and any "edited" mark.
+
+**How a past set gets back on the device.** The set store let the workout go when it ended and
+uploaded (`03` §6). The first change to it puts the whole workout back from the page's copy, every
+row marked acknowledged, in the same write that queues the change. The rows stay until the server
+has answered every one of them, then go again.
+
+| Step | Goes wrong | User sees |
+| --- | --- | --- |
+| 1, 2 | No signal | The last loaded copy, with its age in the data-state slot. A workout never opened on this device says `Couldn’t reach Overload. Try again when you have signal.` |
+| 2 | The workout is not the caller's, or was deleted elsewhere | `This workout is not in your history.` |
+| 3 | A figure the server would refuse | Refused in the editor before anything is written, as on the active set card (`10` §1) |
+| 3, 4 | No signal | Nothing different. The change shows at once, survives a reload, and is counted as pending in the data-state slot |
+| 3, 4 | The device cannot write the change | `Not saved` in the editor, which stays open. Nothing was changed |
+| 3 | The server refuses the edited set | F4: the set is listed on Today under **Refused sets**, to edit or discard |
+| 3, 4 | The workout was deleted on another device meanwhile | The server answers `deleted`; the rows leave this device and the workout leaves History |
+
+**Abandon:** an editor left open changes nothing. A saved change waits on the device until it
+uploads.
 
 ### F4. Sync recovery
 

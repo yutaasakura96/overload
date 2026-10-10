@@ -1,4 +1,4 @@
-import { bestE1rmKg, type LoggedSet } from './e1rm.js';
+import { bestE1rmKg, topSet, type LoggedSet } from './e1rm.js';
 
 // S7's chart (docs/07 §3): one point per workout, and the stats of the span chosen. Local dates
 // are `YYYY-MM-DD` strings, which compare in date order.
@@ -6,11 +6,12 @@ import { bestE1rmKg, type LoggedSet } from './e1rm.js';
 export const SPANS = ['4w', '12w', '6m', '1y', 'all'] as const;
 export type Span = (typeof SPANS)[number];
 
-/** One workout's sets of the exercise, warm-ups included, with the workout's local date. */
-export type LoggedWorkout = { workoutId: string; date: string; sets: LoggedSet[] };
+/** One workout's sets of the exercise, warm-ups included, with the workout's name and local date. */
+export type LoggedWorkout = { workoutId: string; name: string; date: string; sets: LoggedSet[] };
 
 export type ProgressPoint = {
   workoutId: string;
+  workoutName: string;
   date: string;
   /** Epley on the best working set, to the tenth. */
   e1rmKg: number;
@@ -19,6 +20,8 @@ export type ProgressPoint = {
   topSetReps: number;
   /** Volume load: weight × reps, summed over the working sets. */
   volumeKg: number;
+  /** The working sets as logged, in order: the exercise's past sets. */
+  sets: { weightKg: number; reps: number }[];
 };
 
 export type Progress = {
@@ -68,23 +71,23 @@ export function spanStart(span: Span, today: string): string | undefined {
  */
 function pointOf(workout: LoggedWorkout): { point: ProgressPoint; e1rmKg: number }[] {
   const e1rmKg = bestE1rmKg(workout.sets);
-  if (e1rmKg === undefined) return [];
+  const top = topSet(workout.sets);
+  if (e1rmKg === undefined || top === undefined) return [];
   const working = workout.sets.filter((set) => !set.isWarmup);
-  const topSetKg = Math.max(...working.map((set) => set.weightKg));
   return [
     {
       point: {
         workoutId: workout.workoutId,
+        workoutName: workout.name,
         date: workout.date,
         e1rmKg: round(e1rmKg, 1),
-        topSetKg,
-        topSetReps: Math.max(
-          ...working.filter((set) => set.weightKg === topSetKg).map((set) => set.reps),
-        ),
+        topSetKg: top.weightKg,
+        topSetReps: top.reps,
         volumeKg: round(
           working.reduce((sum, set) => sum + set.weightKg * set.reps, 0),
           2,
         ),
+        sets: working.map((set) => ({ weightKg: set.weightKg, reps: set.reps })),
       },
       e1rmKg,
     },
