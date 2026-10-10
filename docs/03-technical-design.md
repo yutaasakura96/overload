@@ -189,7 +189,9 @@ set of a workout the device has let go writes the whole workout back into the se
 query's copy, every row marked acknowledged, in the same IndexedDB transaction that queues the
 change; `GET /api/workouts/{id}` returns the rows exactly as the sync batch holds them so that this
 is a copy, not a conversion (`docs/07` §3). From there the change is an ordinary pending row: it
-uploads through `/api/workouts/sync`, is retried, and can be refused like any other. Two rules keep
+uploads through `/api/workouts/sync`, is retried, and can be refused like any other. A workout
+that has not ended and that the device does not hold is never written back: it is in progress on
+another device, and held here it would become this device's open workout to resume and to end. Two rules keep
 the screens honest while it waits:
 
 - **The device's rows win on screen.** History, a workout's page and Today's last workout read an

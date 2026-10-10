@@ -130,7 +130,7 @@ past workout is put back in the set store to be changed (`06`, 2026-10-11; `03` 
 were compared with the approved prototype at 390px, element by element, and cleared the polish
 gate. Vitest covers the two routes, their cross-user cases and a correction through sync;
 `e2e/history.spec.ts` covers the list, paging, the editor online and offline, the last set's delete
-and the tick, on Chromium and WebKit. Not built, and in no issue: Today's line under each routine
+and the tick, on Chromium and WebKit. Not built, and tracked in `#61`: Today's line under each routine
 saying when it was last done, which the prototype's Today shows.
 
 **A light theme is built, 2026-10-11**, on branch `fm/overload-59` against `develop` (`#59`). In

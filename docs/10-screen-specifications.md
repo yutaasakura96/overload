@@ -801,6 +801,8 @@ finishing a workout. Back returns to whichever it came from, and to History othe
   that a set was edited.
 - **Offline** every control works on a workout the device has loaded; the change is counted as
   pending in the data-state slot until it uploads (`09` F3a). One never loaded says `Not loaded`.
+- **In progress elsewhere:** a workout not ended that this device does not hold is read-only. Its
+  set rows are not buttons and carry no `EDIT`; nothing else changes (`09` F3a).
 - **Unknown:** a workout that is not the caller's, or was deleted, reads `This workout is not in
   your history.` under a bar titled `Workout`.
 - **Pounds.** Every weight is shown and typed in the profile's unit; the column head reads `LB`.

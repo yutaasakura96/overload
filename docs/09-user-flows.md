@@ -152,6 +152,11 @@ uploaded (`03` §6). The first change to it puts the whole workout back from the
 row marked acknowledged, in the same write that queues the change. The rows stay until the server
 has answered every one of them, then go again.
 
+**A workout in progress on another device is read-only here.** One that has not ended and that
+this device does not hold shows as `IN PROGRESS` with its sets and no editor, and is never put
+back in the set store: the device that holds it is the one that changes it and ends it. The
+device's own workout in progress is corrected as any other.
+
 | Step | Goes wrong | User sees |
 | --- | --- | --- |
 | 1, 2 | No signal | The last loaded copy, with its age in the data-state slot. A workout never opened on this device says `Couldn’t reach Overload. Try again when you have signal.` |

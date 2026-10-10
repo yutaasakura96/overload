@@ -3479,7 +3479,7 @@ Settled while building:
 
 Not built here: the prototype's Today also says when each routine was last done and gives one-line
 strength and balance verdicts under `How it is going`. The verdicts arrive with `#49` and `#50`;
-the last-done line is in no issue yet. Today's `Last workout` row is built, as the way into
+the last-done line is `#61`. Today's `Last workout` row is built, as the way into
 History from there.
 
 **Changed:** `00`, `03`, `05`, `07`, `09`, `10`, `11`, `CONTEXT.md`.

@@ -80,6 +80,7 @@ export function PastWorkout({ id, me, navigate }: { id: string; me: Me; navigate
   const volumeKg = working.reduce((sum, set) => sum + set.weightKg * set.reps, 0);
   const minutes =
     workout.endedAt === null ? undefined : minutesBetween(workout.startedAt, workout.endedAt);
+  const editable = held !== undefined || workout.endedAt !== null;
   const when = `${dayLabel(workout.startedAt, timeZone).toUpperCase()} · ${clockLabel(workout.startedAt, timeZone)}`;
 
   const save = async (set: SetRow, figures: Parameters<typeof editPastSet>[2]) => {
@@ -126,6 +127,7 @@ export function PastWorkout({ id, me, navigate }: { id: string; me: Me; navigate
           key={exercise.id}
           exercise={exercise}
           unit={unit}
+          editable={editable}
           editing={editing}
           onOpen={(setId) => {
             setEditing(setId === editing ? undefined : setId);
@@ -170,6 +172,7 @@ type LoggedExercise = WorkoutDetail['exercises'][number];
 function ExerciseSets({
   exercise,
   unit,
+  editable,
   editing,
   onOpen,
   onChart,
@@ -179,6 +182,7 @@ function ExerciseSets({
 }: {
   exercise: LoggedExercise;
   unit: WeightUnit;
+  editable: boolean;
   editing: string | undefined;
   onOpen: (setId: string) => void;
   onChart: () => void;
@@ -215,49 +219,59 @@ function ExerciseSets({
           const number = working.indexOf(set) + 1;
           const name = set.isWarmup ? 'the warm-up set' : `set ${number}`;
           const open = editing === set.id;
+          const rowClass = set.isWarmup ? 'hsets__row hsets__row--warm' : 'hsets__row';
+          const cells = (
+            <>
+              <span className="sets__number">
+                {set.isWarmup ? (
+                  <>
+                    <span aria-hidden="true">W</span>
+                    <span className="visually-hidden">Warm-up set:</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="visually-hidden">Set </span>
+                    {number}
+                    <span className="visually-hidden">:</span>
+                  </>
+                )}
+              </span>
+              <span className="sets__figure">
+                {formatWeight(set.weightKg, unit)}
+                <span className="visually-hidden"> {unitName(unit)},</span>
+              </span>
+              <span className="sets__figure">
+                {set.reps}
+                <span className="visually-hidden"> reps,</span>
+              </span>
+              <span className="sets__number">
+                <span className="visually-hidden">RIR </span>
+                {set.rir ?? (
+                  <>
+                    <span aria-hidden="true">—</span>
+                    <span className="visually-hidden">not recorded</span>
+                  </>
+                )}
+                <span className="visually-hidden">.</span>
+              </span>
+            </>
+          );
           return (
             <li key={set.id}>
-              <button
-                type="button"
-                id={`set-${set.id}`}
-                className={set.isWarmup ? 'hsets__row hsets__row--warm' : 'hsets__row'}
-                aria-expanded={open}
-                onClick={() => onOpen(set.id)}
-              >
-                <span className="sets__number">
-                  {set.isWarmup ? (
-                    <>
-                      <span aria-hidden="true">W</span>
-                      <span className="visually-hidden">Warm-up set:</span>
-                    </>
-                  ) : (
-                    <>
-                      <span className="visually-hidden">Set </span>
-                      {number}
-                      <span className="visually-hidden">:</span>
-                    </>
-                  )}
-                </span>
-                <span className="sets__figure">
-                  {formatWeight(set.weightKg, unit)}
-                  <span className="visually-hidden"> {unitName(unit)},</span>
-                </span>
-                <span className="sets__figure">
-                  {set.reps}
-                  <span className="visually-hidden"> reps,</span>
-                </span>
-                <span className="sets__number">
-                  <span className="visually-hidden">RIR </span>
-                  {set.rir ?? (
-                    <>
-                      <span aria-hidden="true">—</span>
-                      <span className="visually-hidden">not recorded</span>
-                    </>
-                  )}
-                  <span className="visually-hidden">.</span>
-                </span>
-                <span className="hsets__edit">{open ? 'CLOSE' : 'EDIT'}</span>
-              </button>
+              {editable ? (
+                <button
+                  type="button"
+                  id={`set-${set.id}`}
+                  className={rowClass}
+                  aria-expanded={open}
+                  onClick={() => onOpen(set.id)}
+                >
+                  {cells}
+                  <span className="hsets__edit">{open ? 'CLOSE' : 'EDIT'}</span>
+                </button>
+              ) : (
+                <div className={rowClass}>{cells}</div>
+              )}
               {open && (
                 <SetEditor
                   set={set}

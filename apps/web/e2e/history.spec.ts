@@ -637,3 +637,44 @@ test('a set logged today is corrected and deleted from its tick, with the same e
     .poll(async () => onServer(page, (await workoutId()) ?? ''))
     .toEqual([[16, 11, null]]);
 });
+
+test('a workout in progress on another device shows its sets and offers no edit or delete', async ({
+  page,
+}) => {
+  const row = await exerciseId(page, 'Bent Over Barbell Row');
+  const { workoutId, ...rows } = workoutRows(row, {
+    name: 'Pull elsewhere',
+    startedAt: new Date(Date.now() - 20 * MINUTE_MS).toISOString(),
+    minutes: 20,
+    sets: [
+      { weightKg: 70, reps: 8 },
+      { weightKg: 70, reps: 7 },
+    ],
+  });
+  // The other device has uploaded its sets and has not finished.
+  const uploaded = await page.request.post('/api/workouts/sync', {
+    data: { ...rows, workouts: rows.workouts.map((workout) => ({ ...workout, endedAt: null })) },
+  });
+  expect(uploaded.ok()).toBe(true);
+
+  await page.goto(`/workouts/${workoutId}`);
+  await expect(page.getByRole('heading', { name: 'Pull elsewhere', level: 1 })).toBeVisible();
+  await expect(page.getByText(/IN PROGRESS$/)).toBeVisible();
+  const sets = setsOf(page, 'Bent Over Barbell Row');
+  await expect(sets).toHaveCount(2);
+  await expect(sets.nth(1)).toContainText(/70.*7 reps/s);
+  await expect(sets.getByRole('button')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Delete set' })).toHaveCount(0);
+
+  // Nothing of it is on this device, so Today has no workout to resume and none to end.
+  await expect.poll(() => rowsOnDevice(page)).toBe(0);
+  await page.goto('/');
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Resume workout' })).toHaveCount(0);
+  const kept = await page.request.get(`/api/workouts/${workoutId}`);
+  expect(await kept.json()).toMatchObject({ endedAt: null });
+  expect(await onServer(page, workoutId)).toEqual([
+    [70, 8, null],
+    [70, 7, null],
+  ]);
+});

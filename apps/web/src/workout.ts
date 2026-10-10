@@ -472,6 +472,7 @@ function mutatePast(
     const { userId } = useWorkoutStore.getState();
     if (userId === undefined) return undefined;
     const here = records.some((record) => record.id === workout.id);
+    if (!here && workout.endedAt === null) return undefined;
     const back = here ? [] : recordsOfPast(userId, workout);
     const changed = change([...records, ...back]);
     if (changed.length === 0) return undefined;
