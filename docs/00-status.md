@@ -125,8 +125,8 @@ WebKit. Not built here, and in the prototype's workout screen: `FULL SCREEN` on 
 the repo: light values for every colour token under the same names, `data-theme` on `<html>` set
 before the first paint, and `System` / `Light` / `Dark` in the profile section, kept on the device
 (`05` §1.7; `06`, 2026-10-10; `10` §8.2). No dark value changed. It cleared the polish gate.
-`e2e/theme.spec.ts` computes the contrast pairs for both themes from the stylesheet, fails on a
-colour written outside the two token blocks, and covers the choice, on Chromium and WebKit. Checked
+`e2e/theme.spec.ts` computes the contrast pairs from browser-computed token values in both themes,
+checks loaded CSSOM rules for colours outside the two token blocks, and covers the choice, on Chromium and WebKit. Checked
 in a browser at 390px in both themes: every built screen, the rest bar, the chart and the status
 colours, and the twelve prototype screens of `#47`–`#51` with the light values applied. For `#50`:
 the prototype's meter band is `line/control` at 16% written as a literal, which the token test

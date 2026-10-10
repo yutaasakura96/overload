@@ -3335,7 +3335,7 @@ Issue `#59`, asked for at the prototype review. The app was dark only.
 - **The chart overlays' light values are recorded and not yet in the stylesheet**, as the dark
   ones are not: no overlay is drawn until M2 (`05` §1.6).
 
-`e2e/theme.spec.ts` computes the contrast pairs from the stylesheet for both themes and fails on a
-colour written outside the two token blocks.
+`e2e/theme.spec.ts` computes the contrast pairs from browser-computed token values in both themes
+and checks the loaded stylesheet's CSSOM rules for colours outside the two token blocks.
 
 **Changed:** `00`, `05`, `10`, `11`.

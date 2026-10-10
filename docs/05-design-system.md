@@ -204,8 +204,8 @@ built from the tokens is right in both; the one exception is the status bar's st
 | `line/control` `#75838F` | 3.59 | 3.32 on `surface/error` | Passes 1.4.11 for unlabelled controls and chart observations. |
 | `line/field` `#BAC4CE` | 1.63 | — | Below 3.0, and allowed for the reason §1.5 gives. |
 
-`apps/web/e2e/theme.spec.ts` computes these pairs from the stylesheet for both themes, and fails
-on a colour written anywhere but the two token blocks.
+`apps/web/e2e/theme.spec.ts` computes these pairs from browser-computed token values in both themes,
+and checks the loaded stylesheet's CSSOM rules for colours outside the two token blocks.
 
 **How a theme is applied.** `<html>` carries `data-theme="light"` or `"dark"`, and the light values
 are one block under `:root[data-theme='light']`. A script in the page's `<head>` sets it before the
