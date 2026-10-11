@@ -678,3 +678,43 @@ test('a workout in progress on another device shows its sets and offers no edit 
     [70, 7, null],
   ]);
 });
+
+test('a set corrected in one tab and uploaded by another stays corrected on its page', async ({
+  page,
+  context,
+}) => {
+  const row = await exerciseId(page, 'Bent Over Barbell Row');
+  const workoutId = await log(page, row, {
+    name: 'Pull in two tabs',
+    startedAt: '2026-05-14T09:00:00.000Z',
+    minutes: 30,
+    sets: [
+      { weightKg: 80, reps: 8 },
+      { weightKg: 80, reps: 7 },
+    ],
+  });
+  await page.goto(`/workouts/${workoutId}`);
+  const sets = setsOf(page, 'Bent Over Barbell Row');
+  await expect(sets).toHaveCount(2);
+  const other = await context.newPage();
+  await other.goto('/progress');
+  await expect(other.getByRole('link', { name: /^Pull in two tabs/ })).toBeVisible();
+
+  // This tab's own upload does not get through, so the other tab is the one that sends the change.
+  await page.route('**/api/workouts/sync', (route) => route.abort('internetdisconnected'));
+  const editor = await openEditor(page, 'Bent Over Barbell Row', 1, 'set 2');
+  await editor.getByRole('textbox', { name: 'Reps of set 2' }).fill('6');
+  await editor.getByRole('button', { name: 'Save set' }).click();
+  await expect
+    .poll(() => onServer(page, workoutId))
+    .toEqual([
+      [80, 8, null],
+      [80, 6, null],
+    ]);
+
+  // The rows have left the device, and the page still shows the figure that was saved.
+  await expect.poll(() => rowsOnDevice(page)).toBe(0);
+  await expect(dataState(page)).toContainText('SYNCED');
+  await expect(sets.nth(1).getByRole('button')).toHaveAccessibleName(/80.*6 reps/s);
+  await other.close();
+});

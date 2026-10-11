@@ -191,7 +191,10 @@ change; `GET /api/workouts/{id}` returns the rows exactly as the sync batch hold
 is a copy, not a conversion (`docs/07` §3). From there the change is an ordinary pending row: it
 uploads through `/api/workouts/sync`, is retried, and can be refused like any other. A workout
 that has not ended and that the device does not hold is never written back: it is in progress on
-another device, and held here it would become this device's open workout to resume and to end. Two rules keep
+another device, and held here it would become this device's open workout to resume and to end.
+With two tabs open, the tab that uploads a change may not be the one that made it: a tab whose
+pending rows another tab's upload answered tells its own cache what they said and asks the server
+again, as the uploading tab does. Two rules keep
 the screens honest while it waits:
 
 - **The device's rows win on screen.** History, a workout's page and Today's last workout read an

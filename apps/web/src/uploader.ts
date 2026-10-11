@@ -76,12 +76,35 @@ async function underUploadLock(upload: () => Promise<void>): Promise<void> {
   }
 }
 
+/**
+ * Reads the records again. Rows of this tab's that another tab's upload has answered may have left
+ * the device with it, so History's cache is told what they said and the server is asked again,
+ * exactly as after an upload of this tab's own.
+ */
+async function readAgain(): Promise<void> {
+  const before = useWorkoutStore.getState();
+  await refreshWorkouts();
+  const now = useWorkoutStore.getState();
+  if (now.userId !== before.userId) return;
+  const waiting = new Set(
+    now.records.filter((record) => record.state === 'pending').map((record) => record.id),
+  );
+  const answered = before.records.some(
+    (record) => record.state === 'pending' && !waiting.has(record.id),
+  );
+  if (!answered) return;
+  keepHistory(before.records);
+  void refreshLastTime();
+  void refreshProgress();
+  void refreshHistory();
+}
+
 /** Sends pending rows, parents first, until none is left or the server cannot be reached. */
 async function uploadPending(): Promise<void> {
   for (;;) {
     // What another tab uploaded while this one waited is not sent again: the set store says what
     // is still pending. A store that cannot be read leaves this tab's own view, which still holds.
-    await refreshWorkouts().catch(() => undefined);
+    await readAgain().catch(() => undefined);
     const account = currentAccount();
     const { records, userId } = useWorkoutStore.getState();
     // Only the confirmed account's rows, under its own session (docs/08 §5).
@@ -166,7 +189,7 @@ export function startUploader() {
   // Another tab changed this account's records: they are read again, and what that tab left
   // pending is this one's to upload too, should it be closed first.
   onChangeElsewhere((userId) => {
-    if (userId === useWorkoutStore.getState().userId) void refreshWorkouts().catch(() => undefined);
+    if (userId === useWorkoutStore.getState().userId) void readAgain().catch(() => undefined);
   });
   useWorkoutStore.subscribe((state, previous) => {
     if (state.records !== previous.records) tryUpload();
