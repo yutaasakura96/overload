@@ -3330,8 +3330,8 @@ Issue `#59`, asked for at the prototype review. The app was dark only.
   *Rejected:* another status bar style, which stops the app drawing under the bar and so changes
   the dark theme too. Whether iOS picks up a style changed after install is not documented, so
   nothing depends on it.
-- **The page's `theme-color` is read from `surface/ground`, not written.** A script in `<body>`,
-  which waits for the stylesheet, and `theme.ts` on every change set it from the computed token.
+- **The page's `theme-color` has no literal value.** A script in `<body>`, which waits for the
+  stylesheet, and `theme.ts` on every change set it from the computed `surface/ground` token.
   *Rejected:* both grounds as literals on the meta tag, a second copy of the token to keep in step.
 - **Not themed:** the app icon, and the manifest's `background_color` and `theme_color`, which
   hold one value each. They are the only colours written outside the tokens (`05` §1.7), and
