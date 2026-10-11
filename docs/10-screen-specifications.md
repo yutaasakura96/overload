@@ -768,9 +768,8 @@ empty state that says so.
   sections says `That was its last set, so the workout was removed.` (`05` §4.21), once.
 - **Not reached:** `Not updated` in `flag` over the last copy, or `Try again when you have signal.`
   with none.
-- **A workout the device still holds** is listed from the device's rows: one just finished with no
-  signal is at the top at once and is counted, and one with a set changed here shows the change
-  (`03` §6).
+- **A workout the device still holds** is shown from its rows when a list page is available;
+  see `03` §6 for the offline cache rule.
 
 ### A workout (`/workouts/{id}`)
 

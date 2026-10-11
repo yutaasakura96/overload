@@ -197,11 +197,11 @@ pending rows another tab's upload answered tells its own cache what they said an
 again, as the uploading tab does. Two rules keep
 the screens honest while it waits:
 
-- **The device's rows win on screen.** History, a workout's page and Today's last workout read an
-  ended workout from the set store whenever it holds one, over the query's copy. So a finish, an
-  edit and a delete show at once, offline included, and survive a reload. This is still one copy
-  per fact: the server's answer is the history, and the set store holds only what it has not yet
-  been told.
+- **The device's rows win on screen.** A workout's page reads an ended workout from the set store
+  whenever it holds one, over the query's copy. History and Today's last workout lay those rows
+  over a loaded or cached list; without a list page, neither shows a row offline. Where that list
+  exists, a finish, an edit and a delete show at once, offline included, and survive a reload.
+  The server's answer is the history, and the set store holds only what it has not yet been told.
 - **The cache is told before the rows go.** An acknowledged batch lets an ended workout's rows
   leave the device. Just before that, the uploader writes what those rows say into the cached list
   and workout, then asks the server for History, last time and the charts again. The screen never
