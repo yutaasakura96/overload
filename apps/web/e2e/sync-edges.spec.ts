@@ -641,3 +641,33 @@ test('a workout is rebuilt after the app is killed, with rest counting from the 
 
   await finish(reopened);
 });
+
+test('rest stops counting from a set deleted on the workout’s page in History', async ({
+  page,
+}) => {
+  const name = `Rested ${Date.now()}`;
+  await startWorkout(page, name);
+  await completeSet(page, '60', '8');
+  await expect(dataState(page)).toContainText('SYNCED');
+  await expect(rest(page).getByRole('timer')).toBeVisible();
+  const workout = (await recordsOnDevice(page)).find((record) => record.table === 'workouts');
+  if (workout === undefined) throw new Error('the workout is not on the device');
+
+  // The deletion cannot upload, so the set's record stays on the device with it.
+  await page.route('**/api/workouts/sync', (route) => route.abort('internetdisconnected'));
+  await page.goto(`/workouts/${workout.id}`);
+  await page.getByRole('button', { name: /EDIT$/ }).click();
+  const editor = page.getByRole('form', { name: 'Edit set 1' });
+  await editor.getByRole('button', { name: 'Delete set' }).click();
+  await editor.getByRole('button', { name: 'Delete', exact: true }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Set deleted.' })).toBeVisible();
+
+  await toToday(page);
+  await page.getByRole('link', { name: 'Resume workout' }).click();
+  await expect(page.getByRole('region', { name: 'SET 1 OF 5' })).toBeVisible();
+  await expect(rest(page)).toContainText('Starts by itself after each set');
+  await expect(rest(page).getByRole('timer')).toHaveCount(0);
+
+  await page.unrouteAll();
+  await finish(page, false);
+});

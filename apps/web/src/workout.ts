@@ -537,6 +537,7 @@ export async function deletePastSet(workout: WorkoutDetail, id: string): Promise
       setsOfWorkout(records, workout.id).every((set) => set.id === id);
     return emptied ? [asDeletion(record), asDeletion(parent)] : [asDeletion(record)];
   });
+  if (useWorkoutStore.getState().rest?.setId === id) useWorkoutStore.setState({ rest: undefined });
   return emptied;
 }
 
