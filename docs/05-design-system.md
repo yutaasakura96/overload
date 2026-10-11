@@ -6,9 +6,10 @@ scoped design pass (review 2b): the artboards now carry these tokens, and seven 
 A light theme was added 2026-10-10 under the same token names (§1.7): the artboards are dark, and
 every statement below about a hex or a ratio is the dark theme's unless it says otherwise.
 
-Every value here was lifted from the artboard source. Nothing is rounded to a 4/8px grid and nothing
-is invented. Where a value appears once, or where two artboards disagree, that is recorded rather
-than smoothed over — see *Deviations found in extraction* at the end.
+The original dark palette and non-colour values were lifted from the artboard source; the light
+palette was chosen later (§1.7). Nothing from the artboards is rounded to a 4/8px grid. Where a
+value appears once, or where two artboards disagree, that is recorded rather than smoothed over —
+see *Deviations found in extraction* at the end.
 
 The "THE SYSTEM" sticky note on page 1 of the canvas was the starting point. It is not accurate: it
 lists four text tones where the files use six, omits two colours, and gives one colour
@@ -40,7 +41,7 @@ lists four text tones where the files use six, omits two colours, and gives one 
 | `line/hairline` | `#1A2026` | `#DEE3E8` | App-bar underline, resting card borders, section dividers, chart gridlines, meter tracks, timeline rail. The default border. |
 | `line/border` | `#232B32` | `#CED5DC` | Rest-bar top edge (1), chart baseline (2, 6), unconfirmed meal cards (4). |
 | `line/field` | `#2A3440` | `#BAC4CE` | Secondary control borders (+30s, WARM, ADJUST, REPL, pending chip), inert overlay swatches, unfilled timeline dots. Every one of these sits beside a label or a redundant state cue, so it is not the thing that identifies the control. |
-| `line/control` | `#55687A` | `#75838F` | 3.38:1 on ground. Anything that must be seen and has no label to carry it: the inert check cell's border and check (1, 5) and the daily-weight discs and fallback rings (6), and the border of a text field (§4.18), since an empty field's border is what shows where to type. Added 2026-09-22 (§1.5). |
+| `line/control` | `#55687A` | `#75838F` | Anything that must be seen and has no label to carry it: the inert check cell's border and check (1, 5) and the daily-weight discs and fallback rings (6), and the border of a text field (§4.18), since an empty field's border is what shows where to type. Added 2026-09-22 (§1.5). |
 | `line/accent` | `#234A57` | `#96CBDA` | Border of active panels and the tag on today's target (§4.19). |
 | `line/done` | `#2E4A40` | `#9FD2B9` | Border of done fills. |
 | `line/flag` | `#4A3A1C` | `#DCC289` | Border of flag fills and the evidence tag. |
@@ -61,8 +62,8 @@ WCAG AA and were merged (§1.5, `docs/06` 2026-09-22).
 
 With the bottom of the ladder flattened, rank below `text/tertiary` is carried by size, case and
 tracking, not tone: a 9px uppercase head at `0.1em` and an 11px mono value are both
-`text/quaternary` and still read as different things. New quaternary against tertiary is only 1.29:1,
-so do not rely on those two tones alone to separate adjacent items.
+`text/quaternary` and still read as different things. In the dark theme, quaternary against
+tertiary is only 1.29:1, so do not rely on those two tones alone to separate adjacent items.
 
 ### 1.4 Accents
 
@@ -329,7 +330,7 @@ active set the only 56px on the screen.
 - It applies to exactly one row at a time — the active set, inside `surface/active`.
 - The moment the set is completed it drops to the 17px table row. There is no 56px history.
 - No other screen may introduce it. A new screen that wants a bigger figure uses 42px.
-- Its unfilled state is the same 56px in `text/placeholder` `#5A6673`, not a smaller placeholder.
+- Its unfilled state is the same 56px in `text/placeholder`, not a smaller placeholder.
 - A figure too long for its column at 56px is set at the largest size that shows it whole
   (`min(56px, column ÷ characters)`), since a field clips what does not fit: `102.25`, or `137.8` on
   a 375px phone. Still one size by rule, not a second step. *Added 2026-10-03.*
@@ -432,7 +433,7 @@ sectioning device — there are no rules, no card headers and no larger headings
 
 ### 4.4 Data table
 Column heads at 9px / `0.1em` / `text/quaternary`, then a 1px `line/hairline` inset to the gutters, then
-rows separated by `line/row` `#14191E`. Rows are `9px 16px` (set table) or `11px 16px` (prep table).
+rows separated by `line/row`. Rows are `9px 16px` (set table) or `11px 16px` (prep table).
 Numeric columns are right-aligned in the prep table and left-aligned in the set table.
 
 ### 4.5 Active card
@@ -453,9 +454,9 @@ Primary scales with importance: 44px inline, 52px in a card, 60px as a screen's 
 
 ### 4.7 Check cell
 A square-ish control that carries done state instead of a label.
-- **Inert:** 1px `line/control` `#55687A`, no fill, 15px check stroked `line/control`. It has no label,
+- **Inert:** 1px `line/control`, no fill, 15px check stroked `line/control`. It has no label,
   so its boundary is what identifies it and must meet 3:1 (§1.5).
-- **Done:** 1px `line/done`, `surface/done` fill, 15–17px check stroked `done` `#57C99A`.
+- **Done:** 1px `line/done`, `surface/done` fill, 15–17px check stroked `done`.
 
 Check icon geometry is fixed across the app: `viewBox="0 0 24 24"`, path `M4 12.5 9.5 18 20 6.5`,
 `stroke-linecap`/`linejoin` round, stroke width 2.5 (3 at small sizes).
@@ -671,7 +672,7 @@ Recorded, not silently resolved. Each needs a decision before or during build.
 
 ## 8. Token export
 
-Names for implementation. Values are exactly as extracted.
+Names for implementation. The dark values are exactly as extracted.
 
 ```
 --surface-ground:   #0B0D0F;
