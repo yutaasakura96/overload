@@ -475,7 +475,7 @@ test('bodyweight history describes reps without a zero-weight target', async ({ 
   await expect(brief(page)).toContainText(
     'Your set stopped short of 10 reps last time. Reach 10 this time.',
   );
-  await finish(page);
+  await finish(page, false);
 });
 
 /** How many records the set store holds, read over a connection of the test's own. */
