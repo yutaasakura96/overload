@@ -5,8 +5,8 @@ document does not restate them.
 **Extracted from:** the six `.dc.html` artboards in `design/`, 2026-09-16. Updated 2026-09-22 from the
 scoped design pass (review 2b), which also added seven state artboards (table below).
 
-Each artboard is 390 × 844 and static. Where the real screen is longer than one viewport, that is
-stated and the scroll behaviour is listed as a gap (§7.3), not invented here.
+Each artboard is 390 × 844 and static. Screen 1's built scroll behavior is recorded in §7.3;
+the reviewed workout prototype is in `docs/prototype/`.
 
 | # | Screen | Artboard | PRD stories | Milestone |
 | --- | --- | --- | --- | --- |
@@ -36,12 +36,9 @@ State artboards, on the canvas page *States (review 2b)*:
 The screen that has to work. It is read mid-set, at arm's length, one-handed. Everything else is
 subordinate to the active set block.
 
-**Fits one viewport.** Measured in the browser on 2026-09-22, the last UP NEXT row ends at y=709 and the
-rest bar starts at y=763: 54px of slack. (The 2026-09-16 figure of about 66px was an estimate, and the
-warm-up summary has since grown from 37 to 44px.) Expanded warm-ups leave 6px and the refused state
-leaves 4px, so both still fit. Nothing else can be added to this screen without a scroll decision.
-That decision was made on 2026-10-03 (§7.3): the artboard fits, and the built screen scrolls when
-an exercise outgrows it.
+**Scrolling.** The 2026-09-22 artboard fit one viewport. The built screen scrolls when an exercise
+outgrows it (§7.3), including with the last-time and target block added on 2026-10-10. The rest bar
+stays fixed at the bottom.
 
 ### Structure
 
@@ -96,6 +93,9 @@ completion control is enabled regardless; a missing weight or reps is refused on
   `Pick a weight you can lift for 6–10 reps with one to three left in you. From the next workout,
   this line shows what you did and what to aim for.` (`Bodyweight × 6–10` and `Do 6–10 reps…` for a
   bodyweight exercise.) No LAST column value; the card's label row reads `FIRST WORKOUT`.
+- **Unknown last time.** If cached data was unavailable at start, or an older saved workout has no
+  history flag, the block shows only `Last time could not be loaded.` It makes no claim about the
+  connection or whether this is the first workout; no first-workout tag appears.
 - **Target (S4), decided 2026-10-03** (`06`). The label counts working sets against
   `target_sets`: `SET 3 OF 4`, then `SET 5 · EXTRA` past the target, and `SET 3` with no target.
   With the warm-up toggle on it reads `WARM-UP`, and a warm-up never moves the count.

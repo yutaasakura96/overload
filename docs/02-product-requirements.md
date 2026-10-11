@@ -184,7 +184,7 @@ As a user, I want one screen showing recent trends for the ingested metrics, so 
 | Where | With no data |
 | --- | --- |
 | Workout start | No routines yet: offer to create one or start an empty workout. |
-| Set row, first time doing an exercise | No "last time" or suggestion; the row shows "first workout". |
+| First time doing an exercise | The exercise explains that there is no last time or suggestion and helps the lifter choose a starting weight (`10` §1). |
 | Progress chart, fewer than 2 workouts | "Not enough data yet"; no chart is drawn. |
 | Weight trend, fewer than 3 days | Raw points only, no trend line. |
 | Food list empty | The meal plan can't be built. Prompt to add foods, starting with a protein source. |
