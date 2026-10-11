@@ -79,6 +79,10 @@ Works identically offline. Every write below goes to the IndexedDB set store fir
    counts from the set's `performed_at`, so a locked phone does not stop it. At zero a tone plays
    and the bar counts over until dismissed or the next set (`06`, 2026-10-03). A rest of 0 seconds
    starts no timer.
+   **Full screen** (`06`, 2026-10-12): `FULL SCREEN` on the rest bar leaves one exercise and one
+   set on the screen and keeps the screen awake for the whole workout; `Exit full screen` brings
+   the rest back. Nothing typed or logged is lost either way, and it is off again at the next
+   workout. From it, a guide says how to set up an iPhone Focus (`10` §1, §8.3).
 4. **Change the workout.** Add, remove or reorder exercises; edit or delete a ticked set. None of it
    touches the routine (S4). Edits and deletes travel in the same sync batch (`07` §3.4). *Sync
    carries them since slice 4 (2026-10-08), and the screen edits or discards a refused set (F4).

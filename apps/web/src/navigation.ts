@@ -33,7 +33,7 @@ export function safeNext(next: string | null): string {
 /** The signed-in screens, by path. Anything unknown opens Today. */
 export type Route =
   | { screen: 'today' }
-  | { screen: 'workout' }
+  | { screen: 'workout'; guide: boolean }
   | { screen: 'library' }
   | { screen: 'routines' }
   | { screen: 'routine'; id: string | undefined }
@@ -45,7 +45,9 @@ export function routeOf(pathname: string): Route {
   if (first === 'exercises' && second !== undefined && rest.length === 1 && rest[0] === 'progress')
     return { screen: 'progress', id: second };
   if (rest.length > 0) return { screen: 'today' };
-  if (first === 'workout' && second === undefined) return { screen: 'workout' };
+  // The iPhone Focus guide opens over the workout, which keeps running under it.
+  if (first === 'workout' && (second === undefined || second === 'focus'))
+    return { screen: 'workout', guide: second === 'focus' };
   if (first === 'routines' && second === undefined) return { screen: 'routines' };
   if (first === 'routines') return { screen: 'routine', id: second === 'new' ? undefined : second };
   if (first === 'exercises' && second === undefined) return { screen: 'library' };

@@ -192,13 +192,17 @@ export function Notice({
   tone,
   word,
   children,
+  quiet = false,
 }: {
   tone: 'flag' | 'error';
   word: string;
   children: ReactNode;
+  /** Part of the screen as it opens, not news about something just done: it is not announced. */
+  quiet?: boolean;
 }) {
+  const role = tone === 'error' ? 'alert' : 'status';
   return (
-    <div className={`notice notice--${tone}`} role={tone === 'error' ? 'alert' : 'status'}>
+    <div className={`notice notice--${tone}`} role={quiet ? undefined : role}>
       <InfoIcon color={tone === 'error' ? 'var(--error)' : 'var(--flag)'} />
       <div>
         <div className="notice__word">{word}</div>

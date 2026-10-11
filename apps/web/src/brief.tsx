@@ -92,18 +92,22 @@ export function Brief({
   exercise,
   unit,
   timeZone,
+  compact = false,
 }: {
   exercise: WorkoutExerciseRecord;
   unit: WeightUnit;
   timeZone: string;
+  /** Full screen's form (docs/05 §4.20): tighter rows, and no sentence where figures say it. */
+  compact?: boolean;
 }) {
   const { name, bodyweight, lastTime, lastTimeOn, lastTimeKnown, suggestion } = exercise.local;
   const reps = range(exercise);
   const unitWord = unitLabel(unit).toLowerCase();
+  const block = compact ? 'brief brief--compact' : 'brief';
 
   if (lastTime.length === 0 && !lastTimeKnown) {
     return (
-      <div className="brief">
+      <div className={block}>
         <div className="brief__row">
           <div className="brief__head">
             <span className="brief__label">Last time</span>
@@ -117,15 +121,17 @@ export function Brief({
   // The first workout of an exercise says so, instead of showing nothing.
   if (lastTime.length === 0) {
     return (
-      <div className="brief">
+      <div className={block}>
         <div className="brief__row">
           <div className="brief__head">
             <span className="brief__label">Last time</span>
           </div>
           <div className="brief__figures">None yet</div>
-          <p className="brief__why">
-            This is your first time logging {name}, so there is nothing to compare with.
-          </p>
+          {!compact && (
+            <p className="brief__why">
+              This is your first time logging {name}, so there is nothing to compare with.
+            </p>
+          )}
         </div>
         <div className="brief__row brief__row--target">
           <div className="brief__head">
@@ -153,7 +159,7 @@ export function Brief({
   const up = riseKg > 0;
   const bodyweightTarget = bodyweight && suggestion?.weightKg === 0;
   return (
-    <div className="brief">
+    <div className={block}>
       <div className="brief__row">
         <div className="brief__head">
           <span className="brief__label">Last time</span>
@@ -196,7 +202,7 @@ export function Brief({
             {bodyweightTarget ? 'Bodyweight' : formatWeight(suggestion.weightKg, unit)}{' '}
             <span className="brief__unit">{bodyweightTarget ? '×' : `${unitWord} ×`}</span> {reps}
           </div>
-          <p className="brief__why">{why(exercise, unit, riseKg)}</p>
+          {!compact && <p className="brief__why">{why(exercise, unit, riseKg)}</p>}
         </div>
       )}
     </div>

@@ -500,7 +500,8 @@ Sources and reasoning in `06` (2026-09-24, platform facts).
 
 Established here because it constrains a product decision. **Decided 2026-10-03: a sound** (`06`).
 The `COMPLETE SET` tap resumes the audio context, a short tone plays when rest reaches zero, and
-the wake lock is held while rest counts, where it is granted. No push. MDN browser-compat and
+the wake lock is held while rest counts, where it is granted. With full screen on it is held for
+the whole workout (`06`, 2026-10-12). No push. MDN browser-compat and
 WebKit, checked 2026-09-24:
 
 | | State on iOS |
