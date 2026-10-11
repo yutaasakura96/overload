@@ -678,9 +678,15 @@ tokens, and passes the polish gate. Static: it reads nothing from the phone and 
 the server.
 
 **Where.** `/workout/focus`, opened from the row at the foot of full screen (§1). It opens over
-the workout, which keeps running under it: a rest still counts and its tone still plays. The back
-chevron, the browser's back and `I have set it up` all return to the workout as it was, full
-screen still on. With no workout open the address opens Today.
+the workout, which keeps running under it: a rest still counts and its tone still plays. After
+opening the guide from full screen, the back chevron, the browser's back and `I have set it up`
+return to the workout as it was, full screen still on. A direct visit after a relaunch shows the
+guide above the workout in its usual layout, since full screen is not remembered. With no workout
+open the address opens Today.
+
+Closing the guide after opening it from the workout returns to the existing workout history entry;
+opening `/workout/focus` directly replaces that address with `/workout` on close. Browser Back does
+not reopen a guide just closed with the chevron or `I have set it up`.
 
 **Structure.** The app bar with the back chevron, `iPhone Focus`, and the data-state slot. Then:
 
@@ -708,4 +714,3 @@ screen still on. With no workout open the address opens Today.
   they survive a relaunch and a sign-out, and are not sent anywhere (`06`, 2026-10-12).
 - Opening it starts at the top with focus on the screen; going back returns focus to the row that
   opened it.
-

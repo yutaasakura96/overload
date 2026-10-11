@@ -3361,7 +3361,8 @@ govern it:
 - **Q4. The countdown is 56px in full screen.** This is the exception `05` §2.6 says belongs here
   and not in a component: a second use of the 56px figure. It holds because §2.6's reason holds,
   one figure read at arm's length, and because the two never meet. While a rest is on screen in
-  full screen the active card is hidden, so there is still exactly one 56px element on the screen.
+  full screen the active card is hidden, so the 56px active set and countdown are never on screen
+  together.
   On the bar the countdown stays 42px (2026-10-10). Rejected: 42px in both, which leaves full
   screen's rest no larger than the bar it replaces; and larger than 56px, a third size.
 

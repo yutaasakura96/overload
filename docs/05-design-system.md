@@ -316,8 +316,9 @@ tracking.
 
 ### 2.6 The 56px exception — named, single, not a second scale
 
-**Rule.** The app's figure size is 17–18px. One element breaks it: the weight, reps and RIR of the
-*currently active working set* on screen 1, at 56px / weight 500 / `-0.03em` / line-height 0.86.
+**Rule.** The app's figure size is 17–18px. The weight, reps and RIR of the *currently active
+working set* on screen 1 use 56px / weight 500 / `-0.03em` / line-height 0.86. In full screen,
+the rest countdown uses the same size while the active set is hidden (2026-10-12; `06`).
 
 **Why.** This is a deliberate borrow from the rejected Heavy direction, covering the one moment
 Instrument is weakest at: mid-set, arm's length, bad gym light, one hand free. The decision log
@@ -327,14 +328,14 @@ are a separate, smaller step and are read seated, not mid-set. The rest countdow
 active set the only 56px on the screen.
 
 **Constraints on its use.**
-- It applies to exactly one row at a time — the active set, inside `surface/active`.
+- For set entry, it applies to exactly one row at a time — the active set, inside `surface/active`.
 - The moment the set is completed it drops to the 17px table row. There is no 56px history.
 - No other screen may introduce it. A new screen that wants a bigger figure uses 42px.
 - **One second use, recorded 2026-10-12** (`06`): the rest countdown in full screen (§4.20), in the
   same four values. Full screen is screen 1 with one exercise and one set on it, and while a rest
   is on screen there the active card is hidden, so the countdown stands where the card's figures
-  stood and is read the same way. The first constraint still holds, reworded: one 56px element on
-  the screen at a time. The rest bar's countdown is not part of this and stays 42px (§4.14).
+  stood and is read the same way. Only the active set or the full-screen countdown is visible at
+  a time. The rest bar's countdown is not part of this and stays 42px (§4.14).
 - Its unfilled state is the same 56px in `text/placeholder`, not a smaller placeholder.
 - A figure too long for its column at 56px is set at the largest size that shows it whole
   (`min(56px, column ÷ characters)`), since a field clips what does not fit: `102.25`, or `137.8` on
