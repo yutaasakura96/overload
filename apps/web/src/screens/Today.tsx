@@ -15,6 +15,7 @@ import {
 } from '../query';
 import { RefusedSet, setFigures } from '../refused';
 import { SaveNotice, saveProblem, useFocusRefused, type SaveProblem } from '../saving';
+import { ThemeField } from '../theme-field';
 import { TimezoneField } from '../timezone-field';
 import { deviceTimezone } from '../timezones';
 import {
@@ -291,6 +292,8 @@ export function Today({ me, navigate }: { me: Me; navigate: (path: string) => vo
       )}
 
       <ProfileForm key={me.user.id} me={me} />
+
+      <ThemeField />
 
       <AccountFooter email={me.user.email} navigate={navigate} />
     </main>

@@ -1,0 +1,292 @@
+import { expect, test, type BrowserContext } from '@playwright/test';
+import { apiFixture } from './fixture';
+
+type Cookies = Parameters<BrowserContext['addCookies']>[0];
+
+const DARK_GROUND = 'rgb(11, 13, 15)';
+const LIGHT_GROUND = 'rgb(244, 246, 248)';
+
+function luminance(rgb: string): number {
+  const channels =
+    rgb
+      .match(/[\d.]+/g)
+      ?.slice(0, 3)
+      .map(Number) ?? [];
+  if (channels.length !== 3) throw new Error(`Expected a computed RGB colour, got ${rgb}`);
+  const [r = 0, g = 0, b = 0] = channels.map((value) => {
+    const channel = value / 255;
+    return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+function contrast(theme: Record<string, string>, a: string, b: string): number {
+  const [low = 0, high = 0] = [a, b]
+    .map((name) => luminance(theme[`--${name}`] ?? ''))
+    .toSorted((x, y) => x - y);
+  return (high + 0.05) / (low + 0.05);
+}
+
+// docs/05 §1.5: what each tone is allowed to sit on, and the ratio it owes there.
+const TEXT = ['text-primary', 'text-secondary', 'text-tertiary'];
+const SURFACES = ['ground', 'raised', 'active', 'accent', 'done', 'flag', 'error'];
+const PAIRS: readonly (readonly [tone: string, surface: string, ratio: number])[] = [
+  ...TEXT.flatMap((tone) => SURFACES.map((surface) => [tone, surface, 4.5] as const)),
+  ...['ground', 'raised', 'active', 'flag', 'error'].map(
+    (surface) => ['text-quaternary', surface, 4.5] as const,
+  ),
+  ['text-placeholder', 'ground', 3],
+  ['text-placeholder', 'active', 3],
+  ...['accent', 'accent-pressed'].flatMap((tone) =>
+    ['ground', 'raised', 'active', 'accent'].map((surface) => [tone, surface, 4.5] as const),
+  ),
+  ['done', 'ground', 4.5],
+  ['done', 'done', 4.5],
+  ['flag', 'ground', 4.5],
+  ['flag', 'flag', 4.5],
+  ['flag-dim', 'ground', 4.5],
+  ['flag-dim', 'flag', 4.5],
+  ['error', 'ground', 4.5],
+  ['error', 'error', 4.5],
+  ['error', 'flag', 4.5],
+  ['line-control', 'ground', 3],
+  ['line-control', 'active', 3],
+];
+
+test('loaded colour tokens resolve in both themes and meet their contrast rules', async ({
+  page,
+}) => {
+  await page.goto('/sign-in');
+  const { dark, light, darkNames, lightNames, outside } = await page.evaluate(() => {
+    const pending = Array.from(document.styleSheets).flatMap((sheet) => Array.from(sheet.cssRules));
+    const rules: CSSRule[] = [];
+    for (const rule of pending) {
+      rules.push(rule);
+      if ('cssRules' in rule && rule.cssRules instanceof CSSRuleList)
+        pending.push(...Array.from(rule.cssRules));
+    }
+    const styles = rules.filter((rule): rule is CSSStyleRule => rule instanceof CSSStyleRule);
+    const darkRule = styles.find((rule) => rule.selectorText === ':root');
+    const lightRule = styles.find(
+      (rule) => rule.selectorText.replaceAll('"', "'") === ":root[data-theme='light']",
+    );
+    if (darkRule === undefined || lightRule === undefined)
+      throw new Error('Theme rules did not load');
+
+    const nonColours = new Set([
+      'inherit',
+      'initial',
+      'unset',
+      'revert',
+      'revert-layer',
+      'currentcolor',
+      'transparent',
+    ]);
+    const isColour = (value: string) =>
+      !nonColours.has(value.trim().toLowerCase()) && CSS.supports('color', value);
+    const names = (rule: CSSStyleRule) =>
+      Array.from(rule.style).filter(
+        (name) => name.startsWith('--') && isColour(rule.style.getPropertyValue(name)),
+      );
+    const darkTokenNames = names(darkRule);
+    const lightTokenNames = names(lightRule);
+    const probe = document.createElement('span');
+    document.body.append(probe);
+    const values = (theme: 'dark' | 'light') => {
+      document.documentElement.dataset.theme = theme;
+      return Object.fromEntries(
+        darkTokenNames.map((name) => {
+          probe.style.color = `var(${name})`;
+          return [name, getComputedStyle(probe).color];
+        }),
+      );
+    };
+    const darkValues = values('dark');
+    const lightValues = values('light');
+    probe.remove();
+    const literalColour = /#[0-9a-f]{3,8}\b|\b(?:rgb|hsl|oklch|oklab|lab|lch|color)a?\(/i;
+    type Declaring = CSSRule & {
+      style: CSSStyleDeclaration;
+      selectorText?: string;
+      keyText?: string;
+    };
+    const outsideDeclarations = rules
+      .filter(
+        (rule): rule is Declaring => 'style' in rule && rule.style instanceof CSSStyleDeclaration,
+      )
+      .filter((rule) => rule !== darkRule && rule !== lightRule)
+      .flatMap((rule) => {
+        const label = rule.selectorText ?? rule.keyText ?? '';
+        return [
+          [label, 'cssText', rule.style.cssText],
+          ...Array.from(rule.style).map((name) => [label, name, rule.style.getPropertyValue(name)]),
+        ];
+      })
+      .filter(
+        ([, name, value]) =>
+          name !== undefined &&
+          value !== undefined &&
+          (literalColour.test(value) || (!/\b(?:var|env)\(/.test(value) && isColour(value))),
+      );
+    return {
+      dark: darkValues,
+      light: lightValues,
+      darkNames: darkTokenNames,
+      lightNames: lightTokenNames,
+      outside: outsideDeclarations,
+    };
+  });
+
+  expect(darkNames.length).toBeGreaterThan(0);
+  expect(lightNames).toEqual(darkNames.filter((name) => name !== '--surface-status-bar'));
+  for (const name of darkNames) {
+    expect(dark[name], `${name} in dark`).toBeTruthy();
+    expect(light[name], `${name} in light`).toBeTruthy();
+    if (name !== '--surface-status-bar')
+      expect(light[name], `${name} changes in light`).not.toBe(dark[name]);
+  }
+  expect(outside).toEqual([]);
+
+  for (const [name, values] of [
+    ['dark', dark],
+    ['light', light],
+  ] as const) {
+    const failing = PAIRS.filter(
+      ([tone, surface, ratio]) => contrast(values, tone, `surface-${surface}`) < ratio,
+    ).map(
+      ([tone, surface, ratio]) =>
+        `${name}: ${tone} on surface-${surface}: ${contrast(values, tone, `surface-${surface}`).toFixed(2)} < ${ratio}`,
+    );
+    expect(failing).toEqual([]);
+  }
+});
+
+test("the manifest's colours are the dark ground", async ({ page }) => {
+  await page.goto('/sign-in');
+  const colours = await page.evaluate(async () => {
+    const link = document.querySelector<HTMLLinkElement>('link[rel="manifest"]');
+    if (link === null) throw new Error('The page links no manifest');
+    const manifest: { background_color?: string; theme_color?: string } = await (
+      await fetch(link.href)
+    ).json();
+    document.documentElement.dataset.theme = 'dark';
+    const probe = document.createElement('span');
+    document.body.append(probe);
+    const resolved = (colour: string | undefined) => {
+      probe.style.color = '';
+      probe.style.color = colour ?? '';
+      return probe.style.color === '' ? '' : getComputedStyle(probe).color;
+    };
+    return {
+      ground: resolved('var(--surface-ground)'),
+      background: resolved(manifest.background_color),
+      theme: resolved(manifest.theme_color),
+    };
+  });
+
+  expect(colours.ground).toBe(DARK_GROUND);
+  expect(colours.background).toBe(colours.ground);
+  expect(colours.theme).toBe(colours.ground);
+});
+
+const ground = (page: import('@playwright/test').Page) =>
+  page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+// The browser's bar, as the colour its meta tag resolves to.
+const barColour = (page: import('@playwright/test').Page) =>
+  page.evaluate(() => {
+    const probe = document.createElement('span');
+    probe.style.color =
+      document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')?.content ?? '';
+    document.body.append(probe);
+    const colour = probe.style.color === '' ? '' : getComputedStyle(probe).color;
+    probe.remove();
+    return colour;
+  });
+
+test.describe('on a device set to light', () => {
+  test.use({ colorScheme: 'light' });
+
+  test('the app opens light without a choice', async ({ page }) => {
+    await page.goto('/sign-in');
+    await expect(page.getByRole('button', { name: /google/i })).toBeVisible();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+    expect(await ground(page)).toBe(LIGHT_GROUND);
+    expect(await barColour(page)).toBe(LIGHT_GROUND);
+  });
+
+  test("the browser's bar takes the ground before the app's script runs", async ({ page }) => {
+    await page.route('**/*.js', (route) => route.abort());
+    await page.goto('/sign-in');
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+    expect(await barColour(page)).toBe(LIGHT_GROUND);
+  });
+});
+
+test.describe('on a device set to dark', () => {
+  test.use({ colorScheme: 'dark' });
+
+  const userId = process.env.E2E_USER_ID ?? '';
+
+  test('the app opens dark without a choice', async ({ page }) => {
+    await page.goto('/sign-in');
+    await expect(page.getByRole('button', { name: /google/i })).toBeVisible();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    expect(await ground(page)).toBe(DARK_GROUND);
+    expect(await barColour(page)).toBe(DARK_GROUND);
+  });
+
+  test('a theme chosen in the profile section applies at once, is remembered, and is in place before the first paint', async ({
+    context,
+    page,
+  }) => {
+    if (userId === '') throw new Error('global setup did not create the test user');
+    const cookies: Cookies = JSON.parse(apiFixture('cookies', userId, 'localhost'));
+    await context.addCookies(cookies);
+    // What <html> says when <body> is first parsed: after the script in <head>, before the app's.
+    await page.addInitScript(() => {
+      new MutationObserver((_, observer) => {
+        if (document.body === null) return;
+        sessionStorage.setItem('theme-at-body', document.documentElement.dataset.theme ?? 'none');
+        observer.disconnect();
+      }).observe(document, { childList: true, subtree: true });
+    });
+    const atBody = () => page.evaluate(() => sessionStorage.getItem('theme-at-body'));
+
+    await page.goto('/');
+    const theme = page.getByRole('group', { name: 'Theme' });
+    await expect(theme.getByRole('radio', { name: 'System' })).toBeChecked();
+    expect(await atBody()).toBe('dark');
+
+    await theme.getByRole('radio', { name: 'Light' }).check();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+    expect(await ground(page)).toBe(LIGHT_GROUND);
+    expect(await barColour(page)).toBe(LIGHT_GROUND);
+
+    await page.reload();
+    await expect(theme.getByRole('radio', { name: 'Light' })).toBeChecked();
+    expect(await atBody()).toBe('light');
+    expect(await ground(page)).toBe(LIGHT_GROUND);
+
+    // Back to the device's setting, which is then followed as it changes.
+    await theme.getByRole('radio', { name: 'System' }).check();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    expect(await ground(page)).toBe(DARK_GROUND);
+    expect(await barColour(page)).toBe(DARK_GROUND);
+    await page.emulateMedia({ colorScheme: 'light' });
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+    await page.emulateMedia({ colorScheme: 'dark' });
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  });
+
+  test('a remembered choice wins over the device, and the sign-in screen follows it', async ({
+    context,
+    page,
+  }) => {
+    // The choice is the device's, not an account's: nobody is signed in here.
+    await context.addInitScript(() => localStorage.setItem('overload:theme', 'light'));
+    await page.goto('/sign-in');
+    await expect(page.getByRole('button', { name: /google/i })).toBeVisible();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+    expect(await ground(page)).toBe(LIGHT_GROUND);
+  });
+});

@@ -3,8 +3,22 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#0B0D0F" />
+    <meta name="theme-color" />
     <meta name="color-scheme" content="dark" />
+    <script>
+      // The theme, before the first paint (docs/05 §1.7): the choice remembered on this device, or
+      // else the device's own setting. src/theme.ts does the same from then on.
+      (() => {
+        let choice = null;
+        try {
+          choice = localStorage.getItem('overload:theme');
+        } catch {}
+        const device = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        const theme = choice === 'light' || choice === 'dark' ? choice : device;
+        document.documentElement.dataset.theme = theme;
+        document.querySelector('meta[name="color-scheme"]').content = theme;
+      })();
+    </script>
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Overload" />
@@ -14,6 +28,14 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // The browser's bar takes surface/ground from the stylesheet, which has loaded by here.
+      document.querySelector('meta[name="theme-color"]').content = getComputedStyle(
+        document.documentElement,
+      )
+        .getPropertyValue('--surface-ground')
+        .trim();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

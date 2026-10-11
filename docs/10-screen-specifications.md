@@ -63,7 +63,7 @@ stays fixed at the bottom.
 | Actions | 8px gap. `WARM` 52 × 64 secondary; `COMPLETE SET` flex-grow × 64 primary with a 22px check and 11px gap |
 
 **Figure states.** Entered values are `text/primary`. Unentered are the same 56px in `text/placeholder`
-`#5A6673` — an empty figure shows `—`. The card opens with the figures it has a source for already
+(`docs/05` §1.3) — an empty figure shows `—`. The card opens with the figures it has a source for already
 entered (*What the card opens on*), so the tone appears after a clear, or where there was nothing to
 carry over: RIR with none recorded or a weight that goes up, weight with no suggestion. The
 completion control is enabled regardless; a missing weight or reps is refused on the tap.
@@ -410,9 +410,9 @@ slot for the source route.
 
 | Strength | Claim + border | Strength label | Meaning |
 | --- | --- | --- | --- |
-| Strong | `done` `#57C99A` / `line/done` `#2E4A40` | `done` at reduced weight | Multiple controlled trials or a meta-analysis agree |
-| Moderate | `flag` `#E0A83C` / `line/flag` `#4A3A1C` | `flag/dim` `#947B45` | Mixed or limited evidence — **as drawn on screen 3** |
-| Contested | `text/tertiary` `#8A96A3` / `line/field` `#2A3440` | `text/quaternary` `#738393` | Commonly believed, not supported |
+| Strong | `done` / `line/done` | `done` at reduced weight | Multiple controlled trials or a meta-analysis agree |
+| Moderate | `flag` / `line/flag` | `flag/dim` | Mixed or limited evidence — **as drawn on screen 3** |
+| Contested | `text/tertiary` / `line/field` | `text/quaternary` | Commonly believed, not supported |
 
 The strength word is always printed, so colour is never the only cue (WCAG 1.4.1). Contested is
 neutral: it is not `error` (`docs/05` §1.4), and it reads as "noted, not endorsed". Decided
@@ -433,7 +433,7 @@ the strength means for this plan; then `SOURCES`, one 44px row per citation with
 (Kerksick et al. 2017, Aragon & Schoenfeld 2013) are illustrative. The real list comes from the evidence
 content written at build, and each row opens the source.
 
-The 8px strength label was fixed 2026-09-22: now 9px in `flag/dim` `#947B45`, 4.80:1 (`docs/05` §1.5).
+The 8px strength label was fixed 2026-09-22: now 9px in `flag/dim` (`docs/05` §1.4–1.5).
 
 ### 7.2 Expanded warm-up sets
 
@@ -473,7 +473,7 @@ What the artboards imply but do not specify:
 | 6 | Nothing needs to stick; the footer is pinned at `bottom: 18px` and should become a normal bottom block instead | Absolutely positioned |
 
 **Decisions needed:** which blocks stick, what a stuck block looks like (the artboards have no
-elevation, no shadow and one raised surface — `surface/raised` `#12161A`, currently used only by the
+elevation, no shadow and one raised surface — `surface/raised` (`docs/05` §1.1), currently used only by the
 rest bar), and whether a stuck block keeps its hairline or gains the heavier `line/border`.
 
 **Where it is decided:** in each screen's `/grill-with-docs` during M2, when real content lengths
@@ -631,6 +631,10 @@ data-state slot. Under the tabs, in order:
   `05` §4.8's segments over two radios, `Kilograms` / `Pounds` — then a secondary save. Until the
   first save the heading reads `Set up your profile` with one sentence on what the two are for.
   Saved online only, like routines.
+- **Theme:** `05` §4.8's segments over three radios, `System` / `Light` / `Dark`, under the
+  profile's save and outside its form: it takes effect on the tap, and it is there before the
+  profile is set up. `System` follows the device's setting as it changes. One sentence under it
+  says so, and that the choice is kept on this device (`05` §1.7; `06`, 2026-10-10).
 - **Account:** the email and `Sign out`. With sets not uploaded it asks first, in place:
   `2 sets not uploaded yet.` — `Upload now` / `Discard and sign out`. With a workout in progress it
   says to finish it first, and with one whose ending has not uploaded it says so with `Try again`;

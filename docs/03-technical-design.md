@@ -197,7 +197,7 @@ at most once a second (`06`, 2026-09-19, client state). *Added 2026-09-22.*
    marked refused in the error colour, and can be edited or discarded. **A set is never dropped
    silently.**
 
-The error colour is `error` `#F2555A` (`docs/05` §1.4, added 2026-09-22), always with the word and an icon.
+The error colour is the `error` token (`docs/05` §1.4), always with the word and an icon.
 
 ### API
 
