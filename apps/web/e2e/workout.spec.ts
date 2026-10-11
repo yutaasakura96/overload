@@ -934,13 +934,29 @@ test.describe('full screen', () => {
     await expect(link).toBeFocused();
     await expect(page.getByRole('button', { name: 'Exit full screen' })).toBeVisible();
     await expect(weight).toHaveValue('42.5');
+    await page.goBack();
+    await expect(page).toHaveURL('/');
+    await page.goForward();
+    await expect(page).toHaveURL('/workout');
+
+    await link.click();
+    await page.getByRole('button', { name: 'I have set it up' }).click();
+    await expect(page).toHaveURL('/workout');
+    await page.goBack();
+    await expect(page).toHaveURL('/');
+    await page.goForward();
+    await expect(page).toHaveURL('/workout');
 
     // The ticks are kept on the device, across a relaunch.
-    await link.click();
+    await page.getByRole('link', { name: /iPhone Focus: set up/ }).click();
     await page.reload();
     await expect(first).toHaveAttribute('aria-pressed', 'true');
     await expect(third).toHaveAttribute('aria-pressed', 'false');
     await page.getByRole('button', { name: 'I have set it up' }).click();
+    await expect(page).toHaveURL('/workout');
+    await page.goBack();
+    await expect(page).toHaveURL('/workout');
+    await page.goForward();
     await expect(page).toHaveURL('/workout');
 
     // Done is kept too: full screen's row now says so, and still opens the guide.

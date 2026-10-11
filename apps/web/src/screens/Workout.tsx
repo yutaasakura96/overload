@@ -115,6 +115,15 @@ export function Workout({
   const records = useWorkoutStore((state) => recordsOf(state, userId));
   const workout = openWorkout(records);
   const gone = loaded && workout === undefined;
+  const openedGuide = useRef(false);
+  const closeGuide = () => {
+    if (openedGuide.current) {
+      openedGuide.current = false;
+      window.history.back();
+    } else {
+      navigate('/workout', { replace: true });
+    }
+  };
 
   // Nothing in progress, or the workout just finished: Today is where the next one starts.
   useEffect(() => {
@@ -134,10 +143,13 @@ export function Workout({
           unit={me.profile?.weightUnit ?? 'kg'}
           timeZone={me.profile?.timezone ?? deviceTimezone()}
           guideOpen={guide}
-          onGuide={() => navigate(GUIDE_PATH)}
+          onGuide={() => {
+            openedGuide.current = true;
+            navigate(GUIDE_PATH);
+          }}
         />
       </div>
-      {guide && <FocusGuide onBack={() => navigate('/workout')} />}
+      {guide && <FocusGuide onBack={closeGuide} />}
     </>
   );
 }
