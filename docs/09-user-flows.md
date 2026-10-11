@@ -69,8 +69,9 @@ Works identically offline. Every write below goes to the IndexedDB set store fir
 1. **Start.** Tap a routine on Today. The phone creates the `workout` and its
    `workout_exercise` rows with UUIDv7 ids, copying rep range, increment and target sets (`04`):
    the routine slot's range if it has one, else the user's own, else the exercise's default.
-   Last time and suggestions come from the offline cache (`07` §3, "Last time and suggestions")
-   and are kept with the workout from then on.
+   Last time and suggestions come from the offline cache when available (`07` §3, "Last time and
+   suggestions") and are kept with the workout from then on. Without that data, last time is
+   unknown (`10` §1).
 2. **Log a set.** The active set card opens with weight, reps and RIR as specified in `10` §1.
    Edit or clear the figures, optionally mark a warm-up (S6), then tap the tick. RPE entry waits
    for a later slice (`06`, 2026-10-03). The set is written locally before the screen updates.
@@ -98,7 +99,8 @@ Planned sets that were never ticked are not stored. Only ticked sets become `set
 
 | Step | Goes wrong | User sees |
 | --- | --- | --- |
-| 1 | No cached last time (first run offline, or a new exercise) | The row shows "first workout" (PRD empty state) |
+| 1 | Last-time data is unknown on start or resume | The exercise shows the unknown-history state (`10` §1) |
+| 1 | Cached last time confirms no history for an exercise | The exercise opens on "None yet" and "Find your weight", each with a sentence saying why (`10` §1, PRD empty state) |
 | 2 | No signal | Nothing different. The data-state slot shows the pending count (`10` §7.4) |
 | 2 | Double tap on the tick | One set: the tick is disabled until the local write returns, and the id makes a repeat harmless anyway |
 | 2 | Tab killed or phone locked with sets pending | Nothing lost; they upload on the next open (S1) |

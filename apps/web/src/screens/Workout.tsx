@@ -1,5 +1,6 @@
 import type { Me, WeightUnit } from '@overload/api-contract';
 import { Fragment, useEffect, useId, useRef, useState, type CSSProperties } from 'react';
+import { Brief } from '../brief';
 import {
   AppBar,
   CheckIcon,
@@ -13,6 +14,7 @@ import { readFigures, type FigureRefusal } from '../figures';
 import { RefusedSet } from '../refused';
 import { keepAwake, playTone, unlockTone } from '../rest-alert';
 import type { SetRecord, StoreRecord, WorkoutExerciseRecord, WorkoutRecord } from '../set-store';
+import { deviceTimezone } from '../timezones';
 import { formatWeight, unitLabel } from '../units';
 import {
   completeSet,
@@ -104,6 +106,7 @@ export function Workout({ me, navigate }: { me: Me; navigate: Navigate }) {
       workout={workout}
       records={records}
       unit={me.profile?.weightUnit ?? 'kg'}
+      timeZone={me.profile?.timezone ?? deviceTimezone()}
     />
   );
 }
@@ -112,10 +115,12 @@ function LiveWorkout({
   workout,
   records,
   unit,
+  timeZone,
 }: {
   workout: WorkoutRecord;
   records: StoreRecord[];
   unit: WeightUnit;
+  timeZone: string;
 }) {
   const exercises = exercisesOf(records, workout.id);
   const [currentId, setCurrentId] = useState(() => exerciseToOpen(exercises, records, workout.id));
@@ -163,8 +168,11 @@ function LiveWorkout({
         <ExerciseBlock
           key={current.id}
           exercise={current}
+          position={exercises.indexOf(current) + 1}
+          count={exercises.length}
           sets={setsOf(records, current.id)}
           unit={unit}
+          timeZone={timeZone}
           scrollIntoView={logged > 0}
           onLogged={(isWarmup) => onLogged(current, isWarmup)}
         />
@@ -207,7 +215,7 @@ function LiveWorkout({
         />
       </div>
 
-      <RestBar workout={workout} records={records} />
+      <RestBar workout={workout} records={records} current={current} />
     </main>
   );
 }
@@ -232,17 +240,26 @@ const range = (exercise: WorkoutExerciseRecord) =>
     ? String(exercise.row.repLow)
     : `${exercise.row.repLow}–${exercise.row.repHigh}`;
 
-/** The current exercise: its header, warm-ups, completed sets and the active set card. */
+/**
+ * The current exercise: its header, last time and today's target in words, warm-ups, completed
+ * sets and the active set card.
+ */
 function ExerciseBlock({
   exercise,
+  position,
+  count,
   sets,
   unit,
+  timeZone,
   scrollIntoView,
   onLogged,
 }: {
   exercise: WorkoutExerciseRecord;
+  position: number;
+  count: number;
   sets: SetRecord[];
   unit: WeightUnit;
+  timeZone: string;
   scrollIntoView: boolean;
   onLogged: (isWarmup: boolean) => void;
 }) {
@@ -262,11 +279,12 @@ function ExerciseBlock({
           {exercise.local.name}
         </h2>
         <span className="exercise-head__meta">
-          <span className="visually-hidden">Reps </span>
-          {range(exercise)} · <span className="visually-hidden">increment </span>+
-          {formatWeight(exercise.row.incrementKg, unit)}
+          <span className="visually-hidden">Exercise </span>
+          {position} OF {count}
         </span>
       </div>
+
+      <Brief exercise={exercise} unit={unit} timeZone={timeZone} />
 
       {warmups.length > 0 && <Warmups sets={warmups} figures={figures} unit={unit} />}
 
@@ -437,7 +455,7 @@ function ActiveSet({
   scrollIntoView: boolean;
   onLogged: (isWarmup: boolean) => void;
 }) {
-  const { lastTime, suggestion, bodyweight } = exercise.local;
+  const { lastTime, lastTimeKnown, suggestion, bodyweight } = exercise.local;
   const number = completed.length + 1;
   const last = lastTime[completed.length];
   const previous = completed.at(-1);
@@ -448,7 +466,8 @@ function ActiveSet({
   // Assume the same again: the previous set's reps and RIR. The first set opens on last time's,
   // unless the suggestion moves the weight, where a new weight starts at the bottom of the range
   // and last time's RIR no longer applies.
-  const repeated = suggestion?.rule !== 'top_of_range_hit';
+  const repeated =
+    suggestion === null || suggestion.weightKg === Math.max(...lastTime.map((set) => set.weightKg));
   const openingReps =
     previous?.row.reps ?? (repeated ? last?.reps : undefined) ?? exercise.row.repLow;
   const openingRir = previous === undefined ? (repeated ? last?.rir : null) : previous.row.rir;
@@ -503,11 +522,13 @@ function ActiveSet({
         </span>
         {last !== undefined && !warm && (
           <span className="active-set__last">
-            <span className="active-set__last-word">LAST</span>
+            <span className="active-set__last-word">LAST TIME</span>
             {formatWeight(last.weightKg, unit)} × {last.reps}
           </span>
         )}
-        {lastTime.length === 0 && <span className="active-set__last-word">first workout</span>}
+        {lastTime.length === 0 && lastTimeKnown && (
+          <span className="active-set__last-word">FIRST WORKOUT</span>
+        )}
       </div>
 
       <div className="active-set__figures">
@@ -549,17 +570,6 @@ function ActiveSet({
       {refusal !== undefined && (
         <div role="alert">
           <FieldError id={ids.error} message={refusal.message} />
-        </div>
-      )}
-
-      {suggestion !== null && (
-        <div className="active-set__suggestion">
-          <span className="active-set__last-word">SUGGESTED</span>
-          <span className="active-set__chip">
-            {formatWeight(suggestion.weightKg, unit)}
-            <span className="visually-hidden"> {unit === 'lb' ? 'pounds' : 'kilograms'}:</span>
-          </span>
-          <span className="active-set__reason">{suggestion.reason}</span>
         </div>
       )}
 
@@ -739,11 +749,20 @@ function ExerciseList({
 }
 
 /**
- * The rest bar (docs/05 §4.14), pinned to the bottom. Rest counts from the last set's
- * `performedAt`, so a locked phone or a relaunch does not stop it (docs/09 F3). At zero it plays the
- * tone, turns to the accent and counts over until dismissed or the next set (docs/06, 2026-10-03).
+ * The rest bar (docs/05 §4.14), pinned to the bottom for the whole workout: with no rest counting
+ * it says the timer starts by itself. Rest counts from the last set's `performedAt`, so a locked
+ * phone or a relaunch does not stop it (docs/09 F3). At zero it plays the tone, turns to the accent
+ * and counts over until dismissed or the next set (docs/06, 2026-10-03).
  */
-function RestBar({ workout, records }: { workout: WorkoutRecord; records: StoreRecord[] }) {
+function RestBar({
+  workout,
+  records,
+  current,
+}: {
+  workout: WorkoutRecord;
+  records: StoreRecord[];
+  current: WorkoutExerciseRecord | undefined;
+}) {
   const now = useNow();
   const rest = useWorkoutStore((state) => state.rest);
   const set = records.find(
@@ -770,7 +789,34 @@ function RestBar({ workout, records }: { workout: WorkoutRecord; records: StoreR
   // The screen stays awake for the length of the rest, where the browser allows it.
   useEffect(() => (resting ? keepAwake() : undefined), [resting]);
 
-  if (!shown) return null;
+  if (!shown) {
+    const seconds = current?.local.restSeconds;
+    return (
+      <section className="rest-bar" aria-label="Rest timer">
+        <div className="rest-bar__track" />
+        <div className="rest-bar__body">
+          <div>
+            <div className="rest-bar__label">REST TIMER</div>
+            <div className="rest-bar__idle">
+              {seconds === 0 ? (
+                'This exercise has no rest set, so no timer starts.'
+              ) : seconds === undefined ? (
+                'Starts by itself after each set.'
+              ) : (
+                <>
+                  Starts by itself after each set: <b>{duration(seconds)}</b>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
+  const next =
+    current === undefined
+      ? ''
+      : ` · NEXT: ${setLabel(working(setsOf(records, current.id)).length + 1, current.row.targetSets)}`;
   return (
     <section className={over ? 'rest-bar rest-bar--over' : 'rest-bar'} aria-label="Rest timer">
       <div className="rest-bar__track">
@@ -781,7 +827,10 @@ function RestBar({ workout, records }: { workout: WorkoutRecord; records: StoreR
       </div>
       <div className="rest-bar__body">
         <div>
-          <div className="rest-bar__label">{over ? 'REST OVER' : 'REST'}</div>
+          <div className="rest-bar__label">
+            {over ? 'REST OVER' : 'REST'}
+            {next}
+          </div>
           <div className="rest-bar__timer" role="timer">
             {over ? `+${duration(-remaining)}` : duration(Math.ceil(remaining))}
           </div>

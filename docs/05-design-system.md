@@ -38,7 +38,7 @@ lists four text tones where the files use six, omits two colours, and gives one 
 | `line/border` | `#232B32` | Rest-bar top edge (1), chart baseline (2, 6), unconfirmed meal cards (4). |
 | `line/field` | `#2A3440` | Secondary control borders (+30s, WARM, ADJUST, REPL, pending chip), inert overlay swatches, unfilled timeline dots. Every one of these sits beside a label or a redundant state cue, so it is not the thing that identifies the control. |
 | `line/control` | `#55687A` | 3.38:1 on ground. Anything that must be seen and has no label to carry it: the inert check cell's border and check (1, 5) and the daily-weight discs and fallback rings (6), and the border of a text field (§4.18), since an empty field's border is what shows where to type. Added 2026-09-22 (§1.5). |
-| `line/accent` | `#234A57` | Border of active panels and the suggested-weight chip. |
+| `line/accent` | `#234A57` | Border of active panels and the tag on today's target (§4.19). |
 | `line/done` | `#2E4A40` | Border of done fills. |
 | `line/flag` | `#4A3A1C` | Border of flag fills and the evidence tag. |
 | `line/error` | `#501C1E` | Border of a refused item. Always beside a label, so it is not held to 3:1. Added 2026-09-22. |
@@ -182,15 +182,15 @@ Every size present in the six screens, with its use.
 | 15 | Sans | Exercise name (1), "meals unconfirmed" (4), the claim on the sources sheet. |
 | 15 | Mono | Prep raw/cooked gram figures (5). |
 | 16 | Sans | Text typed into a field (§4.18). Not a display size: iOS zooms into a focused field under 16px. Added 2026-10-01 (`06`). |
-| 17 | Mono | **Working-set kg and reps (1). The app's standard figure size.** Also figures typed into a field (§4.18). |
+| 17 | Mono | **Working-set kg and reps (1). The app's standard figure size.** Also figures typed into a field (§4.18), and last time and today's target (§4.19). |
 | 19 | Mono | If-confirmed kcal and protein (4). |
 | 20 | Mono | Top set, volume load (2). |
 | 22 | Mono | Avg intake, trend change (6). |
 | 24 | Mono | Implied maintenance (6). |
 | 26 | Mono | Day kcal total (3). |
-| 30 | Mono | Rest timer (1). |
+| 30 | — | **Retired 2026-10-10.** The rest timer moved to 42px (§4.14, `06`). Nothing is set at 30px. |
 | 38 | Mono | Unconfirmed meal count (4). |
-| 42 | Mono | e1RM headline (2), weight trend headline (6). |
+| 42 | Mono | e1RM headline (2), weight trend headline (6), rest countdown (1, §4.14). |
 | 56 | Mono | **Active set only (1). The named exception — §2.5.** |
 
 ### 2.3 Weight
@@ -207,7 +207,7 @@ Every size present in the six screens, with its use.
 | --- | --- |
 | `-0.03em` | 42px and 56px figures. |
 | `-0.02em` | 38px figure. |
-| `-0.01em` | 26px and 30px figures. |
+| `-0.01em` | 26px figure. |
 | `0.02em`–`0.04em` | Mono metadata on screen 1 (elapsed time, rep range). |
 | `0.06em` | Exercise name, overlay chip labels, warm-up summary label. |
 | `0.08em` | Small-caps labels and 44px button labels. |
@@ -223,8 +223,7 @@ tracking.
 | Value | Applied to |
 | --- | --- |
 | `0.86` | 56px active-set figures. |
-| `0.9` | 38px and 42px headline figures. |
-| `1` | 30px rest timer. |
+| `0.9` | 38px and 42px headline figures, and the 42px rest countdown. |
 | `1.55` | Wrapping prose at 10–11px. |
 | `1.6` | Mono food-list strings at 10px. |
 
@@ -236,7 +235,9 @@ tracking.
 **Why.** This is a deliberate borrow from the rejected Heavy direction, covering the one moment
 Instrument is weakest at: mid-set, arm's length, bad gym light, one hand free. The decision log
 records this as the recoverable part of Heavy's narrow win. The 42px headlines on screens 2 and 6
-are a separate, smaller step and are read seated, not mid-set.
+are a separate, smaller step and are read seated, not mid-set. The rest countdown took that step on
+2026-10-10 (§4.14): it is the "bigger figure uses 42px" rule below, applied, and it leaves the
+active set the only 56px on the screen.
 
 **Constraints on its use.**
 - It applies to exactly one row at a time — the active set, inside `surface/active`.
@@ -427,12 +428,25 @@ into the space around it, so the row keeps its height. All three are drawn on th
 ### 4.14 Rest bar
 Pinned to the bottom edge, `surface/raised` with a top border in `line/border`. A 2px progress track
 in `line/hairline` sits on the very top edge with an `accent` fill (62% in the artboard). Below:
-`REST` at 9px `0.12em` `text/quaternary` over a 30px mono timer, and two controls right-aligned.
+`REST · NEXT: SET 3 OF 4` at 9px `0.12em` `text/quaternary` over the countdown, and two controls
+right-aligned: `+30s` (56px wide) and `SKIP` (64px wide), both 46px tall. Body padding `12px 16px
+14px`, plus the safe-area inset.
 
-**Rest over** (`06`, 2026-10-03, not drawn). At zero the fill is full, the label reads `REST OVER`
-and the timer counts up as `+0:12`, both in `accent`; `+30s` goes and `SKIP` becomes `DISMISS`. It
-stays until dismissed or the next set. Fixed to the bottom edge over the safe-area inset. An
-exercise whose rest is 0 seconds shows no bar.
+**The countdown is 42px** mono / 500 / `-0.03em` / line-height 0.9, tabular (`06`, 2026-10-10; 30px
+as drawn). It is the next size up the scale, not a second 56px (§2.6).
+
+**On screen for the whole workout** (`06`, 2026-10-10). With no rest counting, before the first set
+and after `SKIP` or `DISMISS`, the bar stays: the label reads `REST TIMER` over one 12px line in
+`text/secondary`, `Starts by itself after each set: 3:00`, the length in mono/500 `text/primary`. It
+is the rest of the exercise that is open. The track is empty and there are no controls. The bar
+keeps the height its 46px controls give it, so it does not jump when a rest starts. An exercise
+whose rest is 0 seconds starts no rest, and the line says so: `This exercise has no rest set, so no
+timer starts.`
+
+**Rest over** (`06`, 2026-10-03, not drawn). At zero the fill is full, the label reads `REST OVER ·
+NEXT: SET 3 OF 4` and the timer counts up as `+0:12`, both in `accent`; `+30s` goes and `SKIP`
+becomes `DISMISS`. It stays until dismissed or the next set. Fixed to the bottom edge over the
+safe-area inset.
 
 ### 4.15 Footnote rule
 Absolutely positioned at `bottom: 18px`, 12px padding above a `line/hairline` top border, holding a
@@ -461,6 +475,30 @@ optional note on the right of the same row (`DEFAULT` / `YOURS`, 9px `text/quate
 `text/quaternary`, which passes at every size (§1.5), not `text/placeholder`. Focus turns the border
 `accent`. A refused field turns it `error` and prints, under it, the 12px info icon, `REFUSED` and the
 reason, as §4.17 does; a field too narrow for that sends its message under its row instead.
+
+### 4.19 Last time and target block
+Added 2026-10-10 (`06`; reference `docs/prototype/`). Two rows in one 1px `line/hairline` box, radius
+2, inset to the gutters, the rows divided by the same hairline. It opens an exercise on screen 1 and
+says in words what a chip and a code said before. Each row is `10px 12px 11px` with a 5px gap:
+
+- **Head.** A 9px `0.12em` uppercase label on the left; on the right, baseline-aligned, the row's
+  reference.
+- **Figures.** 17px mono / 500 / tabular, the app's figure size, with the unit and `×` at 11px / 400
+  `text/quaternary`: `80 kg × 10 · 10 · 10 · 9`. Sets at different weights read `80×10 · 82.5×9`.
+- **Sentence.** 11px sans, line-height 1.55, `text/secondary`. A figure and its unit do not part at
+  a line end.
+
+**Last time** is the quiet row: label `text/quaternary`, figures `text/secondary`, and on the right
+the date and its age, 10px mono `0.02em` uppercase `text/quaternary` (`MON 5 OCT · 5 DAYS AGO`;
+`TODAY`, `YESTERDAY`, days up to 13, then weeks). It has no sentence.
+
+**Today's target** is the row that is read: `surface/active` fill and a 2px `accent` left edge, as
+the active card on screen 1 (§4.5); label `accent`, figures `text/primary`. On the right, a tag:
+10px mono `0.06em` uppercase `accent` in a `3px 7px` box with a 1px `line/accent` border, `+2.5 KG`
+or `SAME WEIGHT`. Under the figures, the reason as a sentence.
+
+**First workout.** The same two rows. Last time reads `None yet` with a sentence saying why; the
+target reads `Find your weight × 6–10`, tagged `FIRST WORKOUT`, with a sentence on how to pick one.
 
 ---
 

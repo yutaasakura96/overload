@@ -1,4 +1,5 @@
 import type {
+  Equipment,
   SetRow,
   Suggestion,
   SyncResult,
@@ -56,7 +57,12 @@ export type WorkoutExerciseRecord = RecordBase & {
     bodyweight: boolean;
     restSeconds: number;
     lastTime: LastSet[];
+    /** Last time's local date. Absent from a copy kept before it was carried. */
+    lastTimeOn?: string | null;
+    lastTimeKnown?: boolean;
     suggestion: Suggestion | null;
+    /** Absent from a copy kept before it was carried. */
+    equipment?: Equipment;
   };
 };
 

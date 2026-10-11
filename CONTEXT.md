@@ -107,7 +107,8 @@ _Avoid_: previous, history
 **Suggestion**:
 Today's proposed weight for an exercise: last weight plus the increment if every working set last
 time reached the top of the rep range, otherwise the same weight, rounded up to a weight the equipment can make. Never overwrites a typed
-value.
+value. On screen the workout labels it "Today's target" (`docs/06`, 2026-10-10): that is wording
+for the line that shows it, not a second term. Code, the API, tickets and these docs say suggestion.
 _Avoid_: recommendation, target weight, prescription
 
 **Increment**:

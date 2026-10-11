@@ -112,6 +112,15 @@ reading a workout from the keyboard, the empty state and pounds, on Chromium and
 the S20 overlays, which wait for M2 and M3. Owed, and Yuta's: the chart on a real iPhone, where
 dragging a finger across it has only been tried in an emulated browser.
 
+**The workout screen says last time, today's target and rest in words, 2026-10-10** (`#47`), on
+branch `fm/overload-47` against `develop`, web only. Each exercise opens with the two-row block of
+`05` §4.19, the first workout of an exercise says why it has neither, and the rest bar is on screen
+for the whole workout with a 42px countdown (`06`, 2026-10-10; `10` §1). The reviewed prototype
+that `#47` to `#51` are built against is in `docs/prototype/`. `e2e/workout.spec.ts` covers the
+sentences, the first-workout state and the bar before, during and after a rest, on Chromium and
+WebKit. Not built here, and in the prototype's workout screen: `FULL SCREEN` on the rest bar
+(`#51`), a logged set edited from its tick and the way from last time to past sets (`#48`).
+
 **Issues are open.** Milestone `M1`, one issue per slice, `#1`–`#7`, each chained to the one before
 with GitHub's native dependencies. `#3`'s three questions were settled in `06` (2026-10-03).
 Each UI feature clears the polish gate in `AGENTS.md`.

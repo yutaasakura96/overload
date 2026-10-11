@@ -279,7 +279,7 @@ export async function startWorkout(input: {
   userId: string;
   routine: Routine;
   exercises: Map<string, Exercise>;
-  lastTimes: Map<string, LastTime>;
+  lastTimes?: Map<string, LastTime>;
 }): Promise<void> {
   const now = new Date().toISOString();
   const workoutId = newId();
@@ -302,7 +302,7 @@ export async function startWorkout(input: {
     const exercise = input.exercises.get(slot.exerciseId);
     if (exercise === undefined) return [];
     // A slot reads its own last time; one never logged falls back to the exercise's.
-    const logged = input.lastTimes.get(slot.exerciseId);
+    const logged = input.lastTimes?.get(slot.exerciseId);
     const last = logged?.slots.find((own) => own.routineExerciseId === slot.id) ?? logged;
     const id = newId();
     return [
@@ -331,7 +331,10 @@ export async function startWorkout(input: {
             reps: set.reps,
             rir: set.rir,
           })),
+          lastTimeOn: last?.performedOn ?? null,
+          lastTimeKnown: input.lastTimes !== undefined,
           suggestion: last?.suggestion ?? null,
+          equipment: exercise.equipment,
         },
       },
     ];

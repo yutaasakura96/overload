@@ -3246,3 +3246,50 @@ Issue `#41`, which `#39` left open: which splits, and whether a split is stored.
   field opens empty. The API still returns one flat list.
 
 **Changed:** `10`, `CONTEXT.md`.
+
+### 2026-10-10 — Screen 1 says last time, today's target and rest in words; the prototype is the reference
+
+Yuta's review of staging on 2026-10-09 found that last time, the suggestion and the rest timer were
+all on screen 1 and none was noticed: a `SUGGESTED 82.5` chip inside the set card, a `6–10 · +2.5`
+code in the exercise header, and a rest bar that appeared only after a set. A clickable prototype
+of `#47` to `#51` was reviewed on 2026-10-10 and approved with no changes. It is committed under
+`docs/prototype/` and is the reference for how those screens look, read and behave. `#47` builds
+its workout screen. Four of its sixteen questions govern this one:
+
+- **Q1. The line is labelled "Today's target".** `suggestion` stays the term in code, the API and
+  these docs, with a note in `CONTEXT.md`, whose _Avoid_ list still holds for everything but that
+  label. Rejected: `Suggested` on screen too, which is the word that went unread.
+- **Q2. The target line replaces the chip and the header code.** Each exercise opens with two rows,
+  last time and today's target with its reason as a sentence (`05` §4.19). The header's right side
+  now says where the exercise sits in the workout, `1 OF 5`. Rejected: keeping the chip as well,
+  which says the same weight twice.
+- **Q3. The rest bar is on screen for the whole workout.** Before the first set, and after a skip or
+  a dismiss, it says the timer starts by itself and how long the rest is. It costs about 75px of
+  the screen, which scrolls since 2026-10-03. Rejected: showing it only while resting, just larger,
+  which still hides it until it is needed.
+- **Q4. The countdown is 42px on the bar.** `05` §2.6 already sends a bigger figure outside the
+  active set to 42px, so this is the rule applied and no exception. The 30px step is retired. The
+  56px countdown in full screen is `#51`'s, and that one is the exception to record there.
+
+Settled while building:
+
+- **The web words the reason; the API still decides the weight.** `GET /api/training/last-time`
+  already returns the date, the sets and the suggestion with its rule, so nothing in the API
+  changed. The screen builds the sentence from the rule and last time's sets. The weight a missed
+  target moves to next (`goes up to 82.5 kg`) is the suggestion plus the increment, and is named
+  only for equipment that makes every such step. A dumbbell rack does not (2026-09-23), and its
+  rounding lives in `domain/progression.ts`, so there the sentence says the weight goes up without
+  a figure. The step a raised weight took is read off the suggestion itself.
+- **The device record carries last time's date and the equipment class**, copied at start beside
+  the sets and the suggestion. A workout already open when this ships has neither: it shows no
+  date and names no next weight.
+- **The age of last time is counted in the profile's time zone**, as every local date is.
+- **The idle bar keeps the height of its controls.** In the prototype the `FULL SCREEN` button
+  gives it that height; here it is set, so the bar does not jump when a rest starts.
+
+Not built, though the prototype's workout screen shows them: `FULL SCREEN` on the rest bar (`#51`),
+a logged set edited from its tick, and the last-time row opening the exercise's past sets (both
+`#48`). What the card opens on is unchanged from earlier the same day: reps and RIR are real
+values, where the prototype draws the first set's reps as a placeholder.
+
+**Changed:** `CONTEXT.md`, `00`, `05` §1.2 §2 §4.14 §4.19, `09` F3, `10` §1, `docs/prototype/`.
