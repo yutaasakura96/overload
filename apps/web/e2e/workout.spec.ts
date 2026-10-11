@@ -763,8 +763,7 @@ async function setRest(page: Page, exercise: string, seconds: string) {
 test.describe('full screen', () => {
   test('is one exercise and one set, entered and left without losing anything, with the screen kept awake', async ({
     page,
-  }, testInfo) => {
-    await page.setViewportSize({ width: 390, height: 844 });
+  }) => {
     const name = `Full ${Date.now()}`;
     await page.clock.install();
     const wakeLocks = await countWakeLocks(page);
@@ -814,11 +813,6 @@ test.describe('full screen', () => {
     await expect(rest).toBeFocused();
     await expect(rest.getByRole('timer')).toHaveText(/^(2:00|1:5\d)$/);
     await expect(rest.getByRole('timer')).toHaveCSS('font-size', '56px');
-    if (process.env.E2E_EVIDENCE_DIR && testInfo.project.name === 'chromium')
-      await page.screenshot({
-        path: `${process.env.E2E_EVIDENCE_DIR}/full-screen-rest.png`,
-        fullPage: true,
-      });
     await expect(page.getByText('Exercise 1 of 2 · 1 of 3 sets done')).toBeVisible();
     const next = page.getByRole('region', { name: 'Next · SET 2 OF 3' });
     await expect(next).toContainText('47.5\u00a0kg × 9');
@@ -882,8 +876,7 @@ test.describe('full screen', () => {
 
   test('the iPhone Focus guide opens over the workout and keeps what is done on the device', async ({
     page,
-  }, testInfo) => {
-    await page.setViewportSize({ width: 390, height: 844 });
+  }) => {
     const name = `Guide ${Date.now()}`;
     await page.clock.install();
     await saveProfile(page, 'Kilograms');
@@ -921,8 +914,6 @@ test.describe('full screen', () => {
     );
     await expect(page.getByText('Steps from Apple’s iPhone User Guide, iOS 27')).toBeVisible();
     await expect(page.getByText('checked 10 Oct 2026')).toBeVisible();
-    if (process.env.E2E_EVIDENCE_DIR && testInfo.project.name === 'chromium')
-      await page.screenshot({ path: `${process.env.E2E_EVIDENCE_DIR}/focus-guide.png`, fullPage: true });
     // The workout is under it, not on screen.
     await expect(page.getByRole('button', { name: 'Complete set' })).toBeHidden();
 
