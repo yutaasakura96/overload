@@ -116,7 +116,9 @@ test('an offline start without cached last time does not claim a first workout',
     await expect(brief(page)).toContainText('Last time could not be loaded.');
     await expect(brief(page)).not.toContainText('First workout');
     await expect(brief(page)).not.toContainText('This is your first time logging');
-    await expect(page.getByRole('region', { name: 'SET 1 OF 3' })).not.toContainText('FIRST WORKOUT');
+    await expect(page.getByRole('region', { name: 'SET 1 OF 3' })).not.toContainText(
+      'FIRST WORKOUT',
+    );
   } finally {
     await context.setOffline(false);
     apiFixture('delete', email);

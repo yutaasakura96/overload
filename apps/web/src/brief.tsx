@@ -70,9 +70,9 @@ function why(exercise: WorkoutExerciseRecord, unit: WeightUnit, riseKg: number) 
       ? 'Your set'
       : priorHigh === undefined
         ? 'Some sets'
-      : short === count
-        ? `All ${count} sets`
-        : `${short} ${short === 1 ? 'set' : 'sets'} of ${count}`;
+        : short === count
+          ? `All ${count} sets`
+          : `${short} ${short === 1 ? 'set' : 'sets'} of ${count}`;
   const head = `${stopped} stopped short of ${priorTarget} last time.`;
   const reach = count === 1 ? `Reach ${repHigh}` : `Reach ${repHigh} on all ${count}`;
   if (bodyweight && suggestion.weightKg === 0) return `${head} ${reach} this time.`;

@@ -466,7 +466,8 @@ function ActiveSet({
   // Assume the same again: the previous set's reps and RIR. The first set opens on last time's,
   // unless the suggestion moves the weight, where a new weight starts at the bottom of the range
   // and last time's RIR no longer applies.
-  const repeated = suggestion === null || suggestion.weightKg === Math.max(...lastTime.map((set) => set.weightKg));
+  const repeated =
+    suggestion === null || suggestion.weightKg === Math.max(...lastTime.map((set) => set.weightKg));
   const openingReps =
     previous?.row.reps ?? (repeated ? last?.reps : undefined) ?? exercise.row.repLow;
   const openingRir = previous === undefined ? (repeated ? last?.rir : null) : previous.row.rir;
