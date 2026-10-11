@@ -47,17 +47,9 @@ function write(next: FocusGuideState) {
 }
 
 function subscribe(onChange: () => void) {
-  // Another tab of the app changed it.
-  const onStorage = (event: StorageEvent) => {
-    if (event.key !== KEY) return;
-    state = undefined;
-    onChange();
-  };
   listeners.add(onChange);
-  window.addEventListener('storage', onStorage);
   return () => {
     listeners.delete(onChange);
-    window.removeEventListener('storage', onStorage);
   };
 }
 
