@@ -122,8 +122,8 @@ Planned sets that were never ticked are not stored. Only ticked sets become `set
 
 ### F3a. Look back at a workout, and correct it
 
-Built 2026-10-11 (`06`). Screens are `10` §9. Works identically offline for every workout the
-device has already loaded: a change is written to the set store first and uploads later, like a
+Built 2026-10-11 (`06`). Screens are `10` §9. A finished workout the device has already loaded
+can be corrected offline: the change is written to the set store first and uploads later, like a
 set logged in the gym (`03` §8.1).
 
 1. **Open History.** The **Progress** tab opens on History: the finished workouts by month, newest

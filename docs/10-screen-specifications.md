@@ -781,7 +781,7 @@ finishing a workout. Back returns to whichever it came from, and to History othe
 | --- | --- | --- |
 | App bar | screen 2's, with the back chevron | The workout's name over `FRI 9 OCT · 18:30 · 54 MIN` (`IN PROGRESS` in place of the minutes for one not ended). Right: the data-state slot |
 | Said once | `05` §4.21, `12px 16px 0` | After Finish: `Workout finished. It is in History from now on.` After a save or a delete, see below |
-| Stat strip | `16px 16px 0`, 3 × 1fr, 8px gap | Screen 2's stat cards at `10px 11px`: `WORKING SETS` `13`; `VOLUME` `9,420` `kg`; `TIME` `54` `min` |
+| Stat strip | `16px 16px 0`, 3 × 1fr, 8px gap | Screen 2's stat cards at `10px 11px`: `WORKING SETS` `13`; `VOLUME` `9,420` `kg`; `TIME` `54` `min` for a finished workout. An in-progress workout has no `TIME` card |
 | Exercise | 20px above each | The name, 13px/600/`0.04em` uppercase `text/primary`, in a 44px row with a forward chevron in `text/tertiary`: a link to that exercise's chart and past sets (§2) |
 | Column heads | grid `30px 1fr 56px 44px 44px`, 6px gap, 6px above a `line/hairline` | `SET · KG · REPS · RIR`, 9px `0.1em` `text/quaternary`; the fifth column unlabelled |
 | Set row | the same grid, 44px, `line/row` under | Set no. 13px mono `text/tertiary`; kg and reps 17px mono/500 `text/primary`; RIR 13px mono `text/tertiary`, `—` with none; `EDIT` 10px `0.08em` `text/tertiary`, right-aligned. A warm-up is numbered `W` and its figures drop to 13px `text/tertiary`. The whole row is the button that opens its editor, and reads `CLOSE` while open |

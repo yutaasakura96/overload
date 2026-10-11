@@ -12,10 +12,10 @@ import { deviceTimezone } from '../timezones';
 import { formatVolume, formatWeight, unitLabel, unitName } from '../units';
 import { deletePastSet, editPastSet, recordsOf, useWorkoutStore } from '../workout';
 
-// One workout from History (docs/10 §9, docs/09 F3a): every set as it was logged, each open to
-// correction. It is also where Finish lands, so it serves as the finish summary. A workout the
-// device still holds rows of is read from them (history.ts), which is how one finished or changed
-// with no signal shows here at once.
+// One workout from History (docs/10 §9, docs/09 F3a): every set as it was logged. A workout in
+// progress on another device is read-only here. Finish lands here, so it serves as the finish
+// summary. A workout the device still holds rows of is read from them (history.ts), which is how
+// one finished or changed with no signal shows here at once.
 
 const NOTES = {
   finished: 'Workout finished. It is in History from now on.',
