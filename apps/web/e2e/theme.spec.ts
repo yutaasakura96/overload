@@ -23,7 +23,7 @@ function luminance(rgb: string): number {
 function contrast(theme: Record<string, string>, a: string, b: string): number {
   const [low = 0, high = 0] = [a, b]
     .map((name) => luminance(theme[`--${name}`] ?? ''))
-    .sort((x, y) => x - y);
+    .toSorted((x, y) => x - y);
   return (high + 0.05) / (low + 0.05);
 }
 
@@ -58,13 +58,13 @@ test('loaded colour tokens resolve in both themes and meet their contrast rules'
 }) => {
   await page.goto('/sign-in');
   const { dark, light, darkNames, lightNames, outside } = await page.evaluate(() => {
-    const descendants = (rules: CSSRuleList): CSSRule[] =>
-      Array.from(rules).flatMap((rule) =>
-        'cssRules' in rule && rule.cssRules instanceof CSSRuleList
-          ? [rule, ...descendants(rule.cssRules)]
-          : [rule],
-      );
-    const rules = Array.from(document.styleSheets).flatMap((sheet) => descendants(sheet.cssRules));
+    const pending = Array.from(document.styleSheets).flatMap((sheet) => Array.from(sheet.cssRules));
+    const rules: CSSRule[] = [];
+    for (const rule of pending) {
+      rules.push(rule);
+      if ('cssRules' in rule && rule.cssRules instanceof CSSRuleList)
+        pending.push(...Array.from(rule.cssRules));
+    }
     const styles = rules.filter((rule): rule is CSSStyleRule => rule instanceof CSSStyleRule);
     const darkRule = styles.find((rule) => rule.selectorText === ':root');
     const lightRule = styles.find(
@@ -88,21 +88,21 @@ test('loaded colour tokens resolve in both themes and meet their contrast rules'
       Array.from(rule.style).filter(
         (name) => name.startsWith('--') && isColour(rule.style.getPropertyValue(name)),
       );
-    const darkNames = names(darkRule);
-    const lightNames = names(lightRule);
+    const darkTokenNames = names(darkRule);
+    const lightTokenNames = names(lightRule);
     const probe = document.createElement('span');
     document.body.append(probe);
     const values = (theme: 'dark' | 'light') => {
       document.documentElement.dataset.theme = theme;
       return Object.fromEntries(
-        darkNames.map((name) => {
+        darkTokenNames.map((name) => {
           probe.style.color = `var(${name})`;
           return [name, getComputedStyle(probe).color];
         }),
       );
     };
-    const dark = values('dark');
-    const light = values('light');
+    const darkValues = values('dark');
+    const lightValues = values('light');
     probe.remove();
     const literalColour = /#[0-9a-f]{3,8}\b|\b(?:rgb|hsl|oklch|oklab|lab|lch|color)a?\(/i;
     type Declaring = CSSRule & {
@@ -110,7 +110,7 @@ test('loaded colour tokens resolve in both themes and meet their contrast rules'
       selectorText?: string;
       keyText?: string;
     };
-    const outside = rules
+    const outsideDeclarations = rules
       .filter(
         (rule): rule is Declaring => 'style' in rule && rule.style instanceof CSSStyleDeclaration,
       )
@@ -128,7 +128,13 @@ test('loaded colour tokens resolve in both themes and meet their contrast rules'
           value !== undefined &&
           (literalColour.test(value) || (!/\b(?:var|env)\(/.test(value) && isColour(value))),
       );
-    return { dark, light, darkNames, lightNames, outside };
+    return {
+      dark: darkValues,
+      light: lightValues,
+      darkNames: darkTokenNames,
+      lightNames: lightTokenNames,
+      outside: outsideDeclarations,
+    };
   });
 
   expect(darkNames.length).toBeGreaterThan(0);
