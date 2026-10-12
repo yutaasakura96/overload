@@ -86,7 +86,8 @@ completion control is enabled regardless; a missing weight or reps is refused on
     time the weight goes up`, since which weight the rack makes is the API's to say.
   - With one set last time the sentences say `your only set` and `Your set`. Where the rep range has
     changed since and the count no longer fits the rule, the API's own reason is shown as a sentence.
-  - The block is read, not tapped. The way from it to the exercise's past sets comes with `#48`.
+  - The block is read, not tapped. Past sets are under the exercise's chart (§2), reached from the
+    exercise screen and a workout's page (§9).
 - **First time doing an exercise (S2, PRD empty states).** The block says so in words: `LAST TIME`
   reads `None yet`, with `This is your first time logging Bench Press, so there is nothing to
   compare with.` `TODAY'S TARGET` reads `Find your weight × 6–10`, tagged `FIRST WORKOUT`, with
@@ -123,7 +124,7 @@ completion control is enabled regardless; a missing weight or reps is refused on
 - **The rest bar is always there, decided 2026-10-10** (`06`). From the start of the workout, before
   any set, it says the timer starts by itself and how long the open exercise rests; it returns to
   that after `SKIP` or `DISMISS`. While counting, its label names the set that comes next.
-- **Full screen, decided 2026-10-12** (`06`; reference `docs/prototype/`, `05` §4.20). `FULL
+- **Full screen, decided 2026-10-12** (`06`; reference `docs/prototype/`, `05` §4.22). `FULL
   SCREEN` on the rest bar switches the screen to a second layout with one exercise and one set on
   it; `EXIT FULL SCREEN`, in its bar, switches back. It is the app's own mode and is called that:
   "Focus" is Apple's (`CONTEXT.md`).
@@ -153,7 +154,8 @@ completion control is enabled regardless; a missing weight or reps is refused on
   their target, as `3 / 3 × 6–10`. A row opens that exercise, in any order.
 - **Finish.** A tertiary `Finish workout` under the lists, which becomes the question in place
   (`Finish Push A? 9 sets logged.` — `Keep going` / `Finish`), the delete pattern of §8.1. With no
-  set logged it says nothing is kept (`09` F3).
+  set logged it says nothing is kept (`09` F3). Finishing opens the workout's page in History
+  (§9), which is its summary; with nothing kept it opens Today.
 - **Offline (S1).** Every control works offline. The pending chip counts sets not yet synced and is
   `flag`, not an error — nothing is lost. It is the screen-1 form of the data-state slot every screen carries (§7.4).
 - **Refused set** (`09` F4, drawn in `Main-Refused`). The row stays in the table on a `surface/error` band
@@ -174,6 +176,13 @@ completion control is enabled regardless; a missing weight or reps is refused on
   - **Today** lists the refused sets of workouts that have ended under `Refused sets`, above the
     workout in progress: one `surface/error` card each, with the exercise, the workout's name and
     the figures (`60 kg × 500`), then the same word, reason and actions.
+- **Correcting a logged set, as built 2026-10-11** (`06`; `09` F3 step 4). A completed row's check
+  cell is a button, named `Set 2 done. Edit` with `aria-expanded`. It opens the set editor (§9,
+  `05` §4.20) in a row of its own under the set, indented to the LAST column: weight, reps and RIR
+  over `Cancel` and `Save set`, with `Delete set` under them. One editor is open at a time. Saving
+  or deleting returns focus to the tick, or to the exercise's name when the set has gone, and the
+  active card is made again from the corrected set without taking the screen. A warm-up is
+  corrected from History, where it is a row (§9).
 
 ---
 
@@ -213,7 +222,9 @@ Read seated. Four independently toggleable overlays are the reason the whole app
 **As built, 2026-10-10** (slice 5, `06`), with what the artboard does not draw:
 
 - **The way in** is a `Progress` row above the form on the exercise's screen (§8.1), at
-  `/exercises/{id}/progress`. Back returns there. The span is in the address (`?span=6m`).
+  `/exercises/{id}/progress`, and since 2026-10-11 an exercise's name on a workout's page in
+  History (§9). Back returns to whichever it was opened from, and to the exercise's screen when
+  opened by its address. The span is in the address (`?span=6m`).
 - **Headline.** The latest e1RM in the span, and its change since the span's first workout over
   `OVER 12W` (`ALL TIME` for all): `done` when up, `text/tertiary` when down or level. With one
   workout there is no change; with none the figure is an em dash.
@@ -227,8 +238,14 @@ Read seated. Four independently toggleable overlays are the reason the whole app
   with a `line/control` hairline and a solid disc, and the headline reads it: its e1RM, with its
   top set over its date where the change was. A finger lifting leaves it; the keyboard has a
   slider over the chart, whose focus ring is drawn round the chart. A point is not a target.
-- **`Workouts in this span`**, a tertiary disclosure under the cards, lists every point as `05`
-  §4.4's table: date, e1RM, top set and volume, newest first.
+- **Past sets, 2026-10-11** (`06`), in place of the `Workouts in this span` disclosure. Under the
+  cards, 22px down: a section label, `PAST SETS · 12 WORKOUTS`, then one row for each workout the
+  chart draws, newest first, between a `line/hairline` top and `line/row` dividers. A row is
+  at least 56px, `9px 16px`: `FRI 9 OCT · PUSH A` in 10px mono `text/quaternary` over the working
+  sets in 13px mono/500 `text/primary`, `80 × 10 · 10 · 9` at one weight and `80×10 · 82.5×8`
+  where the weight changed; on the right, across both lines, that workout's e1RM in 13px mono/500
+  `text/tertiary` over `E1RM` in 9px `text/quaternary`. The row is a link to that workout in
+  History (§9). With no workout in the span it reads `No sets logged in this span.`
 - **Another span loading** keeps the last one at half opacity. The chart's place is kept by the
   empty state, `Not enough data yet` over one sentence, so the cards do not move.
 - **Overlays** are not drawn in M1: no `OVERLAY` block and no chips.
@@ -536,8 +553,9 @@ Flagged so they are not discovered mid-build. None of these are gaps in the six 
 screens and states the PRD requires that Phase 2 did not draw.
 
 - **Workout start** (S4) from a routine. Routine selection and the no-routines empty state are
-  specified in §8.1, from slice 2; Today and the start itself in §8.2, from slice 3. Start empty,
-  changing a live workout and the finish summary are not designed yet.
+  specified in §8.1, from slice 2; Today and the start itself in §8.2, from slice 3. The finish
+  summary is the workout's page in History (§9, 2026-10-11). Start empty and changing a live
+  workout's exercises are not designed yet.
 - **Food list management** (S12) and manual label entry.
 - **Goal phase and macro target setup** (S14), routine and meal count (S15).
 - **The grocery list proper** (S17) — only a preview card exists.
@@ -558,11 +576,12 @@ components, and pass the polish gate (`AGENTS.md`). Nothing here adds a token or
 
 **Shared parts.**
 
-- **Tabs.** `Today`, `Routines` and `Exercises`, `05` §4.8's tabs as links with `aria-current`,
-  under the app bar of the three top-level screens. Since slice 3 `/` is Today and the library is
-  `/exercises` (`06`, 2026-10-03).
+- **Tabs.** `Today`, `Progress`, `Routines` and `Exercises`, `05` §4.8's tabs as links with
+  `aria-current`, under the app bar of the four top-level screens. Since slice 3 `/` is Today and
+  the library is `/exercises` (`06`, 2026-10-03); `Progress` joined on 2026-10-11 (§9).
 - **Back.** Screen 2's back chevron plus a 12px title, the chevron's 44px target reaching into the
-  bar's padding. Its accessible name says where it goes.
+  bar's padding. Its accessible name says where it goes, or `Back` on a screen reached from more
+  than one place (screen 2 and a workout in History), where it returns to the one it came from.
 - **Fields.** An 8px small-caps label over a 44px input with a 1px `line/control` border, since an
   empty field's border is what shows where to type (`05` §1.5). Text is 16px sans and figures 17px
   mono, so iOS never zooms into a focused field (`06`, 2026-10-01). A note beside the label says
@@ -654,6 +673,9 @@ data-state slot. Under the tabs, in order:
   of the chevron. One tap starts it and opens screen 1 (S4). While a workout is in progress the tap
   asks under the row instead: `Finish Push A first?` — `Resume` / `Finish`.
 - **No routines:** the empty state of the routine list, `Create a routine`.
+- **Last workout, 2026-10-11** (§9): a link row under the routines, `PUSH A · FRI 9 OCT` over
+  `13 working sets · 54 min · yesterday`, with a forward chevron. It opens the newest finished
+  workout's page in History, and is not drawn before the first workout is finished.
 - **Profile:** `Time zone` (a searchable list of IANA names, initially set to the device's own; an existing saved choice takes precedence; typing narrows the list and only a chosen name is saved) and `Weights shown in` —
   `05` §4.8's segments over two radios, `Kilograms` / `Pounds` — then a secondary save. Until the
   first save the heading reads `Set up your profile` with one sentence on what the two are for.
@@ -693,7 +715,7 @@ not reopen a guide just closed with the chevron or `I have set it up`.
 - **A `flag` notice, `What Overload cannot do`:** `A web app cannot turn a Focus on, or stop you
   opening other apps. iOS does that, so it is set up once in Settings. Full screen keeps the
   workout in front of you; the Focus keeps everything else quiet.`
-- **Four steps** (`05` §4.20), each a check cell, a numbered title, the path through Settings and
+- **Four steps** (`05` §4.22), each a check cell, a numbered title, the path through Settings and
   what to do there:
   1. `Create the Focus` — `Settings › Focus › Add › Custom`
   2. `Choose who can reach you` — `Workout › People › Allow Notifications From`
@@ -714,3 +736,73 @@ not reopen a guide just closed with the chevron or `I have set it up`.
   they survive a relaunch and a sign-out, and are not sent anywhere (`06`, 2026-10-12).
 - Opening it starts at the top with focus on the screen; going back returns focus to the row that
   opened it.
+---
+
+## 9. Progress: History and a workout's page (issue #48)
+
+No artboard exists. These were drawn first as a clickable prototype, reviewed and approved by the
+owner on 2026-10-10 (`docs/prototype/`, `06` 2026-10-11), and built to match it at 390px from
+`05`'s tokens. Nothing here adds a token or an icon; the two new components are `05` §4.20 and
+§4.21.
+
+**The Progress tab** (`/progress`). The fourth tab of §8.1, second in the row. Under the tabs, 14px
+down, three sections as `05` §4.8's segments, links with `aria-current`: `History`
+(`/progress`), `Strength` (`/progress/strength`) and `Balance` (`/progress/balance`). Strength
+(#49) and Balance (#50) are not built yet: each address shows the tab, the three sections and an
+empty state that says so.
+
+### History (`/progress`)
+
+| Block | Geometry | Content |
+| --- | --- | --- |
+| App bar | as §8.1 | `Progress` over `194 WORKOUTS`, 11px mono `text/quaternary`: every finished workout, not the ones loaded. Right: the data-state slot |
+| Tabs, then sections | 44px each | As above; `History` is current |
+| Month | `20px 16px 0` | `05` §4.3's section label as an `h2`: `OCTOBER 2026`, in the profile's time zone |
+| Workout row | the routine list's row (§8.1), 8px under its month | `Push A`; `FRI 9 OCT · 54 MIN · 13 SETS` in mono small caps; then each exercise's top set, `Barbell Bench Press 80 × 10 · Seated Dumbbell Shoulder Press 24 × 10`, on one line that ends in an ellipsis; a forward chevron. The whole row is a link to the workout |
+| Earlier | `05` §4.6 tertiary, under the list | `Show earlier workouts` while the server has another page of 30 |
+
+- **Newest first**, by when the workout started. Sets are working sets; a warm-up is neither
+  counted nor a top set (S6). Minutes are the whole minutes from start to end, and never 0.
+- **Empty:** `No workouts yet` over `A finished workout is listed here by date, with every set
+  open to correction.`
+- **Removed:** arriving from a workout whose last set was just deleted, one line under the
+  sections says `That was its last set, so the workout was removed.` (`05` §4.21), once.
+- **Not reached:** `Not updated` in `flag` over the last copy, or `Try again when you have signal.`
+  with none.
+- **A workout the device still holds** is shown from its rows when a list page is available;
+  see `03` §6 for the offline cache rule.
+
+### A workout (`/workouts/{id}`)
+
+Reached from History, from Today's `Last workout`, from an exercise's past sets (§2), and by
+finishing a workout. Back returns to whichever it came from, and to History otherwise.
+
+| Block | Geometry | Content |
+| --- | --- | --- |
+| App bar | screen 2's, with the back chevron | The workout's name over `FRI 9 OCT · 18:30 · 54 MIN` (`IN PROGRESS` in place of the minutes for one not ended). Right: the data-state slot |
+| Said once | `05` §4.21, `12px 16px 0` | After Finish: `Workout finished. It is in History from now on.` After a save or a delete, see below |
+| Stat strip | `16px 16px 0`, 3 × 1fr, 8px gap | Screen 2's stat cards at `10px 11px`: `WORKING SETS` `13`; `VOLUME` `9,420` `kg`; `TIME` `54` `min` for a finished workout. An in-progress workout has no `TIME` card |
+| Exercise | 20px above each | The name, 13px/600/`0.04em` uppercase `text/primary`, in a 44px row with a forward chevron in `text/tertiary`: a link to that exercise's chart and past sets (§2) |
+| Column heads | grid `30px 1fr 56px 44px 44px`, 6px gap, 6px above a `line/hairline` | `SET · KG · REPS · RIR`, 9px `0.1em` `text/quaternary`; the fifth column unlabelled |
+| Set row | the same grid, 44px, `line/row` under | Set no. 13px mono `text/tertiary`; kg and reps 17px mono/500 `text/primary`; RIR 13px mono `text/tertiary`, `—` with none; `EDIT` 10px `0.08em` `text/tertiary`, right-aligned. A warm-up is numbered `W` and its figures drop to 13px `text/tertiary`. The whole row is the button that opens its editor, and reads `CLOSE` while open |
+| Set editor | `05` §4.20, `2px 16px 12px` under its row | Weight, reps and RIR over `Cancel` and `Save set`, then `Delete set` |
+
+- **Every set as logged**, in order, warm-ups included; an exercise that logged none is not drawn.
+  Volume is weight × reps over the working sets, in the profile's unit.
+- **One editor at a time.** Opening a set closes the other and clears the line said once.
+- **Save** refuses a figure the server would refuse, in the editor, as the active card does (§1).
+  Saved: the editor closes, focus returns to the row, and the line reads `Set saved. Charts, last
+  time and the target use the new figures.`
+- **Delete** asks in place, the delete pattern of §8.1: `Delete set 2? It leaves this workout, your
+  charts and last time.` over `Keep` and `Delete` (`the warm-up set` for a warm-up). Deleted: `Set
+  deleted. Charts, last time and the target no longer count it.` Deleting the workout's last set
+  deletes the workout and opens History, which says so.
+- **Not offered** (`06`, 2026-10-11): adding a set, moving one, changing the date, and any mark
+  that a set was edited.
+- **Offline** every control works on a workout the device has loaded; the change is counted as
+  pending in the data-state slot until it uploads (`09` F3a). One never loaded says `Not loaded`.
+- **In progress elsewhere:** a workout not ended that this device does not hold is read-only. Its
+  set rows are not buttons and carry no `EDIT`; nothing else changes (`09` F3a).
+- **Unknown:** a workout that is not the caller's, or was deleted, reads `This workout is not in
+  your history.` under a bar titled `Workout`.
+- **Pounds.** Every weight is shown and typed in the profile's unit; the column head reads `LB`.

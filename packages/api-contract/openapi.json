@@ -669,6 +669,10 @@
             "format": "uuid",
             "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
           },
+          "workoutName": {
+            "type": "string",
+            "example": "Push A"
+          },
           "date": {
             "type": "string",
             "format": "date",
@@ -693,15 +697,36 @@
             "type": "number",
             "description": "Volume load: weight × reps, summed over the working sets.",
             "example": 2400
+          },
+          "sets": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "weightKg": {
+                  "type": "number"
+                },
+                "reps": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "weightKg",
+                "reps"
+              ]
+            },
+            "description": "The working sets as logged, in order: the exercise’s past sets."
           }
         },
         "required": [
           "workoutId",
+          "workoutName",
           "date",
           "e1rmKg",
           "topSetKg",
           "topSetReps",
-          "volumeKg"
+          "volumeKg",
+          "sets"
         ]
       },
       "RoutineList": {
@@ -887,6 +912,325 @@
         "required": [
           "exercises"
         ]
+      },
+      "WorkoutList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkoutSummary"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Opaque. Send it back as `cursor` for the next page."
+          },
+          "total": {
+            "type": "integer",
+            "description": "How many finished workouts the caller has in all."
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor",
+          "total"
+        ],
+        "description": "Finished workouts, newest `startedAt` first. One in progress is not listed."
+      },
+      "WorkoutSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+          },
+          "name": {
+            "type": "string",
+            "example": "Push A"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-11-11T09:01:40.000Z"
+          },
+          "endedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-11-11T09:01:40.000Z"
+          },
+          "workingSets": {
+            "type": "integer",
+            "description": "Warm-ups are not counted (S6).",
+            "example": 13
+          },
+          "exercises": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "example": "Barbell Bench Press"
+                },
+                "topSetKg": {
+                  "type": "number",
+                  "description": "The heaviest working set.",
+                  "example": 80
+                },
+                "topSetReps": {
+                  "type": "integer",
+                  "description": "The most reps done at that weight.",
+                  "example": 10
+                }
+              },
+              "required": [
+                "name",
+                "topSetKg",
+                "topSetReps"
+              ]
+            },
+            "description": "Each exercise that logged a working set, in the workout’s order."
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "startedAt",
+          "endedAt",
+          "workingSets",
+          "exercises"
+        ]
+      },
+      "WorkoutDetail": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11",
+            "description": "Made on the phone (UUIDv7)."
+          },
+          "routineId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "example": "Push A"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-11-11T09:01:40.000Z"
+          },
+          "endedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "example": "2026-11-11T09:01:40.000Z",
+            "description": "Null while the workout is in progress."
+          },
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 2000
+          },
+          "clientUpdatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-11-11T09:01:40.000Z",
+            "description": "The phone’s clock at the last edit."
+          },
+          "exercises": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+                },
+                "workoutId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+                },
+                "exerciseId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+                },
+                "routineExerciseId": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "uuid",
+                  "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+                },
+                "position": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 1000
+                },
+                "targetSets": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "minimum": 1,
+                  "maximum": 20,
+                  "description": "Copied from the routine at start."
+                },
+                "repLow": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 100
+                },
+                "repHigh": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 100
+                },
+                "incrementKg": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 100,
+                  "example": 2.5
+                },
+                "clientUpdatedAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "example": "2026-11-11T09:01:40.000Z"
+                },
+                "name": {
+                  "type": "string",
+                  "example": "Barbell Bench Press"
+                },
+                "sets": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+                      },
+                      "workoutExerciseId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+                      },
+                      "position": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 1000,
+                        "description": "Order within the exercise, warm-ups included. Never renumbered."
+                      },
+                      "weightKg": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 9999.99,
+                        "example": 82.5
+                      },
+                      "reps": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 100,
+                        "example": 10
+                      },
+                      "rir": {
+                        "type": [
+                          "integer",
+                          "null"
+                        ],
+                        "minimum": 0,
+                        "maximum": 10
+                      },
+                      "rpe": {
+                        "type": [
+                          "number",
+                          "null"
+                        ],
+                        "minimum": 1,
+                        "maximum": 10
+                      },
+                      "isWarmup": {
+                        "type": "boolean"
+                      },
+                      "performedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2026-11-11T09:01:40.000Z"
+                      },
+                      "clientUpdatedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2026-11-11T09:01:40.000Z"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "workoutExerciseId",
+                      "position",
+                      "weightKg",
+                      "reps",
+                      "rir",
+                      "rpe",
+                      "isWarmup",
+                      "performedAt",
+                      "clientUpdatedAt"
+                    ]
+                  },
+                  "description": "In `position` order, warm-ups included."
+                }
+              },
+              "required": [
+                "id",
+                "workoutId",
+                "exerciseId",
+                "routineExerciseId",
+                "position",
+                "targetSets",
+                "repLow",
+                "repHigh",
+                "incrementKg",
+                "clientUpdatedAt",
+                "name",
+                "sets"
+              ]
+            },
+            "description": "In order. One that logged no set is still listed."
+          }
+        },
+        "required": [
+          "id",
+          "routineId",
+          "name",
+          "startedAt",
+          "endedAt",
+          "note",
+          "clientUpdatedAt",
+          "exercises"
+        ],
+        "description": "One workout whole. Every row is as the sync batch holds it, so a set can be sent back edited, or deleted, through `/api/workouts/sync`."
       },
       "LastTimes": {
         "type": "object",
@@ -2494,6 +2838,149 @@
           },
           "422": {
             "description": "`validation_failed`, including an unknown or hidden exercise",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/workouts": {
+      "get": {
+        "summary": "History: the caller’s finished workouts, newest first, a page at a time",
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30,
+              "description": "Default 30, at most 100."
+            },
+            "required": false,
+            "description": "Default 30, at most 100.",
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "The previous page’s `nextCursor`."
+            },
+            "required": false,
+            "description": "The previous page’s `nextCursor`.",
+            "name": "cursor",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One page, and the cursor of the next",
+            "headers": {
+              "Overload-User": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "The id of the user whose session answered. Keep the body for that account only."
+                },
+                "required": true,
+                "description": "The id of the user whose session answered. Keep the body for that account only."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkoutList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A limit outside 1 to 100, or a cursor this route did not make",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/workouts/{id}": {
+      "get": {
+        "summary": "One workout with its exercises and every set",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The workout",
+            "headers": {
+              "Overload-User": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "The id of the user whose session answered. Keep the body for that account only."
+                },
+                "required": true,
+                "description": "The id of the user whose session answered. Keep the body for that account only."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkoutDetail"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A malformed id",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No workout with that id is the caller’s",
             "content": {
               "application/problem+json": {
                 "schema": {

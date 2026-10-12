@@ -12,13 +12,16 @@ import {
   valueScale,
   valueY,
 } from '../chart';
-import { AppBar, Chevron, DataState, Notice } from '../components';
+import { AppBar, DataState, Notice } from '../components';
+import { dayLabel } from '../dates';
+import { goBack, type Navigate } from '../navigation';
 import { allExercisesQuery, progressQuery, useAccount } from '../query';
-import { formatWeight, fromKg } from '../units';
+import { formatVolume, formatWeight, fromKg, unitName } from '../units';
 
 // Screen 2 (docs/10 §2, S7): one exercise's e1RM per workout over a span, with the span's top set
-// and volume load. Every number is the API's (docs/07 §3); this screen only draws them. The S20
-// overlays and their chips arrive with their data, in M2 and M3.
+// and volume load, and under them the sets of each of those workouts, each opening its workout in
+// History. Every number is the API's (docs/07 §3); this screen only draws them. The S20 overlays
+// and their chips arrive with their data, in M2 and M3.
 
 const SPANS: { span: Span; label: string; name: string; over: string }[] = [
   { span: '4w', label: '4W', name: '4 weeks', over: 'Over 4W' },
@@ -31,14 +34,8 @@ const SPANS: { span: Span; label: string; name: string; over: string }[] = [
 /** The span the screen opens on, and the API's own default (docs/07 §3). */
 const DEFAULT_SPAN: Span = '12w';
 
-const unitName = (unit: WeightUnit) => (unit === 'lb' ? 'pounds' : 'kilograms');
-
 /** An e1RM, or a change in one, as the screen prints it: in the user's unit, to the tenth. */
 const e1rmIn = (kg: number, unit: WeightUnit) => Math.round(fromKg(kg, unit) * 10) / 10;
-
-/** A volume load in the user's unit, to the whole number, with thousands separated. */
-const volumeIn = (kg: number, unit: WeightUnit) =>
-  Math.round(fromKg(kg, unit)).toLocaleString('en-US');
 
 export function Progress({
   id,
@@ -49,7 +46,7 @@ export function Progress({
   id: string;
   me: Me;
   searchParams: URLSearchParams;
-  navigate: (path: string, options?: { replace?: boolean }) => void;
+  navigate: Navigate;
 }) {
   // The saved copy shows until /api/me confirms the account; no fetch runs under an unconfirmed one.
   const confirmed = useAccount().status === 'confirmed';
@@ -59,7 +56,6 @@ export function Progress({
     navigate(`/exercises/${id}/progress${next === DEFAULT_SPAN ? '' : `?span=${next}`}`, {
       replace: true,
     });
-  const [listed, setListed] = useState(false);
   // The workout picked out on the chart, by its place in the span's points.
   const [picked, setPicked] = useState<number>();
   const exercises = useQuery({ ...allExercisesQuery, enabled: confirmed });
@@ -72,7 +68,8 @@ export function Progress({
   });
   const unit = me.profile?.weightUnit ?? 'kg';
   const exercise = exercises.data?.find((candidate) => candidate.id === id);
-  const back = { label: 'Back to the exercise', onClick: () => navigate(`/exercises/${id}`) };
+  // Reached from the exercise's form and from a workout in History: Back is where it came from.
+  const back = { label: 'Back', onClick: () => goBack(navigate, `/exercises/${id}`) };
   const slot = <DataState at={progress.dataUpdatedAt} />;
   const unknown =
     (progress.error instanceof ApiError && progress.error.status === 404) ||
@@ -199,7 +196,7 @@ export function Progress({
                 ) : (
                   <>
                     <span className="progress__stat-figure">
-                      {volumeIn(data.stats.volumeKg, unit)}
+                      {formatVolume(data.stats.volumeKg, unit)}
                     </span>{' '}
                     <span className="progress__stat-unit" aria-hidden="true">
                       {unit}
@@ -211,23 +208,7 @@ export function Progress({
             </div>
           </dl>
 
-          {data.points.length > 0 && (
-            <>
-              <div className="section-actions">
-                <button
-                  type="button"
-                  className="button button--tertiary"
-                  aria-expanded={listed}
-                  aria-controls="progress-workouts"
-                  onClick={() => setListed((open) => !open)}
-                >
-                  Workouts in this span
-                  <Chevron direction={listed ? 'up' : 'down'} />
-                </button>
-              </div>
-              {listed && <WorkoutTable points={data.points} unit={unit} />}
-            </>
-          )}
+          <PastSets points={data.points} unit={unit} navigate={navigate} />
         </div>
       )}
 
@@ -494,33 +475,66 @@ function E1rmChart({
   );
 }
 
-/** The chart's values as a table, newest first: every number the chart draws, and the volume. */
-function WorkoutTable({ points, unit }: { points: Points; unit: WeightUnit }) {
+/** `80 × 10 · 10 · 9` at one weight; `80×10 · 82.5×8` where the weight changed. */
+function setsLine(sets: Points[number]['sets'], unit: WeightUnit) {
+  const [first] = sets;
+  if (first === undefined) return '';
+  if (sets.every((set) => set.weightKg === first.weightKg)) {
+    return `${formatWeight(first.weightKg, unit)} × ${sets.map((set) => set.reps).join(' · ')}`;
+  }
+  return sets.map((set) => `${formatWeight(set.weightKg, unit)}×${set.reps}`).join(' · ');
+}
+
+/**
+ * The exercise's past sets, newest first: one row for each workout the chart draws, with its
+ * working sets and the e1RM the chart plots for it. A row opens that workout in History, where a
+ * set is corrected.
+ */
+function PastSets({
+  points,
+  unit,
+  navigate,
+}: {
+  points: Points;
+  unit: WeightUnit;
+  navigate: Navigate;
+}) {
   return (
-    <table id="progress-workouts" className="progress__table">
-      <caption className="visually-hidden">
-        Workouts in this span, newest first, in {unitName(unit)}
-      </caption>
-      <thead>
-        <tr>
-          <th scope="col">Date</th>
-          <th scope="col">e1RM</th>
-          <th scope="col">Top set</th>
-          <th scope="col">Volume</th>
-        </tr>
-      </thead>
-      <tbody>
-        {points.toReversed().map((point) => (
-          <tr key={point.workoutId}>
-            <th scope="row">{dateLabel(point.date, true)}</th>
-            <td>{e1rmIn(point.e1rmKg, unit).toFixed(1)}</td>
-            <td>
-              {formatWeight(point.topSetKg, unit)} × {point.topSetReps}
-            </td>
-            <td>{volumeIn(point.volumeKg, unit)}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <section aria-labelledby="past-sets">
+      <h2 id="past-sets" className="section-label section-label--gutter past-label">
+        Past sets · {points.length} {points.length === 1 ? 'workout' : 'workouts'}
+      </h2>
+      {points.length === 0 ? (
+        <p className="empty">No sets logged in this span.</p>
+      ) : (
+        <ul className="past">
+          {points.toReversed().map((point) => (
+            <li key={point.workoutId}>
+              <a
+                href={`/workouts/${point.workoutId}`}
+                className="past__row"
+                onClick={(event) => {
+                  event.preventDefault();
+                  navigate(`/workouts/${point.workoutId}`, { returns: true });
+                }}
+              >
+                <span className="past__date">
+                  {dayLabel(`${point.date}T00:00:00Z`, 'UTC')} · {point.workoutName}
+                </span>
+                <span className="past__e1rm">
+                  <span className="visually-hidden">: estimated 1RM </span>
+                  {e1rmIn(point.e1rmKg, unit).toFixed(1)}
+                  <small aria-hidden="true">E1RM</small>
+                  <span className="visually-hidden"> {unitName(unit)}, sets </span>
+                </span>
+                {/* A chart saved by a build before points carried their sets is drawn without them
+                    until the answer asked for on opening replaces it. */}
+                <span className="past__sets">{setsLine(point.sets ?? [], unit)}</span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }

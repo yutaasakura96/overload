@@ -460,8 +460,8 @@ schema: the fields at fault as `{ path, message }`, as in a 422 (§1.3), never a
 
 | Method | Path | Auth | Purpose | Success | Failures |
 | --- | --- | --- | --- | --- | --- |
-| GET | `/api/workouts` | M | History, newest `startedAt` first, paged. Each item is a summary: name, times, exercise names, working-set count | 200 | 401 |
-| GET | `/api/workouts/{id}` | M | One workout with exercises, sets and the linked Apple workout | 200 | 401, 404 |
+| GET | `/api/workouts` | M | History: finished workouts, newest `startedAt` first, paged. Each item is a summary: name, times, working-set count, and each exercise's name and top set | 200 | 400, 401 |
+| GET | `/api/workouts/{id}` | M | One workout with its exercises and every set. The linked Apple workout joins it in M3 | 200 | 400, 401, 404 |
 | GET | `/api/exercises/{id}/progress` | M | The S7 chart, with S20 overlays when asked | 200 | 400, 401, 404, 422 |
 
 ```http
@@ -470,7 +470,8 @@ GET /api/exercises/0192a001-…/progress?span=12w&overlays=intake,trend,sleep,hr
 ```json
 {
   "span": "12w", "from": "2026-08-19", "to": "2026-11-10",
-  "points": [ { "workoutId": "0192w001-…", "date": "2026-11-04", "e1rmKg": 106.7, "topSetKg": 80, "topSetReps": 10, "volumeKg": 2400 } ],
+  "points": [ { "workoutId": "0192w001-…", "workoutName": "Push A", "date": "2026-11-04", "e1rmKg": 106.7, "topSetKg": 80, "topSetReps": 10, "volumeKg": 2400,
+                "sets": [ { "weightKg": 80, "reps": 10 }, { "weightKg": 80, "reps": 10 }, { "weightKg": 80, "reps": 10 } ] } ],
   "stats": { "bestE1rmKg": 106.7, "changeKg": 5.367, "topSetKg": 82.5, "topSetReps": 8, "volumeKg": 28800 },
   "overlays": {
     "intake": [ { "date": "2026-11-04", "energyKcal": 2380, "complete": true } ],
@@ -486,7 +487,9 @@ GET /api/exercises/0192a001-…/progress?span=12w&overlays=intake,trend,sleep,hr
   local date. For `all` it is the first point's date, and `null` without one.
 - A point is one workout with a working set of the exercise, oldest first: `e1rmKg` to the tenth,
   the heaviest working set as `topSetKg` with `topSetReps`, the most reps done at that weight,
-  and `volumeKg`, weight × reps summed over its working sets.
+  and `volumeKg`, weight × reps summed over its working sets. `sets` is those working sets as
+  logged, in order, and `workoutName` the workout's name: the exercise's past sets, which the
+  screen lists under the chart (`06`, 2026-10-11).
 - `stats` covers the span: the best e1RM, the heaviest top set with its reps, and the volume of
   every workout together. The best e1RM and the top set are `null` without a workout. `changeKg`
   is the last point's e1RM less the first's, taken from the estimates before they are rounded and
@@ -500,6 +503,58 @@ GET /api/exercises/0192a001-…/progress?span=12w&overlays=intake,trend,sleep,hr
   **As built in slice 5** (`06`, 2026-10-10) the parameter is not read and the key is never
   sent: the overlays arrive with their data, in M2 and M3.
 - Warm-ups are excluded from every number here (S6).
+
+**History, as built 2026-10-11** (`06`). Both routes read what the sync batch wrote and change
+nothing.
+
+```http
+GET /api/workouts?limit=30&cursor=WyIyMDI2LTEw…
+```
+```json
+{
+  "items": [
+    { "id": "0192w001-…", "name": "Push A",
+      "startedAt": "2026-10-09T09:30:00.000Z", "endedAt": "2026-10-09T10:24:00.000Z",
+      "workingSets": 13,
+      "exercises": [ { "name": "Barbell Bench Press", "topSetKg": 80, "topSetReps": 10 } ] }
+  ],
+  "nextCursor": "WyIyMDI2LTA5…",
+  "total": 194
+}
+```
+
+- **Only finished workouts are listed.** One in progress (`endedAt: null`) is not history yet, and
+  is not counted. `total` is every finished workout the caller has, on every page, for the
+  screen's `194 WORKOUTS`.
+- The order is `startedAt` then `id`, both descending, and the cursor is the last item's pair
+  (§1.4). A `limit` outside 1 to 100, or a cursor this route did not make, is a 400.
+- `exercises` holds each exercise that logged a working set, in the workout's order, with its top
+  set (`CONTEXT.md`): the heaviest working set and the most reps done at that weight.
+  `workingSets` counts them. Warm-ups are in neither (S6).
+
+```json
+{
+  "id": "0192w001-…", "routineId": "0192r001-…", "name": "Push A",
+  "startedAt": "2026-10-09T09:30:00.000Z", "endedAt": "2026-10-09T10:24:00.000Z",
+  "note": null, "clientUpdatedAt": "2026-10-09T10:24:00.000Z",
+  "exercises": [
+    { "id": "0192e001-…", "workoutId": "0192w001-…", "exerciseId": "0192a001-…", "name": "Barbell Bench Press",
+      "position": 0, "…": "the rest of the workout-exercise row, as §3.4 sends it",
+      "sets": [ { "id": "0192s001-…", "workoutExerciseId": "0192e001-…", "position": 0,
+                  "weightKg": 80, "reps": 10, "rir": 2, "rpe": null, "isWarmup": false,
+                  "performedAt": "2026-10-09T09:41:00.000Z", "clientUpdatedAt": "2026-10-09T09:41:00.000Z" } ] }
+  ]
+}
+```
+
+- **Every row is the one the sync batch holds**, field for field, with the exercise's `name`
+  beside its row. So the phone can put a past workout back in its set store and send a set back
+  edited, or deleted, through `/api/workouts/sync` (§3.4): there is no other write path, and no
+  `PATCH` on a set.
+- Exercises are in `position` order, and one that logged no set is still listed; sets are in
+  `position` order, warm-ups included. A workout in progress is answered too.
+- The 404 is a workout that does not exist or is not the caller's, the same answer for both. The
+  400 is an id that is not a UUID.
 
 ### Apple workout links (S19)
 

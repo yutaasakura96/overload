@@ -97,7 +97,7 @@ export function Brief({
   exercise: WorkoutExerciseRecord;
   unit: WeightUnit;
   timeZone: string;
-  /** Full screen's form (docs/05 §4.20): tighter rows, and no sentence where figures say it. */
+  /** Full screen's form (docs/05 §4.22): tighter rows, and no sentence where figures say it. */
   compact?: boolean;
 }) {
   const { name, bodyweight, lastTime, lastTimeOn, lastTimeKnown, suggestion } = exercise.local;

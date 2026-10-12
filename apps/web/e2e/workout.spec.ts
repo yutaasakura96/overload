@@ -164,7 +164,7 @@ test('the library keeps its fetch time after a later workout upload', async ({ p
   await page.clock.setFixedTime(new Date('2026-10-06T10:00:20'));
   await tabs.getByRole('link', { name: 'Today' }).click();
   await page.getByRole('link', { name: 'Resume workout' }).click();
-  await finish(page);
+  await finish(page, false);
   await expect.poll(() => stored().some((workout) => workout.name === name)).toBe(false);
 });
 
@@ -229,7 +229,7 @@ test('a workout is logged from a routine, offline and back, and finished', async
 
   // S1 online: the set shows, rest starts on its own (S5), and the upload needs no action.
   await completeSet(page, { weight: '60', reps: '8', rir: '2' });
-  await expect(page.getByRole('row', { name: '1 60 8 2 Done' })).toBeVisible();
+  await expect(page.getByRole('row', { name: '1 60 8 2 Set 1 done. Edit' })).toBeVisible();
   await expect(rest).toContainText('REST · NEXT: SET 2 OF 3');
   await expect(rest.getByRole('timer')).toHaveText(/^(3:00|2:5\d)$/);
   await expect(page.getByRole('region', { name: 'SET 2 OF 3' })).toBeVisible();
@@ -314,9 +314,11 @@ test('a workout is logged from a routine, offline and back, and finished', async
   const lastTime = page.waitForResponse(
     (response) => response.url().includes('/api/training/last-time') && response.ok(),
   );
-  await page.getByRole('button', { name: 'Finish workout' }).click();
-  await page.getByRole('button', { name: 'Finish', exact: true }).click();
-  await expect(page).toHaveURL('/');
+  // It lands on the workout's own page in History, which is its summary.
+  await finish(page);
+  await expect(page.getByRole('heading', { name, level: 1 })).toBeVisible();
+  await expect(page.getByText('Workout finished. It is in History from now on.')).toBeVisible();
+  await expect(page.getByRole('heading', { name: /^Barbell Bench Press/, level: 2 })).toBeVisible();
   await expect.poll(() => stored()[0]?.endedAt ?? null).not.toBeNull();
   const [workout] = stored();
   expect(workout?.name).toBe(name);
@@ -413,9 +415,23 @@ test('a workout is logged from a routine, offline and back, and finished', async
   await expect.poll(() => stored().length).toBe(1);
 });
 
-async function finish(page: Page) {
+/** A workout's own page in History, which Finish opens (docs/09 F3 step 5). */
+const WORKOUT_PAGE = /\/workouts\/[0-9a-f-]{36}$/;
+
+/** Finish. A workout with a set opens its page in History; one with none is not kept: Today. */
+async function finish(page: Page, kept = true) {
   await page.getByRole('button', { name: 'Finish workout' }).click();
   await page.getByRole('button', { name: 'Finish', exact: true }).click();
+  await expect(page).toHaveURL(kept ? WORKOUT_PAGE : '/');
+}
+
+/** From a workout's page in History back to Today, with no reload. */
+async function toToday(page: Page) {
+  await page.getByRole('button', { name: 'Back' }).click();
+  await page
+    .getByRole('navigation', { name: 'Sections' })
+    .getByRole('link', { name: 'Today' })
+    .click();
   await expect(page).toHaveURL('/');
 }
 
@@ -459,7 +475,7 @@ test('bodyweight history describes reps without a zero-weight target', async ({ 
   await expect(brief(page)).toContainText(
     'Your set stopped short of 10 reps last time. Reach 10 this time.',
   );
-  await finish(page);
+  await finish(page, false);
 });
 
 /** How many records the set store holds, read over a connection of the test's own. */
@@ -1151,6 +1167,7 @@ test.describe('sign-out with a workout on the device', () => {
     // retry that cannot upload says so again.
     await page.getByRole('link', { name: 'Resume workout' }).click();
     await finish(page);
+    await toToday(page);
     await page.getByRole('button', { name: 'Sign out' }).click();
     await expect(page.getByText('Your workout has not finished uploading.')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Upload now' })).toHaveCount(0);
@@ -1199,6 +1216,7 @@ test.describe('sign-out with a workout on the device', () => {
     await completeSet(page, { reps: '6' });
     await expect(dataState(page)).toContainText('1 REFUSED');
     await finish(page);
+    await toToday(page);
     await expect.poll(() => stored().at(-1)?.endedAt ?? null).not.toBeNull();
 
     await page.getByRole('button', { name: 'Sign out' }).click();
@@ -1229,6 +1247,7 @@ test.describe('sign-out with a workout on the device', () => {
     await answered;
     await expect(dataState(page)).toHaveText('1 PENDING');
     expect(stored().at(-1)?.endedAt).toBeNull();
+    await toToday(page);
 
     await page.getByRole('button', { name: 'Sign out' }).click();
     await expect(page.getByText('Your workout has not finished uploading.')).toBeVisible();
@@ -1252,7 +1271,7 @@ test.describe('sign-out with a workout on the device', () => {
     const answered = page.waitForResponse(
       (response) => response.url().includes('/api/workouts/sync') && response.ok(),
     );
-    await finish(page);
+    await finish(page, false);
     await answered;
     await expect(page.getByRole('link', { name: 'Resume workout' })).toBeVisible();
     expect(stored().length).toBe(before + 1);
@@ -1410,6 +1429,7 @@ test.describe('sign-out with a workout on the device', () => {
     });
     await completeSet(page, { reps: '6' });
     await finish(page);
+    await toToday(page);
     // The clock stops here, so the uploader's own timer asks for no upload the steps below do not.
     await page.clock.pauseAt(Date.now() + 1000);
     const signOut = page.getByRole('button', { name: 'Sign out' });

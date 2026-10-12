@@ -11,6 +11,7 @@ const warmup = (weightKg: number, reps: number) => ({ weightKg, reps, isWarmup: 
 
 const logged = (date: string, ...sets: LoggedWorkout['sets']): LoggedWorkout => ({
   workoutId: `workout-${date}`,
+  name: 'Push A',
   date,
   sets,
 });
@@ -45,12 +46,18 @@ describe('exerciseProgress (S7)', () => {
     expect(progress.points).toEqual([
       {
         workoutId: 'workout-2026-11-04',
+        workoutName: 'Push A',
         date: '2026-11-04',
         // 80 × (1 + 10/30), which beats 82.5 × (1 + 6/30) = 99.
         e1rmKg: 106.7,
         topSetKg: 82.5,
         topSetReps: 6,
         volumeKg: 80 * 10 + 80 * 8 + 82.5 * 6,
+        sets: [
+          { weightKg: 80, reps: 10 },
+          { weightKg: 80, reps: 8 },
+          { weightKg: 82.5, reps: 6 },
+        ],
       },
     ]);
   });
@@ -60,7 +67,13 @@ describe('exerciseProgress (S7)', () => {
       logged('2026-11-04', warmup(100, 20), working(60, 5), warmup(120, 1)),
     ]);
     expect(progress.points).toEqual([
-      expect.objectContaining({ e1rmKg: 70, topSetKg: 60, topSetReps: 5, volumeKg: 300 }),
+      expect.objectContaining({
+        e1rmKg: 70,
+        topSetKg: 60,
+        topSetReps: 5,
+        volumeKg: 300,
+        sets: [{ weightKg: 60, reps: 5 }],
+      }),
     ]);
     expect(progress.stats).toEqual({
       bestE1rmKg: 70,
@@ -332,19 +345,26 @@ describe('GET /api/exercises/{id}/progress (S7)', () => {
       points: [
         {
           workoutId: older,
+          workoutName: 'Push A',
           date: localDate(daysAgo(10), 'Asia/Tokyo'),
           e1rmKg: 106.7,
           topSetKg: 80,
           topSetReps: 10,
           volumeKg: 1520,
+          sets: [
+            { weightKg: 80, reps: 10 },
+            { weightKg: 80, reps: 9 },
+          ],
         },
         {
           workoutId: newer,
+          workoutName: 'Push A',
           date: localDate(daysAgo(3), 'Asia/Tokyo'),
           e1rmKg: 110,
           topSetKg: 82.5,
           topSetReps: 10,
           volumeKg: 825,
+          sets: [{ weightKg: 82.5, reps: 10 }],
         },
       ],
       stats: { bestE1rmKg: 110, changeKg: 3.333, topSetKg: 82.5, topSetReps: 10, volumeKg: 2345 },

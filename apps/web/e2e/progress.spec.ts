@@ -136,15 +136,22 @@ test('the chart opens from the exercise, follows the span and reads out a workou
   await page.mouse.move(0, 0);
   await expect(headline(page)).toContainText('110.0');
 
-  // Every value the chart draws is also in the list under it, newest first.
-  await page.getByRole('button', { name: 'Workouts in this span' }).click();
-  const rows = page.getByRole('table').locator('tbody tr');
-  await expect(rows).toHaveCount(3);
-  await expect(rows.first()).toContainText('110.0');
-  await expect(rows.first()).toContainText('82.5 × 10');
-  await expect(rows.last()).toContainText('95.0');
+  // Every workout the chart draws is listed under it with its working sets, newest first.
+  const past = page.getByRole('region', { name: 'Past sets · 3 workouts' }).getByRole('listitem');
+  await expect(past).toHaveCount(3);
+  await expect(past.first()).toContainText('Push A');
+  await expect(past.first()).toContainText('110.0');
+  await expect(past.first()).toContainText('82.5 × 10');
+  await expect(past.last()).toContainText('95.0');
 
-  await page.getByRole('button', { name: 'Back to the exercise' }).click();
+  // A row opens its workout in History, and Back returns to the chart as it was left.
+  await past.first().getByRole('link').click();
+  await expect(page).toHaveURL(/\/workouts\/[0-9a-f-]{36}$/);
+  await expect(page.getByRole('heading', { name: 'Push A', level: 1 })).toBeVisible();
+  await page.getByRole('button', { name: 'Back' }).click();
+  await expect(page).toHaveURL(`/exercises/${bench}/progress?span=4w`);
+
+  await page.getByRole('button', { name: 'Back' }).click();
   await expect(page).toHaveURL(`/exercises/${bench}`);
 });
 

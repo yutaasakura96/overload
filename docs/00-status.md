@@ -120,6 +120,18 @@ that `#47` to `#51` are built against is in `docs/prototype/`. `e2e/workout.spec
 sentences, the first-workout state and the bar before, during and after a rest, on Chromium and
 WebKit. Not built here, and in the prototype's workout screen: `FULL SCREEN` on the rest bar
 (`#51`), a logged set edited from its tick and the way from last time to past sets (`#48`).
+**History and the Progress tab are built, 2026-10-11**, on branch `fm/overload-48` against `develop`
+(`#48`). In the repo: `GET /api/workouts` and `GET /api/workouts/{id}`, a fourth tab, Progress, with
+History at `/progress` and a workout's page at `/workouts/{id}`, the exercise's past sets under its
+chart, and one editor for a logged set, opened from a row in History and from a set's tick during
+the workout. Finish lands on the workout's page. Edits and deletes go through the existing sync; a
+past workout is put back in the set store to be changed (`06`, 2026-10-11; `03` §6; `09` F3a;
+`10` §9). Strength and Balance are places that say they hold nothing yet (`#49`, `#50`). The screens
+were compared with the approved prototype at 390px, element by element, and cleared the polish
+gate. Vitest covers the two routes, their cross-user cases and a correction through sync;
+`e2e/history.spec.ts` covers the list, paging, the editor online and offline, the last set's delete
+and the tick, on Chromium and WebKit. Not built, and tracked in `#61`: Today's line under each routine
+saying when it was last done, which the prototype's Today shows.
 
 **A light theme is built, 2026-10-11**, on branch `fm/overload-59` against `develop` (`#59`). In
 the repo: light values for every colour token under the same names, `data-theme` on `<html>` set
@@ -140,7 +152,7 @@ to `05` §2.6 that `06` records (2026-10-12). It is turned on by hand in each wo
 typed or logged on the way in or out, and requests the screen wake lock for the whole workout while
 it is on, where the browser grants it (`03` §11). From it, a static guide at `/workout/focus`
 gives the four steps that set up an iPhone Focus, with its ticks and "done" kept on the phone
-(`10` §1, §8.3; `05` §4.20). Compared with the prototype in a browser at 390px, and cleared the
+(`10` §1, §8.3; `05` §4.22). Compared with the prototype in a browser at 390px, and cleared the
 polish gate. `e2e/workout.spec.ts` covers entering and leaving with a set half typed, the rest in
 full screen, the wake lock and the guide,
 on Chromium and WebKit. Owed, and Yuta's: the wake lock on a real iPhone (`11` §3 item 3).

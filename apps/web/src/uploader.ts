@@ -1,10 +1,12 @@
 import type { SyncBatch } from '@overload/api-contract';
 import { api, isUnauthenticated } from './api';
+import { keepHistory } from './history';
 import {
   confirmedAccountData,
   currentAccount,
   onAccountChange,
   queryClient,
+  refreshHistory,
   refreshLastTime,
   refreshProgress,
 } from './query';
@@ -74,12 +76,39 @@ async function underUploadLock(upload: () => Promise<void>): Promise<void> {
   }
 }
 
+/** Asks the server again for everything it derives from the sets: last time, the charts, History. */
+function refreshDerived() {
+  void refreshLastTime();
+  void refreshProgress();
+  void refreshHistory();
+}
+
+/**
+ * Reads the records again, and resolves to whether rows this tab was waiting on have been answered
+ * by another tab's upload. Those may have left the device with it, so History's cache is told what
+ * they said first, exactly as before an upload of this tab's own is applied.
+ */
+async function readAgain(): Promise<boolean> {
+  const before = useWorkoutStore.getState();
+  await refreshWorkouts();
+  const now = useWorkoutStore.getState();
+  if (now.userId !== before.userId) return false;
+  const waiting = new Set(
+    now.records.filter((record) => record.state === 'pending').map((record) => record.id),
+  );
+  const answered = before.records.some(
+    (record) => record.state === 'pending' && !waiting.has(record.id),
+  );
+  if (answered) keepHistory(before.records);
+  return answered;
+}
+
 /** Sends pending rows, parents first, until none is left or the server cannot be reached. */
 async function uploadPending(): Promise<void> {
   for (;;) {
     // What another tab uploaded while this one waited is not sent again: the set store says what
     // is still pending. A store that cannot be read leaves this tab's own view, which still holds.
-    await refreshWorkouts().catch(() => undefined);
+    if (await readAgain().catch(() => false)) refreshDerived();
     const account = currentAccount();
     const { records, userId } = useWorkoutStore.getState();
     // Only the confirmed account's rows, under its own session (docs/08 §5).
@@ -99,10 +128,12 @@ async function uploadPending(): Promise<void> {
       if (isUnauthenticated(error)) void queryClient.invalidateQueries({ queryKey: ['me'] });
       return;
     }
+    // The answer lets an ended workout's rows leave the device: History reads them from the cache
+    // from then on, so the cache is told what they say first (history.ts).
+    keepHistory(useWorkoutStore.getState().records);
     await applySyncResults(chunk.map(sentRowOf), results);
     markSynced();
-    void refreshLastTime();
-    void refreshProgress();
+    refreshDerived();
     if (pending.length <= BATCH_ROWS) return;
   }
 }
@@ -158,9 +189,13 @@ const retry = () => {
 /** Starts uploading: on every change to the records, on reconnect, on return, and on a timer. */
 export function startUploader() {
   // Another tab changed this account's records: they are read again, and what that tab left
-  // pending is this one's to upload too, should it be closed first.
+  // pending is this one's to upload too, should it be closed first. What it uploaded may have come
+  // and gone before this tab read anything, so the server is asked again whatever the read shows.
   onChangeElsewhere((userId) => {
-    if (userId === useWorkoutStore.getState().userId) void refreshWorkouts().catch(() => undefined);
+    if (userId !== useWorkoutStore.getState().userId) return;
+    void readAgain()
+      .catch(() => false)
+      .then(refreshDerived);
   });
   useWorkoutStore.subscribe((state, previous) => {
     if (state.records !== previous.records) tryUpload();

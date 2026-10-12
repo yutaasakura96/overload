@@ -21,15 +21,19 @@ import {
 } from '../components';
 import { readFigures, type FigureRefusal } from '../figures';
 import { useFocusGuide } from '../focus-guide';
+import type { Navigate } from '../navigation';
 import { RefusedSet } from '../refused';
 import { keepAwake, playTone, unlockTone } from '../rest-alert';
+import { SetEditor } from '../set-editor';
 import type { SetRecord, StoreRecord, WorkoutExerciseRecord, WorkoutRecord } from '../set-store';
 import { deviceTimezone } from '../timezones';
 import { formatWeight, unitLabel } from '../units';
 import { FocusGuide } from './FocusGuide';
 import {
   completeSet,
+  discardSet,
   dismissRest,
+  editSet,
   exercisesOf,
   extendRest,
   finishWorkout,
@@ -48,8 +52,6 @@ import {
 // is on the device before it shows here, and the data-state slot counts what has not uploaded yet.
 // Full screen (docs/10 §1) is a second layout of the same screen: what it leaves out is hidden, not
 // unmounted, so entering and leaving it loses nothing that was typed or opened.
-
-type Navigate = (path: string, options?: { replace?: boolean }) => void;
 
 function useNow() {
   const [now, setNow] = useState(() => Date.now());
@@ -124,11 +126,13 @@ export function Workout({
       navigate('/workout', { replace: true });
     }
   };
+  // Finish was tapped and has not answered: where it leaves for is its own to say.
+  const [finishing, setFinishing] = useState(false);
 
-  // Nothing in progress, or the workout just finished: Today is where the next one starts.
+  // With nothing in progress, Today is where the next one starts.
   useEffect(() => {
-    if (gone) navigate('/', { replace: true });
-  }, [gone, navigate]);
+    if (gone && !finishing) navigate('/', { replace: true });
+  }, [gone, finishing, navigate]);
 
   if (workout === undefined) return <AppBar title="Workout" slot={<DataState at={0} />} />;
   // The guide is read with the workout still running under it: the rest still counts and sounds,
@@ -146,6 +150,17 @@ export function Workout({
           onGuide={() => {
             openedGuide.current = true;
             navigate(GUIDE_PATH);
+          }}
+          onFinish={(result) => {
+            setFinishing(true);
+            // A workout just finished opens its page in History, which is its summary (docs/09 F3
+            // step 5). One with nothing kept leaves for Today.
+            void result.then((kept) => {
+              if (kept === undefined) setFinishing(false);
+              else if (kept)
+                navigate(`/workouts/${workout.id}`, { replace: true, note: 'finished' });
+              else navigate('/', { replace: true });
+            });
           }}
         />
       </div>
@@ -179,6 +194,7 @@ function LiveWorkout({
   timeZone,
   guideOpen,
   onGuide,
+  onFinish,
 }: {
   workout: WorkoutRecord;
   records: StoreRecord[];
@@ -186,6 +202,8 @@ function LiveWorkout({
   timeZone: string;
   guideOpen: boolean;
   onGuide: () => void;
+  /** Finish was tapped: whether the workout was kept, once known; `undefined` when it failed. */
+  onFinish: (result: Promise<boolean | undefined>) => void;
 }) {
   const exercises = exercisesOf(records, workout.id);
   // Turned on by hand each workout and not remembered (docs/06, 2026-10-12): it lives here, in a
@@ -258,11 +276,14 @@ function LiveWorkout({
   const finish = () => {
     setFinishing(true);
     setFinishFailed(false);
-    // Leaving for Today happens in <Workout>, once no workout is open.
-    finishWorkout().catch(() => {
-      setFinishing(false);
-      setFinishFailed(true);
-    });
+    // Leaving happens in <Workout>, once the set store has said whether the workout was kept.
+    onFinish(
+      finishWorkout().catch(() => {
+        setFinishing(false);
+        setFinishFailed(true);
+        return undefined;
+      }),
+    );
   };
 
   const others = exercises.filter((exercise) => exercise.id !== current?.id);
@@ -480,6 +501,23 @@ function ExerciseBlock({
   const target = exercise.row.targetSets;
   const next = setLabel(completed.length + 1, target);
   const hero = full ? rest : undefined;
+  // The set whose tick has opened into the editor (docs/05 §4.20). One at a time.
+  const [editing, setEditing] = useState<string>();
+  // A set was corrected since the last one was logged: the card under the table is made again from
+  // the corrected figures, and must not take the screen as the card a logged set promotes does.
+  const [corrected, setCorrected] = useState(false);
+  // Focus goes back to the tick an editor closed under, or to the exercise when the set has gone.
+  const focusPending = useRef<string>(null);
+  useEffect(() => {
+    const pending = focusPending.current;
+    if (pending === null) return;
+    focusPending.current = null;
+    (document.getElementById(pending) ?? name.current)?.focus();
+  });
+  const close = (setId: string) => {
+    focusPending.current = `tick-${setId}`;
+    setEditing(undefined);
+  };
 
   return (
     <section aria-labelledby={heading}>
@@ -521,7 +559,7 @@ function ExerciseBlock({
               <th scope="col">Reps</th>
               <th scope="col">RIR</th>
               <th scope="col">
-                <span className="visually-hidden">Done</span>
+                <span className="visually-hidden">Edit</span>
               </th>
             </tr>
           </thead>
@@ -548,16 +586,47 @@ function ExerciseBlock({
                 </>
               );
               if (!isRefused(set)) {
+                const open = editing === set.id;
                 return (
-                  <tr key={set.id} className="sets__row">
-                    {cells}
-                    <td className="sets__check">
-                      <span className="check-cell check-cell--done">
-                        <CheckIcon size={17} color="var(--done)" />
-                        <span className="visually-hidden">Done</span>
-                      </span>
-                    </td>
-                  </tr>
+                  <Fragment key={set.id}>
+                    <tr className="sets__row">
+                      {cells}
+                      <td className="sets__check">
+                        <button
+                          type="button"
+                          id={`tick-${set.id}`}
+                          className="check-cell check-cell--done sets__edit"
+                          aria-expanded={open}
+                          onClick={() => setEditing(open ? undefined : set.id)}
+                        >
+                          <CheckIcon size={17} color="var(--done)" />
+                          <span className="visually-hidden">Set {index + 1} done. Edit</span>
+                        </button>
+                      </td>
+                    </tr>
+                    {open && (
+                      <tr className="sets__row sets__row--editor">
+                        <td colSpan={6}>
+                          <SetEditor
+                            set={set.row}
+                            unit={unit}
+                            name={`set ${index + 1}`}
+                            onSave={async (changed) => {
+                              setCorrected(true);
+                              await editSet(set.id, changed);
+                              close(set.id);
+                            }}
+                            onDelete={async () => {
+                              setCorrected(true);
+                              await discardSet(set.id);
+                              close(set.id);
+                            }}
+                            onCancel={() => close(set.id)}
+                          />
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 );
               }
               // The refused row (docs/05 §4.17): the figures as entered, then what to do about it.
@@ -590,13 +659,17 @@ function ExerciseBlock({
       )}
 
       <ActiveSet
-        key={`${sets.length}:${unit}`}
+        // Made again for each set, and when the set it opens on is corrected (docs/09 F3 step 4).
+        key={`${sets.length}:${unit}:${completed.at(-1)?.row.clientUpdatedAt ?? ''}`}
         exercise={exercise}
         completed={completed}
         unit={unit}
-        scrollIntoView={scrollIntoView}
-        onLogged={onLogged}
         asNext={hero !== undefined}
+        scrollIntoView={scrollIntoView && !corrected}
+        onLogged={(isWarmup) => {
+          setCorrected(false);
+          onLogged(isWarmup);
+        }}
       />
     </section>
   );
@@ -669,7 +742,7 @@ function setLabel(number: number, target: number | null) {
  * overwritten (S3).
  *
  * With `asNext`, full screen's rest is on screen: the card is hidden and the same figures, as they
- * stand, are shown as the set that comes next (docs/05 §4.20).
+ * stand, are shown as the set that comes next (docs/05 §4.22).
  */
 function ActiveSet({
   exercise,
@@ -1131,7 +1204,7 @@ function RestBar({
 }
 
 /**
- * Full screen's rest (docs/05 §4.20): the countdown is the one large figure on the screen, at 56px,
+ * Full screen's rest (docs/05 §4.22): the countdown is the one large figure on the screen, at 56px,
  * with the same track and the same two answers as the bar. It takes focus as it replaces the card
  * whose `Complete set` was just tapped.
  */

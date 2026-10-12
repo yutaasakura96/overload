@@ -23,8 +23,11 @@ export type SyncBatch = components['schemas']['SyncBatch'];
 export type SyncDeletion = components['schemas']['SyncDeletion'];
 export type SyncResult = components['schemas']['SyncResult'];
 export type WeightUnit = components['schemas']['WeightUnit'];
+export type WorkoutDetail = components['schemas']['WorkoutDetail'];
 export type WorkoutExerciseRow = components['schemas']['WorkoutExerciseRow'];
+export type WorkoutList = components['schemas']['WorkoutList'];
 export type WorkoutRow = components['schemas']['WorkoutRow'];
+export type WorkoutSummary = components['schemas']['WorkoutSummary'];
 
 /**
  * The header names a GET's success response declares, without the index signature every one
@@ -42,4 +45,4 @@ type DeclaredHeaders<Path extends keyof paths> = paths[Path] extends {
  * declares on each member route's success response.
  */
 export const ACCOUNT_HEADER =
-  'Overload-User' satisfies DeclaredHeaders<'/api/me'> satisfies DeclaredHeaders<'/api/exercises'> satisfies DeclaredHeaders<'/api/routines'> satisfies DeclaredHeaders<'/api/exercises/{id}/progress'>;
+  'Overload-User' satisfies DeclaredHeaders<'/api/me'> satisfies DeclaredHeaders<'/api/exercises'> satisfies DeclaredHeaders<'/api/routines'> satisfies DeclaredHeaders<'/api/exercises/{id}/progress'> satisfies DeclaredHeaders<'/api/workouts'> satisfies DeclaredHeaders<'/api/workouts/{id}'>;

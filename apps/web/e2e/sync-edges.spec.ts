@@ -83,19 +83,31 @@ async function completeSet(page: Page, weight: string, reps: string) {
 }
 
 /**
- * A row of the set table: its number, weight and reps, and `Done` or `Refused`. The tests share a
+ * A row of the set table: its number, weight and reps, and its tick or `Refused`. The tests share a
  * user, so a row may also show last time's figures, which are no part of what is checked here.
  */
 const setRow = (page: Page, row: string, word: 'Done' | 'Refused' = 'Done') => {
   const [number, weight, reps] = row.split(' ');
+  const end = word === 'Done' ? `Set ${number} done\\. Edit` : word;
   return page.getByRole('row', {
-    name: new RegExp(`^${number} (\\S+ × \\S+ )?${weight} ${reps} — ${word}$`),
+    name: new RegExp(`^${number} (\\S+ × \\S+ )?${weight} ${reps} — ${end}$`),
   });
 };
 
-async function finish(page: Page) {
+/** Finish. A workout with a set opens its page in History; one with none is not kept: Today. */
+async function finish(page: Page, kept = true) {
   await page.getByRole('button', { name: 'Finish workout' }).click();
   await page.getByRole('button', { name: 'Finish', exact: true }).click();
+  await expect(page).toHaveURL(kept ? /\/workouts\/[0-9a-f-]{36}$/ : '/');
+}
+
+/** From a workout's page in History back to Today, with no reload. */
+async function toToday(page: Page) {
+  await page.getByRole('button', { name: 'Back' }).click();
+  await page
+    .getByRole('navigation', { name: 'Sections' })
+    .getByRole('link', { name: 'Today' })
+    .click();
   await expect(page).toHaveURL('/');
 }
 
@@ -337,6 +349,7 @@ test('a set refused after its workout ended is acted on from Today', async ({ pa
   await completeSet(page, '60', '7');
   await rewriteSet(page, 1, { reps: 500 });
   await finish(page);
+  await toToday(page);
   await goOnline(context);
 
   // The workout is over, so its refused set has no workout screen to be on: Today holds it.
@@ -398,7 +411,7 @@ test('a stale copy of a workout sent after its delete does not bring it back', a
   expect(copy.workoutExercises).toHaveLength(2);
 
   // Finished with no set, the workout is deleted (docs/09 F3).
-  await finish(page);
+  await finish(page, false);
   await expect(dataState(page)).toContainText('SYNCED');
   await expect.poll(() => stored().some((workout) => workout.name === name)).toBe(false);
   await expect.poll(async () => (await recordsOnDevice(page)).length).toBe(0);
@@ -431,7 +444,7 @@ test('a newer server workout survives an older device delete', async ({ page }) 
   expect(edit.ok()).toBe(true);
   expect((await edit.json()).results[0].status).toBe('stored');
 
-  await finish(page);
+  await finish(page, false);
   await expect
     .poll(async () => {
       const restored = (await recordsOnDevice(page)).find((record) => record.id === workout.id);
@@ -469,7 +482,7 @@ test('an empty workout delete stays newer after the phone clock goes back', asyn
 
   await goOffline(context);
   await context.clock.install({ time: Date.now() - 86_400_000 });
-  await finish(page);
+  await finish(page, false);
   const deletion = (await recordsOnDevice(page)).find((record) => record.id === workout.id);
   expect(deletion?.state).toBe('pending');
   expect(deletion?.deletedAt).toBeDefined();
@@ -627,4 +640,79 @@ test('a workout is rebuilt after the app is killed, with rest counting from the 
     ]);
 
   await finish(reopened);
+});
+
+test('rest stops counting from a set deleted on the workout’s page in History', async ({
+  page,
+}) => {
+  const name = `Rested ${Date.now()}`;
+  await startWorkout(page, name);
+  await completeSet(page, '60', '8');
+  await expect(dataState(page)).toContainText('SYNCED');
+  await expect(rest(page).getByRole('timer')).toBeVisible();
+  const workout = (await recordsOnDevice(page)).find((record) => record.table === 'workouts');
+  if (workout === undefined) throw new Error('the workout is not on the device');
+
+  // The deletion cannot upload, so the set's record stays on the device with it.
+  await page.route('**/api/workouts/sync', (route) => route.abort('internetdisconnected'));
+  await page.goto(`/workouts/${workout.id}`);
+  await page.getByRole('button', { name: /EDIT$/ }).click();
+  const editor = page.getByRole('form', { name: 'Edit set 1' });
+  await editor.getByRole('button', { name: 'Delete set' }).click();
+  await editor.getByRole('button', { name: 'Delete', exact: true }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Set deleted.' })).toBeVisible();
+
+  await toToday(page);
+  await page.getByRole('link', { name: 'Resume workout' }).click();
+  await expect(page.getByRole('region', { name: 'SET 1 OF 5' })).toBeVisible();
+  await expect(rest(page)).toContainText('Starts by itself after each set');
+  await expect(rest(page).getByRole('timer')).toHaveCount(0);
+
+  await page.unrouteAll();
+  await finish(page, false);
+});
+
+test('Finish leaves for Today when another tab has just deleted the workout’s only set', async ({
+  page,
+  context,
+}) => {
+  const name = `Raced ${Date.now()}`;
+  await startWorkout(page, name);
+  await completeSet(page, '60', '8');
+  await expect(dataState(page)).toContainText('SYNCED');
+  const other = await context.newPage();
+  await other.goto('/workout');
+  await expect(setRow(other, '1 60 8')).toBeVisible();
+
+  // Finish is asked for with one set on screen, and confirmed before this tab has heard that the
+  // other deleted it: the tab is busy until the tap, which lands on what it last drew.
+  await page.getByRole('button', { name: 'Finish workout' }).click();
+  await expect(page.getByRole('button', { name: 'Finish', exact: true })).toBeVisible();
+  let tapped = false;
+  const tap = page
+    .evaluate(() => {
+      const until = Date.now() + 6000;
+      while (Date.now() < until);
+      const confirm = [...document.querySelectorAll('button')].find(
+        (button) => button.textContent.trim() === 'Finish',
+      );
+      if (confirm === undefined) throw new Error('no Finish to confirm');
+      confirm.click();
+    })
+    .then(() => {
+      tapped = true;
+    });
+  await other.getByRole('button', { name: 'Set 1 done. Edit' }).click();
+  const editor = other.getByRole('form', { name: 'Edit set 1' });
+  await editor.getByRole('button', { name: 'Delete set' }).click();
+  await editor.getByRole('button', { name: 'Delete', exact: true }).click();
+  await expect(other.getByRole('button', { name: 'Set 1 done. Edit' })).toHaveCount(0);
+  expect(tapped).toBe(false);
+
+  // Nothing was kept, so there is no page in History to open.
+  await tap;
+  await expect(page).toHaveURL('/');
+  await expect(page.getByText('This workout is not in your history.')).toHaveCount(0);
+  await expect.poll(() => stored().some((workout) => workout.name === name)).toBe(false);
+  await other.close();
 });

@@ -21,3 +21,10 @@ export function toKg(typed: number, unit: WeightUnit): number {
 }
 
 export const unitLabel = (unit: WeightUnit) => (unit === 'lb' ? 'LB' : 'KG');
+
+/** A unit said aloud, where the screen prints only its abbreviation. */
+export const unitName = (unit: WeightUnit) => (unit === 'lb' ? 'pounds' : 'kilograms');
+
+/** A volume load in the user's unit, to the whole number, with thousands separated. */
+export const formatVolume = (kg: number, unit: WeightUnit) =>
+  Math.round(fromKg(kg, unit)).toLocaleString('en-US');

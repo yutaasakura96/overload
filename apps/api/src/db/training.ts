@@ -145,6 +145,7 @@ export const localDateIn = (timezone: string) => {
 
 type LoggedRow = {
   workout_id: string;
+  name: string;
   started_at: Date;
   weight_kg: number;
   reps: number;
@@ -164,7 +165,8 @@ export async function loggedWorkouts(
   since?: string,
 ): Promise<LoggedWorkout[]> {
   const { rows } = await db.execute<LoggedRow>(sql`
-    SELECT w.id AS workout_id, w.started_at, s.weight_kg::float8 AS weight_kg, s.reps, s.is_warmup
+    SELECT w.id AS workout_id, w.name, w.started_at,
+           s.weight_kg::float8 AS weight_kg, s.reps, s.is_warmup
     FROM workout w
     JOIN workout_exercise we ON we.workout_id = w.id
     JOIN "set" s ON s.workout_exercise_id = we.id
@@ -177,6 +179,7 @@ export async function loggedWorkouts(
   const localDate = localDateIn(timezone);
   return [...groupBy(rows, (row) => row.workout_id)].map(([workoutId, sets]) => ({
     workoutId,
+    name: sets[0]?.name ?? '',
     date: localDate(new Date(sets[0]?.started_at ?? 0)),
     sets: sets.map((set) => ({ weightKg: set.weight_kg, reps: set.reps, isWarmup: set.is_warmup })),
   }));

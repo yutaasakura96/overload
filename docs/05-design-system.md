@@ -271,14 +271,14 @@ Every size present in the six screens, with its use.
 | 16 | Sans | Text typed into a field (§4.18). Not a display size: iOS zooms into a focused field under 16px. Added 2026-10-01 (`06`). |
 | 17 | Mono | **Working-set kg and reps (1). The app's standard figure size.** Also figures typed into a field (§4.18), and last time and today's target (§4.19). |
 | 19 | Mono | If-confirmed kcal and protein (4). |
-| 20 | Mono | Top set, volume load (2). The set that comes next, in full screen (§4.20). |
+| 20 | Mono | Top set, volume load (2). The set that comes next, in full screen (§4.22). |
 | 22 | Mono | Avg intake, trend change (6). |
 | 24 | Mono | Implied maintenance (6). |
 | 26 | Mono | Day kcal total (3). |
 | 30 | — | **Retired 2026-10-10.** The rest timer moved to 42px (§4.14, `06`). Nothing is set at 30px. |
 | 38 | Mono | Unconfirmed meal count (4). |
 | 42 | Mono | e1RM headline (2), weight trend headline (6), rest countdown (1, §4.14). |
-| 56 | Mono | **The active set (1), and in full screen the rest countdown that stands in for it (§4.20). The named exception — §2.6.** |
+| 56 | Mono | **The active set (1), and in full screen the rest countdown that stands in for it (§4.22). The named exception — §2.6.** |
 
 ### 2.3 Weight
 
@@ -331,7 +331,7 @@ active set the only 56px on the screen.
 - For set entry, it applies to exactly one row at a time — the active set, inside `surface/active`.
 - The moment the set is completed it drops to the 17px table row. There is no 56px history.
 - No other screen may introduce it. A new screen that wants a bigger figure uses 42px.
-- **One second use, recorded 2026-10-12** (`06`): the rest countdown in full screen (§4.20), in the
+- **One second use, recorded 2026-10-12** (`06`): the rest countdown in full screen (§4.22), in the
   same four values. Full screen is screen 1 with one exercise and one set on it, and while a rest
   is on screen there the active card is hidden, so the countdown stands where the card's figures
   stood and is read the same way. Only the active set or the full-screen countdown is visible at
@@ -464,6 +464,9 @@ A square-ish control that carries done state instead of a label.
   so its boundary is what identifies it and must meet 3:1 (§1.5).
 - **Done:** 1px `line/done`, `surface/done` fill, 15–17px check stroked `done`.
 
+A done cell in the workout's set table is a button since 2026-10-11: it opens the set editor
+(§4.20) under its row, and looks no different.
+
 Check icon geometry is fixed across the app: `viewBox="0 0 24 24"`, path `M4 12.5 9.5 18 20 6.5`,
 `stroke-linecap`/`linejoin` round, stroke width 2.5 (3 at small sizes).
 
@@ -471,7 +474,8 @@ Check icon geometry is fixed across the app: `viewBox="0 0 24 24"`, path `M4 12.
 Equal columns, 5px gap, 44px tall, radius 2. Inactive: 1px `line/hairline`, 11px label in
 `text/quaternary`. Active: 1px `accent`, `surface/accent`, 11px label in `accent`. Weight on the
 active segment is 600 in both the span selector (2, mono) and the tabs (5, sans). The artboard's
-700 on `12W` is superseded (§7).
+700 on `12W` is superseded (§7). The sections of the Progress tab (`10` §9) are a third use: three
+equal columns of links, 14px under the tabs, the current one marked as an active segment.
 
 ### 4.9 Meal card — four states
 
@@ -526,7 +530,7 @@ right-aligned, all 46px tall with an 8px gap: `FULL SCREEN` (58px wide), `+30s` 
 `SKIP` (64px wide). Body padding `12px 16px 14px`, plus the safe-area inset.
 
 **`FULL SCREEN`** (`06`, 2026-10-12; not in the artboard) switches screen 1 to its full-screen
-layout (§4.20) and is on the bar for the whole workout. 1px `line/field`, no fill, `text/tertiary`,
+layout (§4.22) and is on the bar for the whole workout. 1px `line/field`, no fill, `text/tertiary`,
 `0.08em`. Beside the countdown it is 58 × 46 with its two words on two lines at 9px, line-height
 1.35. With no rest counting it is one line at 10px, as wide as the words with 12px either side.
 
@@ -598,11 +602,36 @@ or `SAME WEIGHT`. Under the figures, the reason as a sentence.
 **First workout.** The same two rows. Last time reads `None yet` with a sentence saying why; the
 target reads `Find your weight × 6–10`, tagged `FIRST WORKOUT`, with a sentence on how to pick one.
 
-**Compact**, in full screen (§4.20; `06`, 2026-10-12). Rows are `8px 11px 9px`, and a sentence that
+**Compact**, in full screen (§4.22; `06`, 2026-10-12). Rows are `8px 11px 9px`, and a sentence that
 only repeats what the figures show is left out: the target's reason, and the first workout's `so
 there is nothing to compare with`. How to pick a first weight stays, since no figure says it.
 
-### 4.20 Full screen
+### 4.20 Set editor
+Added 2026-10-11 (`06`) from the approved prototype (`10` §9). What a logged set opens into: under
+its tick in the workout's set table, and under its row on a workout's page in History. The same
+component in both. An active card (§4.5) without the left edge: 1px `line/accent`, `surface/active`,
+radius 2, 12px padding, 10px gap. Inside, in order:
+
+- three fields (§4.18) in columns of `3fr 2fr 2fr`, 8px apart, as a refused set's are (§4.17):
+  the weight with its unit, `REPS`, and `RIR` with an em dash for none;
+- a refusal, as §4.18 prints one, under the row of fields;
+- `Cancel` (tertiary) and `Save set` (primary, 44px, 11px label) in two equal columns;
+- `Delete set` (tertiary), full width, under them.
+
+`Delete set` turns the two rows of actions into the question in place, `10` §8.1's delete
+pattern: the question in 11px `text/secondary` over `Keep` (tertiary) and `Delete` (secondary).
+`error` is not used: deleting is a choice, not a failure (§1.4). In the set table the editor is
+indented to the LAST column, `2px 16px 14px 46px`; in History it is inset to the gutters,
+`2px 16px 12px`.
+
+### 4.21 Said-once line
+Added 2026-10-11 with §4.20. One line under the app bar, `12px 16px 0`, that says what the action
+that opened or changed the screen just did: a 13px check in `done`, 8px gap, then the sentence in
+11px sans `text/secondary` at 1.5. It is an `output`, so it is announced. It is said once: it goes
+when the screen is opened again or the next action is taken, and is never the only record of a
+change. Three uses, all in `10` §9.
+
+### 4.22 Full screen
 Added 2026-10-12 (`06`; reference `docs/prototype/`). Screen 1 with one exercise and one set on it,
 a viewport tall. Everything in it is an existing part or one of the three below.
 
