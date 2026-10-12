@@ -769,7 +769,7 @@ test('a set corrected and uploaded in another tab shows on a page that saw none 
   await other.close();
 });
 
-test('a chart saved by a build that knew no past sets is asked for again, not drawn', async ({
+test('a chart saved by a build that knew no past sets is drawn, then asked for again', async ({
   page,
 }) => {
   const row = await exerciseId(page, 'Bent Over Barbell Row');
@@ -785,13 +785,11 @@ test('a chart saved by a build that knew no past sets is asked for again, not dr
   await expect(past.filter({ hasText: 'Pull saved' })).toContainText('85 × 6');
   await expect.poll(() => savedCache(page, userId)).toContain('"queryKey":["progress"');
 
-  // The saved copy as the build before this one left it: unnamed, its points without their sets.
+  // The saved copy as the build before this one left it: its points without their sets.
   type Saved = {
-    buster: string;
     clientState: { queries: { queryKey: unknown[]; state: { data?: { points?: object[] } } }[] };
   };
   const saved: Saved = JSON.parse(await savedCache(page, userId));
-  saved.buster = '';
   for (const query of saved.clientState.queries) {
     if (query.queryKey[0] !== 'progress') continue;
     query.state.data = {

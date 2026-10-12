@@ -183,11 +183,6 @@ rebuild the open workout, show Resume (`docs/09` F3) and restart the rest timer 
 so the data-state slot is unaffected. The TanStack cache is not a substitute: its persister writes
 at most once a second (`06`, 2026-09-19, client state). *Added 2026-09-22.*
 
-**The saved copy names its shape.** *Added 2026-10-12.* The persisted cache carries a `buster`
-(`CACHE_SHAPE` in `apps/web/src/query.ts`), and a copy saved under another one is discarded on
-restore and fetched again. It changes whenever a cached answer gains a field a screen relies on,
-as the progress points did with their sets: a screen never draws an older build's answer.
-
 **A past workout comes back to the set store to be changed.** *Added 2026-10-11 (`06`).* History
 (`docs/10` §9) is API data: the list and each workout are TanStack queries. Editing or deleting a
 set of a workout the device has let go writes the whole workout back into the set store from the

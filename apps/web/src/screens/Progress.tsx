@@ -527,7 +527,7 @@ function PastSets({
                   <small aria-hidden="true">E1RM</small>
                   <span className="visually-hidden"> {unitName(unit)}, sets </span>
                 </span>
-                <span className="past__sets">{setsLine(point.sets, unit)}</span>
+                <span className="past__sets">{setsLine(point.sets ?? [], unit)}</span>
               </a>
             </li>
           ))}
