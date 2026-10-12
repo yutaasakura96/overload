@@ -25,6 +25,13 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  */
 export const CACHE_MAX_AGE_MS = 7 * DAY_MS;
 
+/**
+ * Names the shape of what is saved. A copy saved under another name is discarded on restore, not
+ * drawn: a screen reads fields an older build's answers did not carry. Change it whenever a cached
+ * answer gains a field a screen relies on.
+ */
+const CACHE_SHAPE = '2026-10-12';
+
 /** How long an account check with a saved copy waits before opening offline on that copy. */
 const ACCOUNT_CHECK_MS = 3000;
 
@@ -138,6 +145,7 @@ async function restore(userId: string, generation = accountGeneration) {
     queryClient,
     persister: accountPersister(userId, generation),
     maxAge: CACHE_MAX_AGE_MS,
+    buster: CACHE_SHAPE,
   }).catch(() => undefined);
   await queryClient.invalidateQueries({
     predicate: (query) => query.queryKey[0] !== 'me',
@@ -235,7 +243,11 @@ async function confirm(me: Me, generation: number) {
     setAccount({ userId: id, status: 'confirmed' });
   }
   if (generation !== accountGeneration) throw new AccountCheckFailed('Account closed');
-  stopPersisting ??= persistQueryClientSubscribe({ queryClient, persister: accountPersister(id) });
+  stopPersisting ??= persistQueryClientSubscribe({
+    queryClient,
+    persister: accountPersister(id),
+    buster: CACHE_SHAPE,
+  });
   const remembering = deviceStore.rememberUser(me.user);
   pendingRemember = remembering;
   try {

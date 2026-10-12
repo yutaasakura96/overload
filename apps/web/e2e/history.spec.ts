@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
-import { savedCache } from './device-store';
+import { cacheKey, putDeviceValue, savedCache } from './device-store';
 import { apiFixture } from './fixture';
 
 type Cookies = Parameters<BrowserContext['addCookies']>[0];
@@ -769,9 +769,79 @@ test('a set corrected and uploaded in another tab shows on a page that saw none 
   await other.close();
 });
 
+test('a chart saved by a build that knew no past sets is asked for again, not drawn', async ({
+  page,
+}) => {
+  const row = await exerciseId(page, 'Bent Over Barbell Row');
+  const workoutId = await log(page, row, {
+    name: 'Pull saved',
+    startedAt: new Date(Date.now() - 2 * 24 * 60 * MINUTE_MS).toISOString(),
+    minutes: 30,
+    sets: [{ weightKg: 85, reps: 6 }],
+  });
+  await page.goto(`/workouts/${workoutId}`);
+  await page.getByRole('link', { name: /^Bent Over Barbell Row/ }).click();
+  const past = page.getByRole('region', { name: /^Past sets/ }).getByRole('listitem');
+  await expect(past.filter({ hasText: 'Pull saved' })).toContainText('85 × 6');
+  await expect.poll(() => savedCache(page, userId)).toContain('"queryKey":["progress"');
+
+  // The saved copy as the build before this one left it: unnamed, its points without their sets.
+  type Saved = {
+    buster: string;
+    clientState: { queries: { queryKey: unknown[]; state: { data?: { points?: object[] } } }[] };
+  };
+  const saved: Saved = JSON.parse(await savedCache(page, userId));
+  saved.buster = '';
+  for (const query of saved.clientState.queries) {
+    if (query.queryKey[0] !== 'progress') continue;
+    query.state.data = {
+      ...query.state.data,
+      points: query.state.data?.points?.map((point) => ({ ...point, sets: undefined })),
+    };
+  }
+  await putDeviceValue(page, cacheKey(userId), JSON.stringify(saved));
+
+  await page.reload();
+  await expect(past.filter({ hasText: 'Pull saved' })).toContainText('85 × 6');
+});
+
 // A page the service worker controls fetches through it, where WebKit shows a route nothing.
 test.describe('with no service worker', () => {
   test.use({ serviceWorkers: 'block' });
+
+  test('starting a workout waits for the ask for last time already out, and asks no other', async ({
+    page,
+  }) => {
+    const name = `Waited ${Date.now()}`;
+    const curl = await exerciseId(page, 'Dumbbell Hammer Curl');
+    const routine = await page.request.post('/api/routines', {
+      data: { id: randomUUID(), name, exercises: [{ id: randomUUID(), exerciseId: curl }] },
+    });
+    expect(routine.ok()).toBe(true);
+
+    let asks = 0;
+    const held = Promise.withResolvers<void>();
+    await page.route('**/api/training/last-time', async (route) => {
+      asks += 1;
+      if (asks > 1) return route.continue();
+      const response = await route.fetch();
+      await held.promise;
+      await route.fulfill({ response }).catch(() => undefined);
+    });
+    await page.goto('/');
+    await page.getByRole('button', { name: new RegExp(`${name}.*Start this workout`) }).click();
+    await expect.poll(() => asks).toBe(1);
+    await page.waitForTimeout(500);
+    expect(asks).toBe(1);
+    await expect(page).toHaveURL('/');
+
+    held.resolve();
+    await expect(page).toHaveURL('/workout');
+    expect(asks).toBe(1);
+    await page.getByRole('button', { name: 'Finish workout' }).click();
+    await page.getByRole('button', { name: 'Finish', exact: true }).click();
+    await expect(page).toHaveURL('/');
+  });
 
   test('last time is asked again after a second correction while the first ask is still out', async ({
     page,

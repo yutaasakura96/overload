@@ -111,7 +111,7 @@ export function Today({ me, navigate }: { me: Me; navigate: Navigate }) {
       // An answer already on its way is worth a moment: it may carry the workout just finished.
       if (queryClient.isFetching({ queryKey: lastTimeQuery.queryKey }) > 0) {
         await Promise.race([
-          refreshLastTime(),
+          queryClient.fetchQuery({ ...lastTimeQuery, staleTime: 0 }).catch(() => undefined),
           new Promise((resolve) => setTimeout(resolve, 1500)),
         ]);
       }
