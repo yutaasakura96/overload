@@ -254,7 +254,7 @@ Every size present in the six screens, with its use.
 | px | Family | Where |
 | --- | --- | --- |
 | 8 | — | **Retired 2026-09-22.** The evidence-tag strength label moved to 9px (§1.5). Nothing is set at 8px. |
-| 9 | Sans | All small-caps column heads and field labels. |
+| 9 | Sans | All small-caps column heads and field labels. `FULL SCREEN` in two lines on the rest bar (§4.14). |
 | 9 | Mono | Chart axis labels (SVG), macro denominators, yield percentages. |
 | 10 | Sans | Button labels on 44px controls, inline explanatory text, section headings. |
 | 10 | Mono | Timestamps, metadata, food-list strings, unit suffixes. |
@@ -271,14 +271,14 @@ Every size present in the six screens, with its use.
 | 16 | Sans | Text typed into a field (§4.18). Not a display size: iOS zooms into a focused field under 16px. Added 2026-10-01 (`06`). |
 | 17 | Mono | **Working-set kg and reps (1). The app's standard figure size.** Also figures typed into a field (§4.18), and last time and today's target (§4.19). |
 | 19 | Mono | If-confirmed kcal and protein (4). |
-| 20 | Mono | Top set, volume load (2). |
+| 20 | Mono | Top set, volume load (2). The set that comes next, in full screen (§4.20). |
 | 22 | Mono | Avg intake, trend change (6). |
 | 24 | Mono | Implied maintenance (6). |
 | 26 | Mono | Day kcal total (3). |
 | 30 | — | **Retired 2026-10-10.** The rest timer moved to 42px (§4.14, `06`). Nothing is set at 30px. |
 | 38 | Mono | Unconfirmed meal count (4). |
 | 42 | Mono | e1RM headline (2), weight trend headline (6), rest countdown (1, §4.14). |
-| 56 | Mono | **Active set only (1). The named exception — §2.5.** |
+| 56 | Mono | **The active set (1), and in full screen the rest countdown that stands in for it (§4.20). The named exception — §2.6.** |
 
 ### 2.3 Weight
 
@@ -309,15 +309,16 @@ tracking.
 
 | Value | Applied to |
 | --- | --- |
-| `0.86` | 56px active-set figures. |
+| `0.86` | 56px active-set figures, and the 56px countdown in full screen. |
 | `0.9` | 38px and 42px headline figures, and the 42px rest countdown. |
 | `1.55` | Wrapping prose at 10–11px. |
 | `1.6` | Mono food-list strings at 10px. |
 
 ### 2.6 The 56px exception — named, single, not a second scale
 
-**Rule.** The app's figure size is 17–18px. One element breaks it: the weight, reps and RIR of the
-*currently active working set* on screen 1, at 56px / weight 500 / `-0.03em` / line-height 0.86.
+**Rule.** The app's figure size is 17–18px. The weight, reps and RIR of the *currently active
+working set* on screen 1 use 56px / weight 500 / `-0.03em` / line-height 0.86. In full screen,
+the rest countdown uses the same size while the active set is hidden (2026-10-12; `06`).
 
 **Why.** This is a deliberate borrow from the rejected Heavy direction, covering the one moment
 Instrument is weakest at: mid-set, arm's length, bad gym light, one hand free. The decision log
@@ -327,16 +328,21 @@ are a separate, smaller step and are read seated, not mid-set. The rest countdow
 active set the only 56px on the screen.
 
 **Constraints on its use.**
-- It applies to exactly one row at a time — the active set, inside `surface/active`.
+- For set entry, it applies to exactly one row at a time — the active set, inside `surface/active`.
 - The moment the set is completed it drops to the 17px table row. There is no 56px history.
 - No other screen may introduce it. A new screen that wants a bigger figure uses 42px.
+- **One second use, recorded 2026-10-12** (`06`): the rest countdown in full screen (§4.20), in the
+  same four values. Full screen is screen 1 with one exercise and one set on it, and while a rest
+  is on screen there the active card is hidden, so the countdown stands where the card's figures
+  stood and is read the same way. Only the active set or the full-screen countdown is visible at
+  a time. The rest bar's countdown is not part of this and stays 42px (§4.14).
 - Its unfilled state is the same 56px in `text/placeholder`, not a smaller placeholder.
 - A figure too long for its column at 56px is set at the largest size that shows it whole
   (`min(56px, column ÷ characters)`), since a field clips what does not fit: `102.25`, or `137.8` on
   a 375px phone. Still one size by rule, not a second step. *Added 2026-10-03.*
 
-If a second 56px use is ever proposed, it is a request to change the type scale and belongs in the
-decision log, not in a component.
+A further 56px use is a request to change the type scale and belongs in the decision log, not in a
+component, as the one above was.
 
 ---
 
@@ -373,10 +379,10 @@ The rule is 44px minimum. It holds across the six screens. The one drawn excepti
 | Height | Controls |
 | --- | --- |
 | 44 | Set check cell (46 × 44), prep check cell (44 × 44), span selector, tabs, `EATEN AS PLANNED`, `ADJUST` (62 wide), `REPL` (78 wide), the warm-up summary row (full width), `EDIT` (62) and `DISCARD` (78) on a refused set, `CLOSE` and each citation row on the sources sheet, the evidence tag's hit area |
-| 46 | Overlay chips, `+30s` (min-width 62), `SKIP` (min-width 72), `LEAVE DAY INCOMPLETE` |
-| 52 | `APPLY TO TARGETS` |
+| 46 | Overlay chips, `+30s` (min-width 62), `SKIP` (min-width 72), `LEAVE DAY INCOMPLETE`, `FULL SCREEN` on the rest bar (58 wide, or as wide as its one line) |
+| 52 | `APPLY TO TARGETS`; `+30S` and `SKIP REST` in full screen's rest, `I HAVE SET IT UP` |
 | 60 | `CONFIRM ALL AS PLANNED` |
-| 64 | `COMPLETE SET`, `WARM` (52 wide) |
+| 64 | `COMPLETE SET`, `WARM` (52 wide), `START SET 3 OF 4` in full screen's rest |
 | 44 | Back chevron (2): 44 × 44 target around the 18px icon, taken from the app bar's left padding so the title does not move. Drawn as 30px; superseded 2026-09-22. |
 
 Two further elements read as tappable but have no target: the `+ 4 more` grocery link (5, 11px text
@@ -515,9 +521,14 @@ into the space around it, so the row keeps its height. All three are drawn on th
 ### 4.14 Rest bar
 Pinned to the bottom edge, `surface/raised` with a top border in `line/border`. A 2px progress track
 in `line/hairline` sits on the very top edge with an `accent` fill (62% in the artboard). Below:
-`REST · NEXT: SET 3 OF 4` at 9px `0.12em` `text/quaternary` over the countdown, and two controls
-right-aligned: `+30s` (56px wide) and `SKIP` (64px wide), both 46px tall. Body padding `12px 16px
-14px`, plus the safe-area inset.
+`REST · NEXT: SET 3 OF 4` at 9px `0.12em` `text/quaternary` over the countdown, and three controls
+right-aligned, all 46px tall with an 8px gap: `FULL SCREEN` (58px wide), `+30s` (56px wide) and
+`SKIP` (64px wide). Body padding `12px 16px 14px`, plus the safe-area inset.
+
+**`FULL SCREEN`** (`06`, 2026-10-12; not in the artboard) switches screen 1 to its full-screen
+layout (§4.20) and is on the bar for the whole workout. 1px `line/field`, no fill, `text/tertiary`,
+`0.08em`. Beside the countdown it is 58 × 46 with its two words on two lines at 9px, line-height
+1.35. With no rest counting it is one line at 10px, as wide as the words with 12px either side.
 
 **The countdown is 42px** mono / 500 / `-0.03em` / line-height 0.9, tabular (`06`, 2026-10-10; 30px
 as drawn). It is the next size up the scale, not a second 56px (§2.6).
@@ -525,8 +536,8 @@ as drawn). It is the next size up the scale, not a second 56px (§2.6).
 **On screen for the whole workout** (`06`, 2026-10-10). With no rest counting, before the first set
 and after `SKIP` or `DISMISS`, the bar stays: the label reads `REST TIMER` over one 12px line in
 `text/secondary`, `Starts by itself after each set: 3:00`, the length in mono/500 `text/primary`. It
-is the rest of the exercise that is open. The track is empty and there are no controls. The bar
-keeps the height its 46px controls give it, so it does not jump when a rest starts. An exercise
+is the rest of the exercise that is open. The track is empty and `FULL SCREEN` is the only control.
+The bar keeps the height its 46px controls give it, so it does not jump when a rest starts. An exercise
 whose rest is 0 seconds starts no rest, and the line says so: `This exercise has no rest set, so no
 timer starts.`
 
@@ -586,6 +597,41 @@ or `SAME WEIGHT`. Under the figures, the reason as a sentence.
 
 **First workout.** The same two rows. Last time reads `None yet` with a sentence saying why; the
 target reads `Find your weight × 6–10`, tagged `FIRST WORKOUT`, with a sentence on how to pick one.
+
+**Compact**, in full screen (§4.20; `06`, 2026-10-12). Rows are `8px 11px 9px`, and a sentence that
+only repeats what the figures show is left out: the target's reason, and the first workout's `so
+there is nothing to compare with`. How to pick a first weight stays, since no figure says it.
+
+### 4.20 Full screen
+Added 2026-10-12 (`06`; reference `docs/prototype/`). Screen 1 with one exercise and one set on it,
+a viewport tall. Everything in it is an existing part or one of the three below.
+
+- **Bar.** `14px 16px 12px`, bottom `line/hairline`, not stuck. Left: the workout's name and the
+  elapsed time, as the app bar sets them (§4.1). Right: `EXIT FULL SCREEN`, a tertiary button
+  (§4.6), in place of the data-state slot.
+- **Count.** Under the exercise name (header padding `18px 16px 4px`): `EXERCISE 1 OF 5 · 2 OF 4
+  SETS DONE`, 10px mono `0.04em` uppercase `text/quaternary`, 10px below it.
+- **Rest.** While a rest is on screen it takes the place of the last-time block and the card. 1px
+  `line/border`, `surface/raised`, radius 2, inset to the gutters, `16px 14px`, 14px gap, 14px
+  above. `REST` in the rest bar's label, then the countdown at **56px** mono / 500 / `-0.03em` /
+  line-height 0.86, tabular (§2.6); the 2px track of §4.14; then `+30S` (secondary) and `SKIP
+  REST` (primary), two equal columns, 52px tall, 8px apart. **Rest over:** label and countdown turn
+  `accent`, the label reads `REST OVER`, the count runs up as `+0:12`, the track is full, and the
+  two controls give way to one primary, `START SET 3 OF 4`, 64px tall at 14px.
+- **Next set.** Under the rest, 14px below: 1px `line/hairline`, `11px 12px`, 6px gap. A section
+  label (§4.3), `NEXT · SET 3 OF 4`; the set at 20px mono / 500 `text/primary`, `80 kg × 10`; then
+  10px mono uppercase `text/quaternary`, `LAST TIME 80 × 10`, or `NO MATCHING SET LAST TIME`, or
+  `FIRST WORKOUT OF THIS EXERCISE`.
+- **Foot.** A link row (as the exercise form's row to its chart) held at the foot of the screen,
+  14px above it and 34px below: `Calls and messages can still interrupt` over `Set up an iPhone
+  Focus that lets only chosen people through`, and once the guide is done `iPhone Focus: set up`
+  over `Open the guide again`.
+
+**Guide step** (`10` §8.3). A 1px `line/hairline` box, `12px`, 8px between steps: the check cell
+of §4.7 in a 46px column, 12px, then the title at 13px / 600 `text/primary`, the path through
+Settings at 11px mono `accent`, line-height 1.5, and the text at 11px `text/secondary`, line-height
+1.55. The path is not a link: `accent` on `surface/ground` is 8.21:1 (§1.5), and nothing in the
+step but the check cell is a target.
 
 ---
 

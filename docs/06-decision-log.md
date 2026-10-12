@@ -3343,3 +3343,81 @@ Issue `#59`, asked for at the prototype review. The app was dark only.
 and checks the loaded stylesheet's CSSOM rules for colours outside the two token blocks.
 
 **Changed:** `00`, `05`, `10`, `11`.
+
+### 2026-10-12 — Full screen: a second layout of screen 1, a 56px countdown, and a guide to iPhone Focus
+
+Issue `#51`, built as the reviewed prototype shows it (`docs/prototype/`, its screens 4 and 5).
+What the owner asked for was a way to stay in the workout. A web app cannot turn on an iPhone
+Focus, silence other apps or stop them opening. It can show less and keep the screen awake, and it
+can say how to set up Apple's Focus. That is the whole of this. Three of the prototype's questions
+govern it:
+
+- **Q6. The app's mode is called "Full screen".** "Focus" means Apple's only, on screen and in
+  these docs (`CONTEXT.md`). Rejected: "Focus mode", which promises what only iOS can do.
+- **Q7. It is turned on by hand each workout and is not remembered.** `FULL SCREEN` is on the rest
+  bar for the whole workout (`05` §4.14); `Exit full screen` is in its own bar. A relaunch opens
+  the usual layout. Rejected: remembering the last choice, or always opening in it, which hides the
+  other exercises, `Finish` and the data-state slot from someone who did not ask for that today.
+- **Q4. The countdown is 56px in full screen.** This is the exception `05` §2.6 says belongs here
+  and not in a component: a second use of the 56px figure. It holds because §2.6's reason holds,
+  one figure read at arm's length, and because the two never meet. While a rest is on screen in
+  full screen the active card is hidden, so the 56px active set and countdown are never on screen
+  together.
+  On the bar the countdown stays 42px (2026-10-10). Rejected: 42px in both, which leaves full
+  screen's rest no larger than the bar it replaces; and larger than 56px, a third size.
+
+Also decided by the issue:
+
+- **The screen is kept awake for the whole workout while full screen is on**, not only while rest
+  counts. Out of full screen it is the rest alone, as before (2026-10-03). The lock is still a
+  progressive enhancement: where it is missing or refused nothing else changes (`03` §11).
+- **The guide is static and its "done" is kept on the phone.** Four steps from Apple's iPhone User
+  Guide for iOS 27, checked 2026-10-10, each with a check cell, and `I have set it up`. It reads
+  nothing from the phone. Two things could not be verified and are left out of it: whether the
+  Fitness Focus turns on by itself with an Apple Watch workout, and whether a Focus schedule's app
+  trigger can be a Home Screen web app.
+
+Settled while building:
+
+- **What full screen leaves out is hidden, not removed.** The sets table, the warm-ups, `Finish`
+  and the card stay mounted under `hidden`, so a set half typed, an open RIR guide and a refused
+  set being edited are as they were on the way out. That is what "entered and left without losing
+  anything" asks. The stylesheet gains `[hidden] { display: none !important }`, since a component's
+  own `display` otherwise wins over the attribute.
+- **It shows one exercise and one set.** The bar keeps the name and the elapsed time; under the
+  exercise's name is `EXERCISE 1 OF 5 · 2 OF 4 SETS DONE`, then the last-time block without its
+  sentence (`05` §4.19) and the card. A set that reaches the target moves on to the next exercise
+  as it does outside. Choosing another exercise, the table, `Finish` and the data-state slot are a
+  tap on `Exit full screen` away. A pending or refused set is not shown in full screen and nothing
+  is dropped: the count is in the slot on the way out, and the refused row is where it was.
+- **A rest takes the card's place** (`05` §4.20): the countdown, the track, `+30s` and `Skip rest`,
+  and under it the set that comes next, read off the card's figures as they stand. At zero it turns
+  to the accent, counts over, and one control, `Start set 3 of 4`, gives the screen back to the
+  card. An exercise with no rest shows no countdown.
+- **The guide opens over the workout, at `/workout/focus`.** The workout stays mounted under it, so
+  a rest keeps counting and its tone still plays while the guide is read, and going back finds full
+  screen on and the set as typed. With no workout open the address goes to Today: the guide has one
+  way in, the row at the foot of full screen. That row reads `Calls and messages can still
+  interrupt` until the guide is marked done, then `iPhone Focus: set up`.
+- **The guide's ticks and "done" are in `localStorage`, for the device and not the account.**
+  Whether this iPhone has a Workout Focus is a fact about the phone. It holds nothing of the
+  user's, so the sign-out wipe leaves it (`08` §7 is about weight, food and health figures).
+  Rejected: the IndexedDB device store, which is read after the first paint and is cleared on
+  sign-out.
+- **Full screen is a layout, not the browser's Fullscreen API.** The installed app already has the
+  whole display; the mode is about what the screen holds.
+- **The tone and the wake lock moved out of the rest bar** into a part with no view of its own, so
+  neither stops when the bar gives way to full screen's rest or the guide is on top.
+- **Focus follows the switch.** Entering puts it on `Exit full screen`, leaving on `FULL SCREEN`;
+  a set completed in full screen puts it on the rest, and the rest ending puts it on the card.
+
+Compared with the prototype in a browser at 390px, element by element, in six states: the bar with
+no rest and while counting, full screen with no rest, resting and at rest over, and the guide.
+Sizes, positions, colours and wording agree. Two things differ and are meant to: the last-time row
+has no chevron to past sets, which is `#48`'s, and labels the prototype types in capitals are typed
+in sentence case and set in capitals by the stylesheet, so a screen reader reads words.
+
+Owed, and Yuta's: the wake lock on a real iPhone, in the installed app (`11` §3 item 3).
+
+**Changed:** `CONTEXT.md`, `00`, `03` §11, `05` §2.2 §2.5 §2.6 §3.2 §4.14 §4.19 §4.20, `09` F3,
+`10` §1 §8 §8.3, `11` §3.

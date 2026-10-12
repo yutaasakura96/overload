@@ -65,7 +65,8 @@ export function App() {
   if (onSignIn) return <SignIn searchParams={searchParams} />;
   if (opens) {
     const route = routeOf(pathname);
-    if (route.screen === 'workout') return <Workout me={me.data} navigate={navigate} />;
+    if (route.screen === 'workout')
+      return <Workout me={me.data} navigate={navigate} guide={route.guide} />;
     if (route.screen === 'routines') return <RoutineList me={me.data} navigate={navigate} />;
     if (route.screen === 'routine') return <RoutineScreen id={route.id} navigate={navigate} />;
     if (route.screen === 'exercise') return <ExerciseScreen id={route.id} navigate={navigate} />;

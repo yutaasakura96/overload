@@ -89,6 +89,8 @@ uploader**. The result goes in the PR as pass/fail per item.
    sets present and the timer right. Reconnect: pending reaches 0 and history has no duplicates.
    **The rest tone** (`06`, 2026-10-03): it plays at zero with the app open, with the ring switch on
    and on silent, and over music; the screen stays awake while rest counts (iOS 18.4 and later).
+   **Full screen** (`06`, 2026-10-12): with it on, the screen stays awake between sets too, for
+   the whole workout, and dims again as usual after `Exit full screen` once no rest counts.
 4. **Two tabs and Web Locks.** Whether Safari has `navigator.locks` (`03` §11). Uploads stay
    duplicate-free either way.
 5. **Camera.** Barcode scan and label photo (M2).

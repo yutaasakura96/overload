@@ -2,7 +2,7 @@
 
 **Project:** A weight-training progress tracker combining lift logging, meal planning, Apple Watch/iPhone health data, and bodyweight/diet coaching.
 **Phase:** 7 — Build (M1 first). Phase 6 — Review finished 2026-09-23.
-**Updated:** 2026-10-11
+**Updated:** 2026-10-12
 
 ## Done
 - Phase 1 — Brief + PRD: `docs/01-project-brief.md`, `docs/02-product-requirements.md`, `docs/06-decision-log.md`.
@@ -132,6 +132,18 @@ colours, and the twelve prototype screens of `#47`–`#51` with the light values
 the prototype's meter band is `line/control` at 16% written as a literal, which the token test
 will refuse; it wants `color-mix` over the token, or a token of its own. Owed, and Yuta's: `11` §3
 item 8 on a real iPhone, where the status bar's strip has only been reasoned about.
+
+**Full screen and the iPhone Focus guide are built, 2026-10-12** (`#51`), on branch
+`fm/overload-51` against `develop`, web only. `FULL SCREEN` on the rest bar switches the workout
+screen to a layout with one exercise and one set, where a rest is a 56px countdown, the exception
+to `05` §2.6 that `06` records (2026-10-12). It is turned on by hand in each workout, loses nothing
+typed or logged on the way in or out, and requests the screen wake lock for the whole workout while
+it is on, where the browser grants it (`03` §11). From it, a static guide at `/workout/focus`
+gives the four steps that set up an iPhone Focus, with its ticks and "done" kept on the phone
+(`10` §1, §8.3; `05` §4.20). Compared with the prototype in a browser at 390px, and cleared the
+polish gate. `e2e/workout.spec.ts` covers entering and leaving with a set half typed, the rest in
+full screen, the wake lock and the guide,
+on Chromium and WebKit. Owed, and Yuta's: the wake lock on a real iPhone (`11` §3 item 3).
 
 **Issues are open.** Milestone `M1`, one issue per slice, `#1`–`#7`, each chained to the one before
 with GitHub's native dependencies. `#3`'s three questions were settled in `06` (2026-10-03).

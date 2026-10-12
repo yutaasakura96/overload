@@ -52,7 +52,7 @@ stays fixed at the bottom.
 | Completed set rows | `9px 16px`, `line/row` bottom | Set no. 13px mono `text/tertiary`; last time 11px mono `text/quaternary`; kg and reps 17px mono/500 `text/primary`; RIR 13px mono `text/tertiary`; done check cell 46 × 44 |
 | **Active set card** | `14px 16px 0`, 1px `line/accent` + 2px `accent` left edge, `surface/active`, `14px 14px 16px`, 13px gap | See below |
 | Up next | `18px 16px 0`, 8px gap | `UP NEXT` section label; then rows at `13px 12px`, 1px `line/hairline`: name 12px `text/secondary`/`0.03em`, target 11px mono `text/quaternary` |
-| Rest bar | Fixed `bottom: 0`, over the safe-area inset, for the whole workout | With no rest counting: `REST TIMER` over `Starts by itself after each set: 3:00`. Counting: 2px track, `REST · NEXT: SET 3 OF 4`, 42px mono timer, `+30s` and `SKIP`. At zero: `REST OVER`, `+0:12` counting up in `accent`, `DISMISS` (`05` §4.14) |
+| Rest bar | Fixed `bottom: 0`, over the safe-area inset, for the whole workout | With no rest counting: `REST TIMER` over `Starts by itself after each set: 3:00`, and `FULL SCREEN`. Counting: 2px track, `REST · NEXT: SET 3 OF 4`, 42px mono timer, `FULL SCREEN`, `+30s` and `SKIP`. At zero: `REST OVER`, `+0:12` counting up in `accent`, `FULL SCREEN` and `DISMISS` (`05` §4.14) |
 
 ### Active set card
 
@@ -117,11 +117,36 @@ completion control is enabled regardless; a missing weight or reps is refused on
   and the reason under the figures, focus on the figure at fault. Reps 1–100, RIR 0–10, weight 0 to
   9999.99 kg. The refused *row* below is for what the server turns away.
 - **Rest over, decided 2026-10-03** (`06`). A short tone at zero, and the bar counts over until
-  `DISMISS` or the next set. The screen is kept awake while rest counts, where the browser allows.
-  A rest setting of 0 seconds starts no rest or tone.
+  `DISMISS` or the next set. The screen is kept awake while rest counts, where the browser allows,
+  and for the whole workout while full screen is on (below). A rest setting of 0 seconds starts no
+  rest or tone.
 - **The rest bar is always there, decided 2026-10-10** (`06`). From the start of the workout, before
   any set, it says the timer starts by itself and how long the open exercise rests; it returns to
   that after `SKIP` or `DISMISS`. While counting, its label names the set that comes next.
+- **Full screen, decided 2026-10-12** (`06`; reference `docs/prototype/`, `05` §4.20). `FULL
+  SCREEN` on the rest bar switches the screen to a second layout with one exercise and one set on
+  it; `EXIT FULL SCREEN`, in its bar, switches back. It is the app's own mode and is called that:
+  "Focus" is Apple's (`CONTEXT.md`).
+  - **What it holds.** The workout's name and elapsed time; the exercise's name over `EXERCISE 1
+    OF 5 · 2 OF 4 SETS DONE` (`2 SETS DONE` with no target); the last-time block in its compact
+    form; the active set card, unchanged; and at the foot the row to the iPhone Focus guide (§8.3).
+  - **What it leaves out.** The data-state slot, the warm-up summary, the sets table, `UP NEXT`,
+    `DONE`, `Finish workout` and the rest bar. They are hidden, not discarded: a set half typed,
+    an open RIR guide and a refused set being edited are as they were on leaving. A set that
+    reaches the target still opens the next exercise with sets left.
+  - **Rest.** A rest takes the place of the block and the card: `REST` over the countdown at 56px,
+    the track, `+30S` and `SKIP REST`; under it `NEXT · SET 3 OF 4` with the set as the card holds
+    it, `80 kg × 10`, and the same set last time. At zero it reads `REST OVER`, counts up in
+    `accent`, the tone plays as it does on the bar, and one control, `START SET 3 OF 4`, brings
+    the card back. An exercise with no rest goes straight to the next card.
+  - **Awake.** While it is on, the screen is kept awake for the whole workout, not only during
+    rest, where the browser allows (`03` §11).
+  - **Not remembered.** It is turned on by hand in each workout. A relaunch, and the next workout,
+    open in the usual layout.
+  - **Focus and scroll.** Each switch starts the screen from its top and moves focus to the
+    control that switches back. A set completed in full screen moves focus to the rest; the rest
+    ending moves it to the card.
+  - **Width.** Drawn at 390px. The bar's three controls and a `10:00` countdown fit from 375px.
 - **Weights in pounds.** With the profile's unit set to `lb`, every weight on the screen is shown
   and typed in pounds, to the tenth; the column head and the weight label read `LB`.
 - **The other exercises.** `UP NEXT` lists the exercises with sets left, then `DONE` the ones at
@@ -523,6 +548,8 @@ screens and states the PRD requires that Phase 2 did not draw.
 - **S18a and S21 with too few weigh-ins to estimate** (`03` §8.3): `Weigh in to see this` in place of the figure. Added by review 2026-09-22.
 - **Every error and failure state except the refused set.** The refused set is drawn
   (`Main-Refused`, 2026-09-22). A rejected save elsewhere, revoked access and the discard confirm are not.
+- **Full screen and the iPhone Focus guide** (`#51`). Not in the artboards: built from the reviewed
+  prototype (`docs/prototype/`). Full screen is in §1, the guide in §8.3.
 
 ### 8.1 Routines and the exercise library (slice 2, S4 and S8)
 
@@ -643,3 +670,47 @@ data-state slot. Under the tabs, in order:
 **Data-state slot (§7.4) as built.** Refused and pending are counted from the set store on every
 screen; the resting form shows the time §7.4 names for that screen. Cached data age is still not
 drawn.
+
+### 8.3 The iPhone Focus guide (`#51`)
+
+Built from the reviewed prototype (`docs/prototype/`, its screen 5; `06`, 2026-10-12) with `05`'s
+tokens, and passes the polish gate. Static: it reads nothing from the phone and changes nothing on
+the server.
+
+**Where.** `/workout/focus`, opened from the row at the foot of full screen (§1). It opens over
+the workout, which keeps running under it: a rest still counts and its tone still plays. After
+opening the guide from full screen, the back chevron, the browser's back and `I have set it up`
+return to the workout as it was, full screen still on. A direct visit after a relaunch shows the
+guide above the workout in its usual layout, since full screen is not remembered. With no workout
+open the address opens Today.
+
+Closing the guide after opening it from the workout returns to the existing workout history entry;
+opening `/workout/focus` directly replaces that address with `/workout` on close. Browser Back does
+not reopen a guide just closed with the chevron or `I have set it up`.
+
+**Structure.** The app bar with the back chevron, `iPhone Focus`, and the data-state slot. Then:
+
+- **A `flag` notice, `What Overload cannot do`:** `A web app cannot turn a Focus on, or stop you
+  opening other apps. iOS does that, so it is set up once in Settings. Full screen keeps the
+  workout in front of you; the Focus keeps everything else quiet.`
+- **Four steps** (`05` §4.20), each a check cell, a numbered title, the path through Settings and
+  what to do there:
+  1. `Create the Focus` — `Settings › Focus › Add › Custom`
+  2. `Choose who can reach you` — `Workout › People › Allow Notifications From`
+  3. `Choose which apps can notify` — `Workout › Apps › Allow Notifications From`
+  4. `Have it turn on at the gym` — `Workout › Add Schedule › Location`
+- **`I have set it up`**, a primary button, 52px.
+- **The footnote** (`05` §4.15), directly under the button: `Steps from Apple’s iPhone User Guide,
+  iOS 27` and `checked 10 Oct 2026`. When iOS moves these settings, the steps and that date change
+  together.
+
+**States and rules.**
+
+- A check cell ticks and unticks its step (`aria-pressed`, named `Step 1 done`). The steps can be
+  ticked in any order and none is required.
+- `I have set it up` marks the guide done and goes back. From then on the row in full screen reads
+  `iPhone Focus: set up` / `Open the guide again`. Done is not undone from the screen.
+- The ticks and done are kept on the phone, in `localStorage`, for the device and not the account:
+  they survive a relaunch and a sign-out, and are not sent anywhere (`06`, 2026-10-12).
+- Opening it starts at the top with focus on the screen; going back returns focus to the row that
+  opened it.

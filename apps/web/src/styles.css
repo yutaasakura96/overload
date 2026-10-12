@@ -136,6 +136,11 @@ button {
   outline-offset: 2px;
 }
 
+/* `hidden` holds whatever the element's own rule says about `display`. */
+[hidden] {
+  display: none !important;
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;
@@ -1088,6 +1093,10 @@ html:has(.workout) {
   line-height: 1.55;
   color: var(--text-secondary);
 }
+/* Full screen's form: tighter rows (4.20). */
+.brief--compact .brief__row {
+  padding: 8px 11px 9px;
+}
 .brief + .warmups {
   margin-top: 8px;
 }
@@ -1458,6 +1467,7 @@ main:focus {
 }
 .active-set__warm:active,
 .rest-bar__extend:active,
+.rest-bar__full:active,
 .up-next__row:active,
 .warmups__summary:active {
   border-color: var(--line-control);
@@ -1620,6 +1630,175 @@ main:focus {
   font-size: 11px;
   letter-spacing: 0.1em;
   color: var(--accent);
+}
+
+/* `FULL SCREEN`, on the bar for the whole workout: two lines beside the countdown, one without. */
+.rest-bar__full {
+  width: 58px;
+  height: 46px;
+  border: 1px solid var(--line-field);
+  border-radius: var(--radius);
+  font-size: 9px;
+  line-height: 1.35;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.rest-bar__full--wide {
+  width: auto;
+  padding: 0 12px;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+/* 4.20 Full screen: the workout screen with one exercise and one set on it, a viewport tall, the
+   way to the Focus guide at its foot. */
+.full {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  padding-bottom: 16px;
+}
+.full__bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 14px var(--gutter) 12px;
+  border-bottom: 1px solid var(--line-hairline);
+}
+.full__lead {
+  min-width: 0;
+}
+/* A column, so the margins between its blocks add up as drawn and do not collapse. */
+.full > section {
+  display: flex;
+  flex-direction: column;
+}
+.full__bar .button {
+  flex: none;
+}
+.full__count {
+  margin: 0 var(--gutter) 10px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-quaternary);
+}
+.full .exercise-head {
+  padding-top: 18px;
+  padding-bottom: 4px;
+}
+/* The rest, as the one large figure on the screen: the 56px countdown (docs/05 §2.6). */
+.rest-hero {
+  display: grid;
+  gap: 14px;
+  margin: 14px var(--gutter) 0;
+  padding: 16px 14px;
+  border: 1px solid var(--line-border);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+}
+/* Focus lands here only from the set just completed, as on the card it stands in for. */
+.rest-hero:focus {
+  outline: none;
+}
+.rest-hero__timer {
+  font-family: var(--font-mono);
+  font-size: 56px;
+  font-weight: 500;
+  line-height: 0.86;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+.rest-hero--over .rest-hero__timer,
+.rest-hero--over .rest-bar__label {
+  color: var(--accent);
+}
+.rest-hero__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.rest-hero__actions .button {
+  min-height: 52px;
+}
+.rest-hero__actions--one {
+  grid-template-columns: 1fr;
+}
+.rest-hero__actions--one .button {
+  min-height: 64px;
+  font-size: 14px;
+}
+.next-set {
+  display: grid;
+  gap: 6px;
+  margin: 14px var(--gutter) 0;
+  padding: 11px 12px;
+  border: 1px solid var(--line-hairline);
+  border-radius: var(--radius);
+}
+.next-set .section-label {
+  margin: 0;
+}
+.next-set__figures {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 500;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+.full__foot {
+  margin-top: auto;
+  padding: 14px 0 18px;
+}
+.full__foot .link-row {
+  margin-top: 0;
+}
+
+/* The iPhone Focus guide (docs/10 §8.3): four steps, each ticked off on its check cell. */
+.guide {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 14px var(--gutter) 0;
+  list-style: none;
+}
+.guide__step {
+  display: grid;
+  grid-template-columns: 46px 1fr;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--line-hairline);
+  border-radius: var(--radius);
+}
+.guide__title {
+  margin: 0 0 5px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.guide__path {
+  margin: 0 0 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--accent);
+}
+.guide__text {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+.guide-screen .section-actions {
+  padding-bottom: 10px;
+}
+/* It follows the steps, as the last of them, and is not pushed to the foot of the screen. */
+.guide-screen .footnote {
+  margin-top: 14px;
 }
 
 /* A row that opens another screen of the same thing: the exercise's chart, from its form. */

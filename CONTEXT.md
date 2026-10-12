@@ -121,6 +121,12 @@ _Avoid_: jump, step size
 Estimated one-rep max of the best working set in a workout, by Epley: `weight × (1 + reps / 30)`.
 _Avoid_: 1RM, max (it is an estimate)
 
+**Full screen**:
+The workout screen's second layout: one exercise and one set, with the screen kept awake. Turned on
+by hand in each workout and not remembered (`docs/06`, 2026-10-12).
+_Avoid_: focus mode, focus (Focus is Apple's: the iPhone setting that silences notifications, which
+the app can describe and cannot turn on), distraction-free mode, the browser's fullscreen
+
 ## Offline
 
 **Set store**:

@@ -1,9 +1,18 @@
 import type { Me, WeightUnit } from '@overload/api-contract';
-import { Fragment, useEffect, useId, useRef, useState, type CSSProperties } from 'react';
+import {
+  Fragment,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type CSSProperties,
+  type RefObject,
+} from 'react';
 import { Brief } from '../brief';
 import {
   AppBar,
   CheckIcon,
+  Chevron,
   DataState,
   DeleteConfirm,
   FieldError,
@@ -11,11 +20,13 @@ import {
   Notice,
 } from '../components';
 import { readFigures, type FigureRefusal } from '../figures';
+import { useFocusGuide } from '../focus-guide';
 import { RefusedSet } from '../refused';
 import { keepAwake, playTone, unlockTone } from '../rest-alert';
 import type { SetRecord, StoreRecord, WorkoutExerciseRecord, WorkoutRecord } from '../set-store';
 import { deviceTimezone } from '../timezones';
 import { formatWeight, unitLabel } from '../units';
+import { FocusGuide } from './FocusGuide';
 import {
   completeSet,
   dismissRest,
@@ -35,6 +46,8 @@ import {
 // Screen 1, the live workout (docs/10 §1, docs/09 F3): read mid-set, at arm's length, one-handed.
 // Everything is subordinate to the active set card. It works the same with no signal: a logged set
 // is on the device before it shows here, and the data-state slot counts what has not uploaded yet.
+// Full screen (docs/10 §1) is a second layout of the same screen: what it leaves out is hidden, not
+// unmounted, so entering and leaving it loses nothing that was typed or opened.
 
 type Navigate = (path: string, options?: { replace?: boolean }) => void;
 
@@ -85,7 +98,16 @@ function exerciseToOpen(
   return (next ?? lastLogged ?? exercises[0])?.id;
 }
 
-export function Workout({ me, navigate }: { me: Me; navigate: Navigate }) {
+export function Workout({
+  me,
+  navigate,
+  guide = false,
+}: {
+  me: Me;
+  navigate: Navigate;
+  /** The iPhone Focus guide is open over the workout (`/workout/focus`). */
+  guide?: boolean;
+}) {
   const userId = me.user.id;
   const loaded = useWorkoutStore(
     (state) => recordsLoadedFor(state, userId) || readFailedFor(state, userId),
@@ -93,6 +115,15 @@ export function Workout({ me, navigate }: { me: Me; navigate: Navigate }) {
   const records = useWorkoutStore((state) => recordsOf(state, userId));
   const workout = openWorkout(records);
   const gone = loaded && workout === undefined;
+  const openedGuide = useRef(false);
+  const closeGuide = () => {
+    if (openedGuide.current) {
+      openedGuide.current = false;
+      window.history.back();
+    } else {
+      navigate('/workout', { replace: true });
+    }
+  };
 
   // Nothing in progress, or the workout just finished: Today is where the next one starts.
   useEffect(() => {
@@ -100,15 +131,45 @@ export function Workout({ me, navigate }: { me: Me; navigate: Navigate }) {
   }, [gone, navigate]);
 
   if (workout === undefined) return <AppBar title="Workout" slot={<DataState at={0} />} />;
+  // The guide is read with the workout still running under it: the rest still counts and sounds,
+  // and the set half typed is there on the way back.
   return (
-    <LiveWorkout
-      key={workout.id}
-      workout={workout}
-      records={records}
-      unit={me.profile?.weightUnit ?? 'kg'}
-      timeZone={me.profile?.timezone ?? deviceTimezone()}
-    />
+    <>
+      <div hidden={guide}>
+        <LiveWorkout
+          key={workout.id}
+          workout={workout}
+          records={records}
+          unit={me.profile?.weightUnit ?? 'kg'}
+          timeZone={me.profile?.timezone ?? deviceTimezone()}
+          guideOpen={guide}
+          onGuide={() => {
+            openedGuide.current = true;
+            navigate(GUIDE_PATH);
+          }}
+        />
+      </div>
+      {guide && <FocusGuide onBack={closeGuide} />}
+    </>
   );
+}
+
+const GUIDE_PATH = '/workout/focus';
+
+/** The rest that is on screen: the set it counts from, and its length with what `+30s` added. */
+type CountedRest = { set: SetRecord; total: number };
+
+/** Where a rest stands at `now`. Past zero it is over and `remaining` counts down below it. */
+function readRest(rest: CountedRest, now: number) {
+  const elapsed = (now - new Date(rest.set.row.performedAt).getTime()) / 1000;
+  const remaining = rest.total - elapsed;
+  const over = remaining <= 0;
+  return {
+    remaining,
+    over,
+    fill: over ? 100 : Math.min(100, (elapsed / rest.total) * 100),
+    clock: over ? `+${duration(-remaining)}` : duration(Math.ceil(remaining)),
+  };
 }
 
 function LiveWorkout({
@@ -116,13 +177,21 @@ function LiveWorkout({
   records,
   unit,
   timeZone,
+  guideOpen,
+  onGuide,
 }: {
   workout: WorkoutRecord;
   records: StoreRecord[];
   unit: WeightUnit;
   timeZone: string;
+  guideOpen: boolean;
+  onGuide: () => void;
 }) {
   const exercises = exercisesOf(records, workout.id);
+  // Turned on by hand each workout and not remembered (docs/06, 2026-10-12): it lives here, in a
+  // component keyed by the workout.
+  const [full, setFull] = useState(false);
+  const focusSetUp = useFocusGuide().done;
   const [currentId, setCurrentId] = useState(() => exerciseToOpen(exercises, records, workout.id));
   // Counts the sets logged on this screen, so the card a set promotes knows to bring itself into
   // view and the first card, on opening the screen, does not.
@@ -131,6 +200,48 @@ function LiveWorkout({
   const [finishFailed, setFinishFailed] = useState(false);
   const current = exercises.find((exercise) => exercise.id === currentId) ?? exercises[0];
   const setCount = exercises.reduce((sum, e) => sum + setsOf(records, e.id).length, 0);
+
+  const restState = useWorkoutStore((state) => state.rest);
+  const restSet = records.find(
+    (record): record is SetRecord =>
+      record.table === 'sets' && record.id === restState?.setId && record.workoutId === workout.id,
+  );
+  const rest: CountedRest | undefined =
+    restState === undefined || restSet === undefined || restState.dismissed
+      ? undefined
+      : {
+          set: restSet,
+          total:
+            (exercises.find((exercise) => exercise.id === restSet.row.workoutExerciseId)?.local
+              .restSeconds ?? 0) + restState.extraSeconds,
+        };
+
+  // The control that switches the layout is a different one in each, so focus follows the switch
+  // to its counterpart and the screen starts from its top. Set by the tap only.
+  const enter = useRef<HTMLButtonElement>(null);
+  const exit = useRef<HTMLButtonElement>(null);
+  const switched = useRef(false);
+  const switchTo = (next: boolean) => {
+    switched.current = true;
+    setFull(next);
+  };
+  useEffect(() => {
+    if (!switched.current) return;
+    switched.current = false;
+    window.scrollTo(0, 0);
+    (full ? exit : enter).current?.focus({ preventScroll: true });
+  }, [full]);
+
+  // Back from the guide, focus returns to the row that opened it.
+  const guideLink = useRef<HTMLAnchorElement>(null);
+  const wasInGuide = useRef(guideOpen);
+  useEffect(() => {
+    if (wasInGuide.current && !guideOpen) {
+      window.scrollTo(0, 0);
+      guideLink.current?.focus({ preventScroll: true });
+    }
+    wasInGuide.current = guideOpen;
+  }, [guideOpen]);
 
   const onLogged = (exercise: WorkoutExerciseRecord, isWarmup: boolean) => {
     setLogged((count) => count + 1);
@@ -159,8 +270,12 @@ function LiveWorkout({
   const done = others.filter((exercise) => isComplete(exercise, setsOf(records, exercise.id)));
 
   return (
-    <main className="workout">
-      <WorkoutBar workout={workout} />
+    <main className={full ? 'full' : 'workout'}>
+      {full ? (
+        <FullBar workout={workout} exit={exit} onExit={() => switchTo(false)} />
+      ) : (
+        <WorkoutBar workout={workout} />
+      )}
 
       {current === undefined ? (
         <p className="empty">This routine has no exercises. Finish, then add some to it.</p>
@@ -175,10 +290,12 @@ function LiveWorkout({
           timeZone={timeZone}
           scrollIntoView={logged > 0}
           onLogged={(isWarmup) => onLogged(current, isWarmup)}
+          full={full}
+          rest={rest}
         />
       )}
 
-      {upNext.length > 0 && (
+      {!full && upNext.length > 0 && (
         <ExerciseList
           label="Up next"
           exercises={upNext}
@@ -186,7 +303,7 @@ function LiveWorkout({
           onOpen={(id) => setCurrentId(id)}
         />
       )}
-      {done.length > 0 && (
+      {!full && done.length > 0 && (
         <ExerciseList
           label="Done"
           exercises={done}
@@ -195,7 +312,7 @@ function LiveWorkout({
         />
       )}
 
-      <div className="workout__finish">
+      <div className="workout__finish" hidden={full}>
         {finishFailed && (
           <Notice tone="flag" word="Not finished">
             Couldn’t save that on this device. Try again.
@@ -215,9 +332,67 @@ function LiveWorkout({
         />
       </div>
 
-      <RestBar workout={workout} records={records} current={current} />
+      {full ? (
+        <div className="full__foot">
+          <a
+            ref={guideLink}
+            href={GUIDE_PATH}
+            className="link-row"
+            onClick={(event) => {
+              event.preventDefault();
+              onGuide();
+            }}
+          >
+            <span>
+              <span className="link-row__name">
+                {focusSetUp ? 'iPhone Focus: set up' : 'Calls and messages can still interrupt'}
+              </span>
+              <span className="link-row__meta">
+                {focusSetUp
+                  ? 'Open the guide again'
+                  : 'Set up an iPhone Focus that lets only chosen people through'}
+              </span>
+            </span>
+            <Chevron direction="forward" />
+          </a>
+        </div>
+      ) : (
+        <RestBar
+          rest={rest}
+          records={records}
+          current={current}
+          enter={enter}
+          onFull={() => switchTo(true)}
+        />
+      )}
+      <RestAlert rest={rest} awake={full} />
     </main>
   );
+}
+
+/**
+ * What a rest does besides show: the tone as it reaches zero, and the screen kept awake. Awake for
+ * the length of the rest, and in full screen for the whole workout (docs/06, 2026-10-12). It has no
+ * view of its own, so neither stops when the layout or the screen on top changes.
+ */
+function RestAlert({ rest, awake }: { rest: CountedRest | undefined; awake: boolean }) {
+  const now = useNow();
+  const remaining = rest === undefined ? undefined : readRest(rest, now).remaining;
+  const resting = remaining !== undefined && remaining > 0;
+  const over = remaining !== undefined && remaining <= 0;
+
+  // The tone, once, as the count reaches zero while the app is on screen.
+  const wasResting = useRef(false);
+  useEffect(() => {
+    if (wasResting.current && over && remaining > -2) playTone();
+    wasResting.current = resting;
+  }, [resting, over, remaining]);
+
+  // Where the browser allows it.
+  const lit = resting || awake;
+  useEffect(() => (lit ? keepAwake() : undefined), [lit]);
+
+  return null;
 }
 
 /** The app bar, with the elapsed time ticking under the routine's name. It stays put (§7.3). */
@@ -235,6 +410,31 @@ function WorkoutBar({ workout }: { workout: WorkoutRecord }) {
   );
 }
 
+/** Full screen's bar: the same name and elapsed time, and the way out in place of the slot. */
+function FullBar({
+  workout,
+  exit,
+  onExit,
+}: {
+  workout: WorkoutRecord;
+  exit: RefObject<HTMLButtonElement | null>;
+  onExit: () => void;
+}) {
+  const now = useNow();
+  const elapsed = (now - new Date(workout.row.startedAt).getTime()) / 1000;
+  return (
+    <header className="full__bar">
+      <div className="full__lead">
+        <h1 className="app-bar__title">{workout.row.name}</h1>
+        <div className="app-bar__subline">{duration(elapsed)} elapsed</div>
+      </div>
+      <button ref={exit} type="button" className="button button--tertiary" onClick={onExit}>
+        Exit full screen
+      </button>
+    </header>
+  );
+}
+
 const range = (exercise: WorkoutExerciseRecord) =>
   exercise.row.repLow === exercise.row.repHigh
     ? String(exercise.row.repLow)
@@ -242,7 +442,9 @@ const range = (exercise: WorkoutExerciseRecord) =>
 
 /**
  * The current exercise: its header, last time and today's target in words, warm-ups, completed
- * sets and the active set card.
+ * sets and the active set card. In full screen it is one exercise and one set: the count under the
+ * name, the compact block and the card, or, while a rest is on screen, the countdown and the set
+ * that comes next.
  */
 function ExerciseBlock({
   exercise,
@@ -253,6 +455,8 @@ function ExerciseBlock({
   timeZone,
   scrollIntoView,
   onLogged,
+  full,
+  rest,
 }: {
   exercise: WorkoutExerciseRecord;
   position: number;
@@ -262,6 +466,8 @@ function ExerciseBlock({
   timeZone: string;
   scrollIntoView: boolean;
   onLogged: (isWarmup: boolean) => void;
+  full: boolean;
+  rest: CountedRest | undefined;
 }) {
   // A refused warm-up leaves the summary for the table, where it can be acted on.
   const warmups = sets.filter((set) => set.row.isWarmup && !isRefused(set));
@@ -271,6 +477,9 @@ function ExerciseBlock({
   const name = useRef<HTMLHeadingElement>(null);
   const figures = (set: { weightKg: number; reps: number }) =>
     `${formatWeight(set.weightKg, unit)} × ${set.reps}`;
+  const target = exercise.row.targetSets;
+  const next = setLabel(completed.length + 1, target);
+  const hero = full ? rest : undefined;
 
   return (
     <section aria-labelledby={heading}>
@@ -278,18 +487,32 @@ function ExerciseBlock({
         <h2 ref={name} id={heading} className="exercise-head__name" tabIndex={-1}>
           {exercise.local.name}
         </h2>
-        <span className="exercise-head__meta">
-          <span className="visually-hidden">Exercise </span>
-          {position} OF {count}
-        </span>
+        {!full && (
+          <span className="exercise-head__meta">
+            <span className="visually-hidden">Exercise </span>
+            {position} OF {count}
+          </span>
+        )}
       </div>
+      {full && (
+        <p className="full__count">
+          Exercise {position} of {count} ·{' '}
+          {target === null
+            ? `${completed.length} ${completed.length === 1 ? 'set' : 'sets'} done`
+            : `${completed.length} of ${target} sets done`}
+        </p>
+      )}
 
-      <Brief exercise={exercise} unit={unit} timeZone={timeZone} />
+      {hero === undefined ? (
+        <Brief exercise={exercise} unit={unit} timeZone={timeZone} compact={full} />
+      ) : (
+        <RestHero rest={hero} next={next} />
+      )}
 
-      {warmups.length > 0 && <Warmups sets={warmups} figures={figures} unit={unit} />}
+      {warmups.length > 0 && <Warmups sets={warmups} figures={figures} unit={unit} hidden={full} />}
 
       {rows.length > 0 && (
-        <table className="sets" aria-label={`${exercise.local.name}, completed sets`}>
+        <table className="sets" aria-label={`${exercise.local.name}, completed sets`} hidden={full}>
           <thead>
             <tr className="sets__row sets__row--head">
               <th scope="col">Set</th>
@@ -373,6 +596,7 @@ function ExerciseBlock({
         unit={unit}
         scrollIntoView={scrollIntoView}
         onLogged={onLogged}
+        asNext={hero !== undefined}
       />
     </section>
   );
@@ -383,15 +607,17 @@ function Warmups({
   sets,
   figures,
   unit,
+  hidden,
 }: {
   sets: SetRecord[];
   figures: (set: { weightKg: number; reps: number }) => string;
   unit: WeightUnit;
+  hidden: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const list = useId();
   return (
-    <div className="warmups">
+    <div className="warmups" hidden={hidden}>
       <button
         type="button"
         className="warmups__summary"
@@ -441,6 +667,9 @@ function setLabel(number: number, target: number | null) {
  * values the user edits or clears, so a set repeated is one tap. A warm-up is not that set again:
  * with the toggle on, reps and RIR left as they opened are empty. What is typed is never
  * overwritten (S3).
+ *
+ * With `asNext`, full screen's rest is on screen: the card is hidden and the same figures, as they
+ * stand, are shown as the set that comes next (docs/05 §4.20).
  */
 function ActiveSet({
   exercise,
@@ -448,12 +677,14 @@ function ActiveSet({
   unit,
   scrollIntoView,
   onLogged,
+  asNext,
 }: {
   exercise: WorkoutExerciseRecord;
   completed: SetRecord[];
   unit: WeightUnit;
   scrollIntoView: boolean;
   onLogged: (isWarmup: boolean) => void;
+  asNext: boolean;
 }) {
   const { lastTime, lastTimeKnown, suggestion, bodyweight } = exercise.local;
   const number = completed.length + 1;
@@ -482,7 +713,14 @@ function ActiveSet({
   const [saving, setSaving] = useState(false);
   const [refusal, setRefusal] = useState<FigureRefusal>();
   const card = useRef<HTMLElement>(null);
-  const ids = { kg: useId(), reps: useId(), rir: useId(), error: useId(), label: useId() };
+  const ids = {
+    kg: useId(),
+    reps: useId(),
+    rir: useId(),
+    error: useId(),
+    label: useId(),
+    next: useId(),
+  };
 
   // The card a completed set promotes comes into view and takes focus, so the next thing read and
   // reached is the next set (docs/10 §7.3). `nearest` moves nothing when it is already in view.
@@ -492,6 +730,13 @@ function ActiveSet({
     const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     card.current?.scrollIntoView({ block: 'nearest', behavior: calm ? 'auto' : 'smooth' });
   }, [scrollIntoView]);
+
+  // Full screen's rest gives the screen back to the card, which takes focus as it does after a set.
+  const wasNext = useRef(asNext);
+  useEffect(() => {
+    if (wasNext.current && !asNext) card.current?.focus({ preventScroll: true });
+    wasNext.current = asNext;
+  }, [asNext]);
 
   const complete = async () => {
     // The tap that completes a set is the gesture that lets the rest tone play (docs/03 §11).
@@ -514,87 +759,123 @@ function ActiveSet({
     }
   };
 
+  const unitWord = unitLabel(unit).toLowerCase();
+  const nextWeight =
+    kg.trim() === ''
+      ? bodyweight
+        ? 'Bodyweight'
+        : 'Find your weight'
+      : bodyweight && Number(kg.replace(',', '.')) === 0
+        ? 'Bodyweight'
+        : // A no-break space: the figure and its unit never part at the end of a line.
+          `${kg.trim()}\u00a0${unitWord}`;
+
   return (
-    <section ref={card} className="active-set" aria-labelledby={ids.label} tabIndex={-1}>
-      <div className="active-set__label-row">
-        <span id={ids.label} className="active-set__label">
-          {warm ? 'WARM-UP' : setLabel(number, exercise.row.targetSets)}
-        </span>
-        {last !== undefined && !warm && (
-          <span className="active-set__last">
-            <span className="active-set__last-word">LAST TIME</span>
-            {formatWeight(last.weightKg, unit)} × {last.reps}
-          </span>
-        )}
-        {lastTime.length === 0 && lastTimeKnown && (
-          <span className="active-set__last-word">FIRST WORKOUT</span>
-        )}
-      </div>
-
-      <div className="active-set__figures">
-        <Figure
-          id={ids.kg}
-          name="weight"
-          label={unitLabel(unit)}
-          spoken={unit === 'lb' ? 'Weight in pounds' : 'Weight in kilograms'}
-          value={kg}
-          onChange={setKg}
-          placeholder="—"
-          decimal
-          describedBy={refusal?.field === 'kg' ? ids.error : undefined}
-        />
-        <Figure
-          id={ids.reps}
-          name="reps"
-          label="REPS"
-          spoken="Reps"
-          value={reps}
-          onChange={(value) => setTyped({ ...typed, reps: value })}
-          placeholder="—"
-          describedBy={refusal?.field === 'reps' ? ids.error : undefined}
-        />
-        <Figure
-          id={ids.rir}
-          name="rir"
-          label="RIR"
-          spoken="Reps in reserve, optional"
-          value={rir}
-          onChange={(value) => setTyped({ ...typed, rir: value })}
-          placeholder="—"
-          describedBy={refusal?.field === 'rir' ? ids.error : undefined}
-        />
-      </div>
-
-      <RirHelp />
-
-      {refusal !== undefined && (
-        <div role="alert">
-          <FieldError id={ids.error} message={refusal.message} />
-        </div>
+    <>
+      {asNext && (
+        <section className="next-set" aria-labelledby={ids.next}>
+          <h3 id={ids.next} className="section-label">
+            Next · {setLabel(number, exercise.row.targetSets)}
+          </h3>
+          <div className="next-set__figures">
+            {nextWeight} × {reps.trim() || range(exercise)}
+          </div>
+          <div className="brief__when">
+            {last !== undefined
+              ? `Last time ${formatWeight(last.weightKg, unit)} × ${last.reps}`
+              : lastTime.length > 0
+                ? 'No matching set last time'
+                : lastTimeKnown && 'First workout of this exercise'}
+          </div>
+        </section>
       )}
+      <section
+        ref={card}
+        className="active-set"
+        aria-labelledby={ids.label}
+        tabIndex={-1}
+        hidden={asNext}
+      >
+        <div className="active-set__label-row">
+          <span id={ids.label} className="active-set__label">
+            {warm ? 'WARM-UP' : setLabel(number, exercise.row.targetSets)}
+          </span>
+          {last !== undefined && !warm && (
+            <span className="active-set__last">
+              <span className="active-set__last-word">LAST TIME</span>
+              {formatWeight(last.weightKg, unit)} × {last.reps}
+            </span>
+          )}
+          {lastTime.length === 0 && lastTimeKnown && (
+            <span className="active-set__last-word">FIRST WORKOUT</span>
+          )}
+        </div>
 
-      <div className="active-set__actions">
-        <button
-          type="button"
-          className="active-set__warm"
-          aria-pressed={warm}
-          onClick={() => setWarm(!warm)}
-        >
-          <span aria-hidden="true">WARM</span>
-          <span className="visually-hidden">Warm-up set</span>
-        </button>
-        <button
-          type="button"
-          className="button button--primary active-set__complete"
-          // One set per tap: the control waits for the write to the device (docs/09 F3).
-          disabled={saving}
-          onClick={() => void complete()}
-        >
-          <CheckIcon size={22} color="currentColor" />
-          Complete set
-        </button>
-      </div>
-    </section>
+        <div className="active-set__figures">
+          <Figure
+            id={ids.kg}
+            name="weight"
+            label={unitLabel(unit)}
+            spoken={unit === 'lb' ? 'Weight in pounds' : 'Weight in kilograms'}
+            value={kg}
+            onChange={setKg}
+            placeholder="—"
+            decimal
+            describedBy={refusal?.field === 'kg' ? ids.error : undefined}
+          />
+          <Figure
+            id={ids.reps}
+            name="reps"
+            label="REPS"
+            spoken="Reps"
+            value={reps}
+            onChange={(value) => setTyped({ ...typed, reps: value })}
+            placeholder="—"
+            describedBy={refusal?.field === 'reps' ? ids.error : undefined}
+          />
+          <Figure
+            id={ids.rir}
+            name="rir"
+            label="RIR"
+            spoken="Reps in reserve, optional"
+            value={rir}
+            onChange={(value) => setTyped({ ...typed, rir: value })}
+            placeholder="—"
+            describedBy={refusal?.field === 'rir' ? ids.error : undefined}
+          />
+        </div>
+
+        <RirHelp />
+
+        {refusal !== undefined && (
+          <div role="alert">
+            <FieldError id={ids.error} message={refusal.message} />
+          </div>
+        )}
+
+        <div className="active-set__actions">
+          <button
+            type="button"
+            className="active-set__warm"
+            aria-pressed={warm}
+            onClick={() => setWarm(!warm)}
+          >
+            <span aria-hidden="true">WARM</span>
+            <span className="visually-hidden">Warm-up set</span>
+          </button>
+          <button
+            type="button"
+            className="button button--primary active-set__complete"
+            // One set per tap: the control waits for the write to the device (docs/09 F3).
+            disabled={saving}
+            onClick={() => void complete()}
+          >
+            <CheckIcon size={22} color="currentColor" />
+            Complete set
+          </button>
+        </div>
+      </section>
+    </>
   );
 }
 
@@ -751,45 +1032,25 @@ function ExerciseList({
 /**
  * The rest bar (docs/05 §4.14), pinned to the bottom for the whole workout: with no rest counting
  * it says the timer starts by itself. Rest counts from the last set's `performedAt`, so a locked
- * phone or a relaunch does not stop it (docs/09 F3). At zero it plays the tone, turns to the accent
- * and counts over until dismissed or the next set (docs/06, 2026-10-03).
+ * phone or a relaunch does not stop it (docs/09 F3). At zero it turns to the accent and counts over
+ * until dismissed or the next set (docs/06, 2026-10-03). `FULL SCREEN` is always on it.
  */
 function RestBar({
-  workout,
+  rest,
   records,
   current,
+  enter,
+  onFull,
 }: {
-  workout: WorkoutRecord;
+  rest: CountedRest | undefined;
   records: StoreRecord[];
   current: WorkoutExerciseRecord | undefined;
+  enter: RefObject<HTMLButtonElement | null>;
+  onFull: () => void;
 }) {
   const now = useNow();
-  const rest = useWorkoutStore((state) => state.rest);
-  const set = records.find(
-    (record): record is SetRecord =>
-      record.table === 'sets' && record.id === rest?.setId && record.workoutId === workout.id,
-  );
-  const exercise = exercisesOf(records, workout.id).find(
-    (candidate) => candidate.id === set?.row.workoutExerciseId,
-  );
-  const total = (exercise?.local.restSeconds ?? 0) + (rest?.extraSeconds ?? 0);
-  const elapsed = set === undefined ? 0 : (now - new Date(set.row.performedAt).getTime()) / 1000;
-  const remaining = total - elapsed;
-  const shown = rest !== undefined && set !== undefined && !rest.dismissed;
-  const resting = shown && remaining > 0;
-  const over = shown && remaining <= 0;
 
-  // The tone, once, as the count reaches zero while the app is on screen.
-  const wasResting = useRef(false);
-  useEffect(() => {
-    if (wasResting.current && over && remaining > -2) playTone();
-    wasResting.current = resting;
-  }, [resting, over, remaining]);
-
-  // The screen stays awake for the length of the rest, where the browser allows it.
-  useEffect(() => (resting ? keepAwake() : undefined), [resting]);
-
-  if (!shown) {
+  if (rest === undefined) {
     const seconds = current?.local.restSeconds;
     return (
       <section className="rest-bar" aria-label="Rest timer">
@@ -809,10 +1070,21 @@ function RestBar({
               )}
             </div>
           </div>
+          <div className="rest-bar__actions">
+            <button
+              ref={enter}
+              type="button"
+              className="rest-bar__full rest-bar__full--wide"
+              onClick={onFull}
+            >
+              Full screen
+            </button>
+          </div>
         </div>
       </section>
     );
   }
+  const { over, fill, clock } = readRest(rest, now);
   const next =
     current === undefined
       ? ''
@@ -820,10 +1092,7 @@ function RestBar({
   return (
     <section className={over ? 'rest-bar rest-bar--over' : 'rest-bar'} aria-label="Rest timer">
       <div className="rest-bar__track">
-        <div
-          className="rest-bar__fill"
-          style={{ width: `${over ? 100 : Math.min(100, (elapsed / total) * 100)}%` }}
-        />
+        <div className="rest-bar__fill" style={{ width: `${fill}%` }} />
       </div>
       <div className="rest-bar__body">
         <div>
@@ -832,27 +1101,91 @@ function RestBar({
             {next}
           </div>
           <div className="rest-bar__timer" role="timer">
-            {over ? `+${duration(-remaining)}` : duration(Math.ceil(remaining))}
+            {clock}
           </div>
         </div>
         <output className="visually-hidden">{over ? 'Rest over' : ''}</output>
         <div className="rest-bar__actions">
-          {resting && (
+          <button ref={enter} type="button" className="rest-bar__full" onClick={onFull}>
+            Full <br />
+            screen
+          </button>
+          {!over && (
             <button
               type="button"
               className="rest-bar__extend"
-              onClick={() => extendRest(set.id, 30)}
+              onClick={() => extendRest(rest.set.id, 30)}
             >
               +30s
               <span className="visually-hidden"> rest</span>
             </button>
           )}
-          <button type="button" className="rest-bar__skip" onClick={() => dismissRest(set.id)}>
+          <button type="button" className="rest-bar__skip" onClick={() => dismissRest(rest.set.id)}>
             {over ? 'DISMISS' : 'SKIP'}
             <span className="visually-hidden"> rest</span>
           </button>
         </div>
       </div>
+    </section>
+  );
+}
+
+/**
+ * Full screen's rest (docs/05 §4.20): the countdown is the one large figure on the screen, at 56px,
+ * with the same track and the same two answers as the bar. It takes focus as it replaces the card
+ * whose `Complete set` was just tapped.
+ */
+function RestHero({ rest, next }: { rest: CountedRest; next: string }) {
+  const now = useNow();
+  const { over, fill, clock } = readRest(rest, now);
+  const hero = useRef<HTMLElement>(null);
+  useEffect(() => hero.current?.focus(), []);
+  return (
+    <section
+      ref={hero}
+      className={over ? 'rest-hero rest-hero--over' : 'rest-hero'}
+      aria-label="Rest timer"
+      tabIndex={-1}
+    >
+      <div>
+        <div className="rest-bar__label">{over ? 'REST OVER' : 'REST'}</div>
+        <div className="rest-hero__timer" role="timer">
+          {clock}
+        </div>
+      </div>
+      <output className="visually-hidden">{over ? 'Rest over' : ''}</output>
+      <div className="rest-bar__track">
+        <div className="rest-bar__fill" style={{ width: `${fill}%` }} />
+      </div>
+      {over ? (
+        <div className="rest-hero__actions rest-hero__actions--one">
+          <button
+            type="button"
+            className="button button--primary"
+            onClick={() => dismissRest(rest.set.id)}
+          >
+            Start {next.toLowerCase()}
+          </button>
+        </div>
+      ) : (
+        <div className="rest-hero__actions">
+          <button
+            type="button"
+            className="button button--secondary"
+            onClick={() => extendRest(rest.set.id, 30)}
+          >
+            +30s
+            <span className="visually-hidden"> rest</span>
+          </button>
+          <button
+            type="button"
+            className="button button--primary"
+            onClick={() => dismissRest(rest.set.id)}
+          >
+            Skip rest
+          </button>
+        </div>
+      )}
     </section>
   );
 }

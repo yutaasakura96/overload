@@ -3,6 +3,13 @@ import { apiFixture, chooseTimezone } from './fixture';
 
 type Cookies = Parameters<import('@playwright/test').BrowserContext['addCookies']>[0];
 
+declare global {
+  interface Window {
+    /** The wake locks `countWakeLocks` has granted and not yet seen released. */
+    heldWakeLocks?: { count: number };
+  }
+}
+
 type StoredWorkout = {
   name: string;
   routineId: string | null;
@@ -718,6 +725,264 @@ test('leaving the app and coming back keeps the workout screen as it was', async
   await page.getByRole('button', { name: 'Complete set' }).click();
   await expect(page.getByRole('button', { name: /1 WARM-UP SET/ })).toBeVisible();
   await finish(page);
+});
+
+// Counts the screen wake locks held, since a headless browser grants none of its own.
+async function countWakeLocks(page: Page) {
+  await page.addInitScript(() => {
+    const held = { count: 0 };
+    window.heldWakeLocks = held;
+    Object.defineProperty(navigator, 'wakeLock', {
+      configurable: true,
+      value: {
+        request: () => {
+          held.count += 1;
+          let released = false;
+          return Promise.resolve({
+            release: () => {
+              if (!released) held.count -= 1;
+              released = true;
+              return Promise.resolve();
+            },
+          });
+        },
+      },
+    });
+  });
+  return () => page.evaluate(() => window.heldWakeLocks?.count);
+}
+
+async function setRest(page: Page, exercise: string, seconds: string) {
+  await page.goto('/exercises');
+  await page.getByRole('link', { name: new RegExp(`^${exercise}`) }).click();
+  await page.getByRole('textbox', { name: /Rest/ }).fill(seconds);
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page).toHaveURL('/exercises');
+}
+
+test.describe('full screen', () => {
+  test('is one exercise and one set, entered and left without losing anything, with the screen kept awake', async ({
+    page,
+  }) => {
+    const name = `Full ${Date.now()}`;
+    await page.clock.install();
+    const wakeLocks = await countWakeLocks(page);
+    await saveProfile(page, 'Kilograms');
+    await setRest(page, 'Cable Lat Pulldown', '120');
+    await createRoutine(page, name, ['Cable Lat Pulldown', 'Seated Cable Row']);
+    await page.getByRole('button', { name: 'Create routine' }).click();
+    await expect(page).toHaveURL('/routines');
+    await start(page, name);
+
+    // A set half typed and the RIR guide open, before the layout changes.
+    const rest = page.getByRole('region', { name: 'Rest timer' });
+    const weight = page.getByRole('textbox', { name: 'Weight in kilograms' });
+    const reps = page.getByRole('textbox', { name: 'Reps', exact: true });
+    await weight.fill('47.5');
+    await reps.fill('9');
+    await page.getByRole('button', { name: 'How to gauge it' }).click();
+    await expect(rest).toContainText('Starts by itself after each set: 2:00');
+    // No rest counts, so nothing keeps the screen awake yet.
+    expect(await wakeLocks()).toBe(0);
+
+    // Turned on by hand, from the rest bar.
+    await rest.getByRole('button', { name: 'Full screen' }).click();
+    const exit = page.getByRole('button', { name: 'Exit full screen' });
+    await expect(exit).toBeFocused();
+    await expect(page.getByRole('heading', { name: name, level: 1 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Cable Lat Pulldown', level: 2 })).toBeVisible();
+    await expect(page.getByText('Exercise 1 of 2 · 0 of 3 sets done')).toBeVisible();
+    // One exercise, one set: the rest bar, the other exercises, Finish and the data-state slot go.
+    await expect(rest).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'Up next' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Finish workout' })).toBeHidden();
+    await expect(dataState(page)).toHaveCount(0);
+    // The block keeps its figures and drops the sentence the figures already say.
+    await expect(brief(page)).toContainText('Last timeNone yet');
+    await expect(brief(page)).toContainText('Find your weight × ');
+    await expect(brief(page)).not.toContainText('This is your first time logging');
+    // What was typed and opened is as it was.
+    await expect(weight).toHaveValue('47.5');
+    await expect(reps).toHaveValue('9');
+    await expect(page.getByText('Could not do another')).toBeVisible();
+    // On, it keeps the screen awake with no rest counting.
+    await expect.poll(wakeLocks).toBe(1);
+
+    // A set: the rest takes the screen, its countdown the one large figure, the next set under it.
+    await page.getByRole('button', { name: 'Complete set' }).click();
+    await expect(rest).toBeFocused();
+    await expect(rest.getByRole('timer')).toHaveText(/^(2:00|1:5\d)$/);
+    await expect(rest.getByRole('timer')).toHaveCSS('font-size', '56px');
+    await expect(page.getByText('Exercise 1 of 2 · 1 of 3 sets done')).toBeVisible();
+    const next = page.getByRole('region', { name: 'Next · SET 2 OF 3' });
+    await expect(next).toContainText('47.5\u00a0kg × 9');
+    await expect(next).toContainText('First workout of this exercise');
+    await expect(page.getByRole('button', { name: 'Complete set' })).toBeHidden();
+    await expect(brief(page)).toHaveCount(0);
+    await rest.getByRole('button', { name: '+30s rest' }).click();
+    await expect(rest.getByRole('timer')).toHaveText(/^2:[23]\d$/);
+    await expect.poll(wakeLocks).toBe(1);
+
+    // Left mid-rest: the same rest is on the bar, and the logged set is in its table.
+    await exit.click();
+    await expect(rest.getByRole('button', { name: 'Full screen' })).toBeFocused();
+    await expect(rest).toContainText('REST · NEXT: SET 2 OF 3');
+    await expect(rest.getByRole('timer')).toHaveText(/^2:[23]\d$/);
+    await expect(rest.getByRole('timer')).toHaveCSS('font-size', '42px');
+    await expect(page.getByRole('row', { name: /^1 47\.5 9/ })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Up next' })).toBeVisible();
+    await expect(dataState(page)).toContainText('SYNCED');
+    // Out of full screen the screen is kept awake for the rest only.
+    await expect.poll(wakeLocks).toBe(1);
+    await rest.getByRole('button', { name: 'Skip rest' }).click();
+    await expect.poll(wakeLocks).toBe(0);
+
+    // Back in, a rest that runs out: it counts over in place and one control starts the set.
+    await reps.fill('8');
+    await rest.getByRole('button', { name: 'Full screen' }).click();
+    await page.getByRole('button', { name: 'Complete set' }).click();
+    await expect(rest.getByRole('timer')).toHaveText(/^(2:00|1:5\d)$/);
+    await page.clock.fastForward('02:03');
+    await expect(rest).toContainText('REST OVER');
+    await expect(rest.getByRole('timer')).toHaveText(/^\+0:0\d$/);
+    await expect(rest.getByRole('button', { name: '+30s rest' })).toHaveCount(0);
+    await rest.getByRole('button', { name: 'Start set 3 of 3' }).click();
+    await expect(rest).toHaveCount(0);
+    await expect(page.getByRole('region', { name: 'SET 3 OF 3' })).toBeFocused();
+    await expect(reps).toHaveValue('8');
+    // Still on with no rest counting: still awake.
+    await expect.poll(wakeLocks).toBe(1);
+
+    // The set that reaches the target moves on to the next exercise, as outside full screen.
+    await page.getByRole('button', { name: 'Complete set' }).click();
+    await expect(page.getByRole('heading', { name: 'Seated Cable Row', level: 2 })).toBeVisible();
+    await expect(page.getByText('Exercise 2 of 2 · 0 of 3 sets done')).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Next · SET 1 OF 3' })).toBeVisible();
+
+    await exit.click();
+    await rest.getByRole('button', { name: 'Skip rest' }).click();
+    await expect.poll(wakeLocks).toBe(0);
+    await expect(
+      page.getByRole('button', { name: /Cable Lat Pulldown.*3 sets done of 3/ }),
+    ).toBeVisible();
+    await expect.poll(() => stored().at(-1)?.exercises[0]?.sets.length).toBe(3);
+
+    // Not remembered: the screen opens again in its usual layout.
+    await page.reload();
+    await expect(rest.getByRole('button', { name: 'Full screen' })).toBeVisible();
+    await expect(exit).toHaveCount(0);
+    await finish(page);
+  });
+
+  test('the iPhone Focus guide opens over the workout and keeps what is done on the device', async ({
+    page,
+  }) => {
+    const name = `Guide ${Date.now()}`;
+    await page.clock.install();
+    await saveProfile(page, 'Kilograms');
+    await setRest(page, 'Machine Leg Extension', '120');
+    await createRoutine(page, name, ['Machine Leg Extension']);
+    await page.getByRole('button', { name: 'Create routine' }).click();
+    await expect(page).toHaveURL('/routines');
+    await start(page, name);
+
+    const rest = page.getByRole('region', { name: 'Rest timer' });
+    const weight = page.getByRole('textbox', { name: 'Weight in kilograms' });
+    await completeSet(page, { weight: '40', reps: '12' });
+    await rest.getByRole('button', { name: 'Skip rest' }).click();
+    await weight.fill('42.5');
+    await rest.getByRole('button', { name: 'Full screen' }).click();
+
+    // The way to it is at the foot of full screen, and says why it is there.
+    const link = page.getByRole('link', { name: /Calls and messages can still interrupt/ });
+    await expect(link).toContainText('Set up an iPhone Focus that lets only chosen people through');
+    await link.click();
+    await expect(page).toHaveURL('/workout/focus');
+    await expect(page.getByRole('heading', { name: 'iPhone Focus', level: 1 })).toBeVisible();
+    await expect(page.getByRole('main')).toBeFocused();
+    await expect(page.getByRole('main')).toContainText(
+      'A web app cannot turn a Focus on, or stop you opening other apps.',
+    );
+    await expect(page.getByRole('heading', { level: 2 })).toHaveText([
+      '1. Create the Focus',
+      '2. Choose who can reach you',
+      '3. Choose which apps can notify',
+      '4. Have it turn on at the gym',
+    ]);
+    await expect(page.getByRole('listitem').first()).toContainText(
+      'Settings › Focus › Add › Custom',
+    );
+    await expect(page.getByText('Steps from Apple’s iPhone User Guide, iOS 27')).toBeVisible();
+    await expect(page.getByText('checked 10 Oct 2026')).toBeVisible();
+    // The workout is under it, not on screen.
+    await expect(page.getByRole('button', { name: 'Complete set' })).toBeHidden();
+
+    // A step is ticked on its check cell.
+    const first = page.getByRole('button', { name: 'Step 1 done' });
+    const third = page.getByRole('button', { name: 'Step 3 done' });
+    await expect(first).toHaveAttribute('aria-pressed', 'false');
+    await first.click();
+    await third.click();
+    await expect(first).toHaveAttribute('aria-pressed', 'true');
+    await expect(third).toHaveAttribute('aria-pressed', 'true');
+    await third.click();
+    await expect(third).toHaveAttribute('aria-pressed', 'false');
+
+    // Back: full screen is still on, with the set as it was typed.
+    await page.getByRole('button', { name: 'Back to the workout' }).click();
+    await expect(page).toHaveURL('/workout');
+    await expect(link).toBeFocused();
+    await expect(page.getByRole('button', { name: 'Exit full screen' })).toBeVisible();
+    await expect(weight).toHaveValue('42.5');
+    await page.goBack();
+    await expect(page).toHaveURL('/');
+    await page.goForward();
+    await expect(page).toHaveURL('/workout');
+    await expect(rest.getByRole('button', { name: 'Full screen' })).toBeVisible();
+    await rest.getByRole('button', { name: 'Full screen' }).click();
+
+    await link.click();
+    await page.getByRole('button', { name: 'I have set it up' }).click();
+    await expect(page).toHaveURL('/workout');
+    await page.goBack();
+    await expect(page).toHaveURL('/');
+    await page.goForward();
+    await expect(page).toHaveURL('/workout');
+    await expect(rest.getByRole('button', { name: 'Full screen' })).toBeVisible();
+    await rest.getByRole('button', { name: 'Full screen' }).click();
+
+    // The ticks are kept on the device, across a relaunch.
+    await page.getByRole('link', { name: /iPhone Focus: set up/ }).click();
+    await page.reload();
+    await expect(first).toHaveAttribute('aria-pressed', 'true');
+    await expect(third).toHaveAttribute('aria-pressed', 'false');
+    await page.getByRole('button', { name: 'I have set it up' }).click();
+    await expect(page).toHaveURL('/workout');
+    await page.goBack();
+    await expect(page).toHaveURL('/workout');
+    await page.goForward();
+    await expect(page).toHaveURL('/workout');
+
+    // Done is kept too: full screen's row now says so, and still opens the guide.
+    await rest.getByRole('button', { name: 'Full screen' }).click();
+    const again = page.getByRole('link', { name: /iPhone Focus: set up/ });
+    await expect(again).toContainText('Open the guide again');
+    await page.reload();
+    await rest.getByRole('button', { name: 'Full screen' }).click();
+    await expect(again).toBeVisible();
+    await again.click();
+    await expect(first).toHaveAttribute('aria-pressed', 'true');
+    // The browser's own back closes it as the chevron does.
+    await page.goBack();
+    await expect(page).toHaveURL('/workout');
+    await expect(page.getByRole('button', { name: 'Exit full screen' })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Exit full screen' }).click();
+    await finish(page);
+    // With no workout open there is nothing for the guide to open over.
+    await page.goto('/workout/focus');
+    await expect(page).toHaveURL('/');
+  });
 });
 
 test('finishing after deleting the routine keeps the workout on the server', async ({ page }) => {
