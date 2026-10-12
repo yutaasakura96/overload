@@ -126,16 +126,13 @@ export function Workout({
       navigate('/workout', { replace: true });
     }
   };
-  // The workout Finish was tapped on, when it logged a set and so is kept.
-  const finished = useRef<string>(undefined);
+  // Finish was tapped and has not answered: where it leaves for is its own to say.
+  const [finishing, setFinishing] = useState(false);
 
-  // A workout just finished opens its page in History, which is its summary (docs/09 F3 step 5).
-  // With nothing in progress, or nothing kept, Today is where the next one starts.
+  // With nothing in progress, Today is where the next one starts.
   useEffect(() => {
-    if (!gone) return;
-    if (finished.current === undefined) navigate('/', { replace: true });
-    else navigate(`/workouts/${finished.current}`, { replace: true, note: 'finished' });
-  }, [gone, navigate]);
+    if (gone && !finishing) navigate('/', { replace: true });
+  }, [gone, finishing, navigate]);
 
   if (workout === undefined) return <AppBar title="Workout" slot={<DataState at={0} />} />;
   // The guide is read with the workout still running under it: the rest still counts and sounds,
@@ -154,8 +151,16 @@ export function Workout({
             openedGuide.current = true;
             navigate(GUIDE_PATH);
           }}
-          onFinish={(kept) => {
-            finished.current = kept ? workout.id : undefined;
+          onFinish={(result) => {
+            setFinishing(true);
+            // A workout just finished opens its page in History, which is its summary (docs/09 F3
+            // step 5). One with nothing kept leaves for Today.
+            void result.then((kept) => {
+              if (kept === undefined) setFinishing(false);
+              else if (kept)
+                navigate(`/workouts/${workout.id}`, { replace: true, note: 'finished' });
+              else navigate('/', { replace: true });
+            });
           }}
         />
       </div>
@@ -197,8 +202,8 @@ function LiveWorkout({
   timeZone: string;
   guideOpen: boolean;
   onGuide: () => void;
-  /** Finish was tapped, and whether the workout has a set to be kept for; `false` when it failed. */
-  onFinish: (kept: boolean) => void;
+  /** Finish was tapped: whether the workout was kept, once known; `undefined` when it failed. */
+  onFinish: (result: Promise<boolean | undefined>) => void;
 }) {
   const exercises = exercisesOf(records, workout.id);
   // Turned on by hand each workout and not remembered (docs/06, 2026-10-12): it lives here, in a
@@ -271,13 +276,14 @@ function LiveWorkout({
   const finish = () => {
     setFinishing(true);
     setFinishFailed(false);
-    // Leaving happens in <Workout>, once no workout is open.
-    onFinish(setCount > 0);
-    finishWorkout().catch(() => {
-      onFinish(false);
-      setFinishing(false);
-      setFinishFailed(true);
-    });
+    // Leaving happens in <Workout>, once the set store has said whether the workout was kept.
+    onFinish(
+      finishWorkout().catch(() => {
+        setFinishing(false);
+        setFinishFailed(true);
+        return undefined;
+      }),
+    );
   };
 
   const others = exercises.filter((exercise) => exercise.id !== current?.id);

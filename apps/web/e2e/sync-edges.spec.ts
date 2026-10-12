@@ -671,3 +671,48 @@ test('rest stops counting from a set deleted on the workout’s page in History'
   await page.unrouteAll();
   await finish(page, false);
 });
+
+test('Finish leaves for Today when another tab has just deleted the workout’s only set', async ({
+  page,
+  context,
+}) => {
+  const name = `Raced ${Date.now()}`;
+  await startWorkout(page, name);
+  await completeSet(page, '60', '8');
+  await expect(dataState(page)).toContainText('SYNCED');
+  const other = await context.newPage();
+  await other.goto('/workout');
+  await expect(setRow(other, '1 60 8')).toBeVisible();
+
+  // Finish is asked for with one set on screen, and confirmed before this tab has heard that the
+  // other deleted it: the tab is busy until the tap, which lands on what it last drew.
+  await page.getByRole('button', { name: 'Finish workout' }).click();
+  await expect(page.getByRole('button', { name: 'Finish', exact: true })).toBeVisible();
+  let tapped = false;
+  const tap = page
+    .evaluate(() => {
+      const until = Date.now() + 6000;
+      while (Date.now() < until);
+      const confirm = [...document.querySelectorAll('button')].find(
+        (button) => button.textContent.trim() === 'Finish',
+      );
+      if (confirm === undefined) throw new Error('no Finish to confirm');
+      confirm.click();
+    })
+    .then(() => {
+      tapped = true;
+    });
+  await other.getByRole('button', { name: 'Set 1 done. Edit' }).click();
+  const editor = other.getByRole('form', { name: 'Edit set 1' });
+  await editor.getByRole('button', { name: 'Delete set' }).click();
+  await editor.getByRole('button', { name: 'Delete', exact: true }).click();
+  await expect(other.getByRole('button', { name: 'Set 1 done. Edit' })).toHaveCount(0);
+  expect(tapped).toBe(false);
+
+  // Nothing was kept, so there is no page in History to open.
+  await tap;
+  await expect(page).toHaveURL('/');
+  await expect(page.getByText('This workout is not in your history.')).toHaveCount(0);
+  await expect.poll(() => stored().some((workout) => workout.name === name)).toBe(false);
+  await other.close();
+});

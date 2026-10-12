@@ -193,8 +193,9 @@ uploads through `/api/workouts/sync`, is retried, and can be refused like any ot
 that has not ended and that the device does not hold is never written back: it is in progress on
 another device, and held here it would become this device's open workout to resume and to end.
 With two tabs open, the tab that uploads a change may not be the one that made it: a tab whose
-pending rows another tab's upload answered tells its own cache what they said and asks the server
-again, as the uploading tab does. Two rules keep
+pending rows another tab's upload answered tells its own cache what they said, as the uploading tab
+does, and every tab asks the server again whenever another tab changes the records, since a change
+may be made and uploaded before a tab in the background has read anything. Two rules keep
 the screens honest while it waits:
 
 - **The device's rows win on screen.** A workout's page reads an ended workout from the set store

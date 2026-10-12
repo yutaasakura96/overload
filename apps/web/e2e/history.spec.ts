@@ -718,3 +718,53 @@ test('a set corrected in one tab and uploaded by another stays corrected on its 
   await expect(sets.nth(1).getByRole('button')).toHaveAccessibleName(/80.*6 reps/s);
   await other.close();
 });
+
+test('a set corrected and uploaded in another tab shows on a page that saw none of it', async ({
+  page,
+  context,
+}) => {
+  const row = await exerciseId(page, 'Bent Over Barbell Row');
+  const workoutId = await log(page, row, {
+    name: 'Pull unseen',
+    startedAt: '2026-05-16T09:00:00.000Z',
+    minutes: 30,
+    sets: [
+      { weightKg: 80, reps: 8 },
+      { weightKg: 80, reps: 7 },
+    ],
+  });
+  await page.goto(`/workouts/${workoutId}`);
+  const sets = setsOf(page, 'Bent Over Barbell Row');
+  await expect(sets).toHaveCount(2);
+  await expect(dataState(page)).toContainText('SYNCED');
+  const other = await context.newPage();
+  await other.goto(`/workouts/${workoutId}`);
+  await expect(setsOf(other, 'Bent Over Barbell Row')).toHaveCount(2);
+
+  // This tab does nothing for a while, as one in the background: the other's change is made,
+  // uploaded and gone from the device before this one reads a row of it.
+  let woke = false;
+  const asleep = page
+    .evaluate(() => {
+      const until = Date.now() + 6000;
+      while (Date.now() < until);
+    })
+    .then(() => {
+      woke = true;
+    });
+  const editor = await openEditor(other, 'Bent Over Barbell Row', 1, 'set 2');
+  await editor.getByRole('textbox', { name: 'Reps of set 2' }).fill('6');
+  await editor.getByRole('button', { name: 'Save set' }).click();
+  await expect
+    .poll(() => onServer(other, workoutId))
+    .toEqual([
+      [80, 8, null],
+      [80, 6, null],
+    ]);
+  await expect.poll(() => rowsOnDevice(other)).toBe(0);
+  expect(woke).toBe(false);
+
+  await asleep;
+  await expect(sets.nth(1).getByRole('button')).toHaveAccessibleName(/80.*6 reps/s);
+  await other.close();
+});

@@ -546,13 +546,18 @@ function removeWorkout(workout: WorkoutRecord): Change {
   return { put: [asDeletion(workout)] };
 }
 
-/** Finish (docs/09 F3 step 5): `ended_at` is now. With no logged set the workout is deleted. */
-export async function finishWorkout(): Promise<void> {
+/**
+ * Finish (docs/09 F3 step 5): `ended_at` is now. With no logged set the workout is deleted.
+ * Resolves to whether it was kept, as the set store held it when it ended.
+ */
+export async function finishWorkout(): Promise<boolean> {
   const now = new Date().toISOString();
+  let kept = false;
   await mutate((records) => {
     const workout = openWorkout(records);
     if (workout === undefined) return undefined;
     if (setsOfWorkout(records, workout.id).length === 0) return removeWorkout(workout);
+    kept = true;
     const row = {
       ...workout.row,
       endedAt: now,
@@ -561,6 +566,7 @@ export async function finishWorkout(): Promise<void> {
     return { put: [{ ...workout, state: 'pending', row }] };
   });
   useWorkoutStore.setState({ rest: undefined });
+  return kept;
 }
 
 /**
