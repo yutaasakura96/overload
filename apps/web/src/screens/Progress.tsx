@@ -527,6 +527,8 @@ function PastSets({
                   <small aria-hidden="true">E1RM</small>
                   <span className="visually-hidden"> {unitName(unit)}, sets </span>
                 </span>
+                {/* A chart saved by a build before points carried their sets is drawn without them
+                    until the answer asked for on opening replaces it. */}
                 <span className="past__sets">{setsLine(point.sets ?? [], unit)}</span>
               </a>
             </li>
