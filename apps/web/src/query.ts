@@ -439,15 +439,14 @@ export const refreshHistory = () => queryClient.invalidateQueries({ queryKey: ['
 
 /**
  * Asks for last time again whether or not a screen is reading it, since the next workout starts
- * from this copy (S2). Without a profile there is nothing to ask (`setup_incomplete`). It never
- * rejects: a failed ask leaves the copy as it was.
+ * from this copy (S2). An ask already on its way may have been answered before the change this one
+ * follows, so it is dropped and made again. Without a profile there is nothing to ask
+ * (`setup_incomplete`). It never rejects: a failed ask leaves the copy as it was.
  */
-export function refreshLastTime(): Promise<void> {
-  if (queryClient.getQueryData<Me>(ME_KEY)?.profile == null) return Promise.resolve();
-  return queryClient.fetchQuery({ ...lastTimeQuery, staleTime: 0 }).then(
-    () => undefined,
-    () => undefined,
-  );
+export async function refreshLastTime(): Promise<void> {
+  if (queryClient.getQueryData<Me>(ME_KEY)?.profile == null) return;
+  await queryClient.cancelQueries({ queryKey: lastTimeQuery.queryKey });
+  await queryClient.fetchQuery({ ...lastTimeQuery, staleTime: 0 }).catch(() => undefined);
 }
 
 /** The unit weights are shown and typed in (docs/06, 2026-09-23). Kilograms until a profile says. */

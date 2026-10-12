@@ -768,3 +768,52 @@ test('a set corrected and uploaded in another tab shows on a page that saw none 
   await expect(sets.nth(1).getByRole('button')).toHaveAccessibleName(/80.*6 reps/s);
   await other.close();
 });
+
+// A page the service worker controls fetches through it, where WebKit shows a route nothing.
+test.describe('with no service worker', () => {
+  test.use({ serviceWorkers: 'block' });
+
+  test('last time is asked again after a second correction while the first ask is still out', async ({
+    page,
+  }) => {
+    const row = await exerciseId(page, 'Bent Over Barbell Row');
+    const workoutId = await log(page, row, {
+      name: 'Pull twice',
+      startedAt: '2026-05-18T09:00:00.000Z',
+      minutes: 30,
+      sets: [
+        { weightKg: 80, reps: 8 },
+        { weightKg: 80, reps: 7 },
+      ],
+    });
+    await page.goto(`/workouts/${workoutId}`);
+    const sets = setsOf(page, 'Bent Over Barbell Row');
+    await expect(sets).toHaveCount(2);
+    await expect(dataState(page)).toContainText('SYNCED');
+
+    // The first ask for last time reads the server at once and its answer is kept waiting.
+    let asks = 0;
+    const held = Promise.withResolvers<void>();
+    await page.route('**/api/training/last-time', async (route) => {
+      asks += 1;
+      if (asks > 1) return route.continue();
+      const response = await route.fetch();
+      await held.promise;
+      await route.fulfill({ response }).catch(() => undefined);
+    });
+    const correct = async (reps: string) => {
+      const editor = await openEditor(page, 'Bent Over Barbell Row', 1, 'set 2');
+      await editor.getByRole('textbox', { name: 'Reps of set 2' }).fill(reps);
+      await editor.getByRole('button', { name: 'Save set' }).click();
+      await expect.poll(async () => (await onServer(page, workoutId))?.[1]?.[1]).toBe(Number(reps));
+    };
+    await correct('6');
+    await expect.poll(() => asks).toBe(1);
+
+    // The answer still out was read before this correction, so last time is asked for afresh.
+    await correct('5');
+    await expect.poll(() => asks).toBe(2);
+    held.resolve();
+    await expect(dataState(page)).toContainText('SYNCED');
+  });
+});
