@@ -86,7 +86,8 @@ completion control is enabled regardless; a missing weight or reps is refused on
     time the weight goes up`, since which weight the rack makes is the API's to say.
   - With one set last time the sentences say `your only set` and `Your set`. Where the rep range has
     changed since and the count no longer fits the rule, the API's own reason is shown as a sentence.
-  - The block is read, not tapped. The way from it to the exercise's past sets comes with `#48`.
+  - The block is read, not tapped. Past sets are under the exercise's chart (§2), reached from the
+    exercise screen and a workout's page (§9).
 - **First time doing an exercise (S2, PRD empty states).** The block says so in words: `LAST TIME`
   reads `None yet`, with `This is your first time logging Bench Press, so there is nothing to
   compare with.` `TODAY'S TARGET` reads `Find your weight × 6–10`, tagged `FIRST WORKOUT`, with

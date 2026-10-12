@@ -142,7 +142,8 @@ set logged in the gym (`03` §8.1).
    was its last set, so the workout was removed.`
 5. **It reaches everything derived from the set.** Once the server has answered, last time, the
    suggestion and the charts are asked again, so the next workout's target and the exercise's e1RM
-   follow the corrected figures. Nothing is recalculated on the phone.
+   follow the corrected figures. While an edit is pending, the phone updates History's set count
+   and top sets and the workout page's volume from its stored rows (`03` §6).
 
 Not offered, by decision (`06`, 2026-10-11): adding a set to a past workout, moving a set, changing
 a workout's date or name, deleting a whole workout in one action, and any "edited" mark.
