@@ -509,10 +509,10 @@ function ExerciseBlock({
   // Focus goes back to the tick an editor closed under, or to the exercise when the set has gone.
   const focusPending = useRef<string>(null);
   useEffect(() => {
-    const target = focusPending.current;
-    if (target === null) return;
+    const pending = focusPending.current;
+    if (pending === null) return;
     focusPending.current = null;
-    (document.getElementById(target) ?? name.current)?.focus();
+    (document.getElementById(pending) ?? name.current)?.focus();
   });
   const close = (setId: string) => {
     focusPending.current = `tick-${setId}`;
