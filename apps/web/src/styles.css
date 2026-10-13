@@ -2219,7 +2219,8 @@ a.segments__segment {
 .lifts__row:active {
   background: var(--surface-active);
 }
-.lifts__row--no_weight {
+.lifts__row--no_weight,
+.lifts__row--no_trend {
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
 }
 .lifts__name {

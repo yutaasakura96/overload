@@ -784,16 +784,20 @@ verdict is the API's (`07` §3); the screen groups the lifts by the status they 
 | Span | `05` §4.8, three segments, `14px 16px 0`, 44px, mono | `4 WEEKS`, `12 WEEKS`, `1 YEAR`; a radio group. It opens on 12 weeks |
 | Headline | screen 2's (§2), `18px 16px 0` | `ALL LIFTS · TREND OVER 12 WEEKS` (`a year` for the year); the average at 42px, `+2.7`, with `%` at 14px. Right: `STRONGER`, `HOLDING` or `WEAKER`, 13px mono/500, `done` for stronger and `text/tertiary` otherwise, over `13 LIFTS AVERAGED` |
 | Tally | `05` §4.23, `16px 16px 0` | `GAINING` `6` in `done`; `HOLDING` `6`; `LOSING` `1` in `flag` |
-| Group | `05` §4.3's label as an `h2`, `18px 16px 8px`, `text/tertiary` | `GAINING · 6`, then `HOLDING`, `LOSING`, `TOO FEW WORKOUTS IN THIS SPAN` and `NO WEIGHT LOGGED IN THIS SPAN`. A group with no lift is not drawn |
+| Group | `05` §4.3's label as an `h2`, `18px 16px 8px`, `text/tertiary` | `GAINING · 6`, then `HOLDING`, `LOSING`, `TOO FEW WORKOUTS IN THIS SPAN`, `NO TREND YET IN THIS SPAN` and `NO WEIGHT LOGGED IN THIS SPAN`. A group with no lift is not drawn |
 | Lift row | `05` §4.23 | The name; `E1RM 106.7 KG`, its latest in the span; the sparkline; `+4.6%` over `+4.7 kg`. The whole row is a link to that lift's chart (§2) on the same span |
 | Footnote | `05` §4.15, 22px under the last list | `Trend of each lift's e1RM across the span` and `gaining ≥ +2% · losing ≤ −2%` |
 
 - **The span is in the address** (`?span=4w`, none for 12 weeks), so a reload, and Back from a
   lift's chart, open the same one. While another span loads the last one stays, set back.
 - **Order.** Within a group the largest change first, as the API sends them.
-- **Too few workouts:** a lift with fewer than three in the span sits in the last group. Its
+- **Too few workouts:** a lift with fewer than three working workouts and a positive e1RM in the span sits in that group. Its
   second line is `2 WORKOUTS` in place of the e1RM, its change an em dash, and it has a sparkline
-  from two workouts up. It is not averaged and not tallied.
+  from two positive points up. The count includes workouts logged at 0 kg. It is not averaged
+  and not tallied.
+- **No calculable trend:** three or more working workouts whose percentage cannot be calculated
+  sit under `NO TREND YET IN THIS SPAN`, with their workout count and `Can’t work out a trend yet`
+  in place of a verdict. They are not averaged or tallied.
 - **Not colour alone.** The status is the group's heading and the figure's sign; `done` and
   `flag` only repeat them (WCAG 1.4.1). A screen reader hears `Up 4.6 percent`.
 - **Nothing in the span:** the headline reads an em dash over `0 LIFTS AVERAGED`, the tallies 0,

@@ -11,13 +11,13 @@ export type StrengthStatus = (typeof STRENGTH_STATUSES)[number];
 export const STRENGTH_SPANS = ['4w', '12w', '1y'] as const;
 export type StrengthSpan = (typeof STRENGTH_SPANS)[number];
 
-/** A lift's status: its verdict, or `too_few` where the span cannot give one. */
-export const LIFT_STATUSES = [...STRENGTH_STATUSES, 'too_few', 'no_weight'] as const;
+/** A lift's verdict, or the reason it has none. */
+export const LIFT_STATUSES = [...STRENGTH_STATUSES, 'too_few', 'no_trend', 'no_weight'] as const;
 export type LiftStatus = (typeof LIFT_STATUSES)[number];
 
 /** Up this many percent or more across the span is gaining; down as many is losing. */
 export const TREND_THRESHOLD_PCT = 2;
-/** A span holding fewer workouts of a lift gives it no verdict. */
+/** A span holding fewer than this many workouts of a lift gives it no verdict. */
 export const TREND_MIN_WORKOUTS = 3;
 
 /** One workout of a lift: its local date and its e1RM. */
@@ -47,7 +47,7 @@ export function statusOf(changePct: number): StrengthStatus {
 
 /**
  * A lift's trend: the least-squares line through its e1RM by local date, its end against its
- * start. There is none with fewer than three workouts, with
+ * start. There is none with fewer than three positive points, with
  * every workout on one day, or where the line starts at or under zero and has no share to give.
  */
 function rawTrend(points: TrendPoint[]) {
@@ -90,7 +90,7 @@ export type StrengthLift = {
   points: TrendPoint[];
   workoutCount: number;
   status: LiftStatus;
-  /** Null with `too_few` or `no_weight`. */
+  /** Null without a verdict. */
   trend: { changeKg: number; changePct: number } | null;
 };
 
@@ -140,7 +140,9 @@ export function strengthOverview(
           raw === undefined
             ? plotted.length === 0
               ? 'no_weight'
-              : 'too_few'
+              : working.length < TREND_MIN_WORKOUTS
+                ? 'too_few'
+                : 'no_trend'
             : statusOf(raw.changePct),
         trend:
           raw === undefined

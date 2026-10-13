@@ -421,7 +421,7 @@ export const StrengthLift = z
     workoutCount: z.int().openapi({ description: 'Workouts with a working set in the span.' }),
     status: z.enum(LIFT_STATUSES).openapi({
       description:
-        'The lift’s verdict, `too_few` without enough points, or `no_weight` without a positive e1RM.',
+        'The lift’s verdict, `too_few` below three workouts, `no_trend` when a percentage cannot be calculated, or `no_weight` without a positive e1RM.',
     }),
     trend: z
       .object({
@@ -435,7 +435,7 @@ export const StrengthLift = z
         }),
       })
       .nullable()
-      .openapi({ description: 'Null with `too_few` or `no_weight`.' }),
+      .openapi({ description: 'Null without a verdict.' }),
   })
   .openapi('StrengthLift');
 

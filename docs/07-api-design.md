@@ -593,8 +593,13 @@ GET /api/training/strength?span=12w
   either itself.
 - **The status** reads the unrounded percentage: `gaining` at 2% or more, `losing` at −2% or
   less, `holding` between. A displayed `+2.0%` can therefore be holding.
-- **`too_few`** with `trend: null`: fewer than three workouts with a positive e1RM in the span. Also three or more
-  that all fall on one local date, and a line that starts at or under zero.
+- **`too_few`** with `trend: null`: fewer than three workouts with a working set in the span,
+  where at least one has a positive e1RM. A lift with none is `no_weight` instead.
+  Its displayed count includes zero-weight workouts.
+- **`no_trend`** with `trend: null`: three or more working workouts but no calculable
+  percentage. This includes positive points all on one local date, a fitted line starting at or
+  below zero, and fewer than three positive points after zero-weight workouts are excluded.
+  The lift keeps its workout count and sits outside the average.
 - **`no_weight`** with `trend: null` and no points: the lift has working sets but no positive
   e1RM. Its workout count is shown; it does not enter the overall average.
 - **`overall`** is the plain average of every verdict's unrounded percentage, judged before

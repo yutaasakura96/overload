@@ -32,6 +32,7 @@ const GROUPS: { status: Status; label: string }[] = [
   { status: 'holding', label: 'Holding' },
   { status: 'losing', label: 'Losing' },
   { status: 'too_few', label: 'Too few workouts in this span' },
+  { status: 'no_trend', label: 'No trend yet in this span' },
   { status: 'no_weight', label: 'No weight logged in this span' },
 ];
 
@@ -276,10 +277,7 @@ function Lifts({
                   <span className="lifts__name">{lift.name}</span>
                   <span className="lifts__now">
                     {lift.trend === null || latest === undefined ? (
-                      count(
-                        lift.status === 'no_weight' ? lift.workoutCount : lift.points.length,
-                        'workout',
-                      ).toUpperCase()
+                      count(lift.workoutCount, 'workout').toUpperCase()
                     ) : (
                       <>
                         <span className="visually-hidden">: estimated 1RM </span>
@@ -291,14 +289,19 @@ function Lifts({
                     )}
                   </span>
                 </span>
-                {lift.status === 'no_weight' ? null : lift.points.length > 1 ? (
+                {lift.status === 'no_weight' || lift.status === 'no_trend' ? null : lift.points
+                    .length > 1 ? (
                   <Spark points={lift.points} />
                 ) : (
                   <span />
                 )}
                 <span className="lifts__change">
-                  {lift.status === 'no_weight' ? (
-                    <span className="lifts__kg">No weight logged · no trend</span>
+                  {lift.status === 'no_weight' || lift.status === 'no_trend' ? (
+                    <span className="lifts__kg">
+                      {lift.status === 'no_weight'
+                        ? 'No weight logged · no trend'
+                        : 'Can’t work out a trend yet'}
+                    </span>
                   ) : lift.trend === null ? (
                     <>
                       <span className="lifts__pct" aria-hidden="true">

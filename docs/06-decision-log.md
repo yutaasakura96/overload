@@ -3499,9 +3499,11 @@ workouts the minimum, the plain average overall. What building it settled:
 - **The verdict reads the unrounded percentage.** A lift at 1.96% prints `+2.0%` and holds.
   The overall figure is the plain average of the unrounded lift percentages, judged before it
   is rounded for display. Display figures round to the tenth with halves away from zero.
-- **No verdict** for fewer than three weighted workouts, as Q12 says, and for the two cases a line cannot
-  answer: every workout on one day, and a line that starts at or under zero. All three sit under
-  `Too few workouts in this span`.
+- **No verdict** for fewer than three workouts with working sets, as Q12 says. They sit under
+  `Too few workouts in this span` with the count of every working workout, including one at 0 kg.
+  Three or more workouts with no calculable percentage, because every positive e1RM falls on
+  one local date, the line starts at or below zero, or too few positive points remain, sit under
+  `No trend yet in this span` with their count and `Can’t work out a trend yet`.
 - **A workout whose working sets carry no weight gives no point.** A bodyweight exercise logs 0
   (`04`), its e1RM is 0, and no share can be taken of it. A lift logged only at zero weight is
   listed with its workout count and `No weight logged · no trend`, outside the average. A lift

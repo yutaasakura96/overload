@@ -109,6 +109,7 @@ test('strength says per lift and overall whether it is gaining, holding or losin
   const row = await exerciseId(page, 'Seated Cable Row');
   const curl = await exerciseId(page, 'Dumbbell Curl');
   const pullUp = await exerciseId(page, 'Pull-Up');
+  const pulldown = await exerciseId(page, 'Cable Lat Pulldown');
   // Bench: 100 once, then 106 four times: a line up 6.4% over 12 weeks, and flat over the last 4.
   await log(page, bench, 61, 50);
   await log(page, bench, 22, 53);
@@ -127,6 +128,9 @@ test('strength says per lift and overall whether it is gaining, holding or losin
   await log(page, pullUp, 15, 0);
   await log(page, pullUp, 8, 0);
   await log(page, pullUp, 1, 0);
+  await log(page, pulldown, 15, 0);
+  await log(page, pulldown, 8, 40);
+  await log(page, pulldown, 1, 42);
 
   await page.goto('/progress');
   await sections(page).getByRole('link', { name: 'Strength' }).click();
@@ -135,7 +139,7 @@ test('strength says per lift and overall whether it is gaining, holding or losin
     'aria-current',
     'page',
   );
-  await expect(page.getByText('5 LIFTS', { exact: true })).toBeVisible();
+  await expect(page.getByText('6 LIFTS', { exact: true })).toBeVisible();
 
   // 12 weeks, as the screen opens. Bench +6.4%, the row 0.0%, squat −4.0%: their plain average.
   await expect(page.getByRole('radio', { name: '12 weeks' })).toBeChecked();
@@ -174,6 +178,12 @@ test('strength says per lift and overall whether it is gaining, holding or losin
   await expect(noWeight).toContainText('Pull-Up');
   await expect(noWeight).toContainText('3 WORKOUTS');
   await expect(noWeight).toContainText('No weight logged · no trend');
+  const noTrend = page
+    .getByRole('region', { name: 'No trend yet in this span · 1' })
+    .getByRole('link');
+  await expect(noTrend).toContainText('Cable Lat Pulldown');
+  await expect(noTrend).toContainText('3 WORKOUTS');
+  await expect(noTrend).toContainText('Can’t work out a trend yet');
   await page.screenshot({ path: testInfo.outputPath('strength-390.png'), fullPage: true });
 
   await expect(page.getByText('gaining ≥ +2% · losing ≤ −2%')).toBeVisible();

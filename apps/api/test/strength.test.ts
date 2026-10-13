@@ -260,6 +260,42 @@ describe('strengthOverview', () => {
     ]);
   });
 
+  it('keeps three same-day workouts without a calculable trend out of too few and the average', () => {
+    const sameDay: LoggedLift = {
+      exerciseId: 'same-day',
+      name: 'Same Day',
+      workouts: [100, 105, 110].map((e1rmKg) => ({
+        date: '2026-09-01',
+        sets: [working(e1rmKg / 2, 30)],
+      })),
+    };
+    const overview = strengthOverview('12w', '2026-09-20', [sameDay]);
+    expect(overview.lifts[0]).toMatchObject({
+      workoutCount: 3,
+      status: 'no_trend',
+      trend: null,
+    });
+    expect(overview.lifts[0]?.points).toHaveLength(3);
+    expect(overview.overall).toEqual({ lifts: 0, changePct: null, status: null });
+  });
+
+  it('keeps a line starting below zero out of too few and the average', () => {
+    const overview = strengthOverview('12w', '2026-09-20', [lift('Press', 1, 1, 200)]);
+    expect(overview.lifts[0]).toMatchObject({
+      workoutCount: 3,
+      status: 'no_trend',
+      trend: null,
+    });
+    expect(overview.overall).toEqual({ lifts: 0, changePct: null, status: null });
+  });
+
+  it('counts every working workout when some carry no weight', () => {
+    const three = strengthOverview('12w', '2026-09-20', [lift('Press', 0, 100, 102)]);
+    expect(three.lifts[0]).toMatchObject({ workoutCount: 3, status: 'no_trend', trend: null });
+    const two = strengthOverview('12w', '2026-09-20', [lift('Press', 0, 100)]);
+    expect(two.lifts[0]).toMatchObject({ workoutCount: 2, status: 'too_few', trend: null });
+  });
+
   it('averages the lifts plainly, each counting once whatever it weighs', () => {
     const overview = strengthOverview('12w', '2026-09-20', [
       lift('Squat', 200, 206, 212), // +6%

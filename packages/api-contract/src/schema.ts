@@ -1819,11 +1819,11 @@ export interface components {
       /** @description Workouts with a working set in the span. */
       workoutCount: number;
       /**
-       * @description The lift’s verdict, `too_few` without enough points, or `no_weight` without a positive e1RM.
+       * @description The lift’s verdict, `too_few` below three workouts, `no_trend` when a percentage cannot be calculated, or `no_weight` without a positive e1RM.
        * @enum {string}
        */
-      status: 'gaining' | 'holding' | 'losing' | 'too_few' | 'no_weight';
-      /** @description Null with `too_few` or `no_weight`. */
+      status: 'gaining' | 'holding' | 'losing' | 'too_few' | 'no_trend' | 'no_weight';
+      /** @description Null without a verdict. */
       trend: {
         /**
          * @description The trend line’s end less its start, to the thousandth.
