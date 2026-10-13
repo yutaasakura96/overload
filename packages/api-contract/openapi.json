@@ -1411,6 +1411,158 @@
         ],
         "description": "One routine slot’s own sets and suggestion, from the last workout that ran it."
       },
+      "StrengthOverview": {
+        "type": "object",
+        "properties": {
+          "span": {
+            "$ref": "#/components/schemas/Span"
+          },
+          "from": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date",
+            "description": "The span’s first local date. For `all`, the first workout’s, and null without one."
+          },
+          "to": {
+            "type": "string",
+            "format": "date",
+            "description": "Today, in the caller’s time zone."
+          },
+          "overall": {
+            "type": "object",
+            "properties": {
+              "lifts": {
+                "type": "integer",
+                "description": "How many lifts have a verdict.",
+                "example": 13
+              },
+              "changePct": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "example": 2.7
+              },
+              "status": {
+                "$ref": "#/components/schemas/StrengthStatus"
+              }
+            },
+            "required": [
+              "lifts",
+              "changePct",
+              "status"
+            ],
+            "description": "The plain average of every verdict’s `changePct`, to the tenth, judged as a lift’s is. Null without a lift to average."
+          },
+          "lifts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StrengthLift"
+            },
+            "description": "The lifts with a verdict, the largest gain first; then those without, by name."
+          }
+        },
+        "required": [
+          "span",
+          "from",
+          "to",
+          "overall",
+          "lifts"
+        ],
+        "description": "Every lift the caller logged in the span, with the trend of its e1RM. Warm-ups are left out (S6), and so is a workout whose working sets carry no weight."
+      },
+      "StrengthStatus": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "enum": [
+          "gaining",
+          "holding",
+          "losing",
+          null
+        ],
+        "description": "Gaining is a trend up 2% or more across the span, losing one down 2% or more, holding anything between."
+      },
+      "StrengthLift": {
+        "type": "object",
+        "properties": {
+          "exerciseId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+          },
+          "name": {
+            "type": "string",
+            "example": "Barbell Bench Press"
+          },
+          "points": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "date": {
+                  "type": "string",
+                  "format": "date",
+                  "description": "The workout’s local date."
+                },
+                "e1rmKg": {
+                  "type": "number",
+                  "description": "Epley on the best working set, to the tenth.",
+                  "example": 106.7
+                }
+              },
+              "required": [
+                "date",
+                "e1rmKg"
+              ]
+            },
+            "description": "One per workout in the span, oldest first. Never empty."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "gaining",
+              "holding",
+              "losing",
+              "too_few"
+            ],
+            "description": "The lift’s verdict, or `too_few` where the span cannot give one."
+          },
+          "trend": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "changeKg": {
+                "type": "number",
+                "description": "The trend line’s end less its start, to the thousandth.",
+                "example": 4.712
+              },
+              "changePct": {
+                "type": "number",
+                "description": "That change as a share of the line’s start, to the tenth.",
+                "example": 4.6
+              }
+            },
+            "required": [
+              "changeKg",
+              "changePct"
+            ],
+            "description": "Null with `too_few`."
+          }
+        },
+        "required": [
+          "exerciseId",
+          "name",
+          "points",
+          "status",
+          "trend"
+        ]
+      },
       "SyncResponse": {
         "type": "object",
         "properties": {
@@ -3013,6 +3165,82 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/LastTimes"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`setup_incomplete` with `missing: [\"profile\"]`: local dates need the time zone",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/training/strength": {
+      "get": {
+        "summary": "Whether each lift, and all of them together, is gaining, holding or losing over a span",
+        "parameters": [
+          {
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Span"
+                },
+                {
+                  "description": "Default `12w`."
+                }
+              ]
+            },
+            "required": false,
+            "description": "Default `12w`.",
+            "name": "span",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One entry per exercise logged in the span, with its points, trend and status",
+            "headers": {
+              "Overload-User": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "The id of the user whose session answered. Keep the body for that account only."
+                },
+                "required": true,
+                "description": "The id of the user whose session answered. Keep the body for that account only."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StrengthOverview"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A span that is not one of the five",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             }

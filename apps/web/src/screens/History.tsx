@@ -29,7 +29,7 @@ const SECTIONS = [
 type Section = (typeof SECTIONS)[number]['path'];
 
 /** 4.8, the three sections of Progress. Links, like the tabs above them: each has an address. */
-function ProgressSections({ current, navigate }: { current: Section; navigate: Navigate }) {
+export function ProgressSections({ current, navigate }: { current: Section; navigate: Navigate }) {
   return (
     <nav className="segments segments--three" aria-label="Progress">
       {SECTIONS.map((section) => (
@@ -177,39 +177,23 @@ export function History({ me, navigate }: { me: Me; navigate: Navigate }) {
 }
 
 /**
- * Strength and Balance, until each is built (#49, #50): the section is there, as the tab is laid
- * out, and says plainly that it holds nothing yet.
+ * Balance, until it is built (#50): the section is there, as the tab is laid out, and says plainly
+ * that it holds nothing yet.
  */
-export function ProgressSection({
-  me,
-  section,
-  navigate,
-}: {
-  me: Me;
-  section: 'strength' | 'balance';
-  navigate: Navigate;
-}) {
+export function ProgressSection({ me, navigate }: { me: Me; navigate: Navigate }) {
   const syncedAt = useWorkoutStore((state) => state.lastSyncedAt);
-  const words = {
-    strength: {
-      title: 'Strength is not here yet',
-      body: 'Whether each lift is gaining, holding or losing will be shown here. Until then, each exercise has its own chart, opened from a workout in History.',
-    },
-    balance: {
-      title: 'Balance is not here yet',
-      body: 'Weekly working sets for each muscle group will be shown here.',
-    },
-  }[section];
   return (
     <main>
       <AppBar title="Progress" slot={<DataState at={syncedAt} />} />
       <ScreenTabs current="/progress" navigate={navigate} />
-      <ProgressSections current={`/progress/${section}`} navigate={navigate} />
+      <ProgressSections current="/progress/balance" navigate={navigate} />
       <section className="empty-state" aria-labelledby="not-built">
         <h2 id="not-built" className="empty-state__title">
-          {words.title}
+          Balance is not here yet
         </h2>
-        <p className="empty-state__body">{words.body}</p>
+        <p className="empty-state__body">
+          Weekly working sets for each muscle group will be shown here.
+        </p>
       </section>
       <AccountFooter email={me.user.email} navigate={navigate} />
     </main>

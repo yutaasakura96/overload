@@ -378,6 +378,21 @@ export const progressQuery = (exerciseId: string, span: Span) =>
   });
 
 /**
+ * The strength overview over a span (docs/07 §3): every lift's points, trend and status. Enable it
+ * only once the profile exists: without one the API answers `setup_incomplete`.
+ */
+export const strengthQuery = (span: Span) =>
+  queryOptions({
+    queryKey: ['strength', span],
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    queryFn: async ({ signal }) =>
+      confirmedAccountData(() =>
+        api.GET('/api/training/strength', { params: { query: { span } }, signal }),
+      ),
+  });
+
+/**
  * History (docs/07 §3): the finished workouts, newest first, a page at a time. A workout the
  * device still holds rows of is read from the set store over this (history.ts).
  */
@@ -432,8 +447,14 @@ export function useOpensEditor({
 /** After a write: both exercise lists, since a setting or a new exercise changes each. */
 export const refreshExercises = () => queryClient.invalidateQueries({ queryKey: ['exercises'] });
 export const refreshRoutines = () => queryClient.invalidateQueries({ queryKey: ['routines'] });
-/** After an acknowledged sync batch: a chart on screen is asked again, the rest when next opened. */
-export const refreshProgress = () => queryClient.invalidateQueries({ queryKey: ['progress'] });
+/**
+ * After an acknowledged sync batch: a chart on screen is asked again, the rest when next opened.
+ * The strength overview reads the same sets, so it goes with them.
+ */
+export const refreshProgress = () =>
+  queryClient.invalidateQueries({
+    predicate: (query) => query.queryKey[0] === 'progress' || query.queryKey[0] === 'strength',
+  });
 /** The same for History: the list, and each workout read whole. */
 export const refreshHistory = () => queryClient.invalidateQueries({ queryKey: ['workouts'] });
 

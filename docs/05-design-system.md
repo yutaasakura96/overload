@@ -664,6 +664,25 @@ step but the check cell is a target.
 
 ---
 
+### 4.23 Tally and lift row
+Added 2026-10-14 (`06`) from the approved prototype's Strength screen (`10` §9). No token and no
+icon is added.
+
+- **Tally.** Three cells in a row, 8px apart, inset to the gutters. Each is the stat card of
+  screen 2 (`10` §2) at `10px 11px`: the 9px `0.1em` label in `text/quaternary`, 6px, then the
+  count at 20px mono / 500 in `text/primary`. A count that is good news is `done`, one that asks
+  for attention `flag`; the label says which it is, so the colour is never the only cue.
+- **Lift row.** A list under a `line/hairline`, each row over a `line/row`. The row is a link, 58px
+  at least, `8px 16px`, in three columns `1fr 64px 76px` 10px apart, centred: the name in 12px
+  `text/secondary` at 1.35 over a 10px mono line in `text/quaternary`, 4px below; the sparkline;
+  and, right-aligned, the change at 13px mono / 500 tabular over a 10px mono line in
+  `text/quaternary`, 3px below. The change is `done` for a gain, `flag` for a loss and
+  `text/tertiary` otherwise, always with its sign. Pressed: `surface/active`.
+- **Sparkline.** 64 × 24, no axes and no labels: a 1.5px `accent` line with round caps and joins
+  through the points by date, from x 2 to 60 and y 20 to 4, flat at 12 when every value is equal,
+  and a 2px `accent` dot on the latest. It repeats the figures beside it and is hidden from a
+  screen reader.
+
 ## 5. Charts
 
 Two chart types exist, both authored as inline SVG at 358px wide.

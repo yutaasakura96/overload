@@ -2,7 +2,7 @@
 
 **Project:** A weight-training progress tracker combining lift logging, meal planning, Apple Watch/iPhone health data, and bodyweight/diet coaching.
 **Phase:** 7 — Build (M1 first). Phase 6 — Review finished 2026-09-23.
-**Updated:** 2026-10-12
+**Updated:** 2026-10-14
 
 ## Done
 - Phase 1 — Brief + PRD: `docs/01-project-brief.md`, `docs/02-product-requirements.md`, `docs/06-decision-log.md`.
@@ -132,6 +132,13 @@ gate. Vitest covers the two routes, their cross-user cases and a correction thro
 `e2e/history.spec.ts` covers the list, paging, the editor online and offline, the last set's delete
 and the tick, on Chromium and WebKit. Not built, and tracked in `#61`: Today's line under each routine
 saying when it was last done, which the prototype's Today shows.
+**The strength overview is built, 2026-10-14**, on branch `fm/overload-49` against `develop`
+(`#49`). In the repo: `domain/strength.ts`, `GET /api/training/strength`, and the Strength
+section of the Progress tab at `/progress/strength` (`06`, 2026-10-14; `07` §3; `10` §9; `05`
+§4.23). It was compared with the approved prototype at 390px, element by element, in dark and
+light. `strength.test.ts` covers the trend, its threshold edges and the route's cross-user cases;
+`e2e/strength.spec.ts` covers the screen on Chromium and WebKit. Balance still says it holds
+nothing yet (`#50`).
 
 **A light theme is built, 2026-10-11**, on branch `fm/overload-59` against `develop` (`#59`). In
 the repo: light values for every colour token under the same names, `data-theme` on `<html>` set

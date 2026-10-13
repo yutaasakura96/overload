@@ -3483,3 +3483,38 @@ the last-done line is `#61`. Today's `Last workout` row is built, as the way int
 History from there.
 
 **Changed:** `00`, `03`, `05`, `07`, `09`, `10`, `11`, `CONTEXT.md`.
+
+### 2026-10-14 — The strength overview: a trend line per lift, judged on the figure it prints
+
+Issue `#49`, built to the approved prototype's Strength screen. Q12 of the prototype review set
+the rule: e1RM alone, a straight line through the span's workouts, ±2% the threshold, three
+workouts the minimum, the plain average overall. What building it settled:
+
+- **One route for every lift**, `GET /api/training/strength`, beside last time, which is the
+  other read of every exercise at once. The trend is `domain/strength.ts`, pure, beside e1RM and
+  the span. *Rejected:* a chart request per lift from the screen, thirteen calls for one figure,
+  and the average worked out in the web app, which keeps no such logic (`AGENTS.md`).
+- **The line is fitted by local date**, not by the workouts' order, so a gap of a month weighs as
+  a month. It is fitted to the estimates before they are rounded.
+- **The verdict reads the percentage as it is printed**, rounded to the tenth with halves away
+  from zero, so a rise and a fall round alike. A lift at 1.96% prints `+2.0%` and is gaining;
+  judged before rounding it would print `+2.0%` under Holding. The average is taken of those
+  printed figures and judged the same way, so it can be checked by hand from the screen.
+- **No verdict** for fewer than three workouts, as Q12 says, and for the two cases a line cannot
+  answer: every workout on one day, and a line that starts at or under zero. All three sit under
+  `Too few workouts in this span`.
+- **A workout whose working sets carry no weight gives no point.** A bodyweight exercise logs 0
+  (`04`), its e1RM is 0, and no share can be taken of it; calling it holding would be false and
+  would pull the average to zero. A lift never loaded is not in the overview. *Not decided here:*
+  whether such lifts should be trended by reps instead, which is a second measure Q12 turned down.
+- **The span is in the address**, as the chart's is, and a lift's row opens its chart on that
+  span. The screen offers the prototype's three spans; the route takes the chart's five.
+- **`WEAKER` is not coloured**, as the prototype has it: `done` marks stronger, and the losing
+  count and each losing lift carry `flag`.
+- **The account footer stays under the footnote**, as on every tab screen. The prototype leaves
+  profile and account out and says so.
+
+Not built here: Today's one-line strength verdict under `How it is going`, which the prototype's
+Today shows. It belongs with that screen.
+
+**Changed:** `00`, `05`, `07`, `10`, `11`, `CONTEXT.md`.
