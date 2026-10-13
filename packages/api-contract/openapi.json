@@ -1415,15 +1415,17 @@
         "type": "object",
         "properties": {
           "span": {
-            "$ref": "#/components/schemas/Span"
+            "type": "string",
+            "enum": [
+              "4w",
+              "12w",
+              "1y"
+            ]
           },
           "from": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": "string",
             "format": "date",
-            "description": "The span’s first local date. For `all`, the first workout’s, and null without one."
+            "description": "The span’s first local date."
           },
           "to": {
             "type": "string",
@@ -1454,7 +1456,7 @@
               "changePct",
               "status"
             ],
-            "description": "The plain average of every verdict’s `changePct`, to the tenth, judged as a lift’s is. Null without a lift to average."
+            "description": "The plain average of every verdict’s unrounded percentage, judged before rounding to the tenth for display. Null without a lift to average."
           },
           "lifts": {
             "type": "array",
@@ -1471,7 +1473,7 @@
           "overall",
           "lifts"
         ],
-        "description": "Every lift the caller logged in the span, with the trend of its e1RM. Warm-ups are left out (S6), and so is a workout whose working sets carry no weight."
+        "description": "Every lift the caller logged with a working set in the span, with the trend of its e1RM. Warm-ups are left out (S6)."
       },
       "StrengthStatus": {
         "type": [
@@ -1519,7 +1521,11 @@
                 "e1rmKg"
               ]
             },
-            "description": "One per workout in the span, oldest first. Never empty."
+            "description": "One per workout with a positive e1RM in the span, oldest first."
+          },
+          "workoutCount": {
+            "type": "integer",
+            "description": "Workouts with a working set in the span."
           },
           "status": {
             "type": "string",
@@ -1527,9 +1533,10 @@
               "gaining",
               "holding",
               "losing",
-              "too_few"
+              "too_few",
+              "no_weight"
             ],
-            "description": "The lift’s verdict, or `too_few` where the span cannot give one."
+            "description": "The lift’s verdict, `too_few` without enough points, or `no_weight` without a positive e1RM."
           },
           "trend": {
             "type": [
@@ -1552,13 +1559,14 @@
               "changeKg",
               "changePct"
             ],
-            "description": "Null with `too_few`."
+            "description": "Null with `too_few` or `no_weight`."
           }
         },
         "required": [
           "exerciseId",
           "name",
           "points",
+          "workoutCount",
           "status",
           "trend"
         ]
@@ -3198,14 +3206,14 @@
         "parameters": [
           {
             "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/Span"
-                },
-                {
-                  "description": "Default `12w`."
-                }
-              ]
+              "type": "string",
+              "enum": [
+                "4w",
+                "12w",
+                "1y"
+              ],
+              "default": "12w",
+              "description": "Default `12w`."
             },
             "required": false,
             "description": "Default `12w`.",
@@ -3236,7 +3244,7 @@
             }
           },
           "400": {
-            "description": "A span that is not one of the five",
+            "description": "A span that is not `4w`, `12w` or `1y`",
             "content": {
               "application/problem+json": {
                 "schema": {

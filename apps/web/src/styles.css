@@ -2219,6 +2219,9 @@ a.segments__segment {
 .lifts__row:active {
   background: var(--surface-active);
 }
+.lifts__row--no_weight {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
 .lifts__name {
   display: block;
   font-size: 12px;

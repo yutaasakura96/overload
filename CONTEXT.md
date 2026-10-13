@@ -134,7 +134,9 @@ _Avoid_: 1RM, max (it is an estimate)
 **Strength trend**:
 Whether a lift is gaining, holding or losing over a span: the straight line through its e1RM by
 date, its end against its start. Up 2% or more is gaining, down 2% or more is losing, and a lift
-needs three workouts in the span to have one. The strength overview averages them plainly. Not
+needs three weighted workouts in the span to have one. Status uses the unrounded percentage;
+the strength overview averages those unrounded percentages plainly. A lift logged only at zero
+weight stays listed with its workout count and no trend. Not
 the weight **Trend** below, which is a smoothed bodyweight.
 _Avoid_: progress (the chart of one exercise), plateau (a weight term), stall
 

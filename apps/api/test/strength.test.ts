@@ -98,20 +98,18 @@ describe('strengthTrend', () => {
       });
     });
 
-    it('judges the figure as it is printed, to the tenth', () => {
-      // 1.96% prints as +2.0%, and reads as gaining beside it; 1.94% prints as +1.9% and holds.
+    it('judges the unrounded figure, even where the display rounds to the threshold', () => {
       expect(strengthTrend(weekly(100, 100.98, 101.96))).toMatchObject({
         changePct: 2,
-        status: 'gaining',
+        status: 'holding',
       });
       expect(strengthTrend(weekly(100, 100.97, 101.94))).toMatchObject({
         changePct: 1.9,
         status: 'holding',
       });
-      // A fall rounds as its rise does.
       expect(strengthTrend(weekly(100, 99.02, 98.04))).toMatchObject({
         changePct: -2,
-        status: 'losing',
+        status: 'holding',
       });
       expect(strengthTrend(weekly(100, 99.03, 98.06))).toMatchObject({
         changePct: -1.9,
@@ -174,6 +172,7 @@ describe('strengthOverview', () => {
           { date: '2026-09-08', e1rmKg: 103 },
           { date: '2026-09-15', e1rmKg: 106 },
         ],
+        workoutCount: 3,
         status: 'gaining',
         trend: { changeKg: 6, changePct: 6 },
       },
@@ -212,7 +211,7 @@ describe('strengthOverview', () => {
       status: 'gaining',
     });
     // A workout dated after today is outside every span.
-    expect(strengthOverview('all', '2026-09-08', logged).lifts[0]?.points).toHaveLength(2);
+    expect(strengthOverview('1y', '2026-09-08', logged).lifts[0]?.points).toHaveLength(2);
   });
 
   it('does not list a lift with no workout in the span', () => {
@@ -220,7 +219,7 @@ describe('strengthOverview', () => {
     expect(overview.lifts).toEqual([]);
   });
 
-  it('leaves out a workout of warm-ups alone, and one whose working sets carry no weight', () => {
+  it('lists zero-weight working workouts without a trend and leaves out warm-ups alone', () => {
     const overview = strengthOverview('12w', '2026-09-30', [
       {
         exerciseId: 'pull-up',
@@ -241,13 +240,21 @@ describe('strengthOverview', () => {
         ],
       },
     ]);
-    // A lift never loaded has no e1RM to trend; one loaded once has one point.
     expect(overview.lifts).toEqual([
       {
         exerciseId: 'dip',
         name: 'Dip',
         points: [{ date: '2026-09-15', e1rmKg: 20 }],
+        workoutCount: 2,
         status: 'too_few',
+        trend: null,
+      },
+      {
+        exerciseId: 'pull-up',
+        name: 'Pull-Up',
+        points: [],
+        workoutCount: 3,
+        status: 'no_weight',
         trend: null,
       },
     ]);
@@ -276,6 +283,15 @@ describe('strengthOverview', () => {
     expect(losing.overall).toEqual({ lifts: 2, changePct: -2, status: 'losing' });
   });
 
+  it('averages exact lift changes and judges before display rounding', () => {
+    const overview = strengthOverview('12w', '2026-09-20', [
+      lift('Bench', 100, 100.98, 101.96),
+      lift('Squat', 100, 101, 102),
+      lift('Pull-Up', 0, 0, 0),
+    ]);
+    expect(overview.overall).toEqual({ lifts: 2, changePct: 2, status: 'holding' });
+  });
+
   it('orders the lifts with a verdict by their change, then the rest by name', () => {
     const overview = strengthOverview('12w', '2026-09-20', [
       lift('Row', 60, 70),
@@ -295,15 +311,15 @@ describe('strengthOverview', () => {
     ]);
   });
 
-  it('answers the span’s dates: its start, or the first workout’s for all', () => {
+  it('answers the span’s start and end dates', () => {
     const logged = [lift('Squat', 100, 103, 106), lift('Curl', 20)];
     expect(strengthOverview('12w', '2026-11-10', logged)).toMatchObject({
       span: '12w',
       from: '2026-08-19',
       to: '2026-11-10',
     });
-    expect(strengthOverview('all', '2026-11-10', logged).from).toBe('2026-09-01');
-    expect(strengthOverview('all', '2026-11-10', []).from).toBeNull();
+    expect(strengthOverview('1y', '2026-11-10', logged).from).toBe('2025-11-11');
+    expect(strengthOverview('1y', '2026-11-10', []).from).toBe('2025-11-11');
   });
 });
 
@@ -433,6 +449,7 @@ describe('GET /api/training/strength', () => {
           { date: localDate(daysAgo(8), 'Asia/Tokyo'), e1rmKg: 103 },
           { date: localDate(daysAgo(1), 'Asia/Tokyo'), e1rmKg: 106 },
         ],
+        workoutCount: 3,
         status: 'gaining',
         trend: { changeKg: 6, changePct: 6 },
       },
@@ -444,6 +461,7 @@ describe('GET /api/training/strength', () => {
           { date: localDate(daysAgo(8), 'Asia/Tokyo'), e1rmKg: 196 },
           { date: localDate(daysAgo(1), 'Asia/Tokyo'), e1rmKg: 192 },
         ],
+        workoutCount: 3,
         status: 'losing',
         trend: { changeKg: -8, changePct: -4 },
       },
@@ -451,11 +469,26 @@ describe('GET /api/training/strength', () => {
         exerciseId: curl,
         name: 'Dumbbell Curl',
         points: [{ date: localDate(daysAgo(2), 'Asia/Tokyo'), e1rmKg: 16 }],
+        workoutCount: 1,
         status: 'too_few',
         trend: null,
       },
     ]);
     expect(overview.overall).toEqual({ lifts: 2, changePct: 1, status: 'holding' });
+  });
+
+  it('lists zero-weight workouts and keeps them out of the average', async () => {
+    const { cookie } = await t.createSignedInUser('bodyweight@example.test');
+    await setUpProfile(cookie);
+    const pullUp = await exerciseId(cookie, 'Pull-Up');
+    for (const days of [15, 8, 1]) {
+      await log(cookie, pullUp, daysAgo(days), [{ weightKg: 0, reps: 8 }]);
+    }
+    const overview = await strengthOf(cookie);
+    expect(overview.lifts).toMatchObject([
+      { exerciseId: pullUp, workoutCount: 3, points: [], status: 'no_weight', trend: null },
+    ]);
+    expect(overview.overall).toEqual({ lifts: 0, changePct: null, status: null });
   });
 
   it('opens on 12 weeks, and each span keeps only its own workouts', async () => {
@@ -541,10 +574,9 @@ describe('GET /api/training/strength', () => {
   it('answers no lifts and no average before anything is logged', async () => {
     const { cookie } = await t.createSignedInUser('lifter@example.test');
     await setUpProfile(cookie);
-    const overview = await strengthOf(cookie, '?span=all');
+    const overview = await strengthOf(cookie);
     expect(overview).toMatchObject({
-      span: 'all',
-      from: null,
+      span: '12w',
       overall: { lifts: 0, changePct: null, status: null },
       lifts: [],
     });
@@ -553,9 +585,13 @@ describe('GET /api/training/strength', () => {
   it('refuses a span it does not know as a bad request', async () => {
     const { cookie } = await t.createSignedInUser('lifter@example.test');
     await setUpProfile(cookie);
-    const res = await t.app.request('/api/training/strength?span=2w', { headers: { cookie } });
-    expect(res.status).toBe(400);
-    expect(await res.json()).toMatchObject({ code: 'bad_request' });
+    for (const span of ['2w', '6m', 'all']) {
+      const res = await t.app.request(`/api/training/strength?span=${span}`, {
+        headers: { cookie },
+      });
+      expect(res.status).toBe(400);
+      expect(await res.json()).toMatchObject({ code: 'bad_request' });
+    }
   });
 
   it('answers setup_incomplete until the profile gives a time zone', async () => {
@@ -581,7 +617,7 @@ describe('GET /api/training/strength', () => {
       }
       await log(b.cookie, bench, daysAgo(2), [{ weightKg: 20, reps: 30 }]);
 
-      const forB = await strengthOf(b.cookie, '?span=all');
+      const forB = await strengthOf(b.cookie);
       expect(forB.lifts).toHaveLength(1);
       expect(forB.lifts[0]).toMatchObject({ status: 'too_few', trend: null });
       expect(forB.lifts[0]?.points).toEqual([
@@ -589,7 +625,7 @@ describe('GET /api/training/strength', () => {
       ]);
       expect(forB.overall).toEqual({ lifts: 0, changePct: null, status: null });
 
-      const forA = await strengthOf(a.cookie, '?span=all');
+      const forA = await strengthOf(a.cookie);
       expect(forA.lifts).toHaveLength(1);
       expect(forA.lifts[0]?.points.map((point) => point.e1rmKg)).toEqual([100, 110, 120]);
       expect(forA.overall).toMatchObject({ lifts: 1, status: 'gaining' });
@@ -610,8 +646,8 @@ describe('GET /api/training/strength', () => {
       expect(created.status).toBe(201);
       await log(a.cookie, own, daysAgo(1), [{ weightKg: 10, reps: 12 }]);
 
-      expect((await strengthOf(b.cookie, '?span=all')).lifts).toEqual([]);
-      expect((await strengthOf(a.cookie, '?span=all')).lifts.map((each) => each.name)).toEqual([
+      expect((await strengthOf(b.cookie)).lifts).toEqual([]);
+      expect((await strengthOf(a.cookie)).lifts.map((each) => each.name)).toEqual([
         'Cable Y-Raise',
       ]);
     });

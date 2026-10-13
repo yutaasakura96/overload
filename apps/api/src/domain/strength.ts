@@ -1,5 +1,5 @@
 import { bestE1rmKg, type LoggedSet } from './e1rm.js';
-import { spanStart, type Span } from './progress.js';
+import { spanStart } from './progress.js';
 
 // The strength overview (docs/07 §3, docs/06 2026-10-10 Q12): whether each lift is gaining,
 // holding or losing over a span, and all of them together. One measure, e1RM, so more reps at the
@@ -8,9 +8,11 @@ import { spanStart, type Span } from './progress.js';
 
 export const STRENGTH_STATUSES = ['gaining', 'holding', 'losing'] as const;
 export type StrengthStatus = (typeof STRENGTH_STATUSES)[number];
+export const STRENGTH_SPANS = ['4w', '12w', '1y'] as const;
+export type StrengthSpan = (typeof STRENGTH_SPANS)[number];
 
 /** A lift's status: its verdict, or `too_few` where the span cannot give one. */
-export const LIFT_STATUSES = [...STRENGTH_STATUSES, 'too_few'] as const;
+export const LIFT_STATUSES = [...STRENGTH_STATUSES, 'too_few', 'no_weight'] as const;
 export type LiftStatus = (typeof LIFT_STATUSES)[number];
 
 /** Up this many percent or more across the span is gaining; down as many is losing. */
@@ -24,7 +26,7 @@ export type TrendPoint = { date: string; e1rmKg: number };
 export type StrengthTrend = {
   /** The line's end less its start, to the thousandth. */
   changeKg: number;
-  /** That change as a share of the line's start, to the tenth: the figure the status reads. */
+  /** That change as a share of the line's start, to the tenth. */
   changePct: number;
   status: StrengthStatus;
 };
@@ -45,11 +47,10 @@ export function statusOf(changePct: number): StrengthStatus {
 
 /**
  * A lift's trend: the least-squares line through its e1RM by local date, its end against its
- * start. The percentage is rounded to the tenth before it is judged, so the figure a screen prints
- * and the verdict beside it never disagree. There is none with fewer than three workouts, with
+ * start. There is none with fewer than three workouts, with
  * every workout on one day, or where the line starts at or under zero and has no share to give.
  */
-export function strengthTrend(points: TrendPoint[]): StrengthTrend | undefined {
+function rawTrend(points: TrendPoint[]) {
   if (points.length < TREND_MIN_WORKOUTS) return undefined;
   const days = points.map((point) => dayOf(point.date));
   const meanDay = sum(days) / days.length;
@@ -62,8 +63,17 @@ export function strengthTrend(points: TrendPoint[]): StrengthTrend | undefined {
   const startKg = meanKg + slope * (Math.min(...days) - meanDay);
   const endKg = meanKg + slope * (Math.max(...days) - meanDay);
   if (startKg <= 0) return undefined;
-  const changePct = round(((endKg - startKg) / startKg) * 100, 1);
-  return { changeKg: round(endKg - startKg, 3), changePct, status: statusOf(changePct) };
+  return { changeKg: endKg - startKg, changePct: ((endKg - startKg) / startKg) * 100 };
+}
+
+export function strengthTrend(points: TrendPoint[]): StrengthTrend | undefined {
+  const trend = rawTrend(points);
+  if (trend === undefined) return undefined;
+  return {
+    changeKg: round(trend.changeKg, 3),
+    changePct: round(trend.changePct, 1),
+    status: statusOf(trend.changePct),
+  };
 }
 
 /** One exercise's workouts, oldest first, each with every set of it and its local date. */
@@ -78,15 +88,16 @@ export type StrengthLift = {
   name: string;
   /** One per workout in the span, oldest first, e1RM to the tenth. */
   points: TrendPoint[];
+  workoutCount: number;
   status: LiftStatus;
-  /** Null with `too_few`. */
+  /** Null with `too_few` or `no_weight`. */
   trend: { changeKg: number; changePct: number } | null;
 };
 
 export type StrengthOverview = {
-  span: Span;
-  /** The span's first local date. For `all` the first workout's, and null without one. */
-  from: string | null;
+  span: StrengthSpan;
+  /** The span's first local date. */
+  from: string;
   to: string;
   /** Every lift with a verdict, averaged. No figure and no status without one. */
   overall: { lifts: number; changePct: number | null; status: StrengthStatus | null };
@@ -100,54 +111,61 @@ const byName = (a: StrengthLift, b: StrengthLift) =>
 
 /**
  * Every lift's trend over a span ending on `today`, and their plain average. A workout counts by
- * its working sets alone (S6), and only where they give an e1RM above zero: a lift logged at no
- * weight has nothing to trend, so one with no such workout in the span is not listed.
+ * its working sets alone (S6). A lift logged only at zero weight has no e1RM trend.
  */
 export function strengthOverview(
-  span: Span,
+  span: StrengthSpan,
   today: string,
   logged: LoggedLift[],
 ): StrengthOverview {
-  const start = spanStart(span, today);
-  const lifts = logged.flatMap((lift): StrengthLift[] => {
-    const plotted = lift.workouts
-      .filter((workout) => (start === undefined || workout.date >= start) && workout.date <= today)
-      .flatMap((workout) => {
-        const e1rmKg = bestE1rmKg(workout.sets);
-        return e1rmKg === undefined || e1rmKg <= 0 ? [] : [{ date: workout.date, e1rmKg }];
-      });
-    if (plotted.length === 0) return [];
-    const trend = strengthTrend(plotted);
+  const start = spanStart(span, today)!;
+  const measured = logged.flatMap((lift): (StrengthLift & { rawChangePct: number | null })[] => {
+    const workouts = lift.workouts.filter(
+      (workout) => workout.date >= start && workout.date <= today,
+    );
+    const working = workouts.filter((workout) => workout.sets.some((set) => !set.isWarmup));
+    if (working.length === 0) return [];
+    const plotted = working.flatMap((workout) => {
+      const e1rmKg = bestE1rmKg(workout.sets);
+      return e1rmKg === undefined || e1rmKg <= 0 ? [] : [{ date: workout.date, e1rmKg }];
+    });
+    const raw = rawTrend(plotted);
     return [
       {
         exerciseId: lift.exerciseId,
         name: lift.name,
         points: plotted.map((point) => ({ date: point.date, e1rmKg: round(point.e1rmKg, 1) })),
-        status: trend?.status ?? 'too_few',
+        workoutCount: working.length,
+        status:
+          raw === undefined
+            ? plotted.length === 0
+              ? 'no_weight'
+              : 'too_few'
+            : statusOf(raw.changePct),
         trend:
-          trend === undefined ? null : { changeKg: trend.changeKg, changePct: trend.changePct },
+          raw === undefined
+            ? null
+            : { changeKg: round(raw.changeKg, 3), changePct: round(raw.changePct, 1) },
+        rawChangePct: raw?.changePct ?? null,
       },
     ];
   });
-  const rated = lifts.filter((lift) => lift.trend !== null);
-  const unrated = lifts.filter((lift) => lift.trend === null);
-  const changes = rated.flatMap((lift) => (lift.trend === null ? [] : [lift.trend.changePct]));
-  const changePct = changes.length === 0 ? null : round(sum(changes) / changes.length, 1);
-  const dates = lifts.flatMap((lift) => lift.points.map((point) => point.date)).toSorted();
+  const rated = measured.filter((lift) => lift.rawChangePct !== null);
+  const unrated = measured.filter((lift) => lift.rawChangePct === null);
+  const average =
+    rated.length === 0 ? null : sum(rated.map((lift) => lift.rawChangePct ?? 0)) / rated.length;
   return {
     span,
-    from: start ?? dates[0] ?? null,
+    from: start,
     to: today,
     overall: {
       lifts: rated.length,
-      changePct,
-      status: changePct === null ? null : statusOf(changePct),
+      changePct: average === null ? null : round(average, 1),
+      status: average === null ? null : statusOf(average),
     },
     lifts: [
-      ...rated.toSorted(
-        (a, b) => (b.trend?.changePct ?? 0) - (a.trend?.changePct ?? 0) || byName(a, b),
-      ),
+      ...rated.toSorted((a, b) => (b.rawChangePct ?? 0) - (a.rawChangePct ?? 0) || byName(a, b)),
       ...unrated.toSorted(byName),
-    ],
+    ].map(({ rawChangePct: _, ...lift }) => lift),
   };
 }

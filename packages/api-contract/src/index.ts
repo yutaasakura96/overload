@@ -20,6 +20,7 @@ export type SetRow = components['schemas']['SetRow'];
 export type Span = components['schemas']['Span'];
 export type StrengthLift = components['schemas']['StrengthLift'];
 export type StrengthOverview = components['schemas']['StrengthOverview'];
+export type StrengthSpan = StrengthOverview['span'];
 export type Suggestion = components['schemas']['Suggestion'];
 export type SyncBatch = components['schemas']['SyncBatch'];
 export type SyncDeletion = components['schemas']['SyncDeletion'];

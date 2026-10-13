@@ -98,11 +98,17 @@ const tally = (page: Page) => page.getByRole('definition');
 
 test('strength says per lift and overall whether it is gaining, holding or losing', async ({
   page,
-}) => {
+}, testInfo) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const consoleErrors: string[] = [];
+  page.on('console', (message) => {
+    if (message.type() === 'error') consoleErrors.push(message.text());
+  });
   const bench = await exerciseId(page, 'Barbell Bench Press');
   const squat = await exerciseId(page, 'Barbell Back Squat');
   const row = await exerciseId(page, 'Seated Cable Row');
   const curl = await exerciseId(page, 'Dumbbell Curl');
+  const pullUp = await exerciseId(page, 'Pull-Up');
   // Bench: 100 once, then 106 four times: a line up 6.4% over 12 weeks, and flat over the last 4.
   await log(page, bench, 61, 50);
   await log(page, bench, 22, 53);
@@ -118,6 +124,9 @@ test('strength says per lift and overall whether it is gaining, holding or losin
   await log(page, row, 1, 40);
   await log(page, curl, 9, 10);
   await log(page, curl, 2, 11);
+  await log(page, pullUp, 15, 0);
+  await log(page, pullUp, 8, 0);
+  await log(page, pullUp, 1, 0);
 
   await page.goto('/progress');
   await sections(page).getByRole('link', { name: 'Strength' }).click();
@@ -126,7 +135,7 @@ test('strength says per lift and overall whether it is gaining, holding or losin
     'aria-current',
     'page',
   );
-  await expect(page.getByText('4 LIFTS', { exact: true })).toBeVisible();
+  await expect(page.getByText('5 LIFTS', { exact: true })).toBeVisible();
 
   // 12 weeks, as the screen opens. Bench +6.4%, the row 0.0%, squat −4.0%: their plain average.
   await expect(page.getByRole('radio', { name: '12 weeks' })).toBeChecked();
@@ -159,6 +168,13 @@ test('strength says per lift and overall whether it is gaining, holding or losin
   await expect(tooFew).toContainText('2 WORKOUTS');
   await expect(tooFew).toContainText('no trend yet');
   await expect(tooFew).not.toContainText('%');
+  const noWeight = page
+    .getByRole('region', { name: 'No weight logged in this span · 1' })
+    .getByRole('link');
+  await expect(noWeight).toContainText('Pull-Up');
+  await expect(noWeight).toContainText('3 WORKOUTS');
+  await expect(noWeight).toContainText('No weight logged · no trend');
+  await page.screenshot({ path: testInfo.outputPath('strength-390.png'), fullPage: true });
 
   await expect(page.getByText('gaining ≥ +2% · losing ≤ −2%')).toBeVisible();
 
@@ -182,6 +198,7 @@ test('strength says per lift and overall whether it is gaining, holding or losin
   // A year takes in everything, and says so in words.
   await page.getByRole('radio', { name: '1 year' }).check();
   await expect(headline(page)).toContainText('trend over a year');
+  expect(consoleErrors).toEqual([]);
 });
 
 test('strength in pounds', async ({ page }) => {

@@ -1,4 +1,4 @@
-import { ACCOUNT_HEADER, type Me, type Span } from '@overload/api-contract';
+import { ACCOUNT_HEADER, type Me, type Span, type StrengthSpan } from '@overload/api-contract';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
 import {
   QueryClient,
@@ -381,7 +381,7 @@ export const progressQuery = (exerciseId: string, span: Span) =>
  * The strength overview over a span (docs/07 §3): every lift's points, trend and status. Enable it
  * only once the profile exists: without one the API answers `setup_incomplete`.
  */
-export const strengthQuery = (span: Span) =>
+export const strengthQuery = (span: StrengthSpan) =>
   queryOptions({
     queryKey: ['strength', span],
     refetchOnWindowFocus: false,

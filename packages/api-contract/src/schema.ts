@@ -1074,7 +1074,7 @@ export interface paths {
       parameters: {
         query?: {
           /** @description Default `12w`. */
-          span?: components['schemas']['Span'] & unknown;
+          span?: '4w' | '12w' | '1y';
         };
         header?: never;
         path?: never;
@@ -1093,7 +1093,7 @@ export interface paths {
             'application/json': components['schemas']['StrengthOverview'];
           };
         };
-        /** @description A span that is not one of the five */
+        /** @description A span that is not `4w`, `12w` or `1y` */
         400: {
           headers: {
             [name: string]: unknown;
@@ -1762,20 +1762,21 @@ export interface components {
       }[];
       suggestion: components['schemas']['Suggestion'];
     };
-    /** @description Every lift the caller logged in the span, with the trend of its e1RM. Warm-ups are left out (S6), and so is a workout whose working sets carry no weight. */
+    /** @description Every lift the caller logged with a working set in the span, with the trend of its e1RM. Warm-ups are left out (S6). */
     StrengthOverview: {
-      span: components['schemas']['Span'];
+      /** @enum {string} */
+      span: '4w' | '12w' | '1y';
       /**
        * Format: date
-       * @description The span’s first local date. For `all`, the first workout’s, and null without one.
+       * @description The span’s first local date.
        */
-      from: string | null;
+      from: string;
       /**
        * Format: date
        * @description Today, in the caller’s time zone.
        */
       to: string;
-      /** @description The plain average of every verdict’s `changePct`, to the tenth, judged as a lift’s is. Null without a lift to average. */
+      /** @description The plain average of every verdict’s unrounded percentage, judged before rounding to the tenth for display. Null without a lift to average. */
       overall: {
         /**
          * @description How many lifts have a verdict.
@@ -1802,7 +1803,7 @@ export interface components {
       exerciseId: string;
       /** @example Barbell Bench Press */
       name: string;
-      /** @description One per workout in the span, oldest first. Never empty. */
+      /** @description One per workout with a positive e1RM in the span, oldest first. */
       points: {
         /**
          * Format: date
@@ -1815,12 +1816,14 @@ export interface components {
          */
         e1rmKg: number;
       }[];
+      /** @description Workouts with a working set in the span. */
+      workoutCount: number;
       /**
-       * @description The lift’s verdict, or `too_few` where the span cannot give one.
+       * @description The lift’s verdict, `too_few` without enough points, or `no_weight` without a positive e1RM.
        * @enum {string}
        */
-      status: 'gaining' | 'holding' | 'losing' | 'too_few';
-      /** @description Null with `too_few`. */
+      status: 'gaining' | 'holding' | 'losing' | 'too_few' | 'no_weight';
+      /** @description Null with `too_few` or `no_weight`. */
       trend: {
         /**
          * @description The trend line’s end less its start, to the thousandth.

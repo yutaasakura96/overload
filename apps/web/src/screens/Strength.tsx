@@ -1,4 +1,10 @@
-import type { Me, Span, StrengthLift, StrengthOverview, WeightUnit } from '@overload/api-contract';
+import type {
+  Me,
+  StrengthLift,
+  StrengthOverview,
+  StrengthSpan,
+  WeightUnit,
+} from '@overload/api-contract';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { AccountFooter, AppBar, DataState, Notice, ScreenTabs } from '../components';
 import type { Navigate } from '../navigation';
@@ -10,14 +16,14 @@ import { ProgressSections } from './History';
 // own, is gaining, holding or losing over a span. Every figure and verdict is the API's (docs/07
 // §3); this screen groups the lifts by the status they came with and draws them.
 
-const SPANS: { span: Span; label: string; over: string }[] = [
+const SPANS: { span: StrengthSpan; label: string; over: string }[] = [
   { span: '4w', label: '4 weeks', over: '4 weeks' },
   { span: '12w', label: '12 weeks', over: '12 weeks' },
   { span: '1y', label: '1 year', over: 'a year' },
 ];
 
 /** The span the screen opens on, and the API's own default (docs/07 §3). */
-const DEFAULT_SPAN: Span = '12w';
+const DEFAULT_SPAN: StrengthSpan = '12w';
 
 type Status = StrengthLift['status'];
 
@@ -26,6 +32,7 @@ const GROUPS: { status: Status; label: string }[] = [
   { status: 'holding', label: 'Holding' },
   { status: 'losing', label: 'Losing' },
   { status: 'too_few', label: 'Too few workouts in this span' },
+  { status: 'no_weight', label: 'No weight logged in this span' },
 ];
 
 /** What all the lifts together read as: the same three verdicts, in the headline's words. */
@@ -238,7 +245,7 @@ function Lifts({
   status: Status;
   label: string;
   lifts: StrengthLift[];
-  span: Span;
+  span: StrengthSpan;
   unit: WeightUnit;
   navigate: Navigate;
 }) {
@@ -269,7 +276,10 @@ function Lifts({
                   <span className="lifts__name">{lift.name}</span>
                   <span className="lifts__now">
                     {lift.trend === null || latest === undefined ? (
-                      count(lift.points.length, 'workout').toUpperCase()
+                      count(
+                        lift.status === 'no_weight' ? lift.workoutCount : lift.points.length,
+                        'workout',
+                      ).toUpperCase()
                     ) : (
                       <>
                         <span className="visually-hidden">: estimated 1RM </span>
@@ -281,9 +291,15 @@ function Lifts({
                     )}
                   </span>
                 </span>
-                {lift.points.length > 1 ? <Spark points={lift.points} /> : <span />}
+                {lift.status === 'no_weight' ? null : lift.points.length > 1 ? (
+                  <Spark points={lift.points} />
+                ) : (
+                  <span />
+                )}
                 <span className="lifts__change">
-                  {lift.trend === null ? (
+                  {lift.status === 'no_weight' ? (
+                    <span className="lifts__kg">No weight logged · no trend</span>
+                  ) : lift.trend === null ? (
                     <>
                       <span className="lifts__pct" aria-hidden="true">
                         —

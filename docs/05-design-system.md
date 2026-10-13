@@ -678,6 +678,8 @@ icon is added.
   and, right-aligned, the change at 13px mono / 500 tabular over a 10px mono line in
   `text/quaternary`, 3px below. The change is `done` for a gain, `flag` for a loss and
   `text/tertiary` otherwise, always with its sign. Pressed: `surface/active`.
+- **Zero-weight lift.** The row uses two equal columns and shows its workout count under the name,
+  with `No weight logged · no trend` in the second column. It has no sparkline or verdict colour.
 - **Sparkline.** 64 × 24, no axes and no labels: a 1.5px `accent` line with round caps and joins
   through the points by date, from x 2 to 60 and y 20 to 4, flat at 12 when every value is equal,
   and a 2px `accent` dot on the latest. It repeats the figures beside it and is hidden from a

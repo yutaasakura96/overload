@@ -569,33 +569,37 @@ GET /api/training/strength?span=12w
   "overall": { "lifts": 13, "changePct": 2.7, "status": "gaining" },
   "lifts": [
     { "exerciseId": "0192a001-…", "name": "Barbell Bench Press",
-      "points": [ { "date": "2026-07-27", "e1rmKg": 102 }, { "date": "2026-10-12", "e1rmKg": 106.7 } ],
-      "status": "gaining", "trend": { "changeKg": 4.712, "changePct": 4.6 } },
+      "points": [ { "date": "2026-09-28", "e1rmKg": 100 }, { "date": "2026-10-05", "e1rmKg": 103 }, { "date": "2026-10-12", "e1rmKg": 106 } ],
+      "workoutCount": 3, "status": "gaining", "trend": { "changeKg": 6, "changePct": 6 } },
     { "exerciseId": "0192a002-…", "name": "Cable Face Pull",
       "points": [ { "date": "2026-10-08", "e1rmKg": 28 } ],
-      "status": "too_few", "trend": null }
+      "workoutCount": 1, "status": "too_few", "trend": null }
   ]
 }
 ```
 
-- `span`, `from` and `to` are the chart's: one of the five, `12w` when omitted, ending today in
-  the caller's time zone. Any other value is a 400. The screen offers `4w`, `12w` and `1y`.
-- **A lift** is an exercise with at least one point in the span; one with none is not listed. A
+- `span` is `4w`, `12w` or `1y`, `12w` when omitted. Any other value is a 400. `from` and `to`
+  are local dates, ending today in the caller's time zone. `from` is the span start even when
+  no lift was logged.
+- **A lift** is an exercise with at least one working set in the span; one with none is not listed. A
   point is a workout's e1RM from its best working set, to the tenth, as the chart plots it, a
   workout in progress included. Warm-ups are left out (S6). So is a workout whose working sets
-  carry no weight: its e1RM is 0, which a percentage cannot be taken of, so a lift never loaded
-  is not in the overview.
+  carry no weight: its e1RM is 0, which a percentage cannot be taken of. `workoutCount` counts
+  all workouts with a working set, including those at zero weight.
 - **The trend** is the least-squares line through the lift's e1RM by local date, fitted to the
   estimates before they are rounded. `changeKg` is the line's end less its start, to the
   thousandth; `changePct` is that as a share of the start, to the tenth, halves away from zero.
   The client converts `changeKg` to the user's unit and rounds it once, and never works out
   either itself.
-- **The status** reads `changePct` as it is sent, so the figure printed and the verdict beside it
-  cannot disagree: `gaining` at 2.0 or more, `losing` at −2.0 or less, `holding` between.
-- **`too_few`** with `trend: null`: fewer than three workouts in the span. Also three or more
+- **The status** reads the unrounded percentage: `gaining` at 2% or more, `losing` at −2% or
+  less, `holding` between. A displayed `+2.0%` can therefore be holding.
+- **`too_few`** with `trend: null`: fewer than three workouts with a positive e1RM in the span. Also three or more
   that all fall on one local date, and a line that starts at or under zero.
-- **`overall`** is the plain average of every verdict's `changePct`, to the tenth, judged by the
-  same thresholds; each lift counts once whatever it weighs. `lifts` is how many were averaged.
+- **`no_weight`** with `trend: null` and no points: the lift has working sets but no positive
+  e1RM. Its workout count is shown; it does not enter the overall average.
+- **`overall`** is the plain average of every verdict's unrounded percentage, judged before
+  rounding and displayed to the tenth. Each lift counts once whatever it weighs. `lifts` is how
+  many were averaged.
   With none, `changePct` and `status` are `null`.
 - `lifts` come with a verdict first, the largest `changePct` first and by name between equals,
   then those without, by name. The screen groups them by `status` and keeps the order.

@@ -1,6 +1,6 @@
 import { z } from '@hono/zod-openapi';
 import { SPANS } from '../domain/progress.js';
-import { LIFT_STATUSES, STRENGTH_STATUSES } from '../domain/strength.js';
+import { LIFT_STATUSES, STRENGTH_SPANS, STRENGTH_STATUSES } from '../domain/strength.js';
 
 // Response schemas shared by the routes. These generate packages/api-contract (docs/03 §2).
 
@@ -417,9 +417,11 @@ export const StrengthLift = z
           }),
         }),
       )
-      .openapi({ description: 'One per workout in the span, oldest first. Never empty.' }),
+      .openapi({ description: 'One per workout with a positive e1RM in the span, oldest first.' }),
+    workoutCount: z.int().openapi({ description: 'Workouts with a working set in the span.' }),
     status: z.enum(LIFT_STATUSES).openapi({
-      description: 'The lift’s verdict, or `too_few` where the span cannot give one.',
+      description:
+        'The lift’s verdict, `too_few` without enough points, or `no_weight` without a positive e1RM.',
     }),
     trend: z
       .object({
@@ -433,16 +435,15 @@ export const StrengthLift = z
         }),
       })
       .nullable()
-      .openapi({ description: 'Null with `too_few`.' }),
+      .openapi({ description: 'Null with `too_few` or `no_weight`.' }),
   })
   .openapi('StrengthLift');
 
 export const StrengthOverview = z
   .object({
-    span: Span,
-    from: z.iso.date().nullable().openapi({
-      description:
-        'The span’s first local date. For `all`, the first workout’s, and null without one.',
+    span: z.enum(STRENGTH_SPANS),
+    from: z.iso.date().openapi({
+      description: 'The span’s first local date.',
     }),
     to: z.iso.date().openapi({ description: 'Today, in the caller’s time zone.' }),
     overall: z
@@ -453,8 +454,8 @@ export const StrengthOverview = z
       })
       .openapi({
         description:
-          'The plain average of every verdict’s `changePct`, to the tenth, judged as a lift’s ' +
-          'is. Null without a lift to average.',
+          'The plain average of every verdict’s unrounded percentage, judged before rounding ' +
+          'to the tenth for display. Null without a lift to average.',
       }),
     lifts: z.array(StrengthLift).openapi({
       description: 'The lifts with a verdict, the largest gain first; then those without, by name.',
@@ -462,8 +463,7 @@ export const StrengthOverview = z
   })
   .openapi('StrengthOverview', {
     description:
-      'Every lift the caller logged in the span, with the trend of its e1RM. Warm-ups are left ' +
-      'out (S6), and so is a workout whose working sets carry no weight.',
+      'Every lift the caller logged with a working set in the span, with the trend of its e1RM. Warm-ups are left out (S6).',
   });
 
 const WorkoutFields = {

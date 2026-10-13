@@ -784,7 +784,7 @@ verdict is the API's (`07` §3); the screen groups the lifts by the status they 
 | Span | `05` §4.8, three segments, `14px 16px 0`, 44px, mono | `4 WEEKS`, `12 WEEKS`, `1 YEAR`; a radio group. It opens on 12 weeks |
 | Headline | screen 2's (§2), `18px 16px 0` | `ALL LIFTS · TREND OVER 12 WEEKS` (`a year` for the year); the average at 42px, `+2.7`, with `%` at 14px. Right: `STRONGER`, `HOLDING` or `WEAKER`, 13px mono/500, `done` for stronger and `text/tertiary` otherwise, over `13 LIFTS AVERAGED` |
 | Tally | `05` §4.23, `16px 16px 0` | `GAINING` `6` in `done`; `HOLDING` `6`; `LOSING` `1` in `flag` |
-| Group | `05` §4.3's label as an `h2`, `18px 16px 8px`, `text/tertiary` | `GAINING · 6`, then `HOLDING`, `LOSING` and `TOO FEW WORKOUTS IN THIS SPAN`. A group with no lift is not drawn |
+| Group | `05` §4.3's label as an `h2`, `18px 16px 8px`, `text/tertiary` | `GAINING · 6`, then `HOLDING`, `LOSING`, `TOO FEW WORKOUTS IN THIS SPAN` and `NO WEIGHT LOGGED IN THIS SPAN`. A group with no lift is not drawn |
 | Lift row | `05` §4.23 | The name; `E1RM 106.7 KG`, its latest in the span; the sparkline; `+4.6%` over `+4.7 kg`. The whole row is a link to that lift's chart (§2) on the same span |
 | Footnote | `05` §4.15, 22px under the last list | `Trend of each lift's e1RM across the span` and `gaining ≥ +2% · losing ≤ −2%` |
 
@@ -802,8 +802,8 @@ verdict is the API's (`07` §3); the screen groups the lifts by the status they 
 - **Not reached**, and **no profile yet:** as screen 2 (§2).
 - **Pounds.** The latest e1RM and the change in weight are in the profile's unit, `LB` and `lb`.
   The percentage is the same in either.
-- **A lift never loaded**, logged at 0 kg throughout, has no e1RM to trend and is not listed
-  (`07` §3).
+- **A lift never loaded**, logged at 0 kg throughout, is listed with its workout count and
+  `No weight logged · no trend` in place of a verdict. It is not averaged (`07` §3).
 
 ### A workout (`/workouts/{id}`)
 

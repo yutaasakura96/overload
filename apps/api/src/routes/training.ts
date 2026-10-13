@@ -5,14 +5,13 @@ import { getProfile } from '../db/profile.js';
 import { lastTimes, localDateIn, loggedLifts } from '../db/training.js';
 import { syncWorkouts } from '../db/workouts.js';
 import { spanStart } from '../domain/progress.js';
-import { strengthOverview } from '../domain/strength.js';
+import { STRENGTH_SPANS, strengthOverview } from '../domain/strength.js';
 import { accountHeaders } from '../lib/account.js';
 import { problem, problemResponse, validationErrors } from '../lib/problem.js';
 import {
   IdParam,
   LastTimes,
   SetRow,
-  Span,
   StrengthOverview,
   SyncBatch,
   SyncDeletion,
@@ -67,7 +66,7 @@ const getStrength = createRoute({
   summary: 'Whether each lift, and all of them together, is gaining, holding or losing over a span',
   request: {
     query: z.object({
-      span: Span.default('12w').openapi({ description: 'Default `12w`.' }),
+      span: z.enum(STRENGTH_SPANS).default('12w').openapi({ description: 'Default `12w`.' }),
     }),
   },
   responses: {
@@ -76,7 +75,7 @@ const getStrength = createRoute({
       headers: accountHeaders,
       content: { 'application/json': { schema: StrengthOverview } },
     },
-    400: problemResponse('A span that is not one of the five'),
+    400: problemResponse('A span that is not `4w`, `12w` or `1y`'),
     401: problemResponse('No session'),
     422: problemResponse(
       '`setup_incomplete` with `missing: ["profile"]`: local dates need the time zone',
