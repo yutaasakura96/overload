@@ -12,6 +12,7 @@ import { Progress } from './screens/Progress';
 import { RoutineScreen } from './screens/RoutineEditor';
 import { RoutineList } from './screens/RoutineList';
 import { SignIn } from './screens/SignIn';
+import { Strength } from './screens/Strength';
 import { Today } from './screens/Today';
 import { Workout } from './screens/Workout';
 import { endIdleWorkout, loadWorkouts } from './workout';
@@ -84,8 +85,9 @@ export function App() {
       );
     if (route.screen === 'library') return <ExerciseLibrary me={me.data} navigate={navigate} />;
     if (route.screen === 'history') return <History me={me.data} navigate={navigate} />;
-    if (route.screen === 'strength' || route.screen === 'balance')
-      return <ProgressSection me={me.data} section={route.screen} navigate={navigate} />;
+    if (route.screen === 'strength')
+      return <Strength me={me.data} searchParams={searchParams} navigate={navigate} />;
+    if (route.screen === 'balance') return <ProgressSection me={me.data} navigate={navigate} />;
     if (route.screen === 'past-workout')
       return <PastWorkout key={route.id} id={route.id} me={me.data} navigate={navigate} />;
     return <Today me={me.data} navigate={navigate} />;

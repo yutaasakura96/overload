@@ -1062,6 +1062,74 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/training/strength': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Whether each lift, and all of them together, is gaining, holding or losing over a span */
+    get: {
+      parameters: {
+        query?: {
+          /** @description Default `12w`. */
+          span?: '4w' | '12w' | '1y';
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description One entry per exercise logged in the span, with its points, trend and status */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['StrengthOverview'];
+          };
+        };
+        /** @description A span that is not `4w`, `12w` or `1y` */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `setup_incomplete` with `missing: ["profile"]`: local dates need the time zone */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/workouts/sync': {
     parameters: {
       query?: never;
@@ -1693,6 +1761,81 @@ export interface components {
         rir: number | null;
       }[];
       suggestion: components['schemas']['Suggestion'];
+    };
+    /** @description Every lift the caller logged with a working set in the span, with the trend of its e1RM. Warm-ups are left out (S6). */
+    StrengthOverview: {
+      /** @enum {string} */
+      span: '4w' | '12w' | '1y';
+      /**
+       * Format: date
+       * @description The span’s first local date.
+       */
+      from: string;
+      /**
+       * Format: date
+       * @description Today, in the caller’s time zone.
+       */
+      to: string;
+      /** @description The plain average of every verdict’s unrounded percentage, judged before rounding to the tenth for display. Null without a lift to average. */
+      overall: {
+        /**
+         * @description How many lifts have a verdict.
+         * @example 13
+         */
+        lifts: number;
+        /** @example 2.7 */
+        changePct: number | null;
+        status: components['schemas']['StrengthStatus'];
+      };
+      /** @description The lifts with a verdict, the largest gain first; then those without, by name. */
+      lifts: components['schemas']['StrengthLift'][];
+    };
+    /**
+     * @description Gaining is a trend up 2% or more across the span, losing one down 2% or more, holding anything between.
+     * @enum {string|null}
+     */
+    StrengthStatus: 'gaining' | 'holding' | 'losing' | null;
+    StrengthLift: {
+      /**
+       * Format: uuid
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      exerciseId: string;
+      /** @example Barbell Bench Press */
+      name: string;
+      /** @description One per workout with a positive e1RM in the span, oldest first. */
+      points: {
+        /**
+         * Format: date
+         * @description The workout’s local date.
+         */
+        date: string;
+        /**
+         * @description Epley on the best working set, to the tenth.
+         * @example 106.7
+         */
+        e1rmKg: number;
+      }[];
+      /** @description Workouts with a working set in the span. */
+      workoutCount: number;
+      /**
+       * @description The lift’s verdict, `too_few` below three workouts, `no_trend` when a percentage cannot be calculated, or `no_weight` without a positive e1RM.
+       * @enum {string}
+       */
+      status: 'gaining' | 'holding' | 'losing' | 'too_few' | 'no_trend' | 'no_weight';
+      /** @description Null without a verdict. */
+      trend: {
+        /**
+         * @description The trend line’s end less its start, to the thousandth.
+         * @example 4.712
+         */
+        changeKg: number;
+        /**
+         * @description That change as a share of the line’s start, to the tenth.
+         * @example 4.6
+         */
+        changePct: number;
+      } | null;
     };
     SyncResponse: {
       /** @description One per row sent. */

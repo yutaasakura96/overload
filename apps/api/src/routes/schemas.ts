@@ -1,5 +1,6 @@
 import { z } from '@hono/zod-openapi';
 import { SPANS } from '../domain/progress.js';
+import { LIFT_STATUSES, STRENGTH_SPANS, STRENGTH_STATUSES } from '../domain/strength.js';
 
 // Response schemas shared by the routes. These generate packages/api-contract (docs/03 §2).
 
@@ -394,6 +395,75 @@ export const Progress = z
   })
   .openapi('Progress', {
     description: 'One exercise’s chart (S7). Warm-ups are left out of every number (S6).',
+  });
+
+export const StrengthStatus = z.enum(STRENGTH_STATUSES).openapi('StrengthStatus', {
+  description:
+    'Gaining is a trend up 2% or more across the span, losing one down 2% or more, holding ' +
+    'anything between.',
+});
+
+export const StrengthLift = z
+  .object({
+    exerciseId: Uuid,
+    name: z.string().openapi({ example: 'Barbell Bench Press' }),
+    points: z
+      .array(
+        z.object({
+          date: z.iso.date().openapi({ description: 'The workout’s local date.' }),
+          e1rmKg: z.number().openapi({
+            description: 'Epley on the best working set, to the tenth.',
+            example: 106.7,
+          }),
+        }),
+      )
+      .openapi({ description: 'One per workout with a positive e1RM in the span, oldest first.' }),
+    workoutCount: z.int().openapi({ description: 'Workouts with a working set in the span.' }),
+    status: z.enum(LIFT_STATUSES).openapi({
+      description:
+        'The lift’s verdict, `too_few` below three workouts, `no_trend` when a percentage cannot be calculated, or `no_weight` without a positive e1RM.',
+    }),
+    trend: z
+      .object({
+        changeKg: z.number().openapi({
+          description: 'The trend line’s end less its start, to the thousandth.',
+          example: 4.712,
+        }),
+        changePct: z.number().openapi({
+          description: 'That change as a share of the line’s start, to the tenth.',
+          example: 4.6,
+        }),
+      })
+      .nullable()
+      .openapi({ description: 'Null without a verdict.' }),
+  })
+  .openapi('StrengthLift');
+
+export const StrengthOverview = z
+  .object({
+    span: z.enum(STRENGTH_SPANS),
+    from: z.iso.date().openapi({
+      description: 'The span’s first local date.',
+    }),
+    to: z.iso.date().openapi({ description: 'Today, in the caller’s time zone.' }),
+    overall: z
+      .object({
+        lifts: z.int().openapi({ description: 'How many lifts have a verdict.', example: 13 }),
+        changePct: z.number().nullable().openapi({ example: 2.7 }),
+        status: StrengthStatus.nullable(),
+      })
+      .openapi({
+        description:
+          'The plain average of every verdict’s unrounded percentage, judged before rounding ' +
+          'to the tenth for display. Null without a lift to average.',
+      }),
+    lifts: z.array(StrengthLift).openapi({
+      description: 'The lifts with a verdict, the largest gain first; then those without, by name.',
+    }),
+  })
+  .openapi('StrengthOverview', {
+    description:
+      'Every lift the caller logged with a working set in the span, with the trend of its e1RM. Warm-ups are left out (S6).',
   });
 
 const WorkoutFields = {

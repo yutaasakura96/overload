@@ -463,6 +463,7 @@ schema: the fields at fault as `{ path, message }`, as in a 422 (§1.3), never a
 | GET | `/api/workouts` | M | History: finished workouts, newest `startedAt` first, paged. Each item is a summary: name, times, working-set count, and each exercise's name and top set | 200 | 400, 401 |
 | GET | `/api/workouts/{id}` | M | One workout with its exercises and every set. The linked Apple workout joins it in M3 | 200 | 400, 401, 404 |
 | GET | `/api/exercises/{id}/progress` | M | The S7 chart, with S20 overlays when asked | 200 | 400, 401, 404, 422 |
+| GET | `/api/training/strength` | M | The strength overview: every lift's points, trend and status over a span, and their average | 200 | 400, 401, 422 |
 
 ```http
 GET /api/exercises/0192a001-…/progress?span=12w&overlays=intake,trend,sleep,hrv
@@ -555,6 +556,59 @@ GET /api/workouts?limit=30&cursor=WyIyMDI2LTEw…
   `position` order, warm-ups included. A workout in progress is answered too.
 - The 404 is a workout that does not exist or is not the caller's, the same answer for both. The
   400 is an id that is not a UUID.
+
+**The strength overview, as built 2026-10-14** (`06`; issue `#49`). It reads the sets the chart
+reads, every exercise at once, and changes nothing.
+
+```http
+GET /api/training/strength?span=12w
+```
+```json
+{
+  "span": "12w", "from": "2026-07-23", "to": "2026-10-14",
+  "overall": { "lifts": 1, "changePct": 6, "status": "gaining" },
+  "lifts": [
+    { "exerciseId": "0192a001-…", "name": "Barbell Bench Press",
+      "points": [ { "date": "2026-09-28", "e1rmKg": 100 }, { "date": "2026-10-05", "e1rmKg": 103 }, { "date": "2026-10-12", "e1rmKg": 106 } ],
+      "workoutCount": 3, "status": "gaining", "trend": { "changeKg": 6, "changePct": 6 } },
+    { "exerciseId": "0192a002-…", "name": "Cable Face Pull",
+      "points": [ { "date": "2026-10-08", "e1rmKg": 28 } ],
+      "workoutCount": 1, "status": "too_few", "trend": null }
+  ]
+}
+```
+
+- `span` is `4w`, `12w` or `1y`, `12w` when omitted. Any other value is a 400. `from` and `to`
+  are local dates, ending today in the caller's time zone. `from` is the span start even when
+  no lift was logged.
+- **A lift** is an exercise with at least one working set in the span; one with none is not listed. A
+  point is a workout's e1RM from its best working set, to the tenth, as the chart plots it, a
+  workout in progress included. Warm-ups are left out (S6). So is a workout whose working sets
+  carry no weight: its e1RM is 0, which a percentage cannot be taken of. `workoutCount` counts
+  all workouts with a working set, including those at zero weight.
+- **The trend** is the least-squares line through the lift's e1RM by local date, fitted to the
+  estimates before they are rounded. `changeKg` is the line's end less its start, to the
+  thousandth; `changePct` is that as a share of the start, to the tenth, halves away from zero.
+  The client converts `changeKg` to the user's unit and rounds it once, and never works out
+  either itself.
+- **The status** reads the unrounded percentage: `gaining` at 2% or more, `losing` at −2% or
+  less, `holding` between. A displayed `+2.0%` can therefore be holding.
+- **`too_few`** with `trend: null`: fewer than three workouts with a working set in the span,
+  where at least one has a positive e1RM. A lift with none is `no_weight` instead.
+  Its displayed count includes zero-weight workouts.
+- **`no_trend`** with `trend: null`: three or more working workouts but no calculable
+  percentage. This includes positive points all on one local date, a fitted line starting at or
+  below zero, and fewer than three positive points after zero-weight workouts are excluded.
+  The lift keeps its workout count and sits outside the average.
+- **`no_weight`** with `trend: null` and no points: the lift has working sets but no positive
+  e1RM. Its workout count is shown; it does not enter the overall average.
+- **`overall`** is the plain average of every verdict's unrounded percentage, judged before
+  rounding and displayed to the tenth. Each lift counts once whatever it weighs. `lifts` is how
+  many were averaged.
+  With none, `changePct` and `status` are `null`.
+- `lifts` come with a verdict first, the largest `changePct` first and by name between equals,
+  then those without, by name. The screen groups them by `status` and keeps the order.
+- The 422 is `setup_incomplete` with `missing: ["profile"]`: local dates need the time zone.
 
 ### Apple workout links (S19)
 

@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import type { LoggedWorkout } from '../domain/progress.js';
 import { suggest, type Suggestion } from '../domain/progression.js';
+import type { LoggedLift } from '../domain/strength.js';
 import type { Database } from './connection.js';
 import { listExercises } from './exercises.js';
 
@@ -182,5 +183,45 @@ export async function loggedWorkouts(
     name: sets[0]?.name ?? '',
     date: localDate(new Date(sets[0]?.started_at ?? 0)),
     sets: sets.map((set) => ({ weightKg: set.weight_kg, reps: set.reps, isWarmup: set.is_warmup })),
+  }));
+}
+
+type LiftRow = LoggedRow & { exercise_id: string; exercise_name: string };
+
+/**
+ * Every exercise the user has logged, each with its workouts oldest first and every set of it,
+ * warm-ups included, dated as `loggedWorkouts` dates them: what the strength overview reads
+ * (docs/07 §3). `since` is a local date: workouts that started before it are left unread.
+ */
+export async function loggedLifts(
+  db: Database,
+  userId: string,
+  timezone: string,
+  since?: string,
+): Promise<LoggedLift[]> {
+  const { rows } = await db.execute<LiftRow>(sql`
+    SELECT we.exercise_id, e.name AS exercise_name, w.id AS workout_id, w.name, w.started_at,
+           s.weight_kg::float8 AS weight_kg, s.reps, s.is_warmup
+    FROM workout w
+    JOIN workout_exercise we ON we.workout_id = w.id
+    JOIN exercise e ON e.id = we.exercise_id
+    JOIN "set" s ON s.workout_exercise_id = we.id
+    WHERE w.user_id = ${userId}
+      AND (${since ?? null}::date IS NULL
+        OR w.started_at >= (${since ?? null}::date::timestamp AT TIME ZONE ${timezone}))
+    ORDER BY w.started_at, w.id, we.position, we.id, s.position, s.id
+  `);
+  const localDate = localDateIn(timezone);
+  return [...groupBy(rows, (row) => row.exercise_id)].map(([exerciseId, logged]) => ({
+    exerciseId,
+    name: logged[0]?.exercise_name ?? '',
+    workouts: [...groupBy(logged, (row) => row.workout_id).values()].map((sets) => ({
+      date: localDate(new Date(sets[0]?.started_at ?? 0)),
+      sets: sets.map((set) => ({
+        weightKg: set.weight_kg,
+        reps: set.reps,
+        isWarmup: set.is_warmup,
+      })),
+    })),
   }));
 }

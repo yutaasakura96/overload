@@ -219,10 +219,7 @@ test('the Progress tab lists finished workouts by month, newest first, and opens
   await expect(september).toContainText('WED 17 SEP · 40 MIN · 1 SET');
   await expect(september).toContainText('Barbell Back Squat 100 × 5');
 
-  // Strength and Balance are places already, and say they hold nothing yet.
-  await sections(page).getByRole('link', { name: 'Strength' }).click();
-  await expect(page).toHaveURL('/progress/strength');
-  await expect(page.getByRole('heading', { name: 'Strength is not here yet' })).toBeVisible();
+  // Balance is a place already, and says it holds nothing yet.
   await sections(page).getByRole('link', { name: 'Balance' }).click();
   await expect(page).toHaveURL('/progress/balance');
   await expect(page.getByRole('heading', { name: 'Balance is not here yet' })).toBeVisible();

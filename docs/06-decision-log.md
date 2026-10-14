@@ -3483,3 +3483,39 @@ the last-done line is `#61`. Today's `Last workout` row is built, as the way int
 History from there.
 
 **Changed:** `00`, `03`, `05`, `07`, `09`, `10`, `11`, `CONTEXT.md`.
+
+### 2026-10-14 — The strength overview: a trend line per lift
+
+Issue `#49`, built to the approved prototype's Strength screen. Q12 of the prototype review set
+the rule: e1RM alone, a straight line through the span's workouts, ±2% the threshold, three
+workouts the minimum, the plain average overall. What building it settled:
+
+- **One route for every lift**, `GET /api/training/strength`, beside last time, which is the
+  other read of every exercise at once. The trend is `domain/strength.ts`, pure, beside e1RM and
+  the span. *Rejected:* a chart request per lift from the screen, thirteen calls for one figure,
+  and the average worked out in the web app, which keeps no such logic (`AGENTS.md`).
+- **The line is fitted by local date**, not by the workouts' order, so a gap of a month weighs as
+  a month. It is fitted to the estimates before they are rounded.
+- **The verdict reads the unrounded percentage.** A lift at 1.96% prints `+2.0%` and holds.
+  The overall figure is the plain average of the unrounded lift percentages, judged before it
+  is rounded for display. Display figures round to the tenth with halves away from zero.
+- **No verdict** for fewer than three workouts with working sets, as Q12 says. They sit under
+  `Too few workouts in this span` with the count of every working workout, including one at 0 kg.
+  Three or more workouts with no calculable percentage, because every positive e1RM falls on
+  one local date, the line starts at or below zero, or too few positive points remain, sit under
+  `No trend yet in this span` with their count and `Can’t work out a trend yet`.
+- **A workout whose working sets carry no weight gives no point.** A bodyweight exercise logs 0
+  (`04`), its e1RM is 0, and no share can be taken of it. A lift logged only at zero weight is
+  listed with its workout count and `No weight logged · no trend`, outside the average. A lift
+  with some zero-weight workouts counts them but trends only its positive e1RM points.
+- **The span is in the address**, as the chart's is, and a lift's row opens its chart on that
+  span. The screen and route accept `4w`, `12w` and `1y` only.
+- **`WEAKER` is not coloured**, as the prototype has it: `done` marks stronger, and the losing
+  count and each losing lift carry `flag`.
+- **The account footer stays under the footnote**, as on every tab screen. The prototype leaves
+  profile and account out and says so.
+
+Not built here: Today's one-line strength verdict under `How it is going`, which the prototype's
+Today shows. It belongs with that screen.
+
+**Changed:** `00`, `05`, `07`, `10`, `11`, `CONTEXT.md`.

@@ -747,9 +747,9 @@ owner on 2026-10-10 (`docs/prototype/`, `06` 2026-10-11), and built to match it 
 
 **The Progress tab** (`/progress`). The fourth tab of §8.1, second in the row. Under the tabs, 14px
 down, three sections as `05` §4.8's segments, links with `aria-current`: `History`
-(`/progress`), `Strength` (`/progress/strength`) and `Balance` (`/progress/balance`). Strength
-(#49) and Balance (#50) are not built yet: each address shows the tab, the three sections and an
-empty state that says so.
+(`/progress`), `Strength` (`/progress/strength`) and `Balance` (`/progress/balance`). Balance
+(#50) is not built yet: its address shows the tab, the three sections and an empty state that
+says so.
 
 ### History (`/progress`)
 
@@ -771,6 +771,43 @@ empty state that says so.
   with none.
 - **A workout the device still holds** is shown from its rows when a list page is available;
   see `03` §6 for the offline cache rule.
+
+### Strength (`/progress/strength`, issue #49)
+
+Built 2026-10-14 to the prototype's Strength screen at 390px (`06`, same date). Every figure and
+verdict is the API's (`07` §3); the screen groups the lifts by the status they came with.
+
+| Block | Geometry | Content |
+| --- | --- | --- |
+| App bar | as §8.1, 14px under its text | `Progress` over `13 LIFTS`: the lifts with a workout in the span. Right: the data-state slot |
+| Tabs, then sections | 44px each | As above; `Strength` is current |
+| Span | `05` §4.8, three segments, `14px 16px 0`, 44px, mono | `4 WEEKS`, `12 WEEKS`, `1 YEAR`; a radio group. It opens on 12 weeks |
+| Headline | screen 2's (§2), `18px 16px 0` | `ALL LIFTS · TREND OVER 12 WEEKS` (`a year` for the year); the average at 42px, `+2.7`, with `%` at 14px. Right: `STRONGER`, `HOLDING` or `WEAKER`, 13px mono/500, `done` for stronger and `text/tertiary` otherwise, over `13 LIFTS AVERAGED` |
+| Tally | `05` §4.23, `16px 16px 0` | `GAINING` `6` in `done`; `HOLDING` `6`; `LOSING` `1` in `flag` |
+| Group | `05` §4.3's label as an `h2`, `18px 16px 8px`, `text/tertiary` | `GAINING · 6`, then `HOLDING`, `LOSING`, `TOO FEW WORKOUTS IN THIS SPAN`, `NO TREND YET IN THIS SPAN` and `NO WEIGHT LOGGED IN THIS SPAN`. A group with no lift is not drawn |
+| Lift row | `05` §4.23 | The name; `E1RM 106.7 KG`, its latest in the span; the sparkline; `+4.6%` over `+4.7 kg`. The whole row is a link to that lift's chart (§2) on the same span |
+| Footnote | `05` §4.15, 22px under the last list | `Trend of each lift's e1RM across the span` and `gaining ≥ +2% · losing ≤ −2%` |
+
+- **The span is in the address** (`?span=4w`, none for 12 weeks), so a reload, and Back from a
+  lift's chart, open the same one. While another span loads the last one stays, set back.
+- **Order.** Within a group the largest change first, as the API sends them.
+- **Too few workouts:** a lift with fewer than three working workouts and a positive e1RM in the span sits in that group. Its
+  second line is `2 WORKOUTS` in place of the e1RM, its change an em dash, and it has a sparkline
+  from two positive points up. The count includes workouts logged at 0 kg. It is not averaged
+  and not tallied.
+- **No calculable trend:** three or more working workouts whose percentage cannot be calculated
+  sit under `NO TREND YET IN THIS SPAN`, with their workout count and `Can’t work out a trend yet`
+  in place of a verdict. They are not averaged or tallied.
+- **Not colour alone.** The status is the group's heading and the figure's sign; `done` and
+  `flag` only repeat them (WCAG 1.4.1). A screen reader hears `Up 4.6 percent`.
+- **Nothing in the span:** the headline reads an em dash over `0 LIFTS AVERAGED`, the tallies 0,
+  and under them `No lifts in this span` over `A lift is listed here once a workout in the span
+  has a working set of it.`
+- **Not reached**, and **no profile yet:** as screen 2 (§2).
+- **Pounds.** The latest e1RM and the change in weight are in the profile's unit, `LB` and `lb`.
+  The percentage is the same in either.
+- **A lift never loaded**, logged at 0 kg throughout, is listed with its workout count and
+  `No weight logged · no trend` in place of a verdict. It is not averaged (`07` §3).
 
 ### A workout (`/workouts/{id}`)
 

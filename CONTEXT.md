@@ -131,6 +131,16 @@ _Avoid_: jump, step size
 Estimated one-rep max of the best working set in a workout, by Epley: `weight × (1 + reps / 30)`.
 _Avoid_: 1RM, max (it is an estimate)
 
+**Strength trend**:
+Whether a lift is gaining, holding or losing over a span: the straight line through its e1RM by
+date, its end against its start. Up 2% or more is gaining, down 2% or more is losing, and a lift
+needs three workouts with working sets and a calculable line in the span to have one. Status uses the unrounded percentage;
+the strength overview averages those unrounded percentages plainly. A lift logged only at zero
+weight stays listed with its workout count and no trend. Three or more workouts without a
+calculable percentage stay listed with their count and no verdict. Not
+the weight **Trend** below, which is a smoothed bodyweight.
+_Avoid_: progress (the chart of one exercise), plateau (a weight term), stall
+
 **Full screen**:
 The workout screen's second layout: one exercise and one set, with the screen kept awake. Turned on
 by hand in each workout and not remembered (`docs/06`, 2026-10-12).
