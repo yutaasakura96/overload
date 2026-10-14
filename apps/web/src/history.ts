@@ -1,6 +1,6 @@
 import type { WorkoutDetail, WorkoutList, WorkoutSummary } from '@overload/api-contract';
 import type { InfiniteData } from '@tanstack/react-query';
-import { queryClient, workoutQuery, workoutsQuery } from './query';
+import { lastDoneQuery, queryClient, workoutQuery, workoutsQuery } from './query';
 import type { SetRecord, StoreRecord, WorkoutRecord } from './set-store';
 import { exercisesOf, setsOf } from './workout';
 
@@ -117,6 +117,12 @@ export function keepHistory(records: StoreRecord[]) {
     const { queryKey } = workoutQuery(workout.id);
     if (view === undefined) queryClient.removeQueries({ queryKey });
     else queryClient.setQueryData(queryKey, view);
+  }
+  // A routine's last-done answer may be a workout deleted here, and nothing older is known: it is
+  // left unsaid until the server answers again, not shown from rows about to go.
+  const lastDone = queryClient.getQueryData(lastDoneQuery.queryKey);
+  if (lastDone?.some((last) => removedOnDevice(records, last.workoutId))) {
+    void queryClient.resetQueries({ queryKey: lastDoneQuery.queryKey, exact: true });
   }
   queryClient.setQueryData<Pages>(workoutsQuery.queryKey, (cached) => {
     const [first, ...rest] = cached?.pages ?? [];

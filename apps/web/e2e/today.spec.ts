@@ -150,3 +150,53 @@ test('each routine says when it was last done, or that it has not been, even pas
   expect(asked.filter((path) => path.includes('cursor='))).toEqual([]);
   expect(asked.filter((path) => path === '/api/workouts/last-done')).toHaveLength(1);
 });
+
+test('a routine’s newest workout deleted here is not given as its last done once it uploads', async ({
+  page,
+}) => {
+  const library = await page.request.get('/api/exercises');
+  const { items }: { items: { id: string; name: string }[] } = await library.json();
+  const bench = items.find((item) => item.name === 'Barbell Bench Press')?.id;
+  if (bench === undefined) throw new Error('no bench press');
+
+  const solo = await routine(page, 'Solo A', bench);
+  const newest = finished('Solo A', solo, bench, 1 / 12);
+  const made = [newest, finished('Solo A', solo, bench, 10)];
+  const synced = await page.request.post('/api/workouts/sync', {
+    data: {
+      workouts: made.map((each) => each.workout),
+      workoutExercises: made.map((each) => each.exercise),
+      sets: made.map((each) => each.set),
+    },
+  });
+  expect(synced.ok()).toBe(true);
+  const deletedDay = `Last done ${dayOf(Date.parse(newest.workout.startedAt))},`;
+
+  await page.goto('/');
+  const row = page.getByRole('button', { name: /^Solo A.*Start this workout/ });
+  await expect(row).toContainText(deletedDay);
+
+  // The server is not asked again in time: Today has only what the device kept.
+  await page.route('**/api/workouts/last-done', (route) => route.abort('internetdisconnected'));
+  await page.getByRole('link', { name: /^Solo A/ }).click();
+  await expect(page).toHaveURL(`/workouts/${newest.workout.id}`);
+  await page
+    .getByRole('region', { name: /^Barbell Bench Press/ })
+    .getByRole('listitem')
+    .first()
+    .getByRole('button', { name: /EDIT$/ })
+    .click();
+  const editor = page.getByRole('form', { name: 'Edit set 1' });
+  await editor.getByRole('button', { name: 'Delete set' }).click();
+  await editor.getByRole('button', { name: 'Delete', exact: true }).click();
+  await expect(page).toHaveURL('/progress');
+  await expect(page.locator('.data-state')).toContainText('SYNCED');
+
+  await page
+    .getByRole('navigation', { name: 'Sections' })
+    .getByRole('link', { name: 'Today' })
+    .click();
+  await expect(page.getByRole('heading', { name: 'Today', level: 1 })).toBeVisible();
+  await expect(row).not.toContainText(deletedDay);
+  await expect(row).not.toContainText('Not done yet');
+});
