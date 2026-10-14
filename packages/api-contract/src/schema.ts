@@ -1130,6 +1130,74 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/training/balance': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Working sets a week for each muscle group, over four weeks or this week */
+    get: {
+      parameters: {
+        query?: {
+          /** @description Default `4w`, the average of the last four weeks; `week` is this week so far. */
+          view?: '4w' | 'week';
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Every muscle group, its sets a week, its status and where the sets came from */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['Balance'];
+          };
+        };
+        /** @description A view that is not `4w` or `week` */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `setup_incomplete` with `missing: ["profile"]`: local dates need the time zone */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/workouts/sync': {
     parameters: {
       query?: never;
@@ -1291,6 +1359,26 @@ export interface components {
       equipment: components['schemas']['Equipment'];
       muscleGroup: components['schemas']['MuscleGroup'];
       /**
+       * @description The groups it also trains, where a working set counts half in the balance view. Each once, in the order of `MuscleGroup`, never `muscleGroup` itself. Empty for none.
+       * @example [
+       *       "shoulders",
+       *       "triceps"
+       *     ]
+       */
+      secondaryMuscleGroups: (
+        | 'chest'
+        | 'back'
+        | 'shoulders'
+        | 'biceps'
+        | 'triceps'
+        | 'forearms'
+        | 'quads'
+        | 'hamstrings'
+        | 'glutes'
+        | 'calves'
+        | 'core'
+      )[];
+      /**
        * @description Other names for search to match, never shown as the name. Seeded only.
        * @example [
        *       "Flat Bench"
@@ -1356,6 +1444,20 @@ export interface components {
       name: string;
       equipment: components['schemas']['Equipment'];
       muscleGroup?: components['schemas']['MuscleGroup'];
+      /** @description The groups it also trains, where a set counts half. Stored each once, in order, without the group it is filed under. */
+      secondaryMuscleGroups?: (
+        | 'chest'
+        | 'back'
+        | 'shoulders'
+        | 'biceps'
+        | 'triceps'
+        | 'forearms'
+        | 'quads'
+        | 'hamstrings'
+        | 'glutes'
+        | 'calves'
+        | 'core'
+      )[];
       /**
        * @description Default: the equipment class’s increment (docs/04 `exercise`).
        * @example 2.5
@@ -1375,6 +1477,20 @@ export interface components {
       name?: string;
       equipment?: components['schemas']['Equipment'];
       muscleGroup?: components['schemas']['MuscleGroup'];
+      /** @description The groups it also trains, where a set counts half. Stored each once, in order, without the group it is filed under. */
+      secondaryMuscleGroups?: (
+        | 'chest'
+        | 'back'
+        | 'shoulders'
+        | 'biceps'
+        | 'triceps'
+        | 'forearms'
+        | 'quads'
+        | 'hamstrings'
+        | 'glutes'
+        | 'calves'
+        | 'core'
+      )[];
       /** @example 2.5 */
       incrementKg?: number;
       /** @example 120 */
@@ -1836,6 +1952,79 @@ export interface components {
          */
         changePct: number;
       } | null;
+    };
+    /** @description Working sets a week for each muscle group: whole for the group an exercise is filed under, half for each it also trains. Warm-ups are left out (S6). */
+    Balance: {
+      /** @enum {string} */
+      view: '4w' | 'week';
+      /**
+       * Format: date
+       * @description The view’s first local date.
+       */
+      from: string;
+      /**
+       * Format: date
+       * @description Today, in the caller’s time zone.
+       */
+      to: string;
+      /** @description What the sets are divided by: 4, or 1 for this week. */
+      weeks: number;
+      /** @description The weekly range every group is read against. */
+      range: {
+        /** @example 10 */
+        low: number;
+        /** @example 20 */
+        high: number;
+      };
+      /** @description All eleven groups, in the order of `MuscleGroup`, trained or not. */
+      groups: components['schemas']['MuscleBalance'][];
+    };
+    MuscleBalance: {
+      /** @enum {string} */
+      muscleGroup:
+        | 'chest'
+        | 'back'
+        | 'shoulders'
+        | 'biceps'
+        | 'triceps'
+        | 'forearms'
+        | 'quads'
+        | 'hamstrings'
+        | 'glutes'
+        | 'calves'
+        | 'core';
+      /**
+       * @description Working sets a week, whole and half, to the tenth. The status reads this figure.
+       * @example 14
+       */
+      sets: number;
+      /**
+       * @description The whole sets among them, to the tenth: those of exercises filed under it.
+       * @example 5.3
+       */
+      directSets: number;
+      /**
+       * @description `none` at 0, `low` under the range, `in_range` from its low to its high end, `high` over it.
+       * @enum {string}
+       */
+      status: 'in_range' | 'low' | 'none' | 'high';
+      /** @description The exercises its sets came from, by when each first came up. */
+      sources: {
+        /**
+         * Format: uuid
+         * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+         */
+        exerciseId: string;
+        /** @example Barbell Bench Press */
+        name: string;
+        /** @description True where the exercise trains the group indirectly, at half a set. */
+        indirect: boolean;
+        /**
+         * @description What it adds a week, to the tenth: already halved where indirect.
+         * @example 3.5
+         */
+        sets: number;
+      }[];
     };
     SyncResponse: {
       /** @description One per row sent. */

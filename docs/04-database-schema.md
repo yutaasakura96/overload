@@ -122,6 +122,7 @@ One exercise. Either **seeded** (`owner_user_id IS NULL`, visible to everyone, ~
 | `default_rep_high` | smallint | no | `10` | |
 | `muscle_group` | text | yes | — | `chest` \| `back` \| `shoulders` \| `biceps` \| `triceps` \| `forearms` \| `quads` \| `hamstrings` \| `glutes` \| `calves` \| `core`, enforced by `CHECK`. The one group the library files it under. Set on every seeded row; `NULL` on a custom exercise the user has not filed (`06`, 2026-10-08) |
 | `aliases` | text[] | yes | — | Other names search matches ("RDL"), never shown as the name. Seeded rows only; `NULL` on a custom exercise (`06`, 2026-10-08) |
+| `secondary_muscle_groups` | text[] | yes | — | The groups it also trains, where a working set counts half in the balance view. Values from the `muscle_group` list, never including the row's own `muscle_group`, enforced by `CHECK`. Reviewed on every seeded row, `'{}'` for one that trains a single group (migration `0014`); `NULL` on a custom exercise not given any, which reads as none. The API stores each once, in list order (`06`, 2026-10-14). Added by `0013`; dropping the column reverses both |
 | `created_at` | timestamptz | no | `now()` | |
 | `updated_at` | timestamptz | no | `now()` | |
 

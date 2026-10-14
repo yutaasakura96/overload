@@ -1,4 +1,10 @@
-import { ACCOUNT_HEADER, type Me, type Span, type StrengthSpan } from '@overload/api-contract';
+import {
+  ACCOUNT_HEADER,
+  type BalanceView,
+  type Me,
+  type Span,
+  type StrengthSpan,
+} from '@overload/api-contract';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
 import {
   QueryClient,
@@ -393,6 +399,21 @@ export const strengthQuery = (span: StrengthSpan) =>
   });
 
 /**
+ * Muscle balance over a view (docs/07 §3): every muscle group's sets a week, its status and its
+ * sources. Enable it only once the profile exists: without one the API answers `setup_incomplete`.
+ */
+export const balanceQuery = (view: BalanceView) =>
+  queryOptions({
+    queryKey: ['balance', view],
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    queryFn: async ({ signal }) =>
+      confirmedAccountData(() =>
+        api.GET('/api/training/balance', { params: { query: { view } }, signal }),
+      ),
+  });
+
+/**
  * History (docs/07 §3): the finished workouts, newest first, a page at a time. A workout the
  * device still holds rows of is read from the set store over this (history.ts).
  */
@@ -444,16 +465,25 @@ export function useOpensEditor({
   return opens;
 }
 
-/** After a write: both exercise lists, since a setting or a new exercise changes each. */
-export const refreshExercises = () => queryClient.invalidateQueries({ queryKey: ['exercises'] });
+/**
+ * After a write: both exercise lists, since a setting or a new exercise changes each, and the
+ * balance view, which reads an exercise's muscle groups.
+ */
+export const refreshExercises = () =>
+  queryClient.invalidateQueries({
+    predicate: (query) => query.queryKey[0] === 'exercises' || query.queryKey[0] === 'balance',
+  });
 export const refreshRoutines = () => queryClient.invalidateQueries({ queryKey: ['routines'] });
 /**
  * After an acknowledged sync batch: a chart on screen is asked again, the rest when next opened.
- * The strength overview reads the same sets, so it goes with them.
+ * The strength overview and the balance view read the same sets, so they go with them.
  */
 export const refreshProgress = () =>
   queryClient.invalidateQueries({
-    predicate: (query) => query.queryKey[0] === 'progress' || query.queryKey[0] === 'strength',
+    predicate: (query) =>
+      query.queryKey[0] === 'progress' ||
+      query.queryKey[0] === 'strength' ||
+      query.queryKey[0] === 'balance',
   });
 /** The same for History: the list, and each workout read whole. */
 export const refreshHistory = () => queryClient.invalidateQueries({ queryKey: ['workouts'] });

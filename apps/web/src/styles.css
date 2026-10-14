@@ -2423,3 +2423,311 @@ button.hsets__row:active {
 .set-edit .notice {
   margin: 0;
 }
+
+/* Muscle balance (docs/10 §9): the two views, the range and its evidence, then a meter a group. */
+.segments--view {
+  margin: 14px var(--gutter) 0;
+}
+.range-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  margin: 14px var(--gutter) 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+.muscles {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line-hairline);
+}
+.muscles > li {
+  border-bottom: 1px solid var(--line-row);
+}
+.muscles__row {
+  display: grid;
+  gap: 7px;
+  width: 100%;
+  min-height: 52px;
+  padding: 9px var(--gutter) 10px;
+  text-align: left;
+}
+.muscles__row:active {
+  background: var(--surface-active);
+}
+.muscles__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+.muscles__name {
+  font-size: 12px;
+  letter-spacing: 0.03em;
+  color: var(--text-secondary);
+}
+.muscles__value {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+.muscles__status {
+  margin-left: 8px;
+  font-family: var(--font-sans);
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-quaternary);
+}
+.muscles__row--low .muscles__status,
+.muscles__row--none .muscles__status {
+  color: var(--flag);
+}
+.muscles__row--in_range .muscles__status {
+  color: var(--done);
+}
+/* Where the sets came from, under its open row: the row's 7px gap, inside its 10px foot. */
+.muscles__from {
+  margin: -3px 0 0;
+  padding: 0 var(--gutter) 10px;
+  font-size: 10px;
+  line-height: 1.55;
+  color: var(--text-quaternary);
+}
+/* The 10–20 band: line/control at 16%, as the prototype drew it, over the token. */
+.meter {
+  position: relative;
+  height: 8px;
+  background: var(--line-hairline);
+}
+.meter__band,
+.legend__swatch.legend__swatch--band {
+  border-left: 1px solid var(--line-control);
+  border-right: 1px solid var(--line-control);
+  background: color-mix(in srgb, var(--line-control) 16%, transparent);
+}
+.meter__band {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+}
+.meter__direct,
+.meter__indirect {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+}
+.meter__direct {
+  left: 0;
+  background: var(--done);
+}
+.meter__indirect,
+.legend__swatch.legend__swatch--half {
+  background: repeating-linear-gradient(135deg, var(--done) 0 2px, transparent 2px 5px);
+}
+.muscles__row--low .meter__direct {
+  background: var(--flag);
+}
+.muscles__row--low .meter__indirect {
+  background: repeating-linear-gradient(135deg, var(--flag) 0 2px, transparent 2px 5px);
+}
+.scale {
+  position: relative;
+  height: 14px;
+  margin: 4px var(--gutter) 0;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-quaternary);
+}
+.scale span {
+  position: absolute;
+  transform: translateX(-50%);
+}
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 10px var(--gutter) 0;
+  font-size: 10px;
+  color: var(--text-quaternary);
+}
+.legend__item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.legend__swatch {
+  width: 14px;
+  height: 6px;
+  background: var(--done);
+}
+.legend__swatch--band {
+  height: 10px;
+}
+
+/* 4.12 Evidence tag. 13px tall; its 44px target is taken from the space round it. */
+.evidence {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 6px;
+  border: 1px solid var(--line-flag);
+  border-radius: var(--radius);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--flag);
+}
+button.evidence::after {
+  content: '';
+  position: absolute;
+  inset: -16px -6px;
+}
+.evidence__divider {
+  width: 1px;
+  height: 9px;
+  background: var(--line-flag);
+}
+.evidence__strength {
+  font-family: var(--font-sans);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--flag-dim);
+}
+.evidence--strong {
+  border-color: var(--line-done);
+  color: var(--done);
+}
+.evidence--strong .evidence__divider {
+  background: var(--line-done);
+}
+.evidence--strong .evidence__strength {
+  color: var(--done);
+}
+.evidence--contested {
+  border-color: var(--line-field);
+  color: var(--text-tertiary);
+}
+.evidence--contested .evidence__divider {
+  background: var(--line-field);
+}
+.evidence--contested .evidence__strength {
+  color: var(--text-quaternary);
+}
+
+/* 4.16 Sheet, as the sources sheet: a modal <dialog> over the scrim, the sheet on its foot. */
+.sheet-scrim {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: var(--scrim);
+  color: var(--text-primary);
+}
+.sheet-scrim[open] {
+  display: flex;
+  align-items: flex-end;
+}
+.sheet-scrim::backdrop {
+  background: transparent;
+}
+.sheet {
+  display: grid;
+  gap: 14px;
+  width: 100%;
+  max-width: 480px;
+  max-height: 86%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin: 0 auto;
+  padding: 6px var(--gutter) calc(30px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line-border);
+  border-radius: 2px 2px 0 0;
+  background: var(--surface-raised);
+}
+.sheet__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.sheet__head .section-label {
+  margin: 0;
+}
+.sheet__close {
+  min-height: var(--target-min);
+  padding: 0 0 0 16px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.sheet__claim {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--text-primary);
+}
+.sheet__means {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+.sheet__sources {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.sheet__sources li {
+  border-top: 1px solid var(--line-hairline);
+}
+.sheet__sources a {
+  display: grid;
+  gap: 3px;
+  min-height: var(--target-min);
+  padding: 8px 0;
+  text-decoration: none;
+}
+.sheet__source-title {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+.sheet__source-meta {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1.5;
+  color: var(--text-quaternary);
+}
+
+/* The groups a custom exercise also trains: one chip a group, any number on. */
+fieldset.field {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+fieldset.field > legend {
+  width: 100%;
+  margin-bottom: 6px;
+  padding: 0;
+}
+.group-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.group-chips .segments__segment {
+  padding: 0 12px;
+}

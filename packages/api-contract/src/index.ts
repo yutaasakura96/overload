@@ -4,12 +4,15 @@ import type { components, paths } from './schema';
 
 export type { components, operations, paths } from './schema';
 
+export type Balance = components['schemas']['Balance'];
+export type BalanceView = Balance['view'];
 export type Equipment = components['schemas']['Equipment'];
 export type Exercise = components['schemas']['Exercise'];
 export type LastTime = components['schemas']['LastTime'];
 export type Me = components['schemas']['Me'];
 // The generated component carries the `null` of the fields that use it, as `Profile` does.
 export type MuscleGroup = NonNullable<components['schemas']['MuscleGroup']>;
+export type MuscleBalance = components['schemas']['MuscleBalance'];
 export type Problem = components['schemas']['Problem'];
 export type Profile = components['schemas']['Profile'];
 export type Progress = components['schemas']['Progress'];
@@ -48,4 +51,4 @@ type DeclaredHeaders<Path extends keyof paths> = paths[Path] extends {
  * declares on each member route's success response.
  */
 export const ACCOUNT_HEADER =
-  'Overload-User' satisfies DeclaredHeaders<'/api/me'> satisfies DeclaredHeaders<'/api/exercises'> satisfies DeclaredHeaders<'/api/routines'> satisfies DeclaredHeaders<'/api/exercises/{id}/progress'> satisfies DeclaredHeaders<'/api/workouts'> satisfies DeclaredHeaders<'/api/workouts/{id}'>;
+  'Overload-User' satisfies DeclaredHeaders<'/api/me'> satisfies DeclaredHeaders<'/api/exercises'> satisfies DeclaredHeaders<'/api/routines'> satisfies DeclaredHeaders<'/api/exercises/{id}/progress'> satisfies DeclaredHeaders<'/api/workouts'> satisfies DeclaredHeaders<'/api/workouts/{id}'> satisfies DeclaredHeaders<'/api/training/balance'>;

@@ -175,27 +175,3 @@ export function History({ me, navigate }: { me: Me; navigate: Navigate }) {
     </main>
   );
 }
-
-/**
- * Balance, until it is built (#50): the section is there, as the tab is laid out, and says plainly
- * that it holds nothing yet.
- */
-export function ProgressSection({ me, navigate }: { me: Me; navigate: Navigate }) {
-  const syncedAt = useWorkoutStore((state) => state.lastSyncedAt);
-  return (
-    <main>
-      <AppBar title="Progress" slot={<DataState at={syncedAt} />} />
-      <ScreenTabs current="/progress" navigate={navigate} />
-      <ProgressSections current="/progress/balance" navigate={navigate} />
-      <section className="empty-state" aria-labelledby="not-built">
-        <h2 id="not-built" className="empty-state__title">
-          Balance is not here yet
-        </h2>
-        <p className="empty-state__body">
-          Weekly working sets for each muscle group will be shown here.
-        </p>
-      </section>
-      <AccountFooter email={me.user.email} navigate={navigate} />
-    </main>
-  );
-}

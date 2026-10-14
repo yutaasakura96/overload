@@ -2,13 +2,15 @@ import { createRoute, defineOpenAPIRoute, z } from '@hono/zod-openapi';
 import type { AppEnv, RouteDeps } from '../app-env.js';
 import { getWorkout, listWorkouts, type WorkoutCursor } from '../db/history.js';
 import { getProfile } from '../db/profile.js';
-import { lastTimes, localDateIn, loggedLifts } from '../db/training.js';
+import { lastTimes, localDateIn, loggedExercises, loggedLifts } from '../db/training.js';
+import { BALANCE_VIEWS, balanceWindow, weeklySets } from '../domain/balance.js';
 import { syncWorkouts } from '../db/workouts.js';
 import { spanStart } from '../domain/progress.js';
 import { STRENGTH_SPANS, strengthOverview } from '../domain/strength.js';
 import { accountHeaders } from '../lib/account.js';
 import { problem, problemResponse, validationErrors } from '../lib/problem.js';
 import {
+  Balance,
   IdParam,
   LastTimes,
   SetRow,
@@ -27,7 +29,8 @@ import {
 // S1, S2 and S3 (docs/07 §3). The sync batch is the only write path for the workout tree, because
 // it is made and edited offline; last time is one call so the gym screen has it with no signal.
 // History reads what the batch wrote: the list of finished workouts, and one workout whole. The
-// strength overview reads the same sets, every exercise at once.
+// strength overview reads the same sets, every exercise at once, and the balance view reads them
+// by muscle group.
 
 /** The uploader splits a larger queue (docs/07 §3.4). */
 export const SYNC_ROW_LIMIT = 500;
@@ -76,6 +79,32 @@ const getStrength = createRoute({
       content: { 'application/json': { schema: StrengthOverview } },
     },
     400: problemResponse('A span that is not `4w`, `12w` or `1y`'),
+    401: problemResponse('No session'),
+    422: problemResponse(
+      '`setup_incomplete` with `missing: ["profile"]`: local dates need the time zone',
+    ),
+  },
+});
+
+const getBalance = createRoute({
+  method: 'get',
+  path: '/api/training/balance',
+  summary: 'Working sets a week for each muscle group, over four weeks or this week',
+  request: {
+    query: z.object({
+      view: z.enum(BALANCE_VIEWS).default('4w').openapi({
+        description:
+          'Default `4w`, the average of the last four weeks; `week` is this week so far.',
+      }),
+    }),
+  },
+  responses: {
+    200: {
+      description: 'Every muscle group, its sets a week, its status and where the sets came from',
+      headers: accountHeaders,
+      content: { 'application/json': { schema: Balance } },
+    },
+    400: problemResponse('A view that is not `4w` or `week`'),
     401: problemResponse('No session'),
     422: problemResponse(
       '`setup_incomplete` with `missing: ["profile"]`: local dates need the time zone',
@@ -220,6 +249,19 @@ export function trainingRoutes({ db }: RouteDeps) {
         const today = localDateIn(profile.timezone)(new Date());
         const lifts = await loggedLifts(db, userId, profile.timezone, spanStart(span, today));
         return c.json(strengthOverview(span, today, lifts), 200);
+      },
+    }),
+    defineOpenAPIRoute<typeof getBalance, AppEnv>({
+      route: getBalance,
+      handler: async (c) => {
+        const userId = c.get('user').id;
+        const { view } = c.req.valid('query');
+        const profile = await getProfile(db, userId);
+        if (profile === null) return problem(c, 'setup_incomplete', { missing: ['profile'] });
+        const today = localDateIn(profile.timezone)(new Date());
+        const { from } = balanceWindow(view, today);
+        const logged = await loggedExercises(db, userId, profile.timezone, from);
+        return c.json(weeklySets(view, today, logged), 200);
       },
     }),
     defineOpenAPIRoute<typeof postSync, AppEnv>({

@@ -1,4 +1,5 @@
 import { sql } from 'drizzle-orm';
+import type { LoggedExercise, MuscleGroup } from '../domain/balance.js';
 import type { LoggedWorkout } from '../domain/progress.js';
 import { suggest, type Suggestion } from '../domain/progression.js';
 import type { LoggedLift } from '../domain/strength.js';
@@ -224,4 +225,53 @@ export async function loggedLifts(
       })),
     })),
   }));
+}
+
+type MuscleRow = LoggedRow & {
+  workout_exercise_id: string;
+  exercise_id: string;
+  exercise_name: string;
+  muscle_group: MuscleGroup | null;
+  secondary_muscle_groups: MuscleGroup[] | null;
+};
+
+/**
+ * Each exercise in each of the user's workouts, oldest first, with its muscle groups and every set
+ * of it, warm-ups included, dated as `loggedWorkouts` dates them: what the balance view reads
+ * (docs/07 §3). `since` is a local date: workouts that started before it are left unread.
+ */
+export async function loggedExercises(
+  db: Database,
+  userId: string,
+  timezone: string,
+  since: string,
+): Promise<LoggedExercise[]> {
+  const { rows } = await db.execute<MuscleRow>(sql`
+    SELECT we.id AS workout_exercise_id, we.exercise_id, e.name AS exercise_name, e.muscle_group,
+           e.secondary_muscle_groups, w.id AS workout_id, w.name, w.started_at,
+           s.weight_kg::float8 AS weight_kg, s.reps, s.is_warmup
+    FROM workout w
+    JOIN workout_exercise we ON we.workout_id = w.id
+    JOIN exercise e ON e.id = we.exercise_id
+    JOIN "set" s ON s.workout_exercise_id = we.id
+    WHERE w.user_id = ${userId}
+      AND w.started_at >= (${since}::date::timestamp AT TIME ZONE ${timezone})
+    ORDER BY w.started_at, w.id, we.position, we.id, s.position, s.id
+  `);
+  const localDate = localDateIn(timezone);
+  return [...groupBy(rows, (row) => row.workout_exercise_id).values()].map((sets) => {
+    const first = sets[0];
+    return {
+      date: localDate(new Date(first?.started_at ?? 0)),
+      exerciseId: first?.exercise_id ?? '',
+      name: first?.exercise_name ?? '',
+      muscleGroup: first?.muscle_group ?? null,
+      secondaryMuscleGroups: first?.secondary_muscle_groups ?? [],
+      sets: sets.map((set) => ({
+        weightKg: set.weight_kg,
+        reps: set.reps,
+        isWarmup: set.is_warmup,
+      })),
+    };
+  });
 }

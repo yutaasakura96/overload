@@ -6,6 +6,7 @@
 // correction is a new migration, not an edit here. So the first 50 rows and `seedMigration()` stay
 // as they shipped, and everything since is in `growMigration()` (docs/06, 2026-10-08): one rename,
 // a muscle group and aliases for the first 50, and the rows that take the list to about 180.
+// The secondary muscle groups of all of them are `secondaryMigration()` (issue #50).
 //
 // Names: specification → equipment → exercise ("Incline Dumbbell Bench Press", CONTEXT.md).
 // Bodyweight movements carry no equipment word. Increments per equipment class (docs/04):
@@ -451,14 +452,250 @@ const additions: Addition[] = [
   ['Cable Woodchopper', 'cable', 'isolation', 'core', ['Wood Chop', 'Cable Chop']],
 ];
 
+/**
+ * The groups each seeded exercise also trains, where a working set counts half (issue #50, Q13).
+ * Reviewed 2026-10-14 for the balance view. A group is listed where it moves the load as a prime
+ * synergist through the whole rep: the shoulders and triceps in a press, the biceps in a row or a
+ * pulldown, the glutes in a squat or a lunge, the hamstrings in a hip thrust. Holding a position
+ * (the core in a squat, the grip in a row) is not training it, so it is not listed. Where the
+ * reviewed prototype gave an exercise secondary groups, these are the same. Keyed by the name the
+ * migrations leave, in `muscleGroupValues` order.
+ */
+const secondaries: Record<string, MuscleGroup[]> = {
+  // Chest. A press brings in the front of the shoulder and the triceps; a decline press, less of
+  // the shoulder. A fly is the chest's alone.
+  'Barbell Bench Press': ['shoulders', 'triceps'],
+  'Incline Barbell Bench Press': ['shoulders', 'triceps'],
+  'Decline Barbell Bench Press': ['triceps'],
+  'Dumbbell Bench Press': ['shoulders', 'triceps'],
+  'Incline Dumbbell Bench Press': ['shoulders', 'triceps'],
+  'Decline Dumbbell Bench Press': ['triceps'],
+  'Dumbbell Floor Press': ['shoulders', 'triceps'],
+  'Smith Machine Bench Press': ['shoulders', 'triceps'],
+  'Incline Smith Machine Bench Press': ['shoulders', 'triceps'],
+  'Machine Chest Press': ['shoulders', 'triceps'],
+  'Incline Machine Chest Press': ['shoulders', 'triceps'],
+  'Plate-Loaded Chest Press': ['shoulders', 'triceps'],
+  'Incline Plate-Loaded Chest Press': ['shoulders', 'triceps'],
+  'Decline Plate-Loaded Chest Press': ['triceps'],
+  'Push-Up': ['shoulders', 'triceps'],
+  'Incline Push-Up': ['shoulders', 'triceps'],
+  'Decline Push-Up': ['shoulders', 'triceps'],
+  'Dumbbell Chest Fly': [],
+  'Incline Dumbbell Chest Fly': [],
+  'Machine Chest Fly': [],
+  'Cable Chest Fly': [],
+  'Low to High Cable Chest Fly': [],
+  'High to Low Cable Chest Fly': [],
+  'Dumbbell Pullover': ['back'],
+
+  // Back. A row or a pulldown bends the elbow against the load; a deadlift or a back extension
+  // straightens the hip with the hamstrings and glutes. A shrug and a straight-arm pulldown are
+  // the back's alone.
+  'Barbell Deadlift': ['hamstrings', 'glutes'],
+  'Deficit Barbell Deadlift': ['hamstrings', 'glutes'],
+  'Barbell Rack Pull': ['glutes'],
+  'Bent Over Barbell Row': ['biceps'],
+  'Pendlay Barbell Row': ['biceps'],
+  'T-Bar Row': ['biceps'],
+  'Chest Supported T-Bar Row': ['biceps'],
+  'Smith Machine Bent Over Row': ['biceps'],
+  '1 Arm Dumbbell Row': ['biceps'],
+  'Chest Supported Dumbbell Row': ['biceps'],
+  'Bent Over Dumbbell Row': ['biceps'],
+  'Chest Supported Machine Row': ['biceps'],
+  'Plate-Loaded Row': ['biceps'],
+  'Plate-Loaded High Row': ['biceps'],
+  'Plate-Loaded Low Row': ['biceps'],
+  'Seated Cable Row': ['biceps'],
+  '1 Arm Seated Cable Row': ['biceps'],
+  'Inverted Row': ['biceps'],
+  'Cable Lat Pulldown': ['biceps'],
+  'Wide Grip Cable Lat Pulldown': ['biceps'],
+  'Close Grip Cable Lat Pulldown': ['biceps'],
+  'Reverse Grip Cable Lat Pulldown': ['biceps'],
+  'Machine Lat Pulldown': ['biceps'],
+  'Plate-Loaded Lat Pulldown': ['biceps'],
+  'Pull-Up': ['biceps'],
+  'Chin-Up': ['biceps'],
+  'Wide Grip Pull-Up': ['biceps'],
+  'Neutral Grip Pull-Up': ['biceps'],
+  'Straight Arm Cable Pulldown': [],
+  'Machine Pullover': [],
+  'Barbell Shrug': [],
+  'Dumbbell Shrug': [],
+  'Smith Machine Shrug': [],
+  'Back Extension': ['hamstrings', 'glutes'],
+  'Machine Back Extension': ['hamstrings', 'glutes'],
+
+  // Shoulders. A press brings in the triceps; an upright row, the upper back. A raise or a fly is
+  // the shoulders' alone.
+  'Barbell Overhead Press': ['triceps'],
+  'Seated Barbell Overhead Press': ['triceps'],
+  'Barbell Push Press': ['triceps'],
+  'Seated Dumbbell Shoulder Press': ['triceps'],
+  'Standing Dumbbell Shoulder Press': ['triceps'],
+  'Dumbbell Arnold Press': ['triceps'],
+  'Machine Shoulder Press': ['triceps'],
+  'Plate-Loaded Shoulder Press': ['triceps'],
+  'Smith Machine Shoulder Press': ['triceps'],
+  'Barbell Upright Row': ['back'],
+  'Dumbbell Upright Row': ['back'],
+  'Dumbbell Lateral Raise': [],
+  '1 Arm Cable Lateral Raise': [],
+  'Machine Lateral Raise': [],
+  'Dumbbell Front Raise': [],
+  'Cable Front Raise': [],
+  'Dumbbell Rear Delt Fly': [],
+  'Machine Rear Delt Fly': [],
+  'Cable Rear Delt Fly': [],
+  'Cable Face Pull': [],
+
+  // Biceps. A neutral or overhand grip brings in the forearm's brachioradialis.
+  'Barbell Curl': [],
+  'EZ Bar Curl': [],
+  'EZ Bar Preacher Curl': [],
+  'Dumbbell Curl': [],
+  'Incline Dumbbell Curl': [],
+  'Dumbbell Preacher Curl': [],
+  'Dumbbell Concentration Curl': [],
+  'Machine Biceps Curl': [],
+  'Machine Preacher Curl': [],
+  'Cable Curl': [],
+  'Behind the Body Cable Curl': [],
+  'Dumbbell Hammer Curl': ['forearms'],
+  'Rope Cable Hammer Curl': ['forearms'],
+  'Dumbbell Zottman Curl': ['forearms'],
+
+  // Triceps. A close-grip press or a dip brings in the chest and the front of the shoulder; an
+  // extension or a pushdown is the triceps' alone.
+  'Close Grip Barbell Bench Press': ['chest', 'shoulders'],
+  'Close Grip Smith Machine Bench Press': ['chest', 'shoulders'],
+  'Close Grip Push-Up': ['chest', 'shoulders'],
+  'Parallel Bar Dip': ['chest', 'shoulders'],
+  'Machine Dip': ['chest', 'shoulders'],
+  'Bench Dip': ['chest', 'shoulders'],
+  'Lying EZ Bar Triceps Extension': [],
+  'Overhead EZ Bar Triceps Extension': [],
+  'Lying Dumbbell Triceps Extension': [],
+  'Overhead Dumbbell Triceps Extension': [],
+  'Dumbbell Triceps Kickback': [],
+  'Machine Triceps Extension': [],
+  'Cable Triceps Pushdown': [],
+  'Rope Cable Triceps Pushdown': [],
+  '1 Arm Cable Triceps Pushdown': [],
+  'Overhead Cable Triceps Extension': [],
+  'Cable Triceps Kickback': [],
+
+  // Forearms. A reverse-grip curl still bends the elbow with the biceps.
+  'Reverse Grip Barbell Curl': ['biceps'],
+  'Barbell Wrist Curl': [],
+  'Reverse Barbell Wrist Curl': [],
+  'Dumbbell Wrist Curl': [],
+  'Reverse Dumbbell Wrist Curl': [],
+  'Cable Wrist Curl': [],
+
+  // Quads. A squat, a press, a lunge or a step-up straightens the hip as well as the knee.
+  'Barbell Back Squat': ['glutes'],
+  'Barbell Front Squat': ['glutes'],
+  'Barbell Box Squat': ['glutes'],
+  'Smith Machine Squat': ['glutes'],
+  'Dumbbell Goblet Squat': ['glutes'],
+  'Air Squat': ['glutes'],
+  'Pistol Squat': ['glutes'],
+  'Plate-Loaded Hack Squat': ['glutes'],
+  'Plate-Loaded Leg Press': ['glutes'],
+  '1 Leg Plate-Loaded Leg Press': ['glutes'],
+  'Machine Leg Press': ['glutes'],
+  'Barbell Lunge': ['glutes'],
+  'Walking Barbell Lunge': ['glutes'],
+  'Dumbbell Lunge': ['glutes'],
+  'Walking Dumbbell Lunge': ['glutes'],
+  'Reverse Dumbbell Lunge': ['glutes'],
+  'Bulgarian Dumbbell Split Squat': ['glutes'],
+  'Smith Machine Split Squat': ['glutes'],
+  'Dumbbell Step-Up': ['glutes'],
+  'Machine Leg Extension': [],
+  '1 Leg Machine Leg Extension': [],
+
+  // Hamstrings. A hinge straightens the hip with the glutes; a leg curl is the hamstrings' alone.
+  'Barbell Romanian Deadlift': ['glutes'],
+  'Dumbbell Romanian Deadlift': ['glutes'],
+  '1 Leg Dumbbell Romanian Deadlift': ['glutes'],
+  'Smith Machine Romanian Deadlift': ['glutes'],
+  'Stiff Leg Barbell Deadlift': ['glutes'],
+  'Barbell Good Morning': ['glutes'],
+  'Glute Ham Raise': ['glutes'],
+  'Seated Machine Leg Curl': [],
+  'Lying Machine Leg Curl': [],
+  'Lying Plate-Loaded Leg Curl': [],
+  'Standing Machine Leg Curl': [],
+  'Nordic Hamstring Curl': [],
+
+  // Glutes. A thrust, a bridge, a kickback or a pull-through straightens the hip with the
+  // hamstrings; a sumo deadlift also brings in the quads and the back. Abduction and adduction
+  // are the hip's alone.
+  'Barbell Hip Thrust': ['hamstrings'],
+  'Plate-Loaded Hip Thrust': ['hamstrings'],
+  'Smith Machine Hip Thrust': ['hamstrings'],
+  'Barbell Glute Bridge': ['hamstrings'],
+  'Glute Bridge': ['hamstrings'],
+  'Machine Glute Kickback': ['hamstrings'],
+  'Cable Glute Kickback': ['hamstrings'],
+  'Cable Pull Through': ['hamstrings'],
+  'Sumo Barbell Deadlift': ['back', 'quads', 'hamstrings'],
+  'Machine Hip Abduction': [],
+  'Machine Hip Adduction': [],
+
+  // Calves and core: each the group's alone.
+  'Standing Plate-Loaded Calf Raise': [],
+  'Standing Barbell Calf Raise': [],
+  'Standing Dumbbell Calf Raise': [],
+  'Seated Plate-Loaded Calf Raise': [],
+  'Plate-Loaded Leg Press Calf Raise': [],
+  'Smith Machine Calf Raise': [],
+  'Standing Machine Calf Raise': [],
+  'Standing Calf Raise': [],
+  'Hanging Leg Raise': [],
+  'Hanging Knee Raise': [],
+  'Lying Leg Raise': [],
+  'Toes to Bar': [],
+  Crunch: [],
+  'Reverse Crunch': [],
+  'Bicycle Crunch': [],
+  'Sit-Up': [],
+  'Decline Sit-Up': [],
+  'V-Up': [],
+  'Russian Twist': [],
+  'Ab Wheel Rollout': [],
+  'Dumbbell Side Bend': [],
+  'Machine Crunch': [],
+  'Machine Torso Rotation': [],
+  'Cable Crunch': [],
+  'Cable Woodchopper': [],
+};
+
 const renamed = (name: string) => renames.find(([from]) => from === name)?.[1] ?? name;
+
+const secondariesOf = (name: string) => {
+  const groups = secondaries[name];
+  if (groups === undefined) throw new Error(`${name} has no reviewed secondary muscle groups`);
+  return groups;
+};
 
 /** Every seeded exercise as the migrations leave it, in seed order. */
 export const seededExercises = [
   ...exercises.map(([name, equipment, kind]) => {
     const tagged = firstFifty[name];
     if (tagged === undefined) throw new Error(`${name} has no muscle group`);
-    return { name: renamed(name), equipment, kind, muscleGroup: tagged[0], aliases: tagged[1] };
+    return {
+      name: renamed(name),
+      equipment,
+      kind,
+      muscleGroup: tagged[0],
+      aliases: tagged[1],
+      secondaryMuscleGroups: secondariesOf(renamed(name)),
+    };
   }),
   ...additions.map(([name, equipment, kind, muscleGroup, aliases]) => ({
     name,
@@ -466,8 +703,14 @@ export const seededExercises = [
     kind,
     muscleGroup,
     aliases,
+    secondaryMuscleGroups: secondariesOf(name),
   })),
 ];
+
+/** Names in `secondaries` that no seeded exercise carries: a typo the lookups above would miss. */
+export const unseededSecondaries = Object.keys(secondaries).filter(
+  (name) => !seededExercises.some((e) => e.name === name),
+);
 
 const textArray = (items: string[]) => `ARRAY[${items.map(quote).join(', ')}]::text[]`;
 
@@ -511,7 +754,33 @@ export const growMigrationPath = fileURLToPath(
   new URL('../migrations/0011_grow_exercise_library.sql', import.meta.url),
 );
 
+/** Issue #50: every seeded exercise's secondary muscle groups, set by name (docs/06, 2026-10-14). */
+export function secondaryMigration(): string {
+  const rows = seededExercises.map(
+    (e) => `    (${quote(e.name)}, ${textArray(e.secondaryMuscleGroups)})`,
+  );
+  return [
+    '-- Generated by apps/api/seed/exercises.ts. Do not edit by hand; a correction is a new migration.',
+    '-- Custom migration (docs/12 §3): drizzle-kit made the empty file and its journal entry.',
+    '-- Issue #50: the groups each seeded exercise also trains, where a set counts half. Reversed by',
+    '-- dropping the column 0013 added, which takes these values and its check with it.',
+    '',
+    'UPDATE exercise',
+    '  SET secondary_muscle_groups = reviewed.secondary_muscle_groups, updated_at = now()',
+    '  FROM (VALUES',
+    rows.join(',\n'),
+    '  ) AS reviewed (name, secondary_muscle_groups)',
+    '  WHERE exercise.owner_user_id IS NULL AND exercise.name = reviewed.name;',
+    '',
+  ].join('\n');
+}
+
+export const secondaryMigrationPath = fileURLToPath(
+  new URL('../migrations/0014_seed_secondary_muscle_groups.sql', import.meta.url),
+);
+
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   writeFileSync(seedMigrationPath, seedMigration());
   writeFileSync(growMigrationPath, growMigration());
+  writeFileSync(secondaryMigrationPath, secondaryMigration());
 }
