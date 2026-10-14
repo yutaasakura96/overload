@@ -3587,4 +3587,4 @@ carries `Last done Fri 9 Oct, 5 days ago` or `Not done yet`, in the routine row'
   Matching on the workout's name was rejected: renaming a routine would orphan its past workouts.
 - **Not built here:** the prototype's `How it is going` rows are not part of `#61`.
 
-**Changed:** `00`, `06`, `07`, `10`.
+**Changed:** `00`, `06`, `07`, `10`, `11`.
