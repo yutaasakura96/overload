@@ -436,19 +436,19 @@ export const workoutsQuery = infiniteQueryOptions({
  * When each routine was last done (docs/07 §3), in one call, so Today need not read History page by
  * page. Under `workouts`, so it is asked again with History.
  */
-/** The admin's invite list (S9). A member is never sent here: the screen opens for the admin only. */
-export const invitesQuery = queryOptions({
-  queryKey: ['invites'],
-  queryFn: async ({ signal }) =>
-    (await confirmedAccountData(() => api.GET('/api/admin/invites', { signal }))).items,
-});
-
 export const lastDoneQuery = queryOptions({
   queryKey: ['workouts', 'last-done'],
   refetchOnWindowFocus: false,
   refetchOnReconnect: false,
   queryFn: async ({ signal }) =>
     (await confirmedAccountData(() => api.GET('/api/workouts/last-done', { signal }))).items,
+});
+
+/** The admin's invite list (S9). A member is never sent here: the screen opens for the admin only. */
+export const invitesQuery = queryOptions({
+  queryKey: ['invites'],
+  queryFn: async ({ signal }) =>
+    (await confirmedAccountData(() => api.GET('/api/admin/invites', { signal }))).items,
 });
 
 /** One workout whole, every row as the sync batch holds it (docs/07 §3). */
