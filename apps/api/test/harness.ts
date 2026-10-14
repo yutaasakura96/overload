@@ -115,11 +115,17 @@ export function useTestApp({ committed = false }: { committed?: boolean } = {}) 
     return (ctx as unknown as { test: TestHelpers }).test;
   };
 
+  const mintSession = async (userId: string) => {
+    const login = await (await helpers()).login({ userId });
+    return { cookie: login.headers.get('cookie') ?? '', token: login.token };
+  };
+
   return {
     app,
     db,
     auth,
     sql,
+    mintSession,
 
     /** Sign in through Better Auth's real Google ID-token path, with Google stubbed. */
     signInWithGoogle(identity: GoogleIdentity) {
@@ -142,8 +148,7 @@ export function useTestApp({ committed = false }: { committed?: boolean } = {}) 
         .returning();
       if (created === undefined) throw new Error('user insert returned no row');
       newUsers.push(created.id);
-      const login = await (await helpers()).login({ userId: created.id });
-      return { user: created, cookie: login.headers.get('cookie') ?? '', token: login.token };
+      return { user: created, ...(await mintSession(created.id)) };
     },
 
     async invite(email: string, options: { revoked?: boolean } = {}) {

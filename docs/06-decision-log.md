@@ -3581,6 +3581,8 @@ screen and the revoked-access state (`10` §8.4).
   deletes the sessions and sets `revoked_at` in one transaction, and M3 adds the tokens'
   `revoked_at` to it. The shared member and admin request guard checks the session user's
   lowercased email against revoked invites, so a session created after that transaction gets 401.
+  Restore deletes any remaining sessions before clearing `revoked_at`, so that session stays ended
+  after access is restored and the member must sign in again.
   The two tests, an ingest token 401 after revoke and restore leaving tokens revoked, move with
   the table (`11` §2). *Rejected:* creating `ingest_token` now, which would leave a table and a
   middleware that nothing real exercises.

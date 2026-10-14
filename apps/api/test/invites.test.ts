@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
-import { auditEvent, invite, routine, session } from '../src/db/schema';
+import { auditEvent, invite, routine, session, user } from '../src/db/schema';
 import { InviteList } from '../src/routes/schemas';
 import { ADMIN_EMAIL, WEB_ORIGIN, useTestApp } from './harness';
 
@@ -303,6 +303,30 @@ describe('revoke', () => {
 });
 
 describe('restore', () => {
+  it('ends a session minted after revoke before restoring access', async () => {
+    const admin = await signInAdmin();
+    await t.invite(KENJI);
+    expect((await t.signInWithGoogle(google(KENJI))).status).toBe(200);
+    const [member] = await t.db.select({ id: user.id }).from(user).where(eq(user.email, KENJI));
+    if (member === undefined) throw new Error('signed-in member missing');
+    const id = await idOf(KENJI);
+    await send(admin.cookie, 'POST', `/api/admin/invites/${id}/revoke`);
+    const raced = await t.mintSession(member.id);
+    expect((await send(raced.cookie, 'GET', '/api/me')).status).toBe(401);
+
+    await send(admin.cookie, 'POST', `/api/admin/invites/${id}/restore`);
+
+    expect((await send(raced.cookie, 'GET', '/api/me')).status).toBe(401);
+    const bearer = await t.app.request('/api/me', {
+      headers: { Authorization: `Bearer ${raced.token}` },
+    });
+    expect(bearer.status).toBe(401);
+    const fresh = await t.signInWithGoogle(google(KENJI));
+    expect(fresh.status).toBe(200);
+    const cookie = (fresh.headers.get('set-cookie') ?? '').split(';')[0] ?? '';
+    expect((await send(cookie, 'GET', '/api/me')).status).toBe(200);
+  });
+
   it('lets the member sign in again, to every row they left', async () => {
     const admin = await signInAdmin();
     const member = await signInMember(KENJI);

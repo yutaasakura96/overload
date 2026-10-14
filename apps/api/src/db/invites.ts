@@ -138,13 +138,14 @@ export async function restoreInvite(
     const [found] = await tx.select(columns).from(invite).where(eq(invite.id, id)).for('update');
     if (found === undefined) return undefined;
     if (found.revokedAt === null) return shape(found);
+    const member = await memberOf(tx, found.email);
+    if (member !== undefined) await tx.delete(session).where(eq(session.userId, member));
     const [restored] = await tx
       .update(invite)
       .set({ revokedAt: null, updatedAt: sql`now()` })
       .where(eq(invite.id, id))
       .returning(columns);
     if (restored === undefined) return undefined;
-    const member = await memberOf(tx, restored.email);
     await audit(tx, adminId, 'access_restored', 'user', member ?? null, restored.id);
     return shape(restored);
   });
