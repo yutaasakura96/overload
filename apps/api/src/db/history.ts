@@ -162,3 +162,27 @@ export async function getWorkout(
     })),
   };
 }
+
+/** When a routine was last done: its newest finished workout. */
+export type LastDone = { routineId: string; workoutId: string; startedAt: string };
+
+/**
+ * The newest finished workout of each of the user's routines. A routine never done, or one deleted,
+ * is absent: a deleted routine's workouts no longer name it.
+ */
+export async function lastDone(db: Database, userId: string): Promise<LastDone[]> {
+  const found = await db
+    .selectDistinctOn([workout.routineId], {
+      routineId: workout.routineId,
+      workoutId: workout.id,
+      startedAt: workout.startedAt,
+    })
+    .from(workout)
+    .where(
+      and(eq(workout.userId, userId), isNotNull(workout.endedAt), isNotNull(workout.routineId)),
+    )
+    .orderBy(workout.routineId, desc(workout.startedAt), desc(workout.id));
+  return found.flatMap(({ routineId, workoutId, startedAt }) =>
+    routineId === null ? [] : [{ routineId, workoutId, startedAt: startedAt.toISOString() }],
+  );
+}

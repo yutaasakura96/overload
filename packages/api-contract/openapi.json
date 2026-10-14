@@ -1083,6 +1083,44 @@
           "exercises"
         ]
       },
+      "LastDone": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "routineId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+                },
+                "workoutId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11",
+                  "description": "The routine’s newest finished workout."
+                },
+                "startedAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "example": "2026-11-11T09:01:40.000Z"
+                }
+              },
+              "required": [
+                "routineId",
+                "workoutId",
+                "startedAt"
+              ]
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "description": "When each of the caller’s routines was last done. A routine never done, or deleted, is absent."
+      },
       "WorkoutDetail": {
         "type": "object",
         "properties": {
@@ -3284,6 +3322,44 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/workouts/last-done": {
+      "get": {
+        "summary": "When each of the caller’s routines was last done: its newest finished workout",
+        "responses": {
+          "200": {
+            "description": "One entry per routine done at least once",
+            "headers": {
+              "Overload-User": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "The id of the user whose session answered. Keep the body for that account only."
+                },
+                "required": true,
+                "description": "The id of the user whose session answered. Keep the body for that account only."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LastDone"
                 }
               }
             }

@@ -939,6 +939,53 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/workouts/last-done': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** When each of the caller’s routines was last done: its newest finished workout */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description One entry per routine done at least once */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['LastDone'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/workouts/{id}': {
     parameters: {
       query?: never;
@@ -1705,6 +1752,27 @@ export interface components {
          * @example 10
          */
         topSetReps: number;
+      }[];
+    };
+    /** @description When each of the caller’s routines was last done. A routine never done, or deleted, is absent. */
+    LastDone: {
+      items: {
+        /**
+         * Format: uuid
+         * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+         */
+        routineId: string;
+        /**
+         * Format: uuid
+         * @description The routine’s newest finished workout.
+         * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+         */
+        workoutId: string;
+        /**
+         * Format: date-time
+         * @example 2026-11-11T09:01:40.000Z
+         */
+        startedAt: string;
       }[];
     };
     /** @description One workout whole. Every row is as the sync batch holds it, so a set can be sent back edited, or deleted, through `/api/workouts/sync`. */

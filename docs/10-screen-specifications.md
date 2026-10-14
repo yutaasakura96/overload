@@ -674,9 +674,9 @@ data-state slot. Under the tabs, in order:
   asks under the row instead: `Finish Push A first?` — `Resume` / `Finish`.
 - **Last done, 2026-10-14:** under each routine's `5 EXERCISES · 16 SETS`, one `text-tertiary`
   line, `Last done Mon 5 Oct, 5 days ago`, or `Not done yet` for a routine with no finished
-  workout. It reads the newest workout in History whose `routineId` is the routine's, and keeps
-  reading older pages while a routine has none, so `Not done yet` is never said early; until then
-  the line is left out. A routine deleted and made again starts over.
+  workout. It reads `GET /api/workouts/last-done` (`07` §3), one call however long History is,
+  with a workout finished on the device laid over it. Until that call has answered the line is
+  left out, so `Not done yet` is never said early. A routine deleted and made again starts over.
 - **No routines:** the empty state of the routine list, `Create a routine`.
 - **Last workout, 2026-10-11** (§9): a link row under the routines, `PUSH A · FRI 9 OCT` over
   `13 working sets · 54 min · yesterday`, with a forward chevron. It opens the newest finished

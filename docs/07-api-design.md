@@ -468,6 +468,7 @@ schema: the fields at fault as `{ path, message }`, as in a 422 (§1.3), never a
 | Method | Path | Auth | Purpose | Success | Failures |
 | --- | --- | --- | --- | --- | --- |
 | GET | `/api/workouts` | M | History: finished workouts, newest `startedAt` first, paged. Each item is a summary: name, times, working-set count, and each exercise's name and top set | 200 | 400, 401 |
+| GET | `/api/workouts/last-done` | M | When each routine was last done: its newest finished workout. A routine never done, or deleted, is absent | 200 | 401 |
 | GET | `/api/workouts/{id}` | M | One workout with its exercises and every set. The linked Apple workout joins it in M3 | 200 | 400, 401, 404 |
 | GET | `/api/exercises/{id}/progress` | M | The S7 chart, with S20 overlays when asked | 200 | 400, 401, 404, 422 |
 | GET | `/api/training/strength` | M | The strength overview: every lift's points, trend and status over a span, and their average | 200 | 400, 401, 422 |
@@ -513,7 +514,7 @@ GET /api/exercises/0192a001-…/progress?span=12w&overlays=intake,trend,sleep,hr
   sent: the overlays arrive with their data, in M2 and M3.
 - Warm-ups are excluded from every number here (S6).
 
-**History, as built 2026-10-11** (`06`). Both routes read what the sync batch wrote and change
+**History, as built 2026-10-11** (`06`). Its routes read what the sync batch wrote and change
 nothing.
 
 ```http
@@ -541,7 +542,8 @@ GET /api/workouts?limit=30&cursor=WyIyMDI2LTEw…
   set (`CONTEXT.md`): the heaviest working set and the most reps done at that weight.
   `workingSets` counts them. Warm-ups are in neither (S6).
 - `routineId` is the routine the workout was started from, or `null` when it came from none or the
-  routine was deleted since. Today reads it to say when each routine was last done.
+  routine was deleted since. A workout finished on the device is laid over Today's last-done line
+  by it.
 
 ```json
 {
@@ -566,6 +568,25 @@ GET /api/workouts?limit=30&cursor=WyIyMDI2LTEw…
   `position` order, warm-ups included. A workout in progress is answered too.
 - The 404 is a workout that does not exist or is not the caller's, the same answer for both. The
   400 is an id that is not a UUID.
+
+**Last done, as built 2026-10-14** (`06`; issue `#61`). Today's line under each routine, in one
+call, so Today never pages through the list to find a routine.
+
+```http
+GET /api/workouts/last-done
+```
+```json
+{
+  "items": [
+    { "routineId": "0192r001-…", "workoutId": "0192w001-…", "startedAt": "2026-10-09T09:30:00.000Z" }
+  ]
+}
+```
+
+- One item per routine the caller has finished a workout from: its newest by `startedAt`, then
+  `id`. A routine never done is absent, and so is a deleted one, whose workouts no longer name it.
+  A workout in progress does not count.
+- `workoutId` lets the device tell when it has deleted that workout and the answer is out of date.
 
 **The strength overview, as built 2026-10-14** (`06`; issue `#49`). It reads the sets the chart
 reads, every exercise at once, and changes nothing.

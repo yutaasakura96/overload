@@ -1,14 +1,15 @@
-import type { Me, Routine, WeightUnit, WorkoutSummary } from '@overload/api-contract';
+import type { Me, Routine, WeightUnit } from '@overload/api-contract';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
-import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
+import { useId, useRef, useState, type FormEvent } from 'react';
 import { api } from '../api';
 import { AccountFooter, AppBar, Chevron, DataState, Notice, ScreenTabs } from '../components';
 import { agoLabel, dayLabel, minutesBetween } from '../dates';
-import { historyOnDevice } from '../history';
+import { historyOnDevice, removedOnDevice } from '../history';
 import type { Navigate } from '../navigation';
 import {
   allExercisesQuery,
   confirmedAccountData,
+  lastDoneQuery,
   lastTimeQuery,
   queryClient,
   refreshLastTime,
@@ -56,6 +57,7 @@ export function Today({ me, navigate }: { me: Me; navigate: Navigate }) {
   // Kept warm here so a start has it offline (S2); `start` reads the cache's copy.
   useQuery({ ...lastTimeQuery, enabled: confirmed && me.profile !== null });
   const history = useInfiniteQuery({ ...workoutsQuery, enabled: confirmed });
+  const lastDone = useQuery({ ...lastDoneQuery, enabled: confirmed });
   const userId = me.user.id;
   const loaded = useWorkoutStore((state) => recordsLoadedFor(state, userId));
   const readFailed = useWorkoutStore((state) => readFailedFor(state, userId));
@@ -93,19 +95,21 @@ export function Today({ me, navigate }: { me: Me; navigate: Navigate }) {
           records,
         ).items;
   const [latest] = finished;
-  // Newest first, so the first workout of a routine is when it was last done.
-  const lastDone = new Map<string, WorkoutSummary>();
-  for (const workout of finished) {
-    if (workout.routineId !== null && !lastDone.has(workout.routineId)) {
-      lastDone.set(workout.routineId, workout);
-    }
+  // When each routine was last done: the server's answer, with a workout finished here laid over
+  // it. One whose answer the device has since deleted is not known again until the server says.
+  const doneAt = new Map<string, string>();
+  const unknown = new Set<string>();
+  for (const last of lastDone.data ?? []) {
+    if (removedOnDevice(records, last.workoutId)) unknown.add(last.routineId);
+    else doneAt.set(last.routineId, last.startedAt);
   }
-  // A routine not found yet may sit on an older page: read on, rather than say it was never done.
-  const searching = history.hasNextPage && items.some((routine) => !lastDone.has(routine.id));
-  const { fetchNextPage, isFetchingNextPage, isFetchNextPageError } = history;
-  useEffect(() => {
-    if (searching && !isFetchingNextPage && !isFetchNextPageError) void fetchNextPage();
-  }, [searching, isFetchingNextPage, isFetchNextPageError, fetchNextPage]);
+  for (const workout of finished) {
+    if (workout.routineId == null) continue;
+    const known = doneAt.get(workout.routineId);
+    if (known !== undefined && Date.parse(known) >= Date.parse(workout.startedAt)) continue;
+    doneAt.set(workout.routineId, workout.startedAt);
+    unknown.delete(workout.routineId);
+  }
   const top = useRef<HTMLElement>(null);
   const refusedHeading = useRef<HTMLHeadingElement>(null);
 
@@ -290,8 +294,8 @@ export function Today({ me, navigate }: { me: Me; navigate: Navigate }) {
                       {routine.exercises.reduce((sum, slot) => sum + slot.targetSets, 0)} SETS
                     </span>
                     <LastDone
-                      last={lastDone.get(routine.id)}
-                      searching={searching || history.data === undefined}
+                      startedAt={doneAt.get(routine.id)}
+                      known={lastDone.data !== undefined && !unknown.has(routine.id)}
                       timeZone={timeZone}
                     />
                   </span>
@@ -368,23 +372,23 @@ export function Today({ me, navigate }: { me: Me; navigate: Navigate }) {
 
 /** The prototype's line under a routine: when it was last done, or that it has not been. */
 function LastDone({
-  last,
-  searching,
+  startedAt,
+  known,
   timeZone,
 }: {
-  last: WorkoutSummary | undefined;
-  searching: boolean;
+  startedAt: string | undefined;
+  known: boolean;
   timeZone: string;
 }) {
-  if (last !== undefined) {
+  if (startedAt !== undefined) {
     return (
       <span className="routines__preview">
-        Last done {dayLabel(last.startedAt, timeZone)}, {agoLabel(last.startedAt, timeZone)}
+        Last done {dayLabel(startedAt, timeZone)}, {agoLabel(startedAt, timeZone)}
       </span>
     );
   }
-  // Said only once all of History has been read, or it would be wrong for a while.
-  return searching ? null : <span className="routines__preview">Not done yet</span>;
+  // Said only once the server has answered, or it would be wrong for a while.
+  return known ? <span className="routines__preview">Not done yet</span> : null;
 }
 
 function setCount(records: Parameters<typeof exercisesOf>[0], workoutId: string) {

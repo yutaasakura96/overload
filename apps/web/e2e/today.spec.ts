@@ -4,8 +4,8 @@ import { apiFixture } from './fixture';
 
 type Cookies = Parameters<BrowserContext['addCookies']>[0];
 
-// Today's line under each routine (docs/10 §3): when it was last done, read from History, or that
-// it has not been. A user of its own; the workouts are put there through the sync batch.
+// Today's line under each routine (docs/10 §3): when it was last done, read from History in one
+// call, or that it has not been. A user of its own; the workouts are put there through the sync batch.
 const EMAIL = 'today-last-done@example.test';
 const DAY_MS = 24 * 60 * 60 * 1000;
 let userId = '';
@@ -125,6 +125,15 @@ test('each routine says when it was last done, or that it has not been, even pas
   });
   expect(synced.ok()).toBe(true);
 
+  // History's list pages and the last-done call, as Today asks for them.
+  const asked: string[] = [];
+  page.on('request', (request) => {
+    const { pathname, search } = new URL(request.url());
+    if (pathname.startsWith('/api/workouts') && request.method() === 'GET') {
+      asked.push(pathname + search);
+    }
+  });
+
   await page.goto('/');
   const row = (name: string) =>
     page.getByRole('button', { name: new RegExp(`^${name}.*Start this workout`) });
@@ -136,6 +145,8 @@ test('each routine says when it was last done, or that it has not been, even pas
     `Last done ${dayOf(Date.now() - 40 * DAY_MS)}, 6 weeks ago`,
   );
   await expect(row('Arms A')).toContainText('Not done yet');
-  // A routine is not called not done while History still has older pages to read.
   await expect(page.getByText('Not done yet')).toHaveCount(1);
+  // One call says it all: Today never pages through History to find a routine.
+  expect(asked.filter((path) => path.includes('cursor='))).toEqual([]);
+  expect(asked.filter((path) => path === '/api/workouts/last-done')).toHaveLength(1);
 });

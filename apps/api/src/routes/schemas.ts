@@ -645,6 +645,21 @@ export const WorkoutList = z
     description: 'Finished workouts, newest `startedAt` first. One in progress is not listed.',
   });
 
+export const LastDone = z
+  .object({
+    items: z.array(
+      z.object({
+        routineId: Uuid,
+        workoutId: Uuid.openapi({ description: 'The routine’s newest finished workout.' }),
+        startedAt: Instant,
+      }),
+    ),
+  })
+  .openapi('LastDone', {
+    description:
+      'When each of the caller’s routines was last done. A routine never done, or deleted, is absent.',
+  });
+
 export const WorkoutDetail = z
   .object({
     ...WorkoutFields,

@@ -3574,16 +3574,17 @@ order: the four-week average first, this week second. What building it settled:
 Issue `#61`, built to the approved prototype's Today at 390px, dark and light. Each routine row
 carries `Last done Fri 9 Oct, 5 days ago` or `Not done yet`, in the routine row's preview style.
 
+- **History answers it in one call.** `GET /api/workouts/last-done` (`07` §3) gives each
+  routine's newest finished workout, read from the same workout rows as the list. Today says
+  nothing for a routine until it has answered, so `Not done yet` is never wrong, and comes after
+  one request. *Rejected:* reading the list page by page until every routine was found, first
+  built here: a routine never done read the whole of History, 30 a page, on every launch. Also
+  *rejected:* a `lastDoneAt` on the routine list, which adds a second source for a fact History
+  already holds.
 - **History's list names the routine.** `GET /api/workouts` items gain `routineId` (`07` §3), an
-  added response field, so nothing that reads the list breaks. Matching on the workout's name was
-  rejected: renaming a routine would orphan its past workouts.
-- **Today reads older pages when it has to.** The list is 30 a page, so a routine last done
-  behind 30 newer workouts is not on the first. Today reads on while a routine has no workout and
-  more pages exist, and says nothing for that routine meanwhile, so `Not done yet` is never wrong.
-  *Rejected:* a `lastDoneAt` on the routine list, which adds a second source for a fact History
-  already holds, and which a workout finished offline would not reach until upload.
-- **The device's rows are laid over it**, as for `Last workout`, so a workout finished here shows
-  at once.
+  added response field, so nothing that reads the list breaks. Today reads it to lay a workout
+  finished on the device over the server's answer, as for `Last workout`, so it shows at once.
+  Matching on the workout's name was rejected: renaming a routine would orphan its past workouts.
 - **Not built here:** the prototype's `How it is going` rows are not part of `#61`.
 
 **Changed:** `00`, `06`, `07`, `10`.
