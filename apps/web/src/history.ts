@@ -51,6 +51,7 @@ function summaryOf(workout: WorkoutDetail, endedAt: string): WorkoutSummary {
   return {
     id: workout.id,
     name: workout.name,
+    routineId: workout.routineId,
     startedAt: workout.startedAt,
     endedAt,
     workingSets: workout.exercises.reduce((sum, each) => sum + workingSets(each.sets).length, 0),

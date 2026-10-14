@@ -3477,9 +3477,8 @@ Settled while building:
 - **Two components join `05`**: the set editor (§4.20) and the said-once line (§4.21). No token
   and no icon is added.
 
-Not built here: the prototype's Today also says when each routine was last done and gives one-line
-strength and balance verdicts under `How it is going`. The verdicts arrive with `#49` and `#50`;
-the last-done line is `#61`. Today's `Last workout` row is built, as the way into
+Not built here: the prototype's Today also says when each routine was last done (built with `#61`,
+2026-10-14 below) and gives one-line strength and balance verdicts under `How it is going`. Today's `Last workout` row is built, as the way into
 History from there.
 
 **Changed:** `00`, `03`, `05`, `07`, `09`, `10`, `11`, `CONTEXT.md`.
@@ -3569,3 +3568,22 @@ order: the four-week average first, this week second. What building it settled:
   `SECOND STEP · NOT IN THE FIRST BUILD`. Today's balance line is Today's, with `#61`.
 
 **Changed:** `00`, `04`, `05`, `07`, `10`, `11`, `CONTEXT.md`.
+
+### 2026-10-14 — Today: when each routine was last done
+
+Issue `#61`, built to the approved prototype's Today at 390px, dark and light. Each routine row
+carries `Last done Fri 9 Oct, 5 days ago` or `Not done yet`, in the routine row's preview style.
+
+- **History's list names the routine.** `GET /api/workouts` items gain `routineId` (`07` §3), an
+  added response field, so nothing that reads the list breaks. Matching on the workout's name was
+  rejected: renaming a routine would orphan its past workouts.
+- **Today reads older pages when it has to.** The list is 30 a page, so a routine last done
+  behind 30 newer workouts is not on the first. Today reads on while a routine has no workout and
+  more pages exist, and says nothing for that routine meanwhile, so `Not done yet` is never wrong.
+  *Rejected:* a `lastDoneAt` on the routine list, which adds a second source for a fact History
+  already holds, and which a workout finished offline would not reach until upload.
+- **The device's rows are laid over it**, as for `Last workout`, so a workout finished here shows
+  at once.
+- **Not built here:** the prototype's `How it is going` rows are not part of `#61`.
+
+**Changed:** `00`, `06`, `07`, `10`.

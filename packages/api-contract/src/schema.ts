@@ -1671,6 +1671,12 @@ export interface components {
       /** @example Push A */
       name: string;
       /**
+       * Format: uuid
+       * @description The routine it was started from; null when it came from none, or the routine is gone.
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      routineId: string | null;
+      /**
        * Format: date-time
        * @example 2026-11-11T09:01:40.000Z
        */

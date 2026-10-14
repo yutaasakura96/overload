@@ -18,6 +18,8 @@ import {
 export type WorkoutSummary = {
   id: string;
   name: string;
+  /** The routine it was started from; null when it came from none, or the routine is gone. */
+  routineId: string | null;
   startedAt: string;
   endedAt: string;
   /** Warm-ups are not counted (S6). */
@@ -99,6 +101,7 @@ export async function listWorkouts(
       {
         id: row.id,
         name: row.name,
+        routineId: row.routineId,
         startedAt: row.startedAt,
         endedAt: row.endedAt,
         workingSets: sets.length,

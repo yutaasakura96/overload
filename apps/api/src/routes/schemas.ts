@@ -609,6 +609,10 @@ export const WorkoutSummary = z
   .object({
     id: Uuid,
     name: z.string().openapi({ example: 'Push A' }),
+    routineId: Uuid.nullable().openapi({
+      description:
+        'The routine it was started from; null when it came from none, or the routine is gone.',
+    }),
     startedAt: Instant,
     endedAt: Instant,
     workingSets: z.int().openapi({ description: 'Warm-ups are not counted (S6).', example: 13 }),

@@ -1,6 +1,6 @@
-import type { Me, Routine, WeightUnit } from '@overload/api-contract';
+import type { Me, Routine, WeightUnit, WorkoutSummary } from '@overload/api-contract';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
-import { useId, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { api } from '../api';
 import { AccountFooter, AppBar, Chevron, DataState, Notice, ScreenTabs } from '../components';
 import { agoLabel, dayLabel, minutesBetween } from '../dates';
@@ -81,7 +81,7 @@ export function Today({ me, navigate }: { me: Me; navigate: Navigate }) {
   const refused = refusedSets(records).filter((set) => set.workoutId !== open?.id);
   // The newest finished workout, as the device has it: one just finished is here before it uploads.
   const pages = history.data?.pages;
-  const [latest] =
+  const finished =
     pages === undefined
       ? []
       : historyOnDevice(
@@ -92,6 +92,20 @@ export function Today({ me, navigate }: { me: Me; navigate: Navigate }) {
           },
           records,
         ).items;
+  const [latest] = finished;
+  // Newest first, so the first workout of a routine is when it was last done.
+  const lastDone = new Map<string, WorkoutSummary>();
+  for (const workout of finished) {
+    if (workout.routineId !== null && !lastDone.has(workout.routineId)) {
+      lastDone.set(workout.routineId, workout);
+    }
+  }
+  // A routine not found yet may sit on an older page: read on, rather than say it was never done.
+  const searching = history.hasNextPage && items.some((routine) => !lastDone.has(routine.id));
+  const { fetchNextPage, isFetchingNextPage, isFetchNextPageError } = history;
+  useEffect(() => {
+    if (searching && !isFetchingNextPage && !isFetchNextPageError) void fetchNextPage();
+  }, [searching, isFetchingNextPage, isFetchNextPageError, fetchNextPage]);
   const top = useRef<HTMLElement>(null);
   const refusedHeading = useRef<HTMLHeadingElement>(null);
 
@@ -275,6 +289,11 @@ export function Today({ me, navigate }: { me: Me; navigate: Navigate }) {
                       {routine.exercises.length === 1 ? 'EXERCISE' : 'EXERCISES'} ·{' '}
                       {routine.exercises.reduce((sum, slot) => sum + slot.targetSets, 0)} SETS
                     </span>
+                    <LastDone
+                      last={lastDone.get(routine.id)}
+                      searching={searching || history.data === undefined}
+                      timeZone={timeZone}
+                    />
                   </span>
                   <span className="starts__go" aria-hidden="true">
                     START
@@ -345,6 +364,27 @@ export function Today({ me, navigate }: { me: Me; navigate: Navigate }) {
       <AccountFooter email={me.user.email} navigate={navigate} />
     </main>
   );
+}
+
+/** The prototype's line under a routine: when it was last done, or that it has not been. */
+function LastDone({
+  last,
+  searching,
+  timeZone,
+}: {
+  last: WorkoutSummary | undefined;
+  searching: boolean;
+  timeZone: string;
+}) {
+  if (last !== undefined) {
+    return (
+      <span className="routines__preview">
+        Last done {dayLabel(last.startedAt, timeZone)}, {agoLabel(last.startedAt, timeZone)}
+      </span>
+    );
+  }
+  // Said only once all of History has been read, or it would be wrong for a while.
+  return searching ? null : <span className="routines__preview">Not done yet</span>;
 }
 
 function setCount(records: Parameters<typeof exercisesOf>[0], workoutId: string) {

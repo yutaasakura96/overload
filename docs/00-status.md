@@ -130,8 +130,8 @@ past workout is put back in the set store to be changed (`06`, 2026-10-11; `03` 
 were compared with the approved prototype at 390px, element by element, and cleared the polish
 gate. Vitest covers the two routes, their cross-user cases and a correction through sync;
 `e2e/history.spec.ts` covers the list, paging, the editor online and offline, the last set's delete
-and the tick, on Chromium and WebKit. Not built, and tracked in `#61`: Today's line under each routine
-saying when it was last done, which the prototype's Today shows.
+and the tick, on Chromium and WebKit. Today's line under each routine saying when it was last done
+(`#61`) is built too: `routineId` joins the History list, and Today reads it (`06`, 2026-10-14).
 **The strength overview is built, 2026-10-14**, on branch `fm/overload-49` against `develop`
 (`#49`). In the repo: `domain/strength.ts`, `GET /api/training/strength`, and the Strength
 section of the Progress tab at `/progress/strength` (`06`, 2026-10-14; `07` §3; `10` §9; `05`

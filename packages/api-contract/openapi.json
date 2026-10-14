@@ -1020,6 +1020,15 @@
             "type": "string",
             "example": "Push A"
           },
+          "routineId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11",
+            "description": "The routine it was started from; null when it came from none, or the routine is gone."
+          },
           "startedAt": {
             "type": "string",
             "format": "date-time",
@@ -1067,6 +1076,7 @@
         "required": [
           "id",
           "name",
+          "routineId",
           "startedAt",
           "endedAt",
           "workingSets",

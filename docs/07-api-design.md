@@ -522,7 +522,7 @@ GET /api/workouts?limit=30&cursor=WyIyMDI2LTEw…
 ```json
 {
   "items": [
-    { "id": "0192w001-…", "name": "Push A",
+    { "id": "0192w001-…", "name": "Push A", "routineId": "0192r001-…",
       "startedAt": "2026-10-09T09:30:00.000Z", "endedAt": "2026-10-09T10:24:00.000Z",
       "workingSets": 13,
       "exercises": [ { "name": "Barbell Bench Press", "topSetKg": 80, "topSetReps": 10 } ] }
@@ -540,6 +540,8 @@ GET /api/workouts?limit=30&cursor=WyIyMDI2LTEw…
 - `exercises` holds each exercise that logged a working set, in the workout's order, with its top
   set (`CONTEXT.md`): the heaviest working set and the most reps done at that weight.
   `workingSets` counts them. Warm-ups are in neither (S6).
+- `routineId` is the routine the workout was started from, or `null` when it came from none or the
+  routine was deleted since. Today reads it to say when each routine was last done.
 
 ```json
 {

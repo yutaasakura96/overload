@@ -672,6 +672,11 @@ data-state slot. Under the tabs, in order:
 - **Start a workout:** a row per routine, as on the routine list, with `START` in `accent` in place
   of the chevron. One tap starts it and opens screen 1 (S4). While a workout is in progress the tap
   asks under the row instead: `Finish Push A first?` — `Resume` / `Finish`.
+- **Last done, 2026-10-14:** under each routine's `5 EXERCISES · 16 SETS`, one `text-tertiary`
+  line, `Last done Mon 5 Oct, 5 days ago`, or `Not done yet` for a routine with no finished
+  workout. It reads the newest workout in History whose `routineId` is the routine's, and keeps
+  reading older pages while a routine has none, so `Not done yet` is never said early; until then
+  the line is left out. A routine deleted and made again starts over.
 - **No routines:** the empty state of the routine list, `Create a routine`.
 - **Last workout, 2026-10-11** (§9): a link row under the routines, `PUSH A · FRI 9 OCT` over
   `13 working sets · 54 min · yesterday`, with a forward chevron. It opens the newest finished

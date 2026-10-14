@@ -49,13 +49,13 @@ async function log(
   cookie: string,
   startedAt: Date,
   exercises: { exerciseId: string; sets: SetFigures[] }[],
-  options: { name?: string; open?: boolean } = {},
+  options: { name?: string; open?: boolean; routineId?: string } = {},
 ): Promise<Logged> {
   const stamp = startedAt.toISOString();
   const workoutId = randomUUID();
   const workout = {
     id: workoutId,
-    routineId: null,
+    routineId: options.routineId ?? null,
     name: options.name ?? 'Push A',
     startedAt: stamp,
     endedAt:
@@ -102,6 +102,7 @@ async function log(
 type Summary = {
   id: string;
   name: string;
+  routineId: string | null;
   startedAt: string;
   endedAt: string;
   workingSets: number;
@@ -168,6 +169,7 @@ describe('GET /api/workouts', () => {
         {
           id: newer.workout.id,
           name: 'Push A',
+          routineId: null,
           startedAt: newer.workout.startedAt,
           endedAt: newer.workout.endedAt,
           workingSets: 4,
@@ -179,6 +181,7 @@ describe('GET /api/workouts', () => {
         {
           id: older.workout.id,
           name: 'Old Push',
+          routineId: null,
           startedAt: older.workout.startedAt,
           endedAt: older.workout.endedAt,
           workingSets: 1,
@@ -188,6 +191,24 @@ describe('GET /api/workouts', () => {
       nextCursor: null,
       total: 2,
     });
+  });
+
+  it('names the routine a workout was started from, and none once the routine is deleted', async () => {
+    const { cookie } = await t.createSignedInUser('lifter@example.test');
+    const bench = await exerciseId(cookie, 'Barbell Bench Press');
+    const routineId = randomUUID();
+    expect(
+      (await send(cookie, 'POST', '/api/routines', { id: routineId, name: 'Push A' })).status,
+    ).toBe(201);
+    await log(cookie, daysAgo(2), [{ exerciseId: bench, sets: [{ weightKg: 60, reps: 8 }] }], {
+      routineId,
+    });
+    await log(cookie, daysAgo(1), [{ exerciseId: bench, sets: [{ weightKg: 60, reps: 8 }] }]);
+
+    expect((await listOf(cookie)).items.map((item) => item.routineId)).toEqual([null, routineId]);
+
+    expect((await send(cookie, 'DELETE', `/api/routines/${routineId}`)).status).toBe(204);
+    expect((await listOf(cookie)).items.map((item) => item.routineId)).toEqual([null, null]);
   });
 
   it('pages by cursor, with no workout shown twice and none missed', async () => {
