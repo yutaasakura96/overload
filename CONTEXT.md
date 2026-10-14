@@ -80,8 +80,22 @@ _Avoid_: lift, movement (in code); abbreviating the equipment in a name
 **Muscle group**:
 The one group an exercise is filed under in the library and the picker: chest, back, shoulders,
 biceps, triceps, forearms, quads, hamstrings, glutes, calves or core. Every seeded exercise has one;
-a custom one may have none.
-_Avoid_: body part, category, target muscle; listing several per exercise
+a custom one may have none. An exercise also has **secondary muscle groups**, the others it trains
+(`secondaryMuscleGroups`), which count in the balance view but never file it anywhere.
+_Avoid_: body part, category, target muscle; filing an exercise under several groups
+
+**Secondary muscle group**:
+A group an exercise trains besides the one it is filed under: the triceps in a bench press, the
+biceps in a row. Its working set counts half there in the weekly sets. Every seeded exercise has a
+reviewed list, empty for one that trains a single group; a custom one has none until given some.
+_Avoid_: synergist, assisting muscle, indirect group (indirect is how its sets count, not the group)
+
+**Weekly sets**:
+Working sets a week for a muscle group: whole for exercises filed under it, half for exercises that
+train it as a secondary group. Read against one range, 10 to 20, for every group: under it is low,
+0 is not trained. The balance view shows them as the average of the last four weeks first, and
+this week, Monday to today, second.
+_Avoid_: volume (the weight × reps total in History), frequency
 
 **Split**:
 A broader way to narrow the exercise list: push, pull, legs or core. Derived from the muscle group,

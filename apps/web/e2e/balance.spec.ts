@@ -127,10 +127,15 @@ test('balance reads each group against the range, with indirect work at half', a
   // A row opens on where its sets came from.
   await row(page, 'Triceps').click();
   await expect(row(page, 'Triceps')).toHaveAttribute('aria-expanded', 'true');
-  await expect(page.getByText('Barbell Bench Press (half) 6 · Seated Dumbbell Shoulder Press (half) 6')).toBeVisible();
+  await expect(
+    page.getByText('Barbell Bench Press (half) 6 · Seated Dumbbell Shoulder Press (half) 6'),
+  ).toBeVisible();
   await row(page, 'Back').click();
   await expect(page.getByText('No exercise in the last four weeks trains it.')).toBeVisible();
-  await testInfo.attach('balance-390', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
+  await testInfo.attach('balance-390', {
+    body: await page.screenshot({ fullPage: true }),
+    contentType: 'image/png',
+  });
 
   // The evidence tag opens its sources, and gives focus back when the sheet closes.
   const tag = page.getByRole('button', { name: /open the sources/ });
@@ -138,14 +143,22 @@ test('balance reads each group against the range, with indirect work at half', a
   const sheet = page.getByRole('dialog', { name: 'Evidence' });
   await expect(sheet).toBeVisible();
   await expect(
-    sheet.getByText('Ten to twenty working sets a week per muscle group is a sound range to grow in.'),
+    sheet.getByText(
+      'Ten to twenty working sets a week per muscle group is a sound range to grow in.',
+    ),
   ).toBeVisible();
   const sources = sheet.getByRole('link');
   await expect(sources).toHaveCount(3);
-  await expect(sources.nth(0)).toHaveAttribute('href', 'https://doi.org/10.1080/02640414.2016.1210197');
+  await expect(sources.nth(0)).toHaveAttribute(
+    'href',
+    'https://doi.org/10.1080/02640414.2016.1210197',
+  );
   await expect(sources.nth(1)).toContainText('Baz-Valle et al. · J Hum Kinet · 2022');
   await expect(sources.nth(2)).toContainText('Pelland et al. · Sports Med · 2026');
-  await testInfo.attach('sources-sheet', { body: await page.screenshot(), contentType: 'image/png' });
+  await testInfo.attach('sources-sheet', {
+    body: await page.screenshot(),
+    contentType: 'image/png',
+  });
   await page.keyboard.press('Escape');
   await expect(sheet).toBeHidden();
   await expect(tag).toBeFocused();

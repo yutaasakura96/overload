@@ -747,9 +747,7 @@ owner on 2026-10-10 (`docs/prototype/`, `06` 2026-10-11), and built to match it 
 
 **The Progress tab** (`/progress`). The fourth tab of §8.1, second in the row. Under the tabs, 14px
 down, three sections as `05` §4.8's segments, links with `aria-current`: `History`
-(`/progress`), `Strength` (`/progress/strength`) and `Balance` (`/progress/balance`). Balance
-(#50) is not built yet: its address shows the tab, the three sections and an empty state that
-says so.
+(`/progress`), `Strength` (`/progress/strength`) and `Balance` (`/progress/balance`).
 
 ### History (`/progress`)
 
@@ -808,6 +806,38 @@ verdict is the API's (`07` §3); the screen groups the lifts by the status they 
   The percentage is the same in either.
 - **A lift never loaded**, logged at 0 kg throughout, is listed with its workout count and
   `No weight logged · no trend` in place of a verdict. It is not averaged (`07` §3).
+
+### Balance (`/progress/balance`, issue #50)
+
+Built 2026-10-14 to the prototype's Balance screen at 390px (`06`, same date), its first step
+only: the view, not the suggestions that change a routine. Every figure and status is the API's
+(`07` §3).
+
+| Block | Geometry | Content |
+| --- | --- | --- |
+| App bar | as §8.1, 14px under its text | `Progress` over the view's dates: `17 SEP – 14 OCT` for four weeks, `MON 12 OCT – TODAY` for this week. Right: the data-state slot |
+| Tabs, then sections | 44px each | As above; `Balance` is current |
+| View | `05` §4.8, two segments, `14px 16px 0`, 44px | `4-WEEK AVERAGE` and `THIS WEEK`; a radio group. It opens on the four-week average (Q14) |
+| Range line | `14px 16px 0`, wraps, `8px 10px` gap | `Working sets a week, per muscle group. Range:` in 11px/1.5 `text/secondary`, then the evidence tag `10–20 SETS · MODERATE` (`05` §4.12), which opens the sources sheet |
+| Tally | `05` §4.23, `16px 16px 0` | `IN RANGE` in `done`, counting `HIGH` too; `LOW` and `NOT TRAINED` in `flag` |
+| Groups | `05` §4.24, 12px under the tally | All eleven, chest to core, each with its figure, its status and its meter |
+| Scale and legend | `05` §4.24 | `0 · 10 · 20`; `Sets on the muscle`, `Half sets, trained indirectly`, `10–20 a week` |
+
+- **The view is in the address** (`?view=week`, none for four weeks), so a reload opens the same
+  one. While the other loads the last one stays, set back.
+- **A row opens** on where its sets came from, oldest first: `Barbell Bench Press (half) 4 · Cable
+  Triceps Pushdown 8`. One untrained reads `No exercise in the last four weeks trains it.`, or
+  `No exercise this week trains it.` in the week's view (`06`, 2026-10-14). One row is open at a
+  time, and it stays open across the views.
+- **Figures** are to the tenth with no `.0`: `12.3`, `10`, `0`.
+- **Not colour alone.** The status word carries every verdict; the meter repeats the figure and is
+  hidden from a screen reader, which hears `Triceps, 18 sets a week, In range`.
+- **The sources sheet** (§7.1, `05` §4.16) holds the claim, what Moderate means here, and the three
+  papers the prototype lists, each opening its DOI.
+- **Not reached**, and **no profile yet:** as Strength, with `A week is counted in your time zone.`
+- **Not built here** (`#50` step 2, and Today's screen): the suggestions under the prototype's
+  `SECOND STEP` mark, its tap hint written as a note, and Today's balance line under
+  `How it is going`.
 
 ### A workout (`/workouts/{id}`)
 

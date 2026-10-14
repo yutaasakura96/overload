@@ -515,6 +515,11 @@ a 9px sans strength label at `0.06em`. 13px tall. The colour pair varies by stre
 Every tag opens the sources sheet (§4.16). Its hit area is 44px tall and at least 44px wide, expanded
 into the space around it, so the row keeps its height. All three are drawn on the `EvidenceTag` board.
 
+**Built 2026-10-14** (`06`; issue `#50`) as a button in `apps/web/src/evidence.tsx`, all three
+strengths in CSS, Moderate the one in use. The strength label is set in capitals by CSS. In the
+balance view's range line, whose type is 11px at 1.5, the tag measures 19.5px, as the approved
+prototype draws it there; the 13px above is its height at the type's own line height.
+
 ### 4.13 Overlay chip
 46px tall, `0 12px`, 9px gap, radius 2. A 14 × 2px swatch, then an 11px `0.06em` label.
 - **Off:** 1px `line/hairline`, swatch `line/field`, label `text/quaternary`.
@@ -561,6 +566,11 @@ radius `2px 2px 0 0`, padding `6px 16px 30px`, 14px gap. The first row is a 9px 
 and `CLOSE` on the right, 11px `0.08em` `text/tertiary` in a 44px target with no border. There is no
 drag handle and no shadow. One use so far: the sources sheet (`docs/10` §7.1). `text/quaternary` on
 `surface/raised` is 4.67:1, so the whole text ladder works on it.
+
+**Built 2026-10-14** (`06`; issue `#50`) as a modal `<dialog>`: the dialog is the scrim and the
+sheet sits on its foot, at most the app's 480px wide, its bottom padding grown by the safe-area
+inset. It holds focus, closes on Escape, `CLOSE` or a tap on the scrim, and gives focus back to the
+tag. Each source is a 44px row that opens the paper's DOI in a new tab.
 
 ### 4.17 Refused set row
 The set row keeps its figures in their usual tones, on a `surface/error` band with 1px `line/error` top
@@ -685,6 +695,26 @@ icon is added.
   through the points by date, from x 2 to 60 and y 20 to 4, flat at 12 when every value is equal,
   and a 2px `accent` dot on the latest. It repeats the figures beside it and is hidden from a
   screen reader.
+
+### 4.24 Muscle row and meter
+Added 2026-10-14 (`06`) from the approved prototype's Balance screen (`10` §9). No token and no
+icon is added.
+
+- **Muscle row.** A list under a `line/hairline`, each row over a `line/row`. The row is a button,
+  52px at least, `9px 16px 10px`, 7px between its line and its meter: the group's name in 12px
+  `text/secondary` at `0.03em` on the left; on the right the sets a week at 13px mono / 500 tabular
+  in `text/primary`, then 8px and the status at 9px `0.1em` capitals: `IN RANGE` in `done`, `LOW`
+  and `NOT TRAINED` in `flag`, `HIGH` in `text/quaternary`. Pressed: `surface/active`. Open, it
+  shows its sources under the meter in 10px `text/quaternary` at 1.55.
+- **Meter.** 8px tall on `line/hairline`, its scale 0 to 25 sets with more filling it. The range
+  is a band 3px proud of the track above and below, 1px `line/control` at each end over
+  `line/control` at 16% (`color-mix` over the token, so the light theme follows). Whole sets fill
+  from the left in `done`; half sets continue as 135° stripes of `done`, 2px on and 3px off. A
+  low row draws both in `flag`. The meter repeats the figure beside it and is hidden from a
+  screen reader.
+- **Scale and legend.** Under the list: `0`, `10` and `20` at 9px mono `text/quaternary`, centred
+  on their places on the meter (0 at its start); then three 10px `text/quaternary` items, 16px
+  apart, each after a 14 × 6px swatch: whole sets, half sets, and the band at 10px tall.
 
 ## 5. Charts
 

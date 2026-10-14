@@ -252,7 +252,8 @@ yet or what they have logged (`08` §4).
 GET /api/exercises  →  200
 { "items": [
   { "id": "0192a001-…", "name": "Barbell Bench Press", "equipment": "barbell",
-    "muscleGroup": "chest", "aliases": ["Flat Bench"], "custom": false, "hidden": false,
+    "muscleGroup": "chest", "secondaryMuscleGroups": ["shoulders", "triceps"],
+    "aliases": ["Flat Bench"], "custom": false, "hidden": false,
     "incrementKg": 2.5, "restSeconds": 180, "repLow": 6, "repHigh": 10,
     "overrides": { "incrementKg": false, "restSeconds": true, "repLow": false, "repHigh": false } }
 ] }
@@ -263,6 +264,12 @@ GET /api/exercises  →  200
 matches. The client groups, filters and searches; the API returns one flat list. A custom exercise has
 `"aliases": []`, and `"muscleGroup": null` until the user files it: create and edit take an optional
 `muscleGroup`, where `null` files it under no group.
+`secondaryMuscleGroups` are the groups it also trains, where a working set counts half in the
+balance view (issue `#50`). Every seeded exercise has a reviewed list, empty for one that trains a
+single group; a custom one has `[]` until given some. Create and edit take an optional list. The
+API keeps each group once, in the order of `MuscleGroup`, and drops the group the exercise is filed
+under, also when an edit files it under one of them; left out of an edit, the list stays. A repeat
+create with the same groups in another order is the same create.
 
 - **Create.** `id`, `name` and `equipment` are required. An omitted `incrementKg` takes the equipment
   class's increment (`04` `exercise`), `restSeconds` 120 and the rep range 6–10. A missing rep end
@@ -464,6 +471,7 @@ schema: the fields at fault as `{ path, message }`, as in a 422 (§1.3), never a
 | GET | `/api/workouts/{id}` | M | One workout with its exercises and every set. The linked Apple workout joins it in M3 | 200 | 400, 401, 404 |
 | GET | `/api/exercises/{id}/progress` | M | The S7 chart, with S20 overlays when asked | 200 | 400, 401, 404, 422 |
 | GET | `/api/training/strength` | M | The strength overview: every lift's points, trend and status over a span, and their average | 200 | 400, 401, 422 |
+| GET | `/api/training/balance` | M | Muscle balance: every muscle group's working sets a week over four weeks or this week, its status and its sources | 200 | 400, 401, 422 |
 
 ```http
 GET /api/exercises/0192a001-…/progress?span=12w&overlays=intake,trend,sleep,hrv
@@ -608,6 +616,44 @@ GET /api/training/strength?span=12w
   With none, `changePct` and `status` are `null`.
 - `lifts` come with a verdict first, the largest `changePct` first and by name between equals,
   then those without, by name. The screen groups them by `status` and keeps the order.
+- The 422 is `setup_incomplete` with `missing: ["profile"]`: local dates need the time zone.
+
+**Muscle balance, as built 2026-10-14** (`06`; issue `#50`, Q13 and Q14). It reads the same sets
+again, by muscle group, and changes nothing. The sum is `domain/balance.ts`, pure.
+
+```http
+GET /api/training/balance?view=4w
+```
+```json
+{
+  "view": "4w", "from": "2026-09-17", "to": "2026-10-14", "weeks": 4,
+  "range": { "low": 10, "high": 20 },
+  "groups": [
+    { "muscleGroup": "chest", "sets": 14, "directSets": 14, "status": "in_range",
+      "sources": [ { "exerciseId": "0192a001-…", "name": "Barbell Bench Press", "indirect": false, "sets": 8 },
+                   { "exerciseId": "0192a003-…", "name": "Incline Dumbbell Bench Press", "indirect": false, "sets": 6 } ] },
+    { "muscleGroup": "triceps", "sets": 18, "directSets": 8, "status": "in_range",
+      "sources": [ { "exerciseId": "0192a001-…", "name": "Barbell Bench Press", "indirect": true, "sets": 4 },
+                   { "exerciseId": "0192a004-…", "name": "Cable Triceps Pushdown", "indirect": false, "sets": 8 } ] },
+    { "muscleGroup": "forearms", "sets": 0, "directSets": 0, "status": "none", "sources": [] }
+  ]
+}
+```
+
+- `view` is `4w`, the default, or `week`. Any other value is a 400. `4w` is the 28 local days to
+  today, its sets divided by four; `week` is Monday to today, not divided, so a week in progress
+  reads low (Q14). `from` and `to` are local dates in the caller's time zone.
+- **A set** is a working set of an exercise in a workout that started in the view, a workout in
+  progress included. Warm-ups count nowhere (S6). It counts whole for the group its exercise is
+  filed under and half for each of its `secondaryMuscleGroups` (Q13). An exercise filed under no
+  group counts only for those.
+- **`groups`** are all eleven, in the order of `MuscleGroup`, trained or not. `sets` is whole and
+  half together and `directSets` the whole alone, each a week to the tenth, halves rounded up.
+- **The status** reads `sets` after rounding, so it always agrees with the printed figure: `none` at
+  0, `low` under 10, `in_range` from 10 to 20 inclusive, `high` over 20. The range is the same for
+  every group, and is answered as `range`.
+- **`sources`** are the exercises a group's sets came from, a week to the tenth, by when each first
+  came up in the view. `indirect: true` marks the half count, already halved.
 - The 422 is `setup_incomplete` with `missing: ["profile"]`: local dates need the time zone.
 
 ### Apple workout links (S19)

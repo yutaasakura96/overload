@@ -3519,3 +3519,45 @@ Not built here: Today's one-line strength verdict under `How it is going`, which
 Today shows. It belongs with that screen.
 
 **Changed:** `00`, `05`, `07`, `10`, `11`, `CONTEXT.md`.
+
+### 2026-10-14 — Muscle balance: weekly sets per group, secondary groups at half
+
+Issue `#50`, its first step, built to the approved prototype's Balance screen. Q13 set the rule:
+10 to 20 working sets a week for every group, rated moderate, indirect work at half. Q14 set the
+order: the four-week average first, this week second. What building it settled:
+
+- **Secondary muscle groups are a column**, `exercise.secondary_muscle_groups text[]`, nullable,
+  checked against the eleven groups and never holding the row's own (`04`). Add-first: running
+  code that writes no value leaves `NULL`, which reads as none. Dropping the column reverses it.
+  *Rejected:* a join table, which buys nothing for at most a few values per exercise, and
+  listing the secondary groups in the web app, which keeps no such logic (`AGENTS.md`).
+- **The 185 seeded exercises were reviewed one by one**, in `seed/exercises.ts`, which generates
+  migration `0014`. A group is listed where it moves the load through the whole rep: the shoulders
+  and triceps in a press, the biceps in a row or pulldown, the glutes in a squat or lunge, the
+  hamstrings in a hip thrust. Holding a position (the core in a squat, the grip in a row) is not
+  training it. Where the prototype's sample data gave an exercise secondary groups, these match it.
+  A fly, a raise, a curl, a pushdown, an extension and every calf and core movement list none.
+- **The API tidies the list**: each group once, in the `MuscleGroup` order, without the group the
+  exercise is filed under, also when an edit files it under one. *Rejected:* refusing such a list,
+  which would make changing the filed group a two-step edit.
+- **One route**, `GET /api/training/balance?view=4w|week`, the sum in `domain/balance.ts`. Four
+  weeks is the 28 local days to today divided by four; this week is Monday to today.
+- **The status reads the rounded figure.** Sets are counted in half sets, a whole number, then
+  divided and rounded to the tenth, halves up; `12.25` prints and reads as `12.3`. So the status
+  word never disagrees with the number beside it, unlike Strength, whose verdict reads the
+  unrounded percentage (2026-10-14 above): there a threshold is a percentage nobody counts, here it
+  is sets the user counts.
+- **`IN RANGE` counts `HIGH` too**, as the prototype's tally does: over 20 is not a shortfall.
+- **An untrained group in the week's view** reads `No exercise this week trains it.` The prototype
+  says `in the last four weeks` in both views, which is wrong for this week.
+- **The evidence tag and the sources sheet are built** (`05` §4.12, §4.16), the sheet a modal
+  `<dialog>`. Its three sources are the prototype's, checked against the journals and linked by DOI:
+  Schoenfeld, Ogborn & Krieger, J Sports Sci 2017 (`10.1080/02640414.2016.1210197`); Baz-Valle et
+  al., J Hum Kinet 2022 (`10.2478/hukin-2022-0017`); Pelland et al., Sports Med 2026
+  (`10.1007/s40279-025-02344-w`).
+- **The meter band** is `color-mix` over `line/control` at 16%, not the prototype's literal, so the
+  light theme follows the token (`05` §4.24).
+- **The prototype's notes are not built**: the dashed tap hint and the step-two suggestions under
+  `SECOND STEP · NOT IN THE FIRST BUILD`. Today's balance line is Today's, with `#61`.
+
+**Changed:** `00`, `04`, `05`, `07`, `10`, `11`, `CONTEXT.md`.

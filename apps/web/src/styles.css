@@ -2649,6 +2649,7 @@ button.evidence::after {
   max-width: 480px;
   max-height: 86%;
   overflow-y: auto;
+  overscroll-behavior: contain;
   margin: 0 auto;
   padding: 6px var(--gutter) calc(30px + env(safe-area-inset-bottom));
   border-top: 1px solid var(--line-border);
