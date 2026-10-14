@@ -327,7 +327,9 @@ The endpoint list is `docs/07`.
 When the admin revokes an invite:
 1. `invite.revoked_at` is set. The row stays.
 2. Every `session` row for that user is deleted, so every device and a future native app is signed
-   out on its next request.
+   out on its next request. The shared member and admin request guard also checks the session
+   user's lowercased email against `invite.revoked_at`; a session created after the delete still
+   gets 401, whether sent as a cookie or a bearer token.
 3. Every `ingest_token` of theirs gets `revoked_at`, so Health Auto Export starts receiving 401.
    *From M3, which creates the table:* slice 6 built steps 1, 2 and 4, and M3 adds this step to
    the same transaction (`06`, 2026-10-15).

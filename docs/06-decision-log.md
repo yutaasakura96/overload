@@ -3574,10 +3574,13 @@ order: the four-week average first, this week second. What building it settled:
 Issue `#6` builds `GET` and `POST /api/admin/invites`, revoke and restore (`07` §2), the invite
 screen and the revoked-access state (`10` §8.4).
 
-- **Revoking ingest tokens moves to M3**, decided by Firstmate on the 2026-09-24 rule that a table
-  is created by the slice whose code first uses it. `ingest_token` and its one route are M3's
-  (`04`), so slice 6 has nothing to revoke and no route to get a 401 from. Revoke deletes the
-  sessions and sets `revoked_at` in one transaction, and M3 adds the tokens' `revoked_at` to it.
+- **Revoking ingest tokens moves to M3.** This applies the rule the owner settled in
+  [2026-09-24] *Slice-1 grill: what slice 1 contains, and how far it ships*: a table is created by
+  the slice whose code first uses it. Ingest tokens, their table and their only route are M3 work
+  (`04`). Nothing a user can do today reaches an ingest token, so no behaviour is lost. Revoke
+  deletes the sessions and sets `revoked_at` in one transaction, and M3 adds the tokens'
+  `revoked_at` to it. The shared member and admin request guard checks the session user's
+  lowercased email against revoked invites, so a session created after that transaction gets 401.
   The two tests, an ingest token 401 after revoke and restore leaving tokens revoked, move with
   the table (`11` §2). *Rejected:* creating `ingest_token` now, which would leave a table and a
   middleware that nothing real exercises.

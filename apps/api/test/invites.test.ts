@@ -220,6 +220,25 @@ describe('revoke', () => {
     expect(await res.json()).toMatchObject({ code: 'access_revoked' });
   });
 
+  it('refuses a session minted after revoke on member and admin routes', async () => {
+    const admin = await signInAdmin();
+    await t.invite(KENJI);
+    await send(admin.cookie, 'POST', `/api/admin/invites/${await idOf(KENJI)}/revoke`);
+    const member = await t.createSignedInUser('Kenji@Example.test');
+
+    for (const path of ['/api/me', '/api/admin/invites']) {
+      const cookie = await send(member.cookie, 'GET', path);
+      expect(cookie.status).toBe(401);
+      expect(await cookie.json()).toMatchObject({ code: 'unauthenticated' });
+
+      const bearer = await t.app.request(path, {
+        headers: { Authorization: `Bearer ${member.token}` },
+      });
+      expect(bearer.status).toBe(401);
+      expect(await bearer.json()).toMatchObject({ code: 'unauthenticated' });
+    }
+  });
+
   it('leaves the admin’s and other members’ sessions alone', async () => {
     const admin = await signInAdmin();
     await signInMember(KENJI);
