@@ -3574,7 +3574,8 @@ order: the four-week average first, this week second. What building it settled:
 Issue `#6` builds `GET` and `POST /api/admin/invites`, revoke and restore (`07` §2), the invite
 screen and the revoked-access state (`10` §8.4).
 
-- **Revoking ingest tokens moves to M3.** This applies the rule the owner settled in
+- **Revoking ingest tokens moves to M3.** The owner approved the move on 2026-10-15 (answer:
+  *A. Approve moving it to milestone 3*). It applies the rule the owner settled in
   [2026-09-24] *Slice-1 grill: what slice 1 contains, and how far it ships*: a table is created by
   the slice whose code first uses it. Ingest tokens, their table and their only route are M3 work
   (`04`). Nothing a user can do today reaches an ingest token, so no behaviour is lost. Revoke
@@ -3586,6 +3587,11 @@ screen and the revoked-access state (`10` §8.4).
   The two tests, an ingest token 401 after revoke and restore leaving tokens revoked, move with
   the table (`11` §2). *Rejected:* creating `ingest_token` now, which would leave a table and a
   middleware that nothing real exercises.
+- **A sign-in racing a revoke and a restore is accepted.** A Google sign-in that passes the invite
+  check while the invite is active can pause and create its session after a revoke and a later
+  restore have both deleted sessions; the request guard then accepts it because the invite is
+  active again. Accepted with no fix: a sign-in that completes after restore belongs to a member
+  whose access was restored, so it grants nothing they are not entitled to.
 - **The admin check is one middleware on `/api/admin/*`**, after the session check: a member gets
   404 `not_found` before any admin route runs, a visitor 401 (`08` §5).
 - **An invite's create is retry-safe by its client id** (`07` §1.2). An email that already has a

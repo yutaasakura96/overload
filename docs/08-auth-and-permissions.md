@@ -335,7 +335,9 @@ When the admin revokes an invite:
    the same transaction (`06`, 2026-10-15).
 4. **Their data stays.** Restoring the invite (clearing `revoked_at`) brings back sign-in and every
    row. Before clearing `revoked_at`, restore deletes any session created after revoke, so only a
-   fresh sign-in can regain access. **Ingest tokens stay revoked:** the member creates a new one on
+   fresh sign-in can regain access. A sign-in that passed the invite check before the revoke and
+   completes after the restore is accepted, since that member's access is restored (`06`,
+   2026-10-15). **Ingest tokens stay revoked:** the member creates a new one on
    the health setup screen and pastes it into Health Auto Export. A token sat in an app that had lost
    access, and it was shown once, so un-revoking it would revive a secret nobody can see again.
    *Changed 2026-09-22* from
