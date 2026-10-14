@@ -8,6 +8,8 @@ import { WEB_ORIGIN } from '../playwright.config';
 const apiRoot = fileURLToPath(new URL('../../api/', import.meta.url));
 
 export const E2E_EMAIL = 'playwright@example.test';
+/** The API's ADMIN_EMAIL in the browser tests (playwright.config.ts). */
+export const E2E_ADMIN_EMAIL = 'admin@example.test';
 
 export function apiFixture(...args: string[]): string {
   return execFileSync('node_modules/.bin/tsx', ['test/e2e/session.ts', ...args], {

@@ -365,7 +365,7 @@ export function Today({ me, navigate }: { me: Me; navigate: Navigate }) {
 
       <ThemeField />
 
-      <AccountFooter email={me.user.email} navigate={navigate} />
+      <AccountFooter email={me.user.email} admin={me.isAdmin} navigate={navigate} />
     </main>
   );
 }

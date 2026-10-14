@@ -108,7 +108,7 @@ export function RoutineList({ me, navigate }: { me: Me; navigate: (path: string)
         </section>
       )}
 
-      <AccountFooter email={me.user.email} navigate={navigate} />
+      <AccountFooter email={me.user.email} admin={me.isAdmin} navigate={navigate} />
     </main>
   );
 }

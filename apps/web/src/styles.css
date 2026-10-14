@@ -858,6 +858,10 @@ button {
   padding: 12px var(--gutter) 18px;
   border-top: 1px solid var(--line-hairline);
 }
+.footer__link {
+  margin-left: auto;
+  text-decoration: none;
+}
 .footer__account {
   min-width: 0;
   overflow: hidden;
@@ -866,6 +870,57 @@ button {
   font-family: var(--font-mono);
   font-size: 10px;
   color: var(--text-quaternary);
+}
+
+/* Invite administration (S9, docs/09 F6): rows built like the routine list's */
+.invites-section {
+  margin-top: 26px;
+}
+.invites {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line-hairline);
+}
+.invites__row {
+  display: grid;
+  gap: 10px;
+  padding: 11px var(--gutter) 12px;
+  border-bottom: 1px solid var(--line-row);
+}
+.invites__row .notice {
+  margin: 0;
+}
+.invites__text {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.invites__email {
+  font-size: 15px;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+.invites__meta {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  color: var(--text-quaternary);
+}
+.invites__revoked {
+  font-family: var(--font-sans);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--flag);
+}
+.invites__note {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  overflow-wrap: anywhere;
+}
+.invites__action {
+  display: grid;
 }
 
 /* Today (docs/09 F1–F3): the workout in progress, or the routines to start one from */

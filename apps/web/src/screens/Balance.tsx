@@ -198,7 +198,7 @@ export function Balance({
         </div>
       )}
 
-      <AccountFooter email={me.user.email} navigate={navigate} />
+      <AccountFooter email={me.user.email} admin={me.isAdmin} navigate={navigate} />
     </main>
   );
 }

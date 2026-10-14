@@ -7,6 +7,7 @@ import { meQuery, useAccount } from './query';
 import { ExerciseScreen } from './screens/ExerciseForm';
 import { ExerciseLibrary } from './screens/ExerciseLibrary';
 import { History } from './screens/History';
+import { Invites } from './screens/Invites';
 import { PastWorkout } from './screens/PastWorkout';
 import { Progress } from './screens/Progress';
 import { Balance } from './screens/Balance';
@@ -90,6 +91,11 @@ export function App() {
       return <Strength me={me.data} searchParams={searchParams} navigate={navigate} />;
     if (route.screen === 'balance')
       return <Balance me={me.data} searchParams={searchParams} navigate={navigate} />;
+    if (route.screen === 'invites') {
+      // A member gets the not-found screen, not a forbidden one (docs/08 §5).
+      if (!me.data.isAdmin) return <NotFound navigate={navigate} />;
+      return <Invites me={me.data} navigate={navigate} />;
+    }
     if (route.screen === 'past-workout')
       return <PastWorkout key={route.id} id={route.id} me={me.data} navigate={navigate} />;
     return <Today me={me.data} navigate={navigate} />;
@@ -105,4 +111,22 @@ export function App() {
     );
   }
   return <AppBar title="Overload" slot={<span />} />;
+}
+
+/** The app's not-found screen: says nothing about what might be at the address. */
+function NotFound({ navigate }: { navigate: (path: string) => void }) {
+  return (
+    <main>
+      <AppBar title="Not found" slot={<span />} />
+      <section className="empty-state" aria-labelledby="not-found">
+        <h2 id="not-found" className="empty-state__title">
+          Nothing is here
+        </h2>
+        <p className="empty-state__body">This address is not a screen of Overload.</p>
+        <button type="button" className="button button--primary" onClick={() => navigate('/')}>
+          Go to Today
+        </button>
+      </section>
+    </main>
+  );
 }

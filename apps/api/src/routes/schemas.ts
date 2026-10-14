@@ -749,3 +749,29 @@ export const SyncResult = z
 export const SyncResponse = z
   .object({ results: z.array(SyncResult).openapi({ description: 'One per row sent.' }) })
   .openapi('SyncResponse');
+
+// Invite administration (docs/07 §2). What the admin sees of an invite, and nothing about what its
+// member has logged (docs/08 §4).
+
+export const Invite = z
+  .object({
+    id: Uuid,
+    email: z.email().openapi({ example: 'kenji.tanaka@example.com' }),
+    note: z.string().nullable().openapi({ example: 'gym friend' }),
+    invitedAt: Instant,
+    revokedAt: Instant.nullable().openapi({ description: 'Null while the invite admits them.' }),
+  })
+  .openapi('Invite');
+
+export const InviteList = z.object({ items: z.array(Invite) }).openapi('InviteList');
+
+export const InviteCreate = z
+  .object({
+    id: Uuid.openapi({ description: 'Made on the device (UUIDv7). A repeat returns the invite.' }),
+    email: z.email().max(254).openapi({
+      description: 'A Google email. Stored lowercased.',
+      example: 'Kenji.Tanaka@example.com',
+    }),
+    note: z.string().trim().max(200).nullable().optional().openapi({ example: 'gym friend' }),
+  })
+  .openapi('InviteCreate');

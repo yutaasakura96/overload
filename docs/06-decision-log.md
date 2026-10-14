@@ -3569,6 +3569,39 @@ order: the four-week average first, this week second. What building it settled:
 
 **Changed:** `00`, `04`, `05`, `07`, `10`, `11`, `CONTEXT.md`.
 
+### 2026-10-15 — Slice 6: invite administration, with the ingest-token half moved to M3
+
+Issue `#6` builds `GET` and `POST /api/admin/invites`, revoke and restore (`07` §2), the invite
+screen and the revoked-access state (`10` §8.4).
+
+- **Revoking ingest tokens moves to M3**, decided by Firstmate on the 2026-09-24 rule that a table
+  is created by the slice whose code first uses it. `ingest_token` and its one route are M3's
+  (`04`), so slice 6 has nothing to revoke and no route to get a 401 from. Revoke deletes the
+  sessions and sets `revoked_at` in one transaction, and M3 adds the tokens' `revoked_at` to it.
+  The two tests, an ingest token 401 after revoke and restore leaving tokens revoked, move with
+  the table (`11` §2). *Rejected:* creating `ingest_token` now, which would leave a table and a
+  middleware that nothing real exercises.
+- **The admin check is one middleware on `/api/admin/*`**, after the session check: a member gets
+  404 `not_found` before any admin route runs, a visitor 401 (`08` §5).
+- **An invite's create is retry-safe by its client id** (`07` §1.2). An email that already has a
+  row, revoked or not, is 409 `invite_exists`; the same id with another email or note is
+  `id_conflict`. Revoke and restore lock the row, and each returns an invite already in the
+  asked-for state unchanged, writing nothing.
+- **The audit rows** (`13` §7) are written in the action's transaction, with the admin as actor.
+  A revoke or restore names the user; for a person who never signed in there is no user, so
+  `target_id` is null and the invite's id goes in `detail`. Never the email.
+- **The admin reaches the screen from the footer**, an `Invites` link beside `Sign out` shown to
+  the admin alone. *Rejected:* a fifth tab, which every member would see disabled or missing.
+- **A not-found screen exists for `/admin/invites` only.** `08` §5 asks for one there; other unknown
+  addresses keep opening Today, which this slice does not change.
+- **`access_revoked` refuses the last account's pending sets** (`09` F4). The sign-in page reads
+  the account kept on the device for an offline launch and marks its pending sets refused, which
+  leaves Discard alone. It cannot tell which Google account was refused, only that the gate said
+  `access_revoked`; on a shared device a different revoked person could mark the last user's sets.
+  Accepted: the sets stay on the device, never dropped, and a member restored sees them to discard.
+
+**Changed:** `00`, `04`, `08`, `09`, `10`, `11`.
+
 ### 2026-10-14 — Today: when each routine was last done
 
 Issue `#61`, built to the approved prototype's Today at 390px, dark and light. Each routine row

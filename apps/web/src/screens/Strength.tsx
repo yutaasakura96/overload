@@ -172,7 +172,7 @@ export function Strength({
         <span>Trend of each lift’s e1RM across the span</span>
         <span className="footnote__formula">gaining ≥ +2% · losing ≤ −2%</span>
       </footer>
-      <AccountFooter email={me.user.email} navigate={navigate} />
+      <AccountFooter email={me.user.email} admin={me.isAdmin} navigate={navigate} />
     </main>
   );
 }

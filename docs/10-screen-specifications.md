@@ -742,6 +742,39 @@ not reopen a guide just closed with the chevron or `I have set it up`.
   they survive a relaunch and a sign-out, and are not sent anywhere (`06`, 2026-10-12).
 - Opening it starts at the top with focus on the screen; going back returns focus to the row that
   opened it.
+
+### 8.4 Invite administration and revoked access (slice 6, S9)
+
+No artboard exists, so these were designed in the build (issue #6) from `05`'s tokens and the
+routine list's rows. Nothing here adds a token or an icon.
+
+**Invites** (`/admin/invites`, the admin only). Reached from `Invites`, a tertiary link beside
+`Sign out` in the footer of each top-level screen, shown to the admin alone. The app bar has a back
+chevron, the title `Invites` over `2 ACTIVE · 1 REVOKED`, and the data-state slot. In order:
+
+- **Add:** `Google email` (an email field, no autocapitalise) and `Note`, marked `Optional`, then a
+  primary `Add invite`. Under it one line: `Overload sends no email. Tell them yourself once they
+  are added.`, which becomes `kenji@example.com can sign in now. …` after an add. An address the
+  server refuses is marked on the field, `Enter a Google email address`; one already invited reads
+  `Already invited. Restore it below if revoked` (`invite_exists`).
+- **Invited:** a row per invite, newest first: the email at 15px, then a mono meta line, `INVITED
+  THU 15 OCT`, or `REVOKED THU 15 OCT · INVITED …` with `Revoked` in `flag`, then the note. The
+  admin's own invite is not listed; with no other, the list says `Only you have access.` (`09` F6).
+- **Revoke** asks in place, as a delete does: `Revoke kenji@example.com? They are signed out
+  everywhere and can't sign in again. Their data stays, and Restore brings it back.` — `Keep` /
+  `Revoke`. A revoked row offers `Restore` in one tap, since it takes nothing away. Focus moves to
+  the button that replaces the one pressed.
+- The screen shows no member data, only what `07` §2 returns (`08` §4).
+
+**Not found.** A member at `/admin/invites` gets `Not found` with `Nothing is here` and `Go to
+Today`, and nothing about what the address holds (`08` §5). Other unknown addresses still open
+Today.
+
+**Revoked access** (`09` F4). The sign-in page's refusal reads `Your access was revoked.`, and when
+the last account signed in on the device had sets the server had not taken, `1 set logged on this
+device wasn't saved. It stays on this device until you discard it.` Those sets are refused with the
+reason `Access to Overload was revoked` and offer Discard alone, wherever refused sets are shown.
+
 ---
 
 ## 9. Progress: History and a workout's page (issue #48)

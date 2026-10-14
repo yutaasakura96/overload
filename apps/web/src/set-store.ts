@@ -14,9 +14,12 @@ import type {
 // workout ends, so the workout can be rebuilt after iOS closes the app. It is its own database:
 // the sign-out wipe of device-store.ts never touches it (docs/08 §7).
 
-/** Why the server refused a row: its code, and the fields at fault when it named any. */
+/**
+ * Why the server refused a row: its code, and the fields at fault when it named any.
+ * `access_revoked` is the gate's refusal of the next sign-in, not a sync answer (docs/09 F4).
+ */
 export type Refusal = {
-  code: Extract<SyncResult, { status: 'refused' }>['problem']['code'];
+  code: Extract<SyncResult, { status: 'refused' }>['problem']['code'] | 'access_revoked';
   fields: string[];
 };
 

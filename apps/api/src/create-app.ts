@@ -10,6 +10,7 @@ import { ACCOUNT_HEADER } from './lib/account.js';
 import { describeError } from './lib/error-log.js';
 import type { ReportError } from './lib/error-report.js';
 import { problem, validationErrors, type ProblemCode } from './lib/problem.js';
+import { adminRoutes } from './routes/admin.js';
 import { exerciseRoutes } from './routes/exercises.js';
 import { healthRoutes } from './routes/health.js';
 import { meRoutes } from './routes/me.js';
@@ -84,6 +85,13 @@ export function createApp({ auth, config, db, log = console.log, reportError }: 
     c.res.headers.set(ACCOUNT_HEADER, id);
   });
 
+  // The admin is the member whose email is ADMIN_EMAIL (docs/08 §3). To anyone else the admin
+  // routes do not exist: 404, never 403, which would confirm them (docs/08 §5).
+  app.use('/api/admin/*', async (c: Context<AppEnv>, next: Next) => {
+    if (c.get('user').email.toLowerCase() !== config.adminEmail) return problem(c, 'not_found');
+    return next();
+  });
+
   app.on(['GET', 'POST'], `${AUTH_PREFIX}*`, (c) => auth.handler(c.req.raw));
 
   app.openapiRoutes(healthRoutes);
@@ -91,6 +99,7 @@ export function createApp({ auth, config, db, log = console.log, reportError }: 
   app.openapiRoutes(exerciseRoutes({ config, db }));
   app.openapiRoutes(routineRoutes({ config, db }));
   app.openapiRoutes(trainingRoutes({ config, db }));
+  app.openapiRoutes(adminRoutes({ config, db }));
 
   app.openAPIRegistry.registerComponent('securitySchemes', 'session', {
     type: 'apiKey',
