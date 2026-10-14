@@ -126,7 +126,7 @@ History at `/progress` and a workout's page at `/workouts/{id}`, the exercise's 
 chart, and one editor for a logged set, opened from a row in History and from a set's tick during
 the workout. Finish lands on the workout's page. Edits and deletes go through the existing sync; a
 past workout is put back in the set store to be changed (`06`, 2026-10-11; `03` §6; `09` F3a;
-`10` §9). Strength and Balance are places that say they hold nothing yet (`#49`, `#50`). The screens
+`10` §9). The screens
 were compared with the approved prototype at 390px, element by element, and cleared the polish
 gate. Vitest covers the two routes, their cross-user cases and a correction through sync;
 `e2e/history.spec.ts` covers the list, paging, the editor online and offline, the last set's delete

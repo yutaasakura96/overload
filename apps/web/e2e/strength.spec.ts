@@ -185,6 +185,8 @@ test('strength says per lift and overall whether it is gaining, holding or losin
   await expect(noTrend).toContainText('3 WORKOUTS');
   await expect(noTrend).toContainText('Can’t work out a trend yet');
   await page.screenshot({ path: testInfo.outputPath('strength-390.png'), fullPage: true });
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await page.screenshot({ path: testInfo.outputPath('strength-390-dark.png'), fullPage: true });
 
   await expect(page.getByText('gaining ≥ +2% · losing ≤ −2%')).toBeVisible();
 
@@ -228,6 +230,49 @@ test('strength in pounds', async ({ page }) => {
   await expect(lift).toContainText('+8.8 lb');
 });
 
+test('strength judges the exact threshold and leaves same-day workouts unrated', async ({
+  page,
+  context,
+}) => {
+  const email = 'strength-edge@example.test';
+  const other: { userId: string } = JSON.parse(apiFixture('user', email));
+  try {
+    await context.clearCookies();
+    const cookies: Cookies = JSON.parse(apiFixture('cookies', other.userId, 'localhost'));
+    await context.addCookies(cookies);
+    const profile = await page.request.patch('/api/me/profile', {
+      data: { timezone: 'Asia/Tokyo', weightUnit: 'kg' },
+    });
+    expect(profile.ok()).toBe(true);
+
+    const bench = await exerciseId(page, 'Barbell Bench Press');
+    const squat = await exerciseId(page, 'Barbell Back Squat');
+    const row = await exerciseId(page, 'Seated Cable Row');
+    const deadlift = await exerciseId(page, 'Barbell Deadlift');
+    for (const [index, daysAgo] of [15, 8, 1].entries()) {
+      await log(page, bench, daysAgo, [50, 50.49, 50.98][index] ?? 0);
+      await log(page, squat, daysAgo, [50, 50.5, 51][index] ?? 0);
+      await log(page, row, 1, [40, 41, 42][index] ?? 0);
+      await log(page, deadlift, daysAgo, [0.5, 0.5, 100][index] ?? 0);
+    }
+
+    await page.goto('/progress/strength');
+    const held = page.getByRole('region', { name: 'Holding · 1' }).getByRole('link');
+    await expect(held).toContainText('Barbell Bench Press');
+    await expect(held).toContainText('+2.0%');
+    const gaining = page.getByRole('region', { name: 'Gaining · 1' }).getByRole('link');
+    await expect(gaining).toContainText('Barbell Back Squat');
+    const unrated = page.getByRole('region', { name: 'No trend yet in this span · 2' });
+    await expect(unrated).toContainText('Seated Cable Row');
+    await expect(unrated).toContainText('Barbell Deadlift');
+    await expect(unrated).toContainText('3 WORKOUTS');
+    await expect(headline(page)).toContainText('HOLDING');
+    await expect(headline(page)).toContainText('2 lifts averaged');
+  } finally {
+    apiFixture('delete', email);
+  }
+});
+
 test('strength with no lift in the span', async ({ page, context }) => {
   const other: { userId: string } = JSON.parse(apiFixture('user', 'strength-empty@example.test'));
   try {
@@ -245,6 +290,12 @@ test('strength with no lift in the span', async ({ page, context }) => {
     await expect(headline(page)).toContainText('0 lifts averaged');
     await expect(tally(page)).toHaveText(['0', '0', '0']);
     await expect(page.getByRole('heading', { name: 'No lifts in this span' })).toBeVisible();
+
+    for (const span of ['6m', 'all']) {
+      const response = await page.request.get(`/api/training/strength?span=${span}`);
+      expect(response.status()).toBe(400);
+      expect(await response.json()).toMatchObject({ code: 'bad_request' });
+    }
   } finally {
     apiFixture('delete', 'strength-empty@example.test');
   }

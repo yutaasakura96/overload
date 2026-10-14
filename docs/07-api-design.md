@@ -566,7 +566,7 @@ GET /api/training/strength?span=12w
 ```json
 {
   "span": "12w", "from": "2026-07-23", "to": "2026-10-14",
-  "overall": { "lifts": 13, "changePct": 2.7, "status": "gaining" },
+  "overall": { "lifts": 1, "changePct": 6, "status": "gaining" },
   "lifts": [
     { "exerciseId": "0192a001-…", "name": "Barbell Bench Press",
       "points": [ { "date": "2026-09-28", "e1rmKg": 100 }, { "date": "2026-10-05", "e1rmKg": 103 }, { "date": "2026-10-12", "e1rmKg": 106 } ],
