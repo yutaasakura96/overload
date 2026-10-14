@@ -443,7 +443,7 @@ export async function discardSet(id: string): Promise<void> {
  */
 function recordsOfPast(userId: string, workout: WorkoutDetail): StoreRecord[] {
   const { exercises, ...row } = workout;
-  const base = { userId, workoutId: workout.id, state: 'acknowledged' } as const;
+  const base = { userId, workoutId: workout.id, state: 'acknowledged', stored: true } as const;
   return [
     { ...base, table: 'workouts', id: row.id, row },
     ...exercises.flatMap(({ name, sets, ...exercise }): StoreRecord[] => [
@@ -684,12 +684,13 @@ export async function applySyncResults(sent: SentRow[], results: SyncResult[]): 
         });
       } else if (record.deletedAt === undefined) {
         if (!stillOpenThere(record, result.row)) {
-          put.set(record.id, { ...record, state: 'acknowledged' });
+          put.set(record.id, { ...record, state: 'acknowledged', stored: true });
         }
       } else {
         const { deletedAt: _deletedAt, ...kept } = record;
+        const answered = { ...kept, state: 'acknowledged', stored: true, row: result.row } as const;
         // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the answer's row is this record's table's
-        put.set(record.id, { ...kept, state: 'acknowledged', row: result.row } as StoreRecord);
+        put.set(record.id, answered as StoreRecord);
       }
     }
     const after = records

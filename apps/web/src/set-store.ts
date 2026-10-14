@@ -31,6 +31,12 @@ type RecordBase = {
    * stored it; `refused` when it refused it, which keeps the record to edit or discard.
    */
   state: 'pending' | 'acknowledged' | 'refused';
+  /**
+   * Set once the server has stored a version of the row, and kept through later edits: the server
+   * counts the row until a deletion of it is acknowledged. Absent from a record kept before it was
+   * carried.
+   */
+  stored?: true;
   /** Kept with a refused row, so the screen can say why (docs/09 F4). */
   refusal?: Refusal;
   /** Set when the row was deleted on the device: it travels as `{ id, deletedAt }`. */

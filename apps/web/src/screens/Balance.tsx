@@ -6,17 +6,20 @@ import type {
 } from '@overload/api-contract';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
+import { balanceOnDevice } from '../balance';
 import { AccountFooter, AppBar, DataState, Notice, ScreenTabs } from '../components';
 import { dayLabel } from '../dates';
 import { EVIDENCE, EvidenceTag } from '../evidence';
 import { muscleGroupLabels } from '../exercise-list';
 import type { Navigate } from '../navigation';
-import { balanceQuery, useAccount } from '../query';
+import { allExercisesQuery, balanceQuery, useAccount } from '../query';
+import { recordsOf, useWorkoutStore } from '../workout';
 import { ProgressSections } from './History';
 
 // Muscle balance (docs/10 §9, issue #50): working sets a week for each muscle group against one
 // range, the four-week average first (Q13, Q14). Every figure and status is the API's (docs/07
-// §3); this screen draws them, and opens a row on where its sets came from.
+// §3), with this week's sets still on the device laid over them (balance.ts); this screen draws
+// them, and opens a row on where its sets came from.
 
 const VIEWS: { view: BalanceView; label: string }[] = [
   { view: '4w', label: '4-week average' },
@@ -74,7 +77,13 @@ export function Balance({
     enabled: confirmed && hasProfile,
     placeholderData: keepPreviousData,
   });
-  const data = balance.data;
+  // A workout may name an exercise since hidden, and its groups still count.
+  const exercises = useQuery({ ...allExercisesQuery, enabled: confirmed });
+  const records = useWorkoutStore((state) => recordsOf(state, me.user.id));
+  const data =
+    balance.data === undefined || me.profile == null
+      ? balance.data
+      : balanceOnDevice(balance.data, records, exercises.data ?? [], me.profile.timezone);
   const [open, setOpen] = useState<string>();
   const count = (...statuses: Status[]) =>
     data?.groups.filter((group) => statuses.includes(group.status)).length ?? 0;

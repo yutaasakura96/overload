@@ -39,7 +39,7 @@ export const clockLabel = (instant: string, timeZone: string) =>
   format({ hour: '2-digit', minute: '2-digit' }, 'en-GB', timeZone).format(new Date(instant));
 
 /** The local date of an instant, `YYYY-MM-DD`. */
-const localDate = (instant: string | number, timeZone: string) =>
+export const localDate = (instant: string | number, timeZone: string) =>
   format({ year: 'numeric', month: '2-digit', day: '2-digit' }, 'en-CA', timeZone).format(
     new Date(instant),
   );

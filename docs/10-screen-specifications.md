@@ -811,7 +811,7 @@ verdict is the API's (`07` §3); the screen groups the lifts by the status they 
 
 Built 2026-10-14 to the prototype's Balance screen at 390px (`06`, same date), its first step
 only: the view, not the suggestions that change a routine. Every figure and status is the API's
-(`07` §3).
+(`07` §3), except that this week also counts the sets still on the device (below).
 
 | Block | Geometry | Content |
 | --- | --- | --- |
@@ -829,6 +829,12 @@ only: the view, not the suggestions that change a routine. Every figure and stat
   Triceps Pushdown 8`. One untrained reads `No exercise in the last four weeks trains it.`, or
   `No exercise this week trains it.` in the week's view (`06`, 2026-10-14). One row is open at a
   time, and it stays open across the views.
+- **This week counts a set as soon as it is logged**, as the prototype's does. The set store's
+  rows are laid over the API's week, as History lays them over its list: a set the server has not
+  stored is added, one deleted here and not yet uploaded is taken away, and one the server holds
+  counts once. Each counts as the API counts it: whole for its exercise's group, half for each
+  group it also trains, warm-ups not at all, on the local date its workout started. The four-week
+  average is the API's alone (`06`, 2026-10-14).
 - **Figures** are to the tenth with no `.0`: `12.3`, `10`, `0`.
 - **Not colour alone.** The status word carries every verdict; the meter repeats the figure and is
   hidden from a screen reader, which hears `Triceps, 18 sets a week, In range`.

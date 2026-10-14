@@ -91,6 +91,10 @@ async function log(page: Page, daysAgo: number, exercises: [id: string, working:
 const row = (page: Page, name: string) =>
   page.getByRole('button', { name: new RegExp(`^${name}, `) });
 
+/** A row's name opening on its figure: `Chest, 12.5 sets a week, `. */
+const reads = (name: string, sets: number) =>
+  new RegExp(`^${name}, ${String(sets).replace('.', '\\.')} sets a week, `);
+
 test('balance reads each group against the range, with indirect work at half', async ({
   page,
 }, testInfo) => {
@@ -203,4 +207,52 @@ test('a custom exercise counts half for the groups it also trains', async ({ pag
   await expect(row(page, 'Triceps')).toHaveAccessibleName(/^Triceps, \d+(\.\d)? sets a week/);
   await row(page, 'Triceps').click();
   await expect(page.getByText(/Landmine Press \(half\) 2/)).toBeVisible();
+});
+
+test.describe('with no service worker', () => {
+  // page.route cannot hold a request a service worker forwards (WebKit).
+  test.use({ serviceWorkers: 'block' });
+
+  test('this week counts a set as soon as it is logged, and once when it reaches the server', async ({
+    page,
+  }) => {
+    const weekly = async (group: string) => {
+      const response = await page.request.get('/api/training/balance?view=week');
+      const { groups }: { groups: { muscleGroup: string; sets: number }[] } = await response.json();
+      return groups.find((each) => each.muscleGroup === group)?.sets ?? 0;
+    };
+    const chest = await weekly('chest');
+    const triceps = await weekly('triceps');
+    const name = `Bench ${Date.now()}`;
+    await page.goto('/routines/new');
+    await page.getByRole('textbox', { name: 'Name' }).fill(name);
+    await page.getByRole('button', { name: 'Add exercises' }).click();
+    await page.getByRole('checkbox', { name: 'Barbell Bench Press', exact: true }).check();
+    await page.getByRole('button', { name: 'Add 1 exercise' }).click();
+    await page.getByRole('button', { name: 'Create routine' }).click();
+    await expect(page).toHaveURL('/routines');
+    await page.goto('/');
+    await page.getByRole('button', { name: new RegExp(`${name}.*Start this workout`) }).click();
+    await expect(page).toHaveURL('/workout');
+    await expect(page.locator('.data-state')).toContainText('SYNCED');
+
+    // The set is logged with no upload getting through: only the device has it.
+    await page.route('**/api/workouts/sync', (route) => route.abort('internetdisconnected'));
+    await page.getByRole('textbox', { name: /^Weight in/ }).fill('60');
+    await page.getByRole('textbox', { name: 'Reps', exact: true }).fill('8');
+    await page.getByRole('button', { name: 'Complete set' }).click();
+    await expect(page.locator('.data-state')).toHaveText('1 PENDING');
+    await page.goto('/progress/balance?view=week');
+    await expect(row(page, 'Chest')).toHaveAccessibleName(reads('Chest', chest + 1));
+    await expect(row(page, 'Triceps')).toHaveAccessibleName(reads('Triceps', triceps + 0.5));
+    expect(await weekly('chest')).toBe(chest);
+
+    // The upload gets through: the server counts the set, and the screen still counts it once.
+    await page.unrouteAll();
+    await page.evaluate(() => window.dispatchEvent(new Event('online')));
+    await expect.poll(() => weekly('chest')).toBe(chest + 1);
+    await expect(row(page, 'Chest')).toHaveAccessibleName(reads('Chest', chest + 1));
+    await page.reload();
+    await expect(row(page, 'Chest')).toHaveAccessibleName(reads('Chest', chest + 1));
+  });
 });

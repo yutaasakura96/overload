@@ -3557,6 +3557,14 @@ order: the four-week average first, this week second. What building it settled:
   (`10.1007/s40279-025-02344-w`).
 - **The meter band** is `color-mix` over `line/control` at 16%, not the prototype's literal, so the
   light theme follows the token (`05` §4.24).
+- **This week counts the sets still on the device**, as the prototype's week counts the live
+  workout's. The web app lays the set store over the API's week (`balance.ts`), as History lays it
+  over its list: a set the server has not stored adds to its groups, one deleted here and not yet
+  uploaded takes away, and one the server holds counts once. A record carries `stored` once the
+  server has acknowledged any version of it, which is how an edit waiting to upload is told from a
+  new set. The groups come from the exercise list. *Rejected:* the API's week alone, which reads
+  low until the upload lands, and the whole week counted on the device, which would need every
+  set of the week there. The four-week average stays the API's, as the prototype's does.
 - **The prototype's notes are not built**: the dashed tap hint and the step-two suggestions under
   `SECOND STEP · NOT IN THE FIRST BUILD`. Today's balance line is Today's, with `#61`.
 
