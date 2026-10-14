@@ -168,6 +168,13 @@ export function strengthOverview(
     lifts: [
       ...rated.toSorted((a, b) => (b.rawChangePct ?? 0) - (a.rawChangePct ?? 0) || byName(a, b)),
       ...unrated.toSorted(byName),
-    ].map(({ rawChangePct: _, ...lift }) => lift),
+    ].map((lift) => ({
+      exerciseId: lift.exerciseId,
+      name: lift.name,
+      points: lift.points,
+      workoutCount: lift.workoutCount,
+      status: lift.status,
+      trend: lift.trend,
+    })),
   };
 }
