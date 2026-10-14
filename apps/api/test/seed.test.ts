@@ -8,9 +8,12 @@ import {
   renames,
   seedMigration,
   seedMigrationPath,
+  secondaryMigration,
+  secondaryMigrationPath,
   seededExercises,
+  unseededSecondaries,
 } from '../seed/exercises';
-import { exercise } from '../src/db/schema';
+import { exercise, muscleGroupValues } from '../src/db/schema';
 import { WEB_ORIGIN, useTestApp } from './harness';
 
 const t = useTestApp();
@@ -23,6 +26,28 @@ it('the committed seed migration is what seed/exercises.ts generates', () => {
 // The first seed file has run everywhere, so it never changes; what came after is its own file.
 it('the committed grow migration is what seed/exercises.ts generates', () => {
   expect(readFileSync(growMigrationPath, 'utf8')).toBe(growMigration());
+});
+
+it('the committed secondary muscle group migration is what seed/exercises.ts generates', () => {
+  expect(readFileSync(secondaryMigrationPath, 'utf8')).toBe(secondaryMigration());
+});
+
+// Issue #50: every seeded exercise has reviewed secondary groups, each once, in order, and never
+// its own group. The script throws on one without; this catches one named but never seeded.
+it('reviews the secondary muscle groups of every seeded exercise, and of no other name', () => {
+  expect(seededExercises).toHaveLength(185);
+  expect(unseededSecondaries).toEqual([]);
+  const order = muscleGroupValues as readonly string[];
+  const bad = seededExercises.filter(
+    (e) =>
+      e.secondaryMuscleGroups.includes(e.muscleGroup) ||
+      e.secondaryMuscleGroups.some(
+        (group, index) =>
+          index > 0 &&
+          order.indexOf(group) <= order.indexOf(e.secondaryMuscleGroups[index - 1] ?? ''),
+      ),
+  );
+  expect(bad.map((e) => e.name)).toEqual([]);
 });
 
 it('seeds each name once, whatever the case, and no alias twice on one exercise', () => {
@@ -96,13 +121,23 @@ const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompar
 
 it('the database holds the seeded list as the script has it', async () => {
   const rows = await t.db
-    .select({ name: exercise.name, muscleGroup: exercise.muscleGroup, aliases: exercise.aliases })
+    .select({
+      name: exercise.name,
+      muscleGroup: exercise.muscleGroup,
+      aliases: exercise.aliases,
+      secondaryMuscleGroups: exercise.secondaryMuscleGroups,
+    })
     .from(exercise)
     .where(isNull(exercise.ownerUserId));
 
   expect(rows.toSorted(byName)).toEqual(
     seededExercises
-      .map(({ name, muscleGroup, aliases }) => ({ name, muscleGroup, aliases }))
+      .map(({ name, muscleGroup, aliases, secondaryMuscleGroups }) => ({
+        name,
+        muscleGroup,
+        aliases,
+        secondaryMuscleGroups,
+      }))
       .toSorted(byName),
   );
 });

@@ -6,9 +6,10 @@ import { routeOf, safeNext, useLocation } from './navigation';
 import { meQuery, useAccount } from './query';
 import { ExerciseScreen } from './screens/ExerciseForm';
 import { ExerciseLibrary } from './screens/ExerciseLibrary';
-import { History, ProgressSection } from './screens/History';
+import { History } from './screens/History';
 import { PastWorkout } from './screens/PastWorkout';
 import { Progress } from './screens/Progress';
+import { Balance } from './screens/Balance';
 import { RoutineScreen } from './screens/RoutineEditor';
 import { RoutineList } from './screens/RoutineList';
 import { SignIn } from './screens/SignIn';
@@ -87,7 +88,8 @@ export function App() {
     if (route.screen === 'history') return <History me={me.data} navigate={navigate} />;
     if (route.screen === 'strength')
       return <Strength me={me.data} searchParams={searchParams} navigate={navigate} />;
-    if (route.screen === 'balance') return <ProgressSection me={me.data} navigate={navigate} />;
+    if (route.screen === 'balance')
+      return <Balance me={me.data} searchParams={searchParams} navigate={navigate} />;
     if (route.screen === 'past-workout')
       return <PastWorkout key={route.id} id={route.id} me={me.data} navigate={navigate} />;
     return <Today me={me.data} navigate={navigate} />;

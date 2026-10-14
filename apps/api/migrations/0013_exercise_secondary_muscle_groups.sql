@@ -1,0 +1,2 @@
+ALTER TABLE "exercise" ADD COLUMN "secondary_muscle_groups" text[];--> statement-breakpoint
+ALTER TABLE "exercise" ADD CONSTRAINT "exercise_secondary_muscle_groups_check" CHECK ("exercise"."secondary_muscle_groups" <@ ARRAY['chest', 'back', 'shoulders', 'biceps', 'triceps', 'forearms', 'quads', 'hamstrings', 'glutes', 'calves', 'core']::text[] AND NOT ("exercise"."muscle_group" = ANY("exercise"."secondary_muscle_groups")));

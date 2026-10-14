@@ -82,6 +82,14 @@ export function ExerciseForm({
   const [equipment, setEquipment] = useState<Equipment>(exercise?.equipment ?? 'barbell');
   // Empty for none: the library then lists it apart from the groups.
   const [muscleGroup, setMuscleGroup] = useState<MuscleGroup | ''>(exercise?.muscleGroup ?? '');
+  // The groups it also trains, where a set counts half in Balance (issue #50). A copy saved by an
+  // older build has none.
+  const [secondaryMuscleGroups, setSecondaryMuscleGroups] = useState<MuscleGroup[]>(
+    // oxlint-disable-next-line typescript/no-unnecessary-condition -- absent in a copy saved by an older build
+    exercise?.secondaryMuscleGroups ?? [],
+  );
+  // The group it is filed under counts whole, so it is never offered here.
+  const secondaries = secondaryMuscleGroups.filter((group) => group !== muscleGroup);
   // The increment is shown and typed in the user's unit, and stored in kilograms.
   const [unit] = useState(currentWeightUnit);
   const [figures, setFigures] = useState<Figures>(
@@ -153,6 +161,7 @@ export function ExerciseForm({
               name,
               equipment,
               muscleGroup: muscleGroup === '' ? null : muscleGroup,
+              secondaryMuscleGroups: secondaries,
               incrementKg: incrementKg() ?? undefined,
               restSeconds: figureOrOmit(figures.restSeconds),
               repLow: figureOrOmit(figures.repLow),
@@ -169,6 +178,7 @@ export function ExerciseForm({
               name,
               equipment,
               muscleGroup: muscleGroup === '' ? null : muscleGroup,
+              secondaryMuscleGroups: secondaries,
               incrementKg: incrementKg() ?? undefined,
               restSeconds: figureOrOmit(figures.restSeconds),
               repLow: figureOrOmit(figures.repLow),
@@ -314,6 +324,36 @@ export function ExerciseForm({
                 ))}
               </select>
             </div>
+            <fieldset className="field">
+              <legend className="field__label-row">
+                <span className="field__label">Also trains</span>
+                <span className="field__note">Half a set each</span>
+              </legend>
+              <div className="group-chips">
+                {Object.entries(muscleGroupLabels)
+                  .filter(
+                    (entry): entry is [MuscleGroup, string] =>
+                      entry[0] in muscleGroupLabels && entry[0] !== muscleGroup,
+                  )
+                  .map(([value, label]) => (
+                    <label key={value} className="segments__segment">
+                      <input
+                        type="checkbox"
+                        checked={secondaries.includes(value)}
+                        onChange={(event) => {
+                          const { checked } = event.target;
+                          setSecondaryMuscleGroups((current) =>
+                            checked
+                              ? [...current, value]
+                              : current.filter((group) => group !== value),
+                          );
+                        }}
+                      />
+                      {label}
+                    </label>
+                  ))}
+              </div>
+            </fieldset>
           </>
         )}
 

@@ -1,4 +1,5 @@
 import { z } from '@hono/zod-openapi';
+import { BALANCE_VIEWS, MUSCLE_GROUPS, MUSCLE_STATUSES } from '../domain/balance.js';
 import { SPANS } from '../domain/progress.js';
 import { LIFT_STATUSES, STRENGTH_SPANS, STRENGTH_STATUSES } from '../domain/strength.js';
 
@@ -39,6 +40,9 @@ export const MuscleGroup = z
     description: 'The one group the library files an exercise under (docs/04 `exercise`).',
   });
 
+/** A group in a list: the same values without the component's null, which no list holds. */
+const MuscleGroupName = z.enum(MuscleGroup.options);
+
 export const Exercise = z
   .object({
     id: Uuid,
@@ -46,6 +50,12 @@ export const Exercise = z
     equipment: Equipment,
     // Null on a custom exercise the caller has not filed under a group.
     muscleGroup: MuscleGroup.nullable(),
+    secondaryMuscleGroups: z.array(MuscleGroupName).openapi({
+      description:
+        'The groups it also trains, where a working set counts half in the balance view. Each ' +
+        'once, in the order of `MuscleGroup`, never `muscleGroup` itself. Empty for none.',
+      example: ['shoulders', 'triceps'],
+    }),
     aliases: z.array(z.string()).openapi({
       description: 'Other names for search to match, never shown as the name. Seeded only.',
       example: ['Flat Bench'],
@@ -79,6 +89,14 @@ const IncrementKg = z.number().min(0).max(100).multipleOf(0.01).openapi({ exampl
 const RestSeconds = z.int().min(0).max(3600).openapi({ example: 120 });
 const Reps = z.int().min(1).max(100);
 const TargetSets = z.int().min(1).max(20);
+const SecondaryMuscleGroups = z
+  .array(MuscleGroupName)
+  .max(11)
+  .openapi({
+    description:
+      'The groups it also trains, where a set counts half. Stored each once, in order, without ' +
+      'the group it is filed under.',
+  });
 
 /** A rep range with both ends set must not be inverted. The issue lands on `repLow`. */
 const repRangeInOrder = (
@@ -98,6 +116,8 @@ export const ExerciseCreate = z
     equipment: Equipment,
     // Default: none, so the library lists it apart from the groups.
     muscleGroup: MuscleGroup.nullable().optional(),
+    // Default: none. Stored each once, in order, without `muscleGroup`.
+    secondaryMuscleGroups: SecondaryMuscleGroups.optional(),
     incrementKg: IncrementKg.optional().openapi({
       description: 'Default: the equipment class’s increment (docs/04 `exercise`).',
     }),
@@ -114,6 +134,8 @@ export const ExercisePatch = z
     equipment: Equipment.optional(),
     // `null` files it under no group.
     muscleGroup: MuscleGroup.nullable().optional(),
+    // Left out, they stay. A group the exercise is now filed under drops out of them.
+    secondaryMuscleGroups: SecondaryMuscleGroups.optional(),
     incrementKg: IncrementKg.optional(),
     restSeconds: RestSeconds.optional(),
     repLow: Reps.optional(),
@@ -464,6 +486,59 @@ export const StrengthOverview = z
   .openapi('StrengthOverview', {
     description:
       'Every lift the caller logged with a working set in the span, with the trend of its e1RM. Warm-ups are left out (S6).',
+  });
+
+export const MuscleBalance = z
+  .object({
+    // Not the `MuscleGroup` component, which carries the null of an unfiled exercise.
+    muscleGroup: z.enum(MUSCLE_GROUPS),
+    sets: z.number().openapi({
+      description:
+        'Working sets a week, whole and half, to the tenth. The status reads this figure.',
+      example: 14,
+    }),
+    directSets: z.number().openapi({
+      description: 'The whole sets among them, to the tenth: those of exercises filed under it.',
+      example: 5.3,
+    }),
+    status: z.enum(MUSCLE_STATUSES).openapi({
+      description:
+        '`none` at 0, `low` under the range, `in_range` from its low to its high end, `high` over it.',
+    }),
+    sources: z
+      .array(
+        z.object({
+          exerciseId: Uuid,
+          name: z.string().openapi({ example: 'Barbell Bench Press' }),
+          indirect: z.boolean().openapi({
+            description: 'True where the exercise trains the group indirectly, at half a set.',
+          }),
+          sets: z.number().openapi({
+            description: 'What it adds a week, to the tenth: already halved where indirect.',
+            example: 3.5,
+          }),
+        }),
+      )
+      .openapi({ description: 'The exercises its sets came from, by when each first came up.' }),
+  })
+  .openapi('MuscleBalance');
+
+export const Balance = z
+  .object({
+    view: z.enum(BALANCE_VIEWS),
+    from: z.iso.date().openapi({ description: 'The view’s first local date.' }),
+    to: z.iso.date().openapi({ description: 'Today, in the caller’s time zone.' }),
+    weeks: z.int().openapi({ description: 'What the sets are divided by: 4, or 1 for this week.' }),
+    range: z
+      .object({ low: z.int().openapi({ example: 10 }), high: z.int().openapi({ example: 20 }) })
+      .openapi({ description: 'The weekly range every group is read against.' }),
+    groups: z.array(MuscleBalance).openapi({
+      description: 'All eleven groups, in the order of `MuscleGroup`, trained or not.',
+    }),
+  })
+  .openapi('Balance', {
+    description:
+      'Working sets a week for each muscle group: whole for the group an exercise is filed under, half for each it also trains. Warm-ups are left out (S6).',
   });
 
 const WorkoutFields = {

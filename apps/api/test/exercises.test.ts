@@ -58,6 +58,7 @@ describe('GET /api/exercises', () => {
       name: 'Barbell Bench Press',
       equipment: 'barbell',
       muscleGroup: 'chest',
+      secondaryMuscleGroups: ['shoulders', 'triceps'],
       aliases: ['Flat Bench'],
       custom: false,
       hidden: false,

@@ -149,7 +149,8 @@ export const muscleGroupValues = [
  * load-increment taxonomy (docs/06, 2026-09-23). The unique index on `(owner_user_id, lower(name))
  * NULLS NOT DISTINCT` is in a custom migration: Drizzle's index builder has no NULLS NOT DISTINCT.
  * `muscle_group` and `aliases` are set on every seeded row; a custom one may have neither
- * (docs/06, 2026-10-08).
+ * (docs/06, 2026-10-08). `secondary_muscle_groups` are the groups it also trains, where a set
+ * counts half (issue #50): reviewed on every seeded row, null on a custom one left without.
  */
 export const exercise = pgTable(
   'exercise',
@@ -166,6 +167,7 @@ export const exercise = pgTable(
     defaultRepHigh: smallint('default_rep_high').notNull().default(10),
     muscleGroup: text('muscle_group', { enum: muscleGroupValues }),
     aliases: text('aliases').array(),
+    secondaryMuscleGroups: text('secondary_muscle_groups', { enum: muscleGroupValues }).array(),
     ...timestamps,
   },
   (t) => [
@@ -173,6 +175,10 @@ export const exercise = pgTable(
     check(
       'exercise_muscle_group_check',
       sql`${t.muscleGroup} IN ('chest', 'back', 'shoulders', 'biceps', 'triceps', 'forearms', 'quads', 'hamstrings', 'glutes', 'calves', 'core')`,
+    ),
+    check(
+      'exercise_secondary_muscle_groups_check',
+      sql`${t.secondaryMuscleGroups} <@ ARRAY['chest', 'back', 'shoulders', 'biceps', 'triceps', 'forearms', 'quads', 'hamstrings', 'glutes', 'calves', 'core']::text[] AND NOT (${t.muscleGroup} = ANY(${t.secondaryMuscleGroups}))`,
     ),
     check(
       'exercise_equipment_check',

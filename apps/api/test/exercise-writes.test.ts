@@ -14,6 +14,7 @@ type Item = {
   name: string;
   equipment: string;
   muscleGroup: string | null;
+  secondaryMuscleGroups: string[];
   aliases: string[];
   custom: boolean;
   hidden: boolean;
@@ -86,6 +87,7 @@ describe('POST /api/exercises', () => {
       name: 'Cable Y-Raise',
       equipment: 'cable',
       muscleGroup: 'shoulders',
+      secondaryMuscleGroups: [],
       aliases: [],
       custom: true,
       hidden: false,
@@ -305,6 +307,51 @@ describe('PATCH /api/exercises/{id}', () => {
       muscleGroup: 'neck',
     });
     expect(refused.status).toBe(422);
+  });
+
+  it('stores secondary muscle groups each once, in order, and never the group it is filed under', async () => {
+    const { cookie } = await t.createSignedInUser('filer@example.test');
+    const created = await createCustom(cookie, {
+      muscleGroup: 'chest',
+      secondaryMuscleGroups: ['triceps', 'chest', 'shoulders', 'triceps'],
+    });
+    expect(created.secondaryMuscleGroups).toEqual(['shoulders', 'triceps']);
+    const patch = async (body: unknown) => {
+      const res = await send(cookie, 'PATCH', `/api/exercises/${created.id}`, body);
+      expect(res.status).toBe(200);
+      const item: Item = await res.json();
+      return item.secondaryMuscleGroups;
+    };
+
+    // Left out, they stay. Filed under one of them, it drops out.
+    expect(await patch({ restSeconds: 60 })).toEqual(['shoulders', 'triceps']);
+    expect(await patch({ muscleGroup: 'triceps' })).toEqual(['shoulders']);
+    expect(await patch({ secondaryMuscleGroups: ['core', 'back'] })).toEqual(['back', 'core']);
+    expect(await patch({ secondaryMuscleGroups: [] })).toEqual([]);
+
+    const refused = await send(cookie, 'PATCH', `/api/exercises/${created.id}`, {
+      secondaryMuscleGroups: ['neck'],
+    });
+    expect(refused.status).toBe(422);
+  });
+
+  it('answers a repeated create with secondary groups in another order as the same create', async () => {
+    const { cookie } = await t.createSignedInUser('filer@example.test');
+    const id = randomUUID();
+    const body = (secondaryMuscleGroups: string[]) => ({
+      id,
+      name: 'Landmine Press',
+      equipment: 'barbell',
+      muscleGroup: 'shoulders',
+      secondaryMuscleGroups,
+    });
+    expect((await send(cookie, 'POST', '/api/exercises', body(['triceps', 'chest']))).status).toBe(
+      201,
+    );
+    expect((await send(cookie, 'POST', '/api/exercises', body(['chest', 'triceps']))).status).toBe(
+      200,
+    );
+    expect((await send(cookie, 'POST', '/api/exercises', body(['chest']))).status).toBe(409);
   });
 
   it('answers 404 for a seeded exercise, which nobody may edit', async () => {

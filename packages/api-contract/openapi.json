@@ -318,6 +318,30 @@
           "muscleGroup": {
             "$ref": "#/components/schemas/MuscleGroup"
           },
+          "secondaryMuscleGroups": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "chest",
+                "back",
+                "shoulders",
+                "biceps",
+                "triceps",
+                "forearms",
+                "quads",
+                "hamstrings",
+                "glutes",
+                "calves",
+                "core"
+              ]
+            },
+            "description": "The groups it also trains, where a working set counts half in the balance view. Each once, in the order of `MuscleGroup`, never `muscleGroup` itself. Empty for none.",
+            "example": [
+              "shoulders",
+              "triceps"
+            ]
+          },
           "aliases": {
             "type": "array",
             "items": {
@@ -381,6 +405,7 @@
           "name",
           "equipment",
           "muscleGroup",
+          "secondaryMuscleGroups",
           "aliases",
           "custom",
           "hidden",
@@ -446,6 +471,27 @@
           "muscleGroup": {
             "$ref": "#/components/schemas/MuscleGroup"
           },
+          "secondaryMuscleGroups": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "chest",
+                "back",
+                "shoulders",
+                "biceps",
+                "triceps",
+                "forearms",
+                "quads",
+                "hamstrings",
+                "glutes",
+                "calves",
+                "core"
+              ]
+            },
+            "maxItems": 11,
+            "description": "The groups it also trains, where a set counts half. Stored each once, in order, without the group it is filed under."
+          },
           "incrementKg": {
             "type": "number",
             "minimum": 0,
@@ -492,6 +538,27 @@
           },
           "muscleGroup": {
             "$ref": "#/components/schemas/MuscleGroup"
+          },
+          "secondaryMuscleGroups": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "chest",
+                "back",
+                "shoulders",
+                "biceps",
+                "triceps",
+                "forearms",
+                "quads",
+                "hamstrings",
+                "glutes",
+                "calves",
+                "core"
+              ]
+            },
+            "maxItems": 11,
+            "description": "The groups it also trains, where a set counts half. Stored each once, in order, without the group it is filed under."
           },
           "incrementKg": {
             "type": "number",
@@ -1570,6 +1637,147 @@
           "workoutCount",
           "status",
           "trend"
+        ]
+      },
+      "Balance": {
+        "type": "object",
+        "properties": {
+          "view": {
+            "type": "string",
+            "enum": [
+              "4w",
+              "week"
+            ]
+          },
+          "from": {
+            "type": "string",
+            "format": "date",
+            "description": "The view’s first local date."
+          },
+          "to": {
+            "type": "string",
+            "format": "date",
+            "description": "Today, in the caller’s time zone."
+          },
+          "weeks": {
+            "type": "integer",
+            "description": "What the sets are divided by: 4, or 1 for this week."
+          },
+          "range": {
+            "type": "object",
+            "properties": {
+              "low": {
+                "type": "integer",
+                "example": 10
+              },
+              "high": {
+                "type": "integer",
+                "example": 20
+              }
+            },
+            "required": [
+              "low",
+              "high"
+            ],
+            "description": "The weekly range every group is read against."
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MuscleBalance"
+            },
+            "description": "All eleven groups, in the order of `MuscleGroup`, trained or not."
+          }
+        },
+        "required": [
+          "view",
+          "from",
+          "to",
+          "weeks",
+          "range",
+          "groups"
+        ],
+        "description": "Working sets a week for each muscle group: whole for the group an exercise is filed under, half for each it also trains. Warm-ups are left out (S6)."
+      },
+      "MuscleBalance": {
+        "type": "object",
+        "properties": {
+          "muscleGroup": {
+            "type": "string",
+            "enum": [
+              "chest",
+              "back",
+              "shoulders",
+              "biceps",
+              "triceps",
+              "forearms",
+              "quads",
+              "hamstrings",
+              "glutes",
+              "calves",
+              "core"
+            ]
+          },
+          "sets": {
+            "type": "number",
+            "description": "Working sets a week, whole and half, to the tenth. The status reads this figure.",
+            "example": 14
+          },
+          "directSets": {
+            "type": "number",
+            "description": "The whole sets among them, to the tenth: those of exercises filed under it.",
+            "example": 5.3
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "in_range",
+              "low",
+              "none",
+              "high"
+            ],
+            "description": "`none` at 0, `low` under the range, `in_range` from its low to its high end, `high` over it."
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "exerciseId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+                },
+                "name": {
+                  "type": "string",
+                  "example": "Barbell Bench Press"
+                },
+                "indirect": {
+                  "type": "boolean",
+                  "description": "True where the exercise trains the group indirectly, at half a set."
+                },
+                "sets": {
+                  "type": "number",
+                  "description": "What it adds a week, to the tenth: already halved where indirect.",
+                  "example": 3.5
+                }
+              },
+              "required": [
+                "exerciseId",
+                "name",
+                "indirect",
+                "sets"
+              ]
+            },
+            "description": "The exercises its sets came from, by when each first came up."
+          }
+        },
+        "required": [
+          "muscleGroup",
+          "sets",
+          "directSets",
+          "status",
+          "sources"
         ]
       },
       "SyncResponse": {
@@ -3246,6 +3454,81 @@
           },
           "400": {
             "description": "A span that is not `4w`, `12w` or `1y`",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`setup_incomplete` with `missing: [\"profile\"]`: local dates need the time zone",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/training/balance": {
+      "get": {
+        "summary": "Working sets a week for each muscle group, over four weeks or this week",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "4w",
+                "week"
+              ],
+              "default": "4w",
+              "description": "Default `4w`, the average of the last four weeks; `week` is this week so far."
+            },
+            "required": false,
+            "description": "Default `4w`, the average of the last four weeks; `week` is this week so far.",
+            "name": "view",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Every muscle group, its sets a week, its status and where the sets came from",
+            "headers": {
+              "Overload-User": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "The id of the user whose session answered. Keep the body for that account only."
+                },
+                "required": true,
+                "description": "The id of the user whose session answered. Keep the body for that account only."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Balance"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A view that is not `4w` or `week`",
             "content": {
               "application/problem+json": {
                 "schema": {
