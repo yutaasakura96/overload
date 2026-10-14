@@ -609,6 +609,10 @@ export const WorkoutSummary = z
   .object({
     id: Uuid,
     name: z.string().openapi({ example: 'Push A' }),
+    routineId: Uuid.nullable().openapi({
+      description:
+        'The routine it was started from; null when it came from none, or the routine is gone.',
+    }),
     startedAt: Instant,
     endedAt: Instant,
     workingSets: z.int().openapi({ description: 'Warm-ups are not counted (S6).', example: 13 }),
@@ -639,6 +643,21 @@ export const WorkoutList = z
   })
   .openapi('WorkoutList', {
     description: 'Finished workouts, newest `startedAt` first. One in progress is not listed.',
+  });
+
+export const LastDone = z
+  .object({
+    items: z.array(
+      z.object({
+        routineId: Uuid,
+        workoutId: Uuid.openapi({ description: 'The routine’s newest finished workout.' }),
+        startedAt: Instant,
+      }),
+    ),
+  })
+  .openapi('LastDone', {
+    description:
+      'When each of the caller’s routines was last done. A routine never done, or deleted, is absent.',
   });
 
 export const WorkoutDetail = z

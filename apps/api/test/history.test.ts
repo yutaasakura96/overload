@@ -49,13 +49,13 @@ async function log(
   cookie: string,
   startedAt: Date,
   exercises: { exerciseId: string; sets: SetFigures[] }[],
-  options: { name?: string; open?: boolean } = {},
+  options: { name?: string; open?: boolean; routineId?: string } = {},
 ): Promise<Logged> {
   const stamp = startedAt.toISOString();
   const workoutId = randomUUID();
   const workout = {
     id: workoutId,
-    routineId: null,
+    routineId: options.routineId ?? null,
     name: options.name ?? 'Push A',
     startedAt: stamp,
     endedAt:
@@ -102,6 +102,7 @@ async function log(
 type Summary = {
   id: string;
   name: string;
+  routineId: string | null;
   startedAt: string;
   endedAt: string;
   workingSets: number;
@@ -168,6 +169,7 @@ describe('GET /api/workouts', () => {
         {
           id: newer.workout.id,
           name: 'Push A',
+          routineId: null,
           startedAt: newer.workout.startedAt,
           endedAt: newer.workout.endedAt,
           workingSets: 4,
@@ -179,6 +181,7 @@ describe('GET /api/workouts', () => {
         {
           id: older.workout.id,
           name: 'Old Push',
+          routineId: null,
           startedAt: older.workout.startedAt,
           endedAt: older.workout.endedAt,
           workingSets: 1,
@@ -188,6 +191,24 @@ describe('GET /api/workouts', () => {
       nextCursor: null,
       total: 2,
     });
+  });
+
+  it('names the routine a workout was started from, and none once the routine is deleted', async () => {
+    const { cookie } = await t.createSignedInUser('lifter@example.test');
+    const bench = await exerciseId(cookie, 'Barbell Bench Press');
+    const routineId = randomUUID();
+    expect(
+      (await send(cookie, 'POST', '/api/routines', { id: routineId, name: 'Push A' })).status,
+    ).toBe(201);
+    await log(cookie, daysAgo(2), [{ exerciseId: bench, sets: [{ weightKg: 60, reps: 8 }] }], {
+      routineId,
+    });
+    await log(cookie, daysAgo(1), [{ exerciseId: bench, sets: [{ weightKg: 60, reps: 8 }] }]);
+
+    expect((await listOf(cookie)).items.map((item) => item.routineId)).toEqual([null, routineId]);
+
+    expect((await send(cookie, 'DELETE', `/api/routines/${routineId}`)).status).toBe(204);
+    expect((await listOf(cookie)).items.map((item) => item.routineId)).toEqual([null, null]);
   });
 
   it('pages by cursor, with no workout shown twice and none missed', async () => {
@@ -253,6 +274,76 @@ describe('GET /api/workouts', () => {
 
     expect(await listOf(other.cookie)).toEqual({ items: [], nextCursor: null, total: 0 });
     expect((await listOf(owner.cookie)).total).toBe(1);
+  });
+});
+
+type LastDone = { items: { routineId: string; workoutId: string; startedAt: string }[] };
+
+async function lastDoneOf(cookie: string) {
+  const res = await t.app.request('/api/workouts/last-done', { headers: { cookie } });
+  expect(res.status).toBe(200);
+  const body: LastDone = await res.json();
+  return body.items;
+}
+
+async function routine(cookie: string, name: string) {
+  const id = randomUUID();
+  expect((await send(cookie, 'POST', '/api/routines', { id, name })).status).toBe(201);
+  return id;
+}
+
+describe('GET /api/workouts/last-done', () => {
+  it('answers 401 without a session', async () => {
+    expect((await t.app.request('/api/workouts/last-done')).status).toBe(401);
+  });
+
+  it('answers each routine’s newest finished workout, however far back, and none for one never done', async () => {
+    const { cookie } = await t.createSignedInUser('lifter@example.test');
+    const bench = await exerciseId(cookie, 'Barbell Bench Press');
+    const sets = [{ exerciseId: bench, sets: [{ weightKg: 60, reps: 8 }] }];
+    const push = await routine(cookie, 'Push A');
+    const pull = await routine(cookie, 'Pull A');
+    await routine(cookie, 'Legs A');
+    await log(cookie, daysAgo(9), sets, { routineId: push });
+    const newest = await log(cookie, daysAgo(5), sets, { routineId: push });
+    const pulled = await log(cookie, daysAgo(40), sets, { routineId: pull });
+    for (let day = 1; day <= 31; day += 1) await log(cookie, daysAgo(day / 10), sets);
+    await log(cookie, daysAgo(0), sets, { routineId: pull, open: true });
+
+    const items = await lastDoneOf(cookie);
+    expect(items.toSorted((a, b) => a.startedAt.localeCompare(b.startedAt))).toEqual([
+      { routineId: pull, workoutId: pulled.workout.id, startedAt: pulled.workout.startedAt },
+      { routineId: push, workoutId: newest.workout.id, startedAt: newest.workout.startedAt },
+    ]);
+  });
+
+  it('forgets a deleted routine', async () => {
+    const { cookie } = await t.createSignedInUser('lifter@example.test');
+    const bench = await exerciseId(cookie, 'Barbell Bench Press');
+    const push = await routine(cookie, 'Push A');
+    await log(cookie, daysAgo(1), [{ exerciseId: bench, sets: [{ weightKg: 60, reps: 8 }] }], {
+      routineId: push,
+    });
+    expect(await lastDoneOf(cookie)).toHaveLength(1);
+
+    expect((await send(cookie, 'DELETE', `/api/routines/${push}`)).status).toBe(204);
+    expect(await lastDoneOf(cookie)).toEqual([]);
+  });
+
+  it('never answers another user’s workouts', async () => {
+    const owner = await t.createSignedInUser('owner@example.test');
+    const other = await t.createSignedInUser('other@example.test');
+    const bench = await exerciseId(owner.cookie, 'Barbell Bench Press');
+    const push = await routine(owner.cookie, 'Push A');
+    await log(
+      owner.cookie,
+      daysAgo(1),
+      [{ exerciseId: bench, sets: [{ weightKg: 80, reps: 10 }] }],
+      { routineId: push },
+    );
+
+    expect(await lastDoneOf(other.cookie)).toEqual([]);
+    expect(await lastDoneOf(owner.cookie)).toHaveLength(1);
   });
 });
 

@@ -432,6 +432,18 @@ export const workoutsQuery = infiniteQueryOptions({
   getNextPageParam: (last) => last.nextCursor ?? undefined,
 });
 
+/**
+ * When each routine was last done (docs/07 §3), in one call, so Today need not read History page by
+ * page. Under `workouts`, so it is asked again with History.
+ */
+export const lastDoneQuery = queryOptions({
+  queryKey: ['workouts', 'last-done'],
+  refetchOnWindowFocus: false,
+  refetchOnReconnect: false,
+  queryFn: async ({ signal }) =>
+    (await confirmedAccountData(() => api.GET('/api/workouts/last-done', { signal }))).items,
+});
+
 /** One workout whole, every row as the sync batch holds it (docs/07 §3). */
 export const workoutQuery = (id: string) =>
   queryOptions({
@@ -485,7 +497,7 @@ export const refreshProgress = () =>
       query.queryKey[0] === 'strength' ||
       query.queryKey[0] === 'balance',
   });
-/** The same for History: the list, and each workout read whole. */
+/** The same for History: the list, when each routine was last done, and each workout read whole. */
 export const refreshHistory = () => queryClient.invalidateQueries({ queryKey: ['workouts'] });
 
 /**

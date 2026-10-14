@@ -1,6 +1,6 @@
 import { createRoute, defineOpenAPIRoute, z } from '@hono/zod-openapi';
 import type { AppEnv, RouteDeps } from '../app-env.js';
-import { getWorkout, listWorkouts, type WorkoutCursor } from '../db/history.js';
+import { getWorkout, lastDone, listWorkouts, type WorkoutCursor } from '../db/history.js';
 import { getProfile } from '../db/profile.js';
 import { lastTimes, localDateIn, loggedExercises, loggedLifts } from '../db/training.js';
 import { BALANCE_VIEWS, balanceWindow, weeklySets } from '../domain/balance.js';
@@ -12,6 +12,7 @@ import { problem, problemResponse, validationErrors } from '../lib/problem.js';
 import {
   Balance,
   IdParam,
+  LastDone,
   LastTimes,
   SetRow,
   StrengthOverview,
@@ -28,9 +29,9 @@ import {
 
 // S1, S2 and S3 (docs/07 §3). The sync batch is the only write path for the workout tree, because
 // it is made and edited offline; last time is one call so the gym screen has it with no signal.
-// History reads what the batch wrote: the list of finished workouts, and one workout whole. The
-// strength overview reads the same sets, every exercise at once, and the balance view reads them
-// by muscle group.
+// History reads what the batch wrote: the list of finished workouts, when each routine was last
+// done, and one workout whole. The strength overview reads the same sets, every exercise at once,
+// and the balance view reads them by muscle group.
 
 /** The uploader splits a larger queue (docs/07 §3.4). */
 export const SYNC_ROW_LIMIT = 500;
@@ -179,6 +180,20 @@ const getWorkouts = createRoute({
   },
 });
 
+const getLastDone = createRoute({
+  method: 'get',
+  path: '/api/workouts/last-done',
+  summary: 'When each of the caller’s routines was last done: its newest finished workout',
+  responses: {
+    200: {
+      description: 'One entry per routine done at least once',
+      headers: accountHeaders,
+      content: { 'application/json': { schema: LastDone } },
+    },
+    401: problemResponse('No session'),
+  },
+});
+
 const getWorkoutById = createRoute({
   method: 'get',
   path: '/api/workouts/{id}',
@@ -216,6 +231,10 @@ export function trainingRoutes({ db }: RouteDeps) {
           200,
         );
       },
+    }),
+    defineOpenAPIRoute<typeof getLastDone, AppEnv>({
+      route: getLastDone,
+      handler: async (c) => c.json({ items: await lastDone(db, c.get('user').id) }, 200),
     }),
     defineOpenAPIRoute<typeof getWorkoutById, AppEnv>({
       route: getWorkoutById,

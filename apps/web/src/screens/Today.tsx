@@ -4,11 +4,12 @@ import { useId, useRef, useState, type FormEvent } from 'react';
 import { api } from '../api';
 import { AccountFooter, AppBar, Chevron, DataState, Notice, ScreenTabs } from '../components';
 import { agoLabel, dayLabel, minutesBetween } from '../dates';
-import { historyOnDevice } from '../history';
+import { historyOnDevice, removedOnDevice } from '../history';
 import type { Navigate } from '../navigation';
 import {
   allExercisesQuery,
   confirmedAccountData,
+  lastDoneQuery,
   lastTimeQuery,
   queryClient,
   refreshLastTime,
@@ -56,6 +57,7 @@ export function Today({ me, navigate }: { me: Me; navigate: Navigate }) {
   // Kept warm here so a start has it offline (S2); `start` reads the cache's copy.
   useQuery({ ...lastTimeQuery, enabled: confirmed && me.profile !== null });
   const history = useInfiniteQuery({ ...workoutsQuery, enabled: confirmed });
+  const lastDone = useQuery({ ...lastDoneQuery, enabled: confirmed });
   const userId = me.user.id;
   const loaded = useWorkoutStore((state) => recordsLoadedFor(state, userId));
   const readFailed = useWorkoutStore((state) => readFailedFor(state, userId));
@@ -81,7 +83,7 @@ export function Today({ me, navigate }: { me: Me; navigate: Navigate }) {
   const refused = refusedSets(records).filter((set) => set.workoutId !== open?.id);
   // The newest finished workout, as the device has it: one just finished is here before it uploads.
   const pages = history.data?.pages;
-  const [latest] =
+  const finished =
     pages === undefined
       ? []
       : historyOnDevice(
@@ -92,6 +94,22 @@ export function Today({ me, navigate }: { me: Me; navigate: Navigate }) {
           },
           records,
         ).items;
+  const [latest] = finished;
+  // When each routine was last done: the server's answer, with a workout finished here laid over
+  // it. One whose answer the device has since deleted is not known again until the server says.
+  const doneAt = new Map<string, string>();
+  const unknown = new Set<string>();
+  for (const last of lastDone.data ?? []) {
+    if (removedOnDevice(records, last.workoutId)) unknown.add(last.routineId);
+    else doneAt.set(last.routineId, last.startedAt);
+  }
+  for (const workout of finished) {
+    if (workout.routineId == null) continue;
+    const known = doneAt.get(workout.routineId);
+    if (known !== undefined && Date.parse(known) >= Date.parse(workout.startedAt)) continue;
+    doneAt.set(workout.routineId, workout.startedAt);
+    unknown.delete(workout.routineId);
+  }
   const top = useRef<HTMLElement>(null);
   const refusedHeading = useRef<HTMLHeadingElement>(null);
 
@@ -275,6 +293,11 @@ export function Today({ me, navigate }: { me: Me; navigate: Navigate }) {
                       {routine.exercises.length === 1 ? 'EXERCISE' : 'EXERCISES'} ·{' '}
                       {routine.exercises.reduce((sum, slot) => sum + slot.targetSets, 0)} SETS
                     </span>
+                    <LastDone
+                      startedAt={doneAt.get(routine.id)}
+                      known={lastDone.data !== undefined && !unknown.has(routine.id)}
+                      timeZone={timeZone}
+                    />
                   </span>
                   <span className="starts__go" aria-hidden="true">
                     START
@@ -345,6 +368,27 @@ export function Today({ me, navigate }: { me: Me; navigate: Navigate }) {
       <AccountFooter email={me.user.email} navigate={navigate} />
     </main>
   );
+}
+
+/** The prototype's line under a routine: when it was last done, or that it has not been. */
+function LastDone({
+  startedAt,
+  known,
+  timeZone,
+}: {
+  startedAt: string | undefined;
+  known: boolean;
+  timeZone: string;
+}) {
+  if (startedAt !== undefined) {
+    return (
+      <span className="routines__preview">
+        Last done {dayLabel(startedAt, timeZone)}, {agoLabel(startedAt, timeZone)}
+      </span>
+    );
+  }
+  // Said only once the server has answered, or it would be wrong for a while.
+  return known ? <span className="routines__preview">Not done yet</span> : null;
 }
 
 function setCount(records: Parameters<typeof exercisesOf>[0], workoutId: string) {

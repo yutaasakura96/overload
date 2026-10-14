@@ -18,6 +18,8 @@ import {
 export type WorkoutSummary = {
   id: string;
   name: string;
+  /** The routine it was started from; null when it came from none, or the routine is gone. */
+  routineId: string | null;
   startedAt: string;
   endedAt: string;
   /** Warm-ups are not counted (S6). */
@@ -99,6 +101,7 @@ export async function listWorkouts(
       {
         id: row.id,
         name: row.name,
+        routineId: row.routineId,
         startedAt: row.startedAt,
         endedAt: row.endedAt,
         workingSets: sets.length,
@@ -158,4 +161,28 @@ export async function getWorkout(
         .map((each) => toSetRow(each.row)),
     })),
   };
+}
+
+/** When a routine was last done: its newest finished workout. */
+export type LastDone = { routineId: string; workoutId: string; startedAt: string };
+
+/**
+ * The newest finished workout of each of the user's routines. A routine never done, or one deleted,
+ * is absent: a deleted routine's workouts no longer name it.
+ */
+export async function lastDone(db: Database, userId: string): Promise<LastDone[]> {
+  const found = await db
+    .selectDistinctOn([workout.routineId], {
+      routineId: workout.routineId,
+      workoutId: workout.id,
+      startedAt: workout.startedAt,
+    })
+    .from(workout)
+    .where(
+      and(eq(workout.userId, userId), isNotNull(workout.endedAt), isNotNull(workout.routineId)),
+    )
+    .orderBy(workout.routineId, desc(workout.startedAt), desc(workout.id));
+  return found.flatMap(({ routineId, workoutId, startedAt }) =>
+    routineId === null ? [] : [{ routineId, workoutId, startedAt: startedAt.toISOString() }],
+  );
 }
