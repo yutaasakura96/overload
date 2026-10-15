@@ -95,12 +95,18 @@ function held(userId: string, stored: StoreRecord[], removed: string[] = []): St
 }
 
 /**
- * Makes a change in the set store, from the records it holds, then shows it. A failed write shows
- * nothing and rejects.
+ * Makes a change in the set store, from the records it holds, then shows it. The change belongs to
+ * the account it is asked for, by default the one open when it is asked, however long it waits in
+ * line: it is made from that account's records and written under it, and shown only while that
+ * account is still the one open, never into another's (docs/08 §5). Resolves to whether it still
+ * is, so what the caller does next on screen is skipped for an account no longer open. A failed
+ * write shows nothing and rejects.
  */
-function mutate(change: (records: StoreRecord[]) => Change | undefined): Promise<void> {
+function mutate(
+  change: (records: StoreRecord[]) => Change | undefined,
+  userId = useWorkoutStore.getState().userId,
+): Promise<boolean> {
   const run = queue.then(async () => {
-    const { userId } = useWorkoutStore.getState();
     if (userId === undefined) throw new Error('no account’s records are loaded');
     let removed: string[] = [];
     const stored = await setStore.change(userId, (records) => {
@@ -109,6 +115,7 @@ function mutate(change: (records: StoreRecord[]) => Change | undefined): Promise
       return made;
     });
     show(userId, held(userId, stored, removed));
+    return useWorkoutStore.getState().userId === userId;
   });
   queue = run.catch(() => undefined);
   return run;
@@ -345,7 +352,7 @@ export async function startWorkout(input: {
       },
     ];
   });
-  await mutate(() => ({ put: [workout, ...exercises] }));
+  if (!(await mutate(() => ({ put: [workout, ...exercises] }), input.userId))) return;
   useWorkoutStore.setState({ rest: undefined, idleEnded: undefined });
 }
 
@@ -359,7 +366,7 @@ export async function completeSet(input: {
 }): Promise<void> {
   const now = new Date().toISOString();
   const id = newId();
-  await mutate((records) => {
+  const shown = await mutate((records) => {
     // A deleted set keeps its place: positions are never renumbered (docs/04 `set`).
     const positions = records.flatMap((record) =>
       record.table === 'sets' && record.row.workoutExerciseId === input.exercise.id
@@ -386,7 +393,8 @@ export async function completeSet(input: {
       },
     };
     return { put: [record] };
-  });
+  }, input.exercise.userId);
+  if (!shown) return;
   const rests = input.exercise.local.restSeconds > 0;
   useWorkoutStore.setState({
     rest: rests ? { setId: id, extraSeconds: 0, dismissed: false } : undefined,
@@ -467,9 +475,9 @@ function recordsOfPast(userId: string, workout: WorkoutDetail): StoreRecord[] {
 function mutatePast(
   workout: WorkoutDetail,
   change: (records: StoreRecord[]) => StoreRecord[],
-): Promise<void> {
+): Promise<boolean> {
+  const { userId } = useWorkoutStore.getState();
   return mutate((records) => {
-    const { userId } = useWorkoutStore.getState();
     if (userId === undefined) return undefined;
     const here = records.some((record) => record.id === workout.id);
     if (!here && workout.endedAt === null) return undefined;
@@ -478,7 +486,7 @@ function mutatePast(
     if (changed.length === 0) return undefined;
     const ids = new Set(changed.map((record) => record.id));
     return { put: [...back.filter((record) => !ids.has(record.id)), ...changed] };
-  });
+  }, userId);
 }
 
 /** `record` queued again as an edit of its figures (docs/09 F4). */
@@ -508,12 +516,12 @@ function asDeletion<Kept extends StoreRecord>(record: Kept): Kept {
  * Edits a set of a past workout (docs/09 F3a): the whole row is queued under a new
  * `clientUpdatedAt`, exactly as an edit made during the workout is.
  */
-export function editPastSet(
+export async function editPastSet(
   workout: WorkoutDetail,
   id: string,
   figures: { weightKg: number; reps: number; rir: number | null },
 ): Promise<void> {
-  return mutatePast(workout, (records) => {
+  await mutatePast(workout, (records) => {
     const record = loggedSet(records, id);
     return record === undefined ? [] : [asEdit(record, figures)];
   });
@@ -548,12 +556,13 @@ function removeWorkout(workout: WorkoutRecord): Change {
 
 /**
  * Finish (docs/09 F3 step 5): `ended_at` is now. With no logged set the workout is deleted.
- * Resolves to whether it was kept, as the set store held it when it ended.
+ * Resolves to whether it was kept, as the set store held it when it ended, or to undefined when
+ * another account is open by then: what was ended is not the workout on screen.
  */
-export async function finishWorkout(): Promise<boolean> {
+export async function finishWorkout(): Promise<boolean | undefined> {
   const now = new Date().toISOString();
   let kept = false;
-  await mutate((records) => {
+  const shown = await mutate((records) => {
     const workout = openWorkout(records);
     if (workout === undefined) return undefined;
     if (setsOfWorkout(records, workout.id).length === 0) return removeWorkout(workout);
@@ -565,6 +574,7 @@ export async function finishWorkout(): Promise<boolean> {
     };
     return { put: [{ ...workout, state: 'pending', row }] };
   });
+  if (!shown) return undefined;
   useWorkoutStore.setState({ rest: undefined });
   return kept;
 }
@@ -576,7 +586,7 @@ export async function finishWorkout(): Promise<boolean> {
  */
 export async function endIdleWorkout(nowMs = Date.now()): Promise<void> {
   let ended: WorkoutState['idleEnded'];
-  await mutate((records) => {
+  const shown = await mutate((records) => {
     const workout = openWorkout(records);
     if (workout === undefined) return undefined;
     const last = lastSetOf(records, workout.id);
@@ -591,7 +601,7 @@ export async function endIdleWorkout(nowMs = Date.now()): Promise<void> {
     };
     return { put: [{ ...workout, state: 'pending', row }] };
   });
-  if (ended !== undefined) useWorkoutStore.setState({ rest: undefined, idleEnded: ended });
+  if (shown && ended !== undefined) useWorkoutStore.setState({ rest: undefined, idleEnded: ended });
 }
 
 /** The rest counted from this set, as the store holds it or as it starts. */
@@ -655,11 +665,17 @@ function settled(record: StoreRecord, whole: StoreRecord[]) {
  * the next upload, and so does a workout's ending or removal the server's answer does not show: its
  * own copy won and is still open (docs/08 §7). A deleted row the server kept is
  * back as the server has it: its copy was edited after the delete was made, and the newer wins.
- * Then every ended workout with nothing left to wait for leaves the device.
+ * Then every ended workout with nothing left to wait for leaves the device. The answer is applied to
+ * the records of the user whose rows were sent, whichever account is open by then. Resolves to
+ * whether that user's is.
  */
-export async function applySyncResults(sent: SentRow[], results: SyncResult[]): Promise<void> {
+export function applySyncResults(
+  userId: string,
+  sent: SentRow[],
+  results: SyncResult[],
+): Promise<boolean> {
   const sentById = new Map(sent.map((row) => [row.id, row]));
-  await mutate((records) => {
+  return mutate((records) => {
     const byId = new Map(records.map((record) => [record.id, record]));
     const put = new Map<string, StoreRecord>();
     const remove = new Set<string>();
@@ -708,7 +724,7 @@ export async function applySyncResults(sent: SentRow[], results: SyncResult[]): 
       put: [...put.values()].filter((record) => !remove.has(record.id)),
       remove: [...remove],
     };
-  });
+  }, userId);
 }
 
 /**

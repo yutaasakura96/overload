@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { cacheKey, deviceKeys, putDeviceValue, savedCache } from './device-store';
 import { apiFixture, chooseTimezone } from './fixture';
@@ -458,6 +459,148 @@ test('a slow read of the previous account’s sets cannot replace the open accou
     await new Promise((resolve) => setTimeout(resolve, 200));
   });
   await expect(signOut).toBeEnabled();
+});
+
+/** A routine of one library exercise for the signed-in account, made through the API. */
+async function makeRoutine(page: Page, name: string, exercise: string) {
+  const library = await page.request.get('/api/exercises');
+  const { items }: { items: { id: string; name: string }[] } = await library.json();
+  const exerciseId = items.find((item) => item.name === exercise)?.id;
+  const made = await page.request.post('/api/routines', {
+    headers: { Origin: new URL(page.url()).origin },
+    data: { id: randomUUID(), name, exercises: [{ id: randomUUID(), exerciseId }] },
+  });
+  expect(made.ok()).toBe(true);
+}
+
+type StoredWorkout = { name: string; endedAt: string | null; exercises: { sets: unknown[] }[] };
+const workoutsOf = (userId: string): StoredWorkout[] => JSON.parse(apiFixture('workouts', userId));
+
+/** The set store's records of this user, read over a connection of the test's own. */
+function recordsOf(page: Page, userId: string) {
+  return page.evaluate(
+    (owner) =>
+      new Promise<{ id: string; table: string; row: { endedAt?: string | null } }[]>(
+        (resolve, reject) => {
+          const open = indexedDB.open('overload-sets');
+          open.addEventListener('error', () => reject(open.error));
+          open.addEventListener('success', () => {
+            const all = open.result.transaction('rows', 'readonly').objectStore('rows').getAll();
+            all.addEventListener('error', () => reject(all.error));
+            all.addEventListener('success', () => {
+              open.result.close();
+              resolve(all.result.filter((record: { userId: string }) => record.userId === owner));
+            });
+          });
+        },
+      ),
+    userId,
+  );
+}
+
+test('a change queued for one account lands in its records, never in the next account’s', async ({
+  page,
+  context,
+}) => {
+  // B has a workout in progress on this device, with nothing logged yet.
+  await useCookie(context, userB);
+  await page.goto('/');
+  await makeRoutine(page, 'B’s routine', 'Barbell Bench Press');
+  await page.goto('/');
+  await page.getByRole('button', { name: /B’s routine.*Start this workout/ }).click();
+  await expect(page).toHaveURL('/workout');
+  await expect
+    .poll(() => workoutsOf(userB).map((workout) => workout.name))
+    .toEqual(['B’s routine']);
+
+  // A, on the same phone, logs a set.
+  await useCookie(context, userA);
+  await page.goto('/');
+  await makeRoutine(page, 'A’s routine', 'Chin-Up');
+  await page.goto('/');
+  await page.getByRole('button', { name: /A’s routine.*Start this workout/ }).click();
+  await expect(page).toHaveURL('/workout');
+  const reps = page.getByRole('textbox', { name: 'Reps', exact: true });
+  await reps.fill('6');
+  await page.getByRole('button', { name: 'Complete set' }).click();
+  await expect(page.getByRole('row', { name: /^1 0 6/ })).toBeVisible();
+
+  // From here the set store's writes land but are slow to say so: A's next set is saving, and
+  // A's Finish waits behind it.
+  await page.evaluate(() => {
+    const released = new Promise((resolve) => {
+      window.addEventListener('release-sets', resolve, { once: true });
+    });
+    IDBTransaction.prototype.addEventListener = new Proxy(
+      // oxlint-disable-next-line typescript/unbound-method -- the proxy calls it on its own transaction
+      IDBTransaction.prototype.addEventListener,
+      {
+        apply(target, transaction: IDBTransaction, args: unknown[]) {
+          const [type, listener, ...rest] = args;
+          const writes =
+            transaction.mode === 'readwrite' && transaction.db.name === 'overload-sets';
+          if (type !== 'complete' || !writes || typeof listener !== 'function') {
+            return Reflect.apply(target, transaction, args);
+          }
+          const later = (event: Event) =>
+            void released.then(() => Reflect.apply(listener, transaction, [event]));
+          return Reflect.apply(target, transaction, [type, later, ...rest]);
+        },
+      },
+    );
+  });
+  await reps.fill('7');
+  await page.getByRole('button', { name: 'Complete set' }).click();
+  await page.getByRole('button', { name: 'Finish workout' }).click();
+  await page.getByRole('button', { name: 'Finish', exact: true }).click();
+
+  // The account check now confirms B, and B's records load before A's changes answer.
+  const sent: string[] = [];
+  page.on('request', (request) => {
+    if (request.url().endsWith('/api/workouts/sync')) sent.push(request.postData() ?? '');
+  });
+  await useCookie(context, userB);
+  await page.evaluate(() => window.dispatchEvent(new Event('visibilitychange')));
+  await expect(page.getByText('B’s routine')).toBeVisible();
+  await page.evaluate(() => window.dispatchEvent(new Event('release-sets')));
+
+  // A's set and A's Finish are A's: on the device, A's workout holds both sets and is over.
+  await expect
+    .poll(async () => {
+      const records = await recordsOf(page, userA);
+      const workout = records.find((record) => record.table === 'workouts');
+      const sets = records.filter((record) => record.table === 'sets');
+      return { ended: typeof workout?.row.endedAt === 'string', sets: sets.length };
+    })
+    .toEqual({ ended: true, sets: 2 });
+  const ofA = new Set((await recordsOf(page, userA)).map((record) => record.id));
+
+  // B's workout is still B's and still in progress, on screen and on Today.
+  await expect(page).toHaveURL('/workout');
+  await expect(page.getByText('B’s routine')).toBeVisible();
+  await page.goto('/');
+  await expect(page.getByText(EMAIL_B)).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Resume workout' })).toBeVisible();
+  await expect(page.getByText('A’s routine')).toHaveCount(0);
+  // Nothing of A's, and no ending of B's, went out under B's session.
+  await page.waitForTimeout(1000);
+  for (const body of sent) {
+    for (const id of ofA) expect(body).not.toContain(id);
+    expect(body).not.toContain('deletedAt');
+  }
+  expect(workoutsOf(userB)).toMatchObject([{ name: 'B’s routine', endedAt: null }]);
+
+  // Back as A, the workout is over and both sets reach the server.
+  await useCookie(context, userA);
+  await page.goto('/');
+  await expect(page.getByText(EMAIL_A)).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Resume workout' })).toHaveCount(0);
+  await expect
+    .poll(() =>
+      workoutsOf(userA).map((workout) => [workout.name, workout.exercises[0]?.sets.length]),
+    )
+    .toEqual([['A’s routine', 2]]);
+  expect(workoutsOf(userA)[0]?.endedAt).not.toBeNull();
 });
 
 test('a failed server sign-out keeps the session, cache, and other tab open', async ({
