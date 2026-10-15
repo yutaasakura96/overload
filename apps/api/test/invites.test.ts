@@ -357,7 +357,10 @@ describe('restore', () => {
     await send(admin.cookie, 'POST', `/api/admin/invites/${id}/restore`);
 
     expect((await send(member.cookie, 'GET', '/api/me')).status).toBe(401);
-    expect(await t.db.$count(session)).toBe(1);
+    const [kenji] = await t.db.select({ id: user.id }).from(user).where(eq(user.email, KENJI));
+    if (kenji === undefined) throw new Error('signed-in member missing');
+    expect(await t.db.$count(session, eq(session.userId, kenji.id))).toBe(0);
+    expect(await t.db.$count(session, eq(session.userId, admin.user.id))).toBe(1);
   });
 
   it('returns an invite that is not revoked unchanged', async () => {
