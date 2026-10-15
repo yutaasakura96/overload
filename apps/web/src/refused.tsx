@@ -15,6 +15,7 @@ export function refusalReason(set: SetRecord, unit: WeightUnit): string {
   const { row, refusal } = set;
   if (refusal?.code === 'parent_missing') return 'Its exercise is not on the server any more';
   if (refusal?.code === 'not_found') return 'It is not a set of this account';
+  if (refusal?.code === 'access_revoked') return 'Access to Overload was revoked';
   const fields = refusal?.fields ?? [];
   if (fields.includes('weightKg')) {
     return row.weightKg > MAX_WEIGHT_KG

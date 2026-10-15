@@ -8,6 +8,7 @@ export type Balance = components['schemas']['Balance'];
 export type BalanceView = Balance['view'];
 export type Equipment = components['schemas']['Equipment'];
 export type Exercise = components['schemas']['Exercise'];
+export type Invite = components['schemas']['Invite'];
 export type LastTime = components['schemas']['LastTime'];
 export type Me = components['schemas']['Me'];
 // The generated component carries the `null` of the fields that use it, as `Profile` does.

@@ -72,7 +72,7 @@ ahead of the current slice, not a description of the database.**
 | **3** | `workout` · `workout_exercise` · `set` |
 | **4** | `sync_tombstone` |
 | **M2** | Everything under *M2 — meal plan + weight* |
-| **M3** | Everything under *M3 — health + coaching*, and `ingest_token` |
+| **M3** | Everything under *M3 — health + coaching*, and `ingest_token`. Its revoke on an invite's revoke and the two tests that go with it come with the table (`06`, 2026-10-15) |
 
 Each slice's GitHub issue names the tables it creates, so the gap between this document and the
 database stays visible.

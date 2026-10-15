@@ -13,6 +13,8 @@ export const problemCodes = {
   id_conflict: { status: 409, title: 'Id already used for something else' },
   exercise_in_routine: { status: 409, title: 'Exercise is used by a routine' },
   exercise_has_history: { status: 409, title: 'Exercise has logged workouts' },
+  invite_exists: { status: 409, title: 'Email already invited' },
+  admin_account: { status: 409, title: 'The admin account cannot be revoked' },
   payload_too_large: { status: 413, title: 'Too many rows in one request' },
   validation_failed: { status: 422, title: 'Request body failed validation' },
   setup_incomplete: { status: 422, title: 'A prerequisite is missing' },

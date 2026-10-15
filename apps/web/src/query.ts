@@ -444,6 +444,13 @@ export const lastDoneQuery = queryOptions({
     (await confirmedAccountData(() => api.GET('/api/workouts/last-done', { signal }))).items,
 });
 
+/** The admin's invite list (S9). A member is never sent here: the screen opens for the admin only. */
+export const invitesQuery = queryOptions({
+  queryKey: ['invites'],
+  queryFn: async ({ signal }) =>
+    (await confirmedAccountData(() => api.GET('/api/admin/invites', { signal }))).items,
+});
+
 /** One workout whole, every row as the sync batch holds it (docs/07 §3). */
 export const workoutQuery = (id: string) =>
   queryOptions({
@@ -486,6 +493,7 @@ export const refreshExercises = () =>
     predicate: (query) => query.queryKey[0] === 'exercises' || query.queryKey[0] === 'balance',
   });
 export const refreshRoutines = () => queryClient.invalidateQueries({ queryKey: ['routines'] });
+export const refreshInvites = () => queryClient.invalidateQueries({ queryKey: ['invites'] });
 /**
  * After an acknowledged sync batch: a chart on screen is asked again, the rest when next opened.
  * The strength overview and the balance view read the same sets, so they go with them.

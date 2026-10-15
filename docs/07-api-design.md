@@ -163,7 +163,7 @@ only.
 | PATCH | `/api/me/profile` | M | Timezone, weight unit, height, sex, birth date, training weekdays. Omitted fields are unchanged; the first save creates the profile. An unknown IANA zone is a 422 on `timezone` | 200 profile | 401, 422 |
 | GET | `/api/me/export` | M | One section of the export (S10), paged | 200 | 401, 422 |
 | GET | `/api/admin/invites` | A | Every invite, newest first | 200 | 401, 404 |
-| POST | `/api/admin/invites` | A | Invite an email | 201 | 401, 404, 409 `invite_exists`, 422 |
+| POST | `/api/admin/invites` | A | Invite an email. A repeat of the same create returns the stored invite | 201 / 200 | 401, 404, 409 `invite_exists`, 409 `id_conflict`, 422 |
 | POST | `/api/admin/invites/{id}/revoke` | A | Revoke (`08` §8). Idempotent: revoking a revoked invite returns it unchanged | 200 | 401, 404, 409 `admin_account` |
 | POST | `/api/admin/invites/{id}/restore` | A | Clear `revoked_at`. Ingest tokens stay revoked; the member makes a new one (`08` §8) | 200 | 401, 404 |
 

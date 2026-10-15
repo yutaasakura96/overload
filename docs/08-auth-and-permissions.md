@@ -327,12 +327,20 @@ The endpoint list is `docs/07`.
 When the admin revokes an invite:
 1. `invite.revoked_at` is set. The row stays.
 2. Every `session` row for that user is deleted, so every device and a future native app is signed
-   out on its next request.
+   out on its next request. The shared member and admin request guard also checks the session
+   user's lowercased email against `invite.revoked_at`; a session created after the delete still
+   gets 401, whether sent as a cookie or a bearer token.
 3. Every `ingest_token` of theirs gets `revoked_at`, so Health Auto Export starts receiving 401.
+   *From M3, which creates the table:* slice 6 built steps 1, 2 and 4, and M3 adds this step to
+   the same transaction (`06`, 2026-10-15).
 4. **Their data stays.** Restoring the invite (clearing `revoked_at`) brings back sign-in and every
-   row. **Ingest tokens stay revoked:** the member creates a new one on the health setup screen and
-   pastes it into Health Auto Export. A token sat in an app that had lost access, and it was shown
-   once, so un-revoking it would revive a secret nobody can see again. *Changed 2026-09-22* from
+   row. Before clearing `revoked_at`, restore deletes any session created after revoke, so only a
+   fresh sign-in can regain access. A sign-in that passed the invite check before the revoke and
+   completes after the restore is accepted, since that member's access is restored (`06`,
+   2026-10-15). **Ingest tokens stay revoked:** the member creates a new one on
+   the health setup screen and pastes it into Health Auto Export. A token sat in an app that had lost
+   access, and it was shown once, so un-revoking it would revive a secret nobody can see again.
+   *Changed 2026-09-22* from
    "restores everything".
 
 A revoked member cannot reach export or delete. If they ask for their data, the admin re-invites

@@ -4,12 +4,15 @@ import type { Context, Next } from 'hono';
 import { csrf } from 'hono/csrf';
 import { HTTPException } from 'hono/http-exception';
 import { requestId } from 'hono/request-id';
+import { and, eq, isNotNull } from 'drizzle-orm';
 import type { AppEnv, RouteDeps } from './app-env.js';
 import type { Auth } from './auth/auth.js';
+import { invite } from './db/schema.js';
 import { ACCOUNT_HEADER } from './lib/account.js';
 import { describeError } from './lib/error-log.js';
 import type { ReportError } from './lib/error-report.js';
 import { problem, validationErrors, type ProblemCode } from './lib/problem.js';
+import { adminRoutes } from './routes/admin.js';
 import { exerciseRoutes } from './routes/exercises.js';
 import { healthRoutes } from './routes/health.js';
 import { meRoutes } from './routes/me.js';
@@ -78,10 +81,22 @@ export function createApp({ auth, config, db, log = console.log, reportError }: 
     const session = await auth.api.getSession({ headers: c.req.raw.headers });
     if (session === null) return problem(c, 'unauthenticated');
     const { id, name, email, image } = session.user;
+    const [revoked] = await db
+      .select({ id: invite.id })
+      .from(invite)
+      .where(and(eq(invite.email, email.toLowerCase()), isNotNull(invite.revokedAt)));
+    if (revoked !== undefined) return problem(c, 'unauthenticated');
     c.set('user', { id, name, email, image: image ?? null });
     await next();
     // Names whose session answered, so a client can refuse another account's answer (docs/08 §5).
     c.res.headers.set(ACCOUNT_HEADER, id);
+  });
+
+  // The admin is the member whose email is ADMIN_EMAIL (docs/08 §3). To anyone else the admin
+  // routes do not exist: 404, never 403, which would confirm them (docs/08 §5).
+  app.use('/api/admin/*', async (c: Context<AppEnv>, next: Next) => {
+    if (c.get('user').email.toLowerCase() !== config.adminEmail) return problem(c, 'not_found');
+    return next();
   });
 
   app.on(['GET', 'POST'], `${AUTH_PREFIX}*`, (c) => auth.handler(c.req.raw));
@@ -91,6 +106,7 @@ export function createApp({ auth, config, db, log = console.log, reportError }: 
   app.openapiRoutes(exerciseRoutes({ config, db }));
   app.openapiRoutes(routineRoutes({ config, db }));
   app.openapiRoutes(trainingRoutes({ config, db }));
+  app.openapiRoutes(adminRoutes({ config, db }));
 
   app.openAPIRegistry.registerComponent('securitySchemes', 'session', {
     type: 'apiKey',

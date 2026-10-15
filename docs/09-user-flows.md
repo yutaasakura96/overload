@@ -191,8 +191,8 @@ sees when it does not simply succeed.
 4. **401.** A sign-in prompt opens over the current screen (`08` §5). Pending stays pending.
    - Same user signs in → upload resumes.
    - `access_revoked` → every pending set becomes **refused, access revoked**, and the sign-in page
-     says "Your access was revoked." They can only be discarded. *Not built; it comes with invite
-     administration (slice 6).*
+     says "Your access was revoked." They can only be discarded. *Built 2026-10-15*, for the last
+     account signed in on the device.
    - A different Google account → F8's rule applies to the first user's sets before anything else.
 
 | Step | Goes wrong | User sees |
@@ -224,7 +224,7 @@ sees when it does not simply succeed.
 2. **Invite:** type a Google email → add. Lowercased on save. Tell the person out of band; the app
    sends no email.
 3. **Revoke:** tap an invite → confirm. The four steps in `08` §8 run: `revoked_at` set, sessions
-   deleted, ingest tokens revoked, data kept.
+   deleted, ingest tokens revoked (from M3, which creates them), data kept.
 4. **Re-invite:** a revoked row offers **Restore**, which clears `revoked_at`. Their data is back on
    their next sign-in. Their ingest tokens stay revoked, so Health Auto Export needs a new one (`08` §8).
 

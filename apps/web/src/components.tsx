@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import type { Navigate } from './navigation';
 import { useAccount } from './query';
 import { signOut, type SignOutResult } from './sign-out';
 import { requestUpload } from './uploader';
@@ -251,9 +252,10 @@ export function TextField({
 }: FieldProps & {
   /** Focus on mount: only for a form's first field, on a screen opened to fill it in. */
   focusOnOpen?: boolean;
-  type?: 'text' | 'search';
+  type?: 'text' | 'search' | 'email';
 }) {
   const id = useId();
+  const email = type === 'email';
   return (
     <div className={['field', className].filter(Boolean).join(' ')}>
       <FieldLabel htmlFor={id} label={label} note={note} />
@@ -264,6 +266,8 @@ export function TextField({
         value={value}
         placeholder={placeholder}
         autoComplete="off"
+        autoCapitalize={email ? 'none' : undefined}
+        spellCheck={email ? false : undefined}
         // oxlint-disable-next-line jsx-a11y/no-autofocus -- only a form's first field, opened on purpose
         autoFocus={focusOnOpen}
         aria-invalid={error === undefined ? undefined : true}
@@ -380,7 +384,8 @@ export function DeleteConfirm({
   keepLabel = 'Keep',
   confirmLabel = 'Delete',
 }: {
-  label: string;
+  /** Text, with any context said but not shown, e.g. which row it acts on. */
+  label: ReactNode;
   question: ReactNode;
   busy: boolean;
   onDelete: () => void;
@@ -448,10 +453,13 @@ export function DeleteConfirm({
  */
 export function AccountFooter({
   email,
+  admin = false,
   navigate,
 }: {
   email: string;
-  navigate: (path: string) => void;
+  /** The admin also gets the way to the invite list (S9), which is not one of the tabs. */
+  admin?: boolean;
+  navigate: Navigate;
 }) {
   const [busy, setBusy] = useState(false);
   const [stopped, setStopped] = useState<Exclude<SignOutResult, 'signed-out'>>();
@@ -541,6 +549,18 @@ export function AccountFooter({
       )}
       <footer className="footer">
         <span className="footer__account">{email}</span>
+        {admin && (
+          <a
+            href="/admin/invites"
+            className="button button--tertiary footer__link"
+            onClick={(event) => {
+              event.preventDefault();
+              navigate('/admin/invites', { returns: true });
+            }}
+          >
+            Invites
+          </a>
+        )}
         <button
           type="button"
           className="button button--tertiary"

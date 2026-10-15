@@ -711,6 +711,27 @@ export async function applySyncResults(sent: SentRow[], results: SyncResult[]): 
   });
 }
 
+/**
+ * The gate refused this user's sign-in with `access_revoked` (docs/09 F4): every set of theirs the
+ * server has not taken becomes refused, access revoked. It stays on the device, never dropped
+ * silently, and can only be discarded. Answers how many of their sets are refused so.
+ */
+export async function refuseRevokedSets(userId: string): Promise<number> {
+  const after = await setStore.change(userId, (records) => ({
+    put: records
+      .filter(
+        (record): record is SetRecord =>
+          record.table === 'sets' && record.state === 'pending' && record.deletedAt === undefined,
+      )
+      .map((record) => ({
+        ...record,
+        state: 'refused',
+        refusal: { code: 'access_revoked', fields: [] },
+      })),
+  }));
+  return refusedSets(after).filter((set) => set.refusal?.code === 'access_revoked').length;
+}
+
 /** Removes every record of this user from the device: sign-out's explicit discard (docs/08 §7). */
 export async function discardWorkouts(): Promise<void> {
   await mutate((records) => ({ remove: records.map((record) => record.id) }));
