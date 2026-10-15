@@ -603,6 +603,138 @@ test('a change queued for one account lands in its records, never in the next ac
   expect(workoutsOf(userA)[0]?.endedAt).not.toBeNull();
 });
 
+test('a queued Start stays with the account that tapped it after another account is confirmed', async ({
+  page,
+  context,
+}) => {
+  await useCookie(context, userA);
+  await page.goto('/');
+  await makeRoutine(page, 'A’s queued routine', 'Chin-Up');
+  await page.goto('/');
+
+  // Delay the first set-store write's answer so Start waits while B becomes the open account.
+  await page.evaluate(() => {
+    const released = new Promise((resolve) => {
+      window.addEventListener('release-start', resolve, { once: true });
+    });
+    IDBTransaction.prototype.addEventListener = new Proxy(
+      // oxlint-disable-next-line typescript/unbound-method -- the proxy calls it on its own transaction
+      IDBTransaction.prototype.addEventListener,
+      {
+        apply(target, transaction: IDBTransaction, args: unknown[]) {
+          const [type, listener, ...rest] = args;
+          const writes =
+            transaction.mode === 'readwrite' && transaction.db.name === 'overload-sets';
+          if (type !== 'complete' || !writes || typeof listener !== 'function') {
+            return Reflect.apply(target, transaction, args);
+          }
+          const later = (event: Event) =>
+            void released.then(() => Reflect.apply(listener, transaction, [event]));
+          return Reflect.apply(target, transaction, [type, later, ...rest]);
+        },
+      },
+    );
+  });
+  await page.getByRole('button', { name: /A’s queued routine.*Start this workout/ }).click();
+
+  const sent: string[] = [];
+  page.on('request', (request) => {
+    if (request.url().endsWith('/api/workouts/sync')) sent.push(request.postData() ?? '');
+  });
+  await useCookie(context, userB);
+  await page.evaluate(() => window.dispatchEvent(new Event('visibilitychange')));
+  await expect(page.getByText(EMAIL_B)).toBeVisible();
+  await page.evaluate(() => window.dispatchEvent(new Event('release-start')));
+  await expect.poll(async () => (await recordsOf(page, userA)).length).toBe(2);
+  const ofA = (await recordsOf(page, userA)).map((record) => record.id);
+
+  await page.goto('/');
+  await expect(page.getByText(EMAIL_B)).toBeVisible();
+  await expect(page.getByText('A’s queued routine')).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Resume workout' })).toHaveCount(0);
+  for (const body of sent) {
+    for (const id of ofA) expect(body).not.toContain(id);
+  }
+
+  await useCookie(context, userA);
+  await page.goto('/');
+  await expect(page.getByText(EMAIL_A)).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Resume workout' })).toBeVisible();
+});
+
+test('a queued three-hour ending stays with its account after another account is confirmed', async ({
+  page,
+  context,
+}) => {
+  await context.clock.install();
+  await useCookie(context, userA);
+  await page.goto('/');
+  await makeRoutine(page, 'A’s idle routine', 'Chin-Up');
+  await page.goto('/');
+  await page.getByRole('button', { name: /A’s idle routine.*Start this workout/ }).click();
+  await expect(page).toHaveURL('/workout');
+  await page.getByRole('textbox', { name: 'Reps', exact: true }).fill('6');
+  await page.getByRole('button', { name: 'Complete set' }).click();
+  await expect(page.getByRole('row', { name: /^1 0 6/ })).toBeVisible();
+  await context.clock.fastForward('03:00:30');
+
+  await page.evaluate(() => {
+    const released = new Promise((resolve) => {
+      window.addEventListener('release-idle', resolve, { once: true });
+    });
+    IDBTransaction.prototype.addEventListener = new Proxy(
+      // oxlint-disable-next-line typescript/unbound-method -- the proxy calls it on its own transaction
+      IDBTransaction.prototype.addEventListener,
+      {
+        apply(target, transaction: IDBTransaction, args: unknown[]) {
+          const [type, listener, ...rest] = args;
+          const writes =
+            transaction.mode === 'readwrite' && transaction.db.name === 'overload-sets';
+          if (type !== 'complete' || !writes || typeof listener !== 'function') {
+            return Reflect.apply(target, transaction, args);
+          }
+          const later = (event: Event) =>
+            void released.then(() => Reflect.apply(listener, transaction, [event]));
+          return Reflect.apply(target, transaction, [type, later, ...rest]);
+        },
+      },
+    );
+  });
+  await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+  await expect
+    .poll(async () => {
+      const workout = (await recordsOf(page, userA)).find(
+        (record) => record.table === 'workouts',
+      );
+      return typeof workout?.row.endedAt;
+    })
+    .toBe('string');
+
+  const sent: string[] = [];
+  page.on('request', (request) => {
+    if (request.url().endsWith('/api/workouts/sync')) sent.push(request.postData() ?? '');
+  });
+  await useCookie(context, userB);
+  await page.evaluate(() => window.dispatchEvent(new Event('visibilitychange')));
+  await expect(page.getByText(EMAIL_B)).toBeVisible();
+  await page.evaluate(() => window.dispatchEvent(new Event('release-idle')));
+  const ofA = (await recordsOf(page, userA)).map((record) => record.id);
+
+  await page.goto('/');
+  await expect(page.getByText(EMAIL_B)).toBeVisible();
+  await expect(page.getByText('A’s idle routine')).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Resume workout' })).toHaveCount(0);
+  for (const body of sent) {
+    for (const id of ofA) expect(body).not.toContain(id);
+  }
+
+  await useCookie(context, userA);
+  await page.goto('/');
+  await expect(page.getByText(EMAIL_A)).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Resume workout' })).toHaveCount(0);
+  await expect.poll(() => workoutsOf(userA)[0]?.endedAt).not.toBeNull();
+});
+
 test('a failed server sign-out keeps the session, cache, and other tab open', async ({
   context,
 }) => {

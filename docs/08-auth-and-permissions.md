@@ -224,11 +224,11 @@ The endpoint list is `docs/07`.
   session or names another account takes it away. While that check is away the account is not
   confirmed, so nothing is fetched, uploaded or saved under it; the screen shows what it already
   held. *Changed 2026-10-03 (`06`).*
-- **Known limit: a set-store write still queued when the account changes.** A Start, a completed
-  set or an ending waiting behind another write runs against whichever account's records are loaded
-  when its turn comes. If another account is confirmed in the same tab mid-save, that write can
-  land among the second account's records. Accepted for slice 3; binding each write to the account
-  that started it is issue #32. *Added 2026-10-05.*
+- **Queued workout writes stay with the account that started them.** Start, a completed set, Finish
+  and the three-hour ending read and write that account's set-store records even if another account
+  is confirmed while they wait. Their results are shown only if that account is still open. A sync
+  answer likewise updates the records of the account whose rows were sent; it cannot publish into
+  the next account's screen or upload batch.
 - **Back online**, a 401 from any request means the session has ended, whether it expired, was
   signed out elsewhere, or was revoked. The client cannot tell which from the 401, and it does not
   try:
