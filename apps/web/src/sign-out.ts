@@ -21,14 +21,20 @@ export type DeleteAccountResult =
   | Exclude<SignOutResult, 'signed-out'>
   | 'deleted'
   | 'stale-session'
-  | 'admin-account';
+  | 'admin-account'
+  | 'account-changed'
+  | 'refused'
+  | 'unknown-outcome';
 
 /** Why the device cannot let go of the account yet, if it cannot. */
-function heldBack(options: {
-  discard?: boolean;
-}): Exclude<SignOutResult, 'signed-out'> | undefined {
+function heldBack(
+  userId: string | undefined,
+  options: {
+    discard?: boolean;
+  },
+): Exclude<SignOutResult, 'signed-out'> | undefined {
   const state = useWorkoutStore.getState();
-  if (!recordsLoadedFor(state, currentAccount().userId)) return 'failed';
+  if (!recordsLoadedFor(state, userId)) return 'failed';
   const { records } = state;
   if (openWorkout(records) !== undefined) return 'workout-open';
   if (records.some((record) => record.table === 'workouts' && record.state !== 'acknowledged')) {
@@ -45,7 +51,7 @@ export async function signOut(
   navigate: (path: string) => void,
   options: { discard?: boolean } = {},
 ): Promise<SignOutResult> {
-  const held = heldBack(options);
+  const held = heldBack(currentAccount().userId, options);
   if (held !== undefined) return held;
   try {
     const result = await authClient.signOut();
@@ -64,9 +70,21 @@ export async function signOut(
  */
 export async function deleteAccount(
   navigate: (path: string) => void,
+  expectedUserId: string,
   options: { discard?: boolean } = {},
 ): Promise<DeleteAccountResult> {
-  const held = heldBack(options);
+  let confirmedUserId: string | undefined;
+  try {
+    const session = await authClient.getSession({ query: { disableCookieCache: true } });
+    if (session.error) return 'failed';
+    confirmedUserId = session.data?.user.id;
+  } catch {
+    return 'failed';
+  }
+  if (confirmedUserId === undefined || confirmedUserId !== expectedUserId) {
+    return 'account-changed';
+  }
+  const held = heldBack(confirmedUserId, options);
   if (held !== undefined) return held;
   try {
     const result = await authClient.deleteUser();
@@ -74,10 +92,12 @@ export async function deleteAccount(
       // Better Auth's own refusals, in its `{ code, message }` format (docs/07 §1.3).
       if (result.error.code === 'SESSION_EXPIRED') return 'stale-session';
       if (result.error.code === 'admin_account') return 'admin-account';
-      return 'failed';
+      return result.error.status >= 400 && result.error.status < 500
+        ? 'refused'
+        : 'unknown-outcome';
     }
   } catch {
-    return 'failed';
+    return 'unknown-outcome';
   }
   await wipeDevice(navigate, 'deleted=1');
   return 'deleted';

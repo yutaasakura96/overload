@@ -254,6 +254,9 @@ The endpoint list is `docs/07`.
 - **Confirmation:** the screen names what will go (workouts, sets, food list, plans, weigh-ins,
   health data), says what outlasts it (access records for a year, backups for up to 30 days), and
   offers an export first. The user types `DELETE` to confirm.
+- Immediately before deletion, the client reads the session without the cookie cache and checks
+  that its user id is the one shown on the screen. A missing or different session stops deletion;
+  the user reloads the page. Pending device rows are checked for that confirmed user id.
 - **`beforeDelete`** removes the user's `invite` row. *As built* (`06`, 2026-10-15) it deletes the
   whole account itself, in one transaction with the `account_deleted` audit row, and Better Auth's
   own delete after it finds nothing left. "Removes their access" in S10 means the email

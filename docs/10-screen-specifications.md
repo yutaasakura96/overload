@@ -808,7 +808,10 @@ data-state slot. In order:
   progress (`Finish it first.`), a workout whose ending has not uploaded (`Try again`), and sets not
   uploaded, `2 sets not uploaded yet. Deleting doesn’t upload them. Upload them now to keep them in
   an export, or discard them and delete.` — `Upload now` / `Discard and delete`. `Upload now` only
-  uploads. A failure says `Couldn’t reach Overload. Nothing was deleted. Try again.`
+  uploads. If the signed-in account changed, the notice says to reload before deleting. A lost
+  delete response says `Couldn’t confirm whether your account was deleted. Reload to check.` A
+  definite server refusal says `Overload refused the deletion. Nothing was deleted. Reload and try
+  again.`
 - **Deleted:** the sign-out wipe runs (`08` §7), and the sign-in page opens with a flag notice,
   `Deleted`, `Your account was deleted.`
 

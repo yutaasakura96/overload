@@ -92,6 +92,52 @@ test('a member deletes their account after typing DELETE', async ({ context, pag
   }
 });
 
+for (const sessionCase of ['another account', 'no account'] as const) {
+  test(`deletion stops when the current session has ${sessionCase}`, async ({ context, page }) => {
+    await signIn(context, memberId);
+    let deleteCalls = 0;
+    await page.route('**/api/auth/get-session**', async (route) => {
+      if (new URL(route.request().url()).searchParams.get('disableCookieCache') !== 'true') {
+        await route.continue();
+        return;
+      }
+      if (sessionCase === 'no account') {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: 'null' });
+        return;
+      }
+      const response = await route.fetch();
+      const session: { user: { id: string } } = await response.json();
+      await route.fulfill({
+        response,
+        json: { ...session, user: { ...session.user, id: adminId } },
+      });
+    });
+    await page.route('**/api/auth/delete-user', (route) => {
+      deleteCalls += 1;
+      return route.abort();
+    });
+    await page.goto('/account');
+    await page.getByRole('textbox', { name: 'Type DELETE to confirm' }).fill('DELETE');
+    await page.getByRole('button', { name: 'Delete account' }).click();
+    await expect(
+      page.getByText('The signed-in account changed. Reload this page before deleting.'),
+    ).toBeVisible();
+    expect(deleteCalls).toBe(0);
+  });
+}
+
+test('an interrupted delete response reports an unknown outcome', async ({ context, page }) => {
+  await signIn(context, memberId);
+  await page.route('**/api/auth/delete-user', (route) => route.abort('internetdisconnected'));
+  await page.goto('/account');
+  await page.getByRole('textbox', { name: 'Type DELETE to confirm' }).fill('DELETE');
+  await page.getByRole('button', { name: 'Delete account' }).click();
+  await expect(
+    page.getByText('Couldn’t confirm whether your account was deleted. Reload to check.'),
+  ).toBeVisible();
+  await expect(page.getByText('Nothing was deleted.')).toHaveCount(0);
+});
+
 test('a missing session lookup still offers server-checked deletion', async ({ context, page }) => {
   await signIn(context, memberId);
   await page.route('**/api/auth/get-session', (route) =>

@@ -161,8 +161,8 @@ function DeleteBlock({ me, navigate }: { me: Me; navigate: Navigate }) {
   const remove = (options: { discard?: boolean } = {}) => {
     setBusy(true);
     setStopped(undefined);
-    void deleteAccount(navigate, options)
-      .catch((): DeleteAccountResult => 'failed')
+    void deleteAccount(navigate, me.user.id, options)
+      .catch((): DeleteAccountResult => 'unknown-outcome')
       .then((result) => {
         if (result === 'deleted') return;
         if (result === 'stale-session') setFreshness('stale');
@@ -296,7 +296,29 @@ function Stopped({
   if (stopped === 'failed') {
     return (
       <Notice tone="flag" word="Not deleted">
-        Couldn’t reach Overload. Nothing was deleted. Try again.
+        Couldn’t check the account or pending workouts. Deletion was not started. Reload and try
+        again.
+      </Notice>
+    );
+  }
+  if (stopped === 'account-changed') {
+    return (
+      <Notice tone="flag" word="Account changed">
+        The signed-in account changed. Reload this page before deleting.
+      </Notice>
+    );
+  }
+  if (stopped === 'unknown-outcome') {
+    return (
+      <Notice tone="flag" word="Check account">
+        Couldn’t confirm whether your account was deleted. Reload to check.
+      </Notice>
+    );
+  }
+  if (stopped === 'refused') {
+    return (
+      <Notice tone="flag" word="Not deleted">
+        Overload refused the deletion. Nothing was deleted. Reload and try again.
       </Notice>
     );
   }
