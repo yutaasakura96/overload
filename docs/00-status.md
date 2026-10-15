@@ -13,8 +13,8 @@
 - 2026-09-16: Phase 3 — `docs/05-design-system.md` and `docs/10-screen-specifications.md` written from the six `.dc.html` files. Every hex code, size, tracking value and grid measurement lifted from source; contrast ratios computed, not estimated. The canvas's "THE SYSTEM" sticky note was found inaccurate and is superseded by `docs/05`.
 
 ## Next
-**Phase 7 — Build, slice 7.** Slice 6, invite administration (S9), is built on `fm/overload-6`,
-in review against `develop`; export and delete (S10) follows. The slice boundaries and deferred work
+**Phase 7 — Build, after slice 7.** Slice 7, export and delete (S10), is built on `fm/overload-7`,
+in review against `develop`; it is the last of M1's slices. The slice boundaries and deferred work
 are recorded in `06` (2026-10-03, 2026-10-15). **M3 carries from slice 6:** revoking ingest tokens on
 an invite's revoke, and its two tests (`06`, 2026-10-15; `11` §2).
 
@@ -112,6 +112,16 @@ functions, the route and its cross-user cases; `e2e/progress.spec.ts` covers the
 reading a workout from the keyboard, the empty state and pounds, on Chromium and WebKit. Not built:
 the S20 overlays, which wait for M2 and M3. Owed, and Yuta's: the chart on a real iPhone, where
 dragging a finger across it has only been tried in an emulated browser.
+
+**Slice 7 is built, 2026-10-15**, on branch `fm/overload-7` against `develop` (`#7`). In the repo:
+`GET /api/me/export` with M1's four sections, `profile`, `exercises`, `routines` and `workouts`, and
+account deletion through Better Auth's `delete-user`, whose `beforeDelete` refuses the admin and
+deletes the account in one transaction with its `account_deleted` audit row (`06`, 2026-10-15). The
+`Your data` screen at `/account`, reached from the footer, saves the export and deletes after a
+fresh sign-in and a typed `DELETE` (`10` §8.5). No migration. Vitest covers export completeness,
+paging and the cross-user case, the stale-session and admin refusals, and deletion with the
+deferred-FK case; `e2e/account.spec.ts` covers the export, a deletion and the admin's refusal on
+Chromium and WebKit.
 
 **Slice 6 is built, 2026-10-15**, on branch `fm/overload-6` against `develop` (`#6`). In the repo:
 the four `/api/admin/invites` routes behind an admin check that answers a member 404, revoke

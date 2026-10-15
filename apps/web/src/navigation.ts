@@ -96,7 +96,8 @@ export type Route =
   | { screen: 'strength' }
   | { screen: 'balance' }
   | { screen: 'past-workout'; id: string }
-  | { screen: 'invites' };
+  | { screen: 'invites' }
+  | { screen: 'account' };
 
 export function routeOf(pathname: string): Route {
   const [first, second, ...rest] = pathname.split('/').filter(Boolean);
@@ -108,6 +109,7 @@ export function routeOf(pathname: string): Route {
     return { screen: 'workout', guide: second === 'focus' };
   if (first === 'workouts' && second !== undefined) return { screen: 'past-workout', id: second };
   if (first === 'admin' && second === 'invites') return { screen: 'invites' };
+  if (first === 'account' && second === undefined) return { screen: 'account' };
   if (first === 'progress' && second === undefined) return { screen: 'history' };
   if (first === 'progress' && (second === 'strength' || second === 'balance'))
     return { screen: second };

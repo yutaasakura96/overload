@@ -147,6 +147,69 @@ export interface paths {
     };
     trace?: never;
   };
+  '/api/me/export': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** One section of the caller’s export, a page at a time */
+    get: {
+      parameters: {
+        query: {
+          /** @description The sections built so far. Later milestones add theirs (docs/07 §2). */
+          section: components['schemas']['ExportSection'];
+          /** @description Default 30, at most 100. */
+          limit?: number;
+          /** @description The previous page’s `nextCursor`. */
+          cursor?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description One page of the section, and the cursor of the next */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ExportPage'];
+          };
+        };
+        /** @description An unknown section, a limit outside 1 to 100, or a cursor this route did not make */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/exercises': {
     parameters: {
       query?: never;
@@ -1664,8 +1727,49 @@ export interface components {
       trainingWeekdays?: number[];
       weightUnit?: components['schemas']['WeightUnit'];
     };
-    ExerciseList: {
-      items: components['schemas']['Exercise'][];
+    /** @description One page of one section. `profile`, `exercises` and `routines` come whole in one page; `workouts`, in progress ones included, come newest first a page at a time. */
+    ExportPage:
+      | {
+          /** @enum {string} */
+          section: 'profile';
+          items: components['schemas']['ExportProfile'][];
+          /** @description Opaque. Send it back as `cursor` for the next page. */
+          nextCursor: string | null;
+        }
+      | {
+          /** @enum {string} */
+          section: 'exercises';
+          items: components['schemas']['Exercise'][];
+          /** @description Opaque. Send it back as `cursor` for the next page. */
+          nextCursor: string | null;
+        }
+      | {
+          /** @enum {string} */
+          section: 'routines';
+          items: components['schemas']['Routine'][];
+          /** @description Opaque. Send it back as `cursor` for the next page. */
+          nextCursor: string | null;
+        }
+      | {
+          /** @enum {string} */
+          section: 'workouts';
+          items: components['schemas']['WorkoutDetail'][];
+          /** @description Opaque. Send it back as `cursor` for the next page. */
+          nextCursor: string | null;
+        };
+    ExportProfile: {
+      user: {
+        /**
+         * Format: uuid
+         * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+         */
+        id: string;
+        name: string;
+        /** Format: email */
+        email: string;
+        image: string | null;
+      };
+      profile: components['schemas']['Profile'];
     };
     Exercise: {
       /**
@@ -1752,6 +1856,147 @@ export interface components {
       | 'calves'
       | 'core'
       | null;
+    Routine: {
+      /**
+       * Format: uuid
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      id: string;
+      /** @example Push A */
+      name: string;
+      /** @description Place in the routine list, 0 first. */
+      position: number;
+      /** @description In order. */
+      exercises: components['schemas']['RoutineSlot'][];
+    };
+    /** @description Null reps fall back to the caller’s setting, then the exercise’s default. */
+    RoutineSlot: {
+      /**
+       * Format: uuid
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      id: string;
+      /**
+       * Format: uuid
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      exerciseId: string;
+      /** @example 3 */
+      targetSets: number;
+      repLow: number | null;
+      repHigh: number | null;
+    };
+    /** @description One workout whole. Every row is as the sync batch holds it, so a set can be sent back edited, or deleted, through `/api/workouts/sync`. */
+    WorkoutDetail: {
+      /**
+       * Format: uuid
+       * @description Made on the phone (UUIDv7).
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      id: string;
+      /**
+       * Format: uuid
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      routineId: string | null;
+      /** @example Push A */
+      name: string;
+      /**
+       * Format: date-time
+       * @example 2026-11-11T09:01:40.000Z
+       */
+      startedAt: string;
+      /**
+       * Format: date-time
+       * @description Null while the workout is in progress.
+       * @example 2026-11-11T09:01:40.000Z
+       */
+      endedAt: string | null;
+      note: string | null;
+      /**
+       * Format: date-time
+       * @description The phone’s clock at the last edit.
+       * @example 2026-11-11T09:01:40.000Z
+       */
+      clientUpdatedAt: string;
+      /** @description In order. One that logged no set is still listed. */
+      exercises: {
+        /**
+         * Format: uuid
+         * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+         */
+        id: string;
+        /**
+         * Format: uuid
+         * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+         */
+        workoutId: string;
+        /**
+         * Format: uuid
+         * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+         */
+        exerciseId: string;
+        /**
+         * Format: uuid
+         * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+         */
+        routineExerciseId: string | null;
+        position: number;
+        /** @description Copied from the routine at start. */
+        targetSets: number | null;
+        repLow: number;
+        repHigh: number;
+        /** @example 2.5 */
+        incrementKg: number;
+        /**
+         * Format: date-time
+         * @example 2026-11-11T09:01:40.000Z
+         */
+        clientUpdatedAt: string;
+        /** @example Barbell Bench Press */
+        name: string;
+        /** @description In `position` order, warm-ups included. */
+        sets: {
+          /**
+           * Format: uuid
+           * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+           */
+          id: string;
+          /**
+           * Format: uuid
+           * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+           */
+          workoutExerciseId: string;
+          /** @description Order within the exercise, warm-ups included. Never renumbered. */
+          position: number;
+          /** @example 82.5 */
+          weightKg: number;
+          /** @example 10 */
+          reps: number;
+          rir: number | null;
+          rpe: number | null;
+          isWarmup: boolean;
+          /**
+           * Format: date-time
+           * @example 2026-11-11T09:01:40.000Z
+           */
+          performedAt: string;
+          /**
+           * Format: date-time
+           * @example 2026-11-11T09:01:40.000Z
+           */
+          clientUpdatedAt: string;
+        }[];
+      }[];
+    };
+    /**
+     * @description The sections built so far. Later milestones add theirs (docs/07 §2).
+     * @enum {string}
+     */
+    ExportSection: 'profile' | 'exercises' | 'routines' | 'workouts';
+    ExerciseList: {
+      items: components['schemas']['Exercise'][];
+    };
     ExerciseCreate: {
       /**
        * Format: uuid
@@ -1907,36 +2152,6 @@ export interface components {
     RoutineList: {
       items: components['schemas']['Routine'][];
     };
-    Routine: {
-      /**
-       * Format: uuid
-       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
-       */
-      id: string;
-      /** @example Push A */
-      name: string;
-      /** @description Place in the routine list, 0 first. */
-      position: number;
-      /** @description In order. */
-      exercises: components['schemas']['RoutineSlot'][];
-    };
-    /** @description Null reps fall back to the caller’s setting, then the exercise’s default. */
-    RoutineSlot: {
-      /**
-       * Format: uuid
-       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
-       */
-      id: string;
-      /**
-       * Format: uuid
-       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
-       */
-      exerciseId: string;
-      /** @example 3 */
-      targetSets: number;
-      repLow: number | null;
-      repHigh: number | null;
-    };
     RoutineCreate: {
       /**
        * Format: uuid
@@ -2045,109 +2260,6 @@ export interface components {
          * @example 2026-11-11T09:01:40.000Z
          */
         startedAt: string;
-      }[];
-    };
-    /** @description One workout whole. Every row is as the sync batch holds it, so a set can be sent back edited, or deleted, through `/api/workouts/sync`. */
-    WorkoutDetail: {
-      /**
-       * Format: uuid
-       * @description Made on the phone (UUIDv7).
-       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
-       */
-      id: string;
-      /**
-       * Format: uuid
-       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
-       */
-      routineId: string | null;
-      /** @example Push A */
-      name: string;
-      /**
-       * Format: date-time
-       * @example 2026-11-11T09:01:40.000Z
-       */
-      startedAt: string;
-      /**
-       * Format: date-time
-       * @description Null while the workout is in progress.
-       * @example 2026-11-11T09:01:40.000Z
-       */
-      endedAt: string | null;
-      note: string | null;
-      /**
-       * Format: date-time
-       * @description The phone’s clock at the last edit.
-       * @example 2026-11-11T09:01:40.000Z
-       */
-      clientUpdatedAt: string;
-      /** @description In order. One that logged no set is still listed. */
-      exercises: {
-        /**
-         * Format: uuid
-         * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
-         */
-        id: string;
-        /**
-         * Format: uuid
-         * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
-         */
-        workoutId: string;
-        /**
-         * Format: uuid
-         * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
-         */
-        exerciseId: string;
-        /**
-         * Format: uuid
-         * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
-         */
-        routineExerciseId: string | null;
-        position: number;
-        /** @description Copied from the routine at start. */
-        targetSets: number | null;
-        repLow: number;
-        repHigh: number;
-        /** @example 2.5 */
-        incrementKg: number;
-        /**
-         * Format: date-time
-         * @example 2026-11-11T09:01:40.000Z
-         */
-        clientUpdatedAt: string;
-        /** @example Barbell Bench Press */
-        name: string;
-        /** @description In `position` order, warm-ups included. */
-        sets: {
-          /**
-           * Format: uuid
-           * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
-           */
-          id: string;
-          /**
-           * Format: uuid
-           * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
-           */
-          workoutExerciseId: string;
-          /** @description Order within the exercise, warm-ups included. Never renumbered. */
-          position: number;
-          /** @example 82.5 */
-          weightKg: number;
-          /** @example 10 */
-          reps: number;
-          rir: number | null;
-          rpe: number | null;
-          isWarmup: boolean;
-          /**
-           * Format: date-time
-           * @example 2026-11-11T09:01:40.000Z
-           */
-          performedAt: string;
-          /**
-           * Format: date-time
-           * @example 2026-11-11T09:01:40.000Z
-           */
-          clientUpdatedAt: string;
-        }[];
       }[];
     };
     /** @description Every exercise the caller has logged. One never logged is absent. */

@@ -1,6 +1,6 @@
 import { createRoute, defineOpenAPIRoute, z } from '@hono/zod-openapi';
 import type { AppEnv, RouteDeps } from '../app-env.js';
-import { getWorkout, lastDone, listWorkouts, type WorkoutCursor } from '../db/history.js';
+import { getWorkout, lastDone, listWorkouts } from '../db/history.js';
 import { getProfile } from '../db/profile.js';
 import { lastTimes, localDateIn, loggedExercises, loggedLifts } from '../db/training.js';
 import { BALANCE_VIEWS, balanceWindow, weeklySets } from '../domain/balance.js';
@@ -9,6 +9,7 @@ import { spanStart } from '../domain/progress.js';
 import { STRENGTH_SPANS, strengthOverview } from '../domain/strength.js';
 import { accountHeaders } from '../lib/account.js';
 import { problem, problemResponse, validationErrors } from '../lib/problem.js';
+import { decodeCursor, encodeCursor, pageQuery } from './paging.js';
 import {
   Balance,
   IdParam,
@@ -19,7 +20,6 @@ import {
   SyncBatch,
   SyncDeletion,
   SyncResponse,
-  Uuid,
   WorkoutDetail,
   WorkoutExerciseRow,
   WorkoutList,
@@ -134,40 +134,12 @@ const postSync = createRoute({
   },
 });
 
-/** A page's default and largest size (docs/07 §1.4). */
-const PAGE_DEFAULT = 30;
-const PAGE_MAX = 100;
-
-const CursorFields = z.tuple([z.iso.datetime({ offset: true }), Uuid]);
-
-/** The cursor is opaque to the client: the last row's sort key and id, encoded (docs/07 §1.4). */
-const encodeCursor = (cursor: WorkoutCursor) =>
-  Buffer.from(JSON.stringify([cursor.startedAt, cursor.id])).toString('base64url');
-
-function decodeCursor(text: string): WorkoutCursor | undefined {
-  try {
-    const read = CursorFields.safeParse(JSON.parse(Buffer.from(text, 'base64url').toString()));
-    return read.success ? { startedAt: read.data[0], id: read.data[1] } : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
 const getWorkouts = createRoute({
   method: 'get',
   path: '/api/workouts',
   summary: 'History: the caller’s finished workouts, newest first, a page at a time',
   request: {
-    query: z.object({
-      limit: z.coerce
-        .number()
-        .int()
-        .min(1)
-        .max(PAGE_MAX)
-        .default(PAGE_DEFAULT)
-        .openapi({ description: 'Default 30, at most 100.' }),
-      cursor: z.string().optional().openapi({ description: 'The previous page’s `nextCursor`.' }),
-    }),
+    query: z.object(pageQuery),
   },
   responses: {
     200: {

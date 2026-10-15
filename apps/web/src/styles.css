@@ -862,6 +862,14 @@ button {
   margin-left: auto;
   text-decoration: none;
 }
+.footer__link + .footer__link {
+  margin-left: 0;
+}
+/* The links keep their one line; the email gives way, as it ellipsizes. */
+.footer .button {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
 .footer__account {
   min-width: 0;
   overflow: hidden;
@@ -870,6 +878,19 @@ button {
   font-family: var(--font-mono);
   font-size: 10px;
   color: var(--text-quaternary);
+}
+
+/* Export and delete (S10, docs/09 F7): where a stopped delete says why. Focus is moved here and
+   drawn only for the keyboard: the notice inside is what is read out. */
+.delete-answer {
+  display: grid;
+  gap: 10px;
+}
+.delete-answer:empty {
+  display: none;
+}
+.delete-answer:focus:not(:focus-visible) {
+  outline: none;
 }
 
 /* Invite administration (S9, docs/09 F6): rows built like the routine list's */

@@ -775,3 +775,40 @@ export const InviteCreate = z
     note: z.string().trim().max(200).nullable().optional().openapi({ example: 'gym friend' }),
   })
   .openapi('InviteCreate');
+
+// The export (S10, docs/07 §2): one section a call, each item as the API's normal read returns it.
+
+export const EXPORT_SECTIONS = ['profile', 'exercises', 'routines', 'workouts'] as const;
+
+export const ExportSection = z.enum(EXPORT_SECTIONS).openapi('ExportSection', {
+  description: 'The sections built so far. Later milestones add theirs (docs/07 §2).',
+});
+
+const exportPage = <Section extends (typeof EXPORT_SECTIONS)[number], Item extends z.ZodType>(
+  section: Section,
+  item: Item,
+) =>
+  z.object({
+    section: z.literal(section),
+    items: z.array(item),
+    nextCursor: z
+      .string()
+      .nullable()
+      .openapi({ description: 'Opaque. Send it back as `cursor` for the next page.' }),
+  });
+
+export const ExportPage = z
+  .discriminatedUnion('section', [
+    exportPage(
+      'profile',
+      z.object({ user: Me.shape.user, profile: Me.shape.profile }).openapi('ExportProfile'),
+    ),
+    exportPage('exercises', Exercise),
+    exportPage('routines', Routine),
+    exportPage('workouts', WorkoutDetail),
+  ])
+  .openapi('ExportPage', {
+    description:
+      'One page of one section. `profile`, `exercises` and `routines` come whole in one page; ' +
+      '`workouts`, in progress ones included, come newest first a page at a time.',
+  });

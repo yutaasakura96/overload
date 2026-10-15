@@ -249,10 +249,13 @@ export function TextField({
   className,
   focusOnOpen,
   type = 'text',
+  literal = false,
 }: FieldProps & {
   /** Focus on mount: only for a form's first field, on a screen opened to fill it in. */
   focusOnOpen?: boolean;
   type?: 'text' | 'search' | 'email';
+  /** A word typed exactly, in capitals, such as `DELETE`: no autocorrect. */
+  literal?: boolean;
 }) {
   const id = useId();
   const email = type === 'email';
@@ -266,8 +269,9 @@ export function TextField({
         value={value}
         placeholder={placeholder}
         autoComplete="off"
-        autoCapitalize={email ? 'none' : undefined}
-        spellCheck={email ? false : undefined}
+        autoCapitalize={email ? 'none' : literal ? 'characters' : undefined}
+        autoCorrect={literal ? 'off' : undefined}
+        spellCheck={email || literal ? false : undefined}
         // oxlint-disable-next-line jsx-a11y/no-autofocus -- only a form's first field, opened on purpose
         autoFocus={focusOnOpen}
         aria-invalid={error === undefined ? undefined : true}
@@ -549,6 +553,16 @@ export function AccountFooter({
       )}
       <footer className="footer">
         <span className="footer__account">{email}</span>
+        <a
+          href="/account"
+          className="button button--tertiary footer__link"
+          onClick={(event) => {
+            event.preventDefault();
+            navigate('/account', { returns: true });
+          }}
+        >
+          Your data
+        </a>
         {admin && (
           <a
             href="/admin/invites"

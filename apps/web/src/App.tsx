@@ -17,6 +17,7 @@ import { SignIn } from './screens/SignIn';
 import { Strength } from './screens/Strength';
 import { Today } from './screens/Today';
 import { Workout } from './screens/Workout';
+import { YourData } from './screens/YourData';
 import { endIdleWorkout, loadWorkouts } from './workout';
 
 // /sign-in is open to everyone; every other route needs a member (docs/08 §5).
@@ -96,6 +97,7 @@ export function App() {
       if (!me.data.isAdmin) return <NotFound navigate={navigate} />;
       return <Invites me={me.data} navigate={navigate} />;
     }
+    if (route.screen === 'account') return <YourData me={me.data} navigate={navigate} />;
     if (route.screen === 'past-workout')
       return <PastWorkout key={route.id} id={route.id} me={me.data} navigate={navigate} />;
     return <Today me={me.data} navigate={navigate} />;

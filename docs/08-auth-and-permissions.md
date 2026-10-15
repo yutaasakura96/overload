@@ -254,7 +254,9 @@ The endpoint list is `docs/07`.
 - **Confirmation:** the screen names what will go (workouts, sets, food list, plans, weigh-ins,
   health data), says what outlasts it (access records for a year, backups for up to 30 days), and
   offers an export first. The user types `DELETE` to confirm.
-- **`beforeDelete`** removes the user's `invite` row. "Removes their access" in S10 means the email
+- **`beforeDelete`** removes the user's `invite` row. *As built* (`06`, 2026-10-15) it deletes the
+  whole account itself, in one transaction with the `account_deleted` audit row, and Better Auth's
+  own delete after it finds nothing left. "Removes their access" in S10 means the email
   is no longer invited, and keeping the address after the account is gone would keep personal data
   that the user asked to remove. To come back, they need a new invite.
 - **The admin cannot delete their own account** while the `ADMIN_EMAIL` env var names them. The API

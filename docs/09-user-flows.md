@@ -238,10 +238,10 @@ sees when it does not simply succeed.
 
 ### F7. Export, then delete account
 
-1. Account screen → **Export** → the client pages through every section and saves `overload-export-<date>.json` (S10, `07` §2).
+1. `Your data` (`/account`, from the footer) → **Export** → the client pages through every section and saves `overload-export-<date>.json` (S10, `07` §2).
 2. **Delete account** → if the session is older than 1 day, sign in with Google again (`08` §6).
 3. The screen lists what goes and offers export again. The user types `DELETE`.
-4. Deleted → the device runs the sign-out wipe (F8) → `/sign-in`.
+4. Deleted → the device runs the sign-out wipe (F8) → `/sign-in`, which says `Your account was deleted.`
 
 | Step | Goes wrong | User sees |
 | --- | --- | --- |

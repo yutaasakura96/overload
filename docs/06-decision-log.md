@@ -3569,6 +3569,39 @@ order: the four-week average first, this week second. What building it settled:
 
 **Changed:** `00`, `04`, `05`, `07`, `10`, `11`, `CONTEXT.md`.
 
+### 2026-10-15 — Slice 7: export and delete
+
+Issue `#7`, S10, built as `07` §2 and `08` §6 describe. No artboard draws the screen (`10` §8): it
+is designed from `05`'s tokens and the profile form's blocks.
+
+- **The export's four M1 sections** are `profile` (the user and their profile, as `/api/me` without
+  `isAdmin`), `exercises` (as `?includeHidden=true`), `routines`, and `workouts`. The first three
+  are small lists and come whole in one page; `workouts` is cursor-paged like History, newest first,
+  and unlike History includes a workout still in progress, each whole as `GET /api/workouts/{id}`
+  returns it. The section map and the exceptions sit in `routes/export.ts`; the completeness test
+  reads every table with a `user_id` or `…_user_id` column.
+- **A bad `section`, `limit` or `cursor` is 400 `bad_request`**, as every query parameter of the
+  wrong type is (`07` §1.3), not the 422 `07` §2 first listed. A section named in `07` §2 that is
+  not built yet is unknown, so also 400.
+- **Our delete runs inside `beforeDelete`, in one transaction:** the `account_deleted` audit row
+  (`13` §7), the user's invite, then the `user` row, whose cascade takes every table of theirs.
+  Better Auth's own delete that follows finds nothing left and clears the session cookie. *Rejected:*
+  removing the invite in `beforeDelete` and leaving the user row to Better Auth, which would leave
+  the audit row and a deleted invite behind a delete that failed. The admin refusal is a Better
+  Auth `APIError`, 409 `{ code: "admin_account" }`.
+- **The screen is `Your data`, at `/account`**, a `Your data` link in every top-level footer, for
+  every member. It checks the session's `createdAt` from Better Auth's `get-session` before offering
+  the form, and offers `Sign in with Google again` instead when it is a day old; the server's
+  `SESSION_EXPIRED` leads to the same. The admin is told up front that their account can't be
+  deleted, rather than after typing `DELETE`.
+- **Rows not uploaded stop the delete as they stop a sign-out** (`08` §7), with one difference:
+  `Upload now` only uploads, so what is uploaded can be exported before deleting. Deletion itself
+  never uploads.
+- **After deletion** the device runs the sign-out wipe and opens `/sign-in?deleted=1`, which says
+  `Your account was deleted.`
+
+**Changed:** `00`, `06`, `07`, `08`, `09`, `10`, `11`.
+
 ### 2026-10-15 — Slice 6: invite administration, with the ingest-token half moved to M3
 
 Issue `#6` builds `GET` and `POST /api/admin/invites`, revoke and restore (`07` §2), the invite
