@@ -559,7 +559,8 @@ screens and states the PRD requires that Phase 2 did not draw.
 - **Food list management** (S12) and manual label entry.
 - **Goal phase and macro target setup** (S14), routine and meal count (S15).
 - **The grocery list proper** (S17) — only a preview card exists.
-- **Invite administration and revoked access** (S9), export and delete (S10).
+- **Invite administration and revoked access** (S9), export and delete (S10). Both built from
+  the system: §8.4 and §8.5.
 - **Health connection setup and the health dashboard** (S19, S24).
 - **Photo and text meal estimation** (S22) and its confirm-before-save step.
 - **Plateau protocols** (S23) beyond the evidence tag itself.
@@ -690,7 +691,7 @@ data-state slot. Under the tabs, in order:
   profile's save and outside its form: it takes effect on the tap, and it is there before the
   profile is set up. `System` follows the device's setting as it changes. One sentence under it
   says so, and that the choice is kept on this device (`05` §1.7; `06`, 2026-10-10).
-- **Account:** the email and `Sign out`. With sets not uploaded it asks first, in place:
+- **Account:** the email, `Your data` (§8.5) and `Sign out`. With sets not uploaded it asks first, in place:
   `2 sets not uploaded yet.` — `Upload now` / `Discard and sign out`. With a workout in progress it
   says to finish it first, and with one whose ending has not uploaded it says so with `Try again`;
   both offer neither (`08` §7).
@@ -774,6 +775,47 @@ Today.
 the last account signed in on the device had sets the server had not taken, `1 set logged on this
 device wasn't saved. It stays on this device until you discard it.` Those sets are refused with the
 reason `Access to Overload was revoked` and offer Discard alone, wherever refused sets are shown.
+
+### 8.5 Export and delete (slice 7, S10)
+
+No artboard exists, so this was designed in the build (issue #7) from `05`'s tokens and the
+profile form's blocks. Nothing here adds a token or an icon.
+
+**Your data** (`/account`, every member). Reached from `Your data`, a tertiary link in the footer
+of each top-level screen, before `Invites` for the admin. The footer's links keep one line each at
+390px and the email ellipsizes. The app bar has a back chevron, the title `Your data`, and the
+data-state slot. In order:
+
+- **Export:** one sentence, `Everything you have logged, in one JSON file: your profile, exercises
+  and their settings, routines, and every workout with its sets.`, then a secondary `Export your
+  data`. While it reads it says `Exporting… 2 of 4`; when the file is handed to the browser,
+  `Saved overload-export-2026-10-15.json.` under it, dated in the profile's time zone. A failure
+  is a flag notice, `Not exported`, `Couldn’t reach Overload. Try again when you have signal.`, and
+  the button stays for the retry (`09` F7).
+- **Delete account**, under the profile form's rule. Two sentences: what goes (`your profile,
+  exercises, routines, workouts and sets. Your invite goes too, so coming back takes a new one. It
+  can’t be undone. Export your data first to keep a copy.`) and what outlasts it (`access records
+  (ids, times, IP address and browser, no content) are kept for one year, and backups holding your
+  data expire within 30 days.`). Then `Type DELETE to confirm`, a text field, and a secondary
+  `Delete account`, disabled until the field reads exactly `DELETE`.
+- **A session older than a day** (`08` §6) shows, in place of the form, `To delete your account,
+  sign in with Google again first. It confirms it is you, and brings you back here.` and a secondary
+  `Sign in with Google again`, which returns to `/account`. The server's `SESSION_EXPIRED` leads to
+  the same.
+- **The admin** sees only `This is the admin account, so it can’t be deleted. Name another admin
+  first.`
+- **What stops a delete** shows between the field and the button, and takes focus: a workout in
+  progress (`Finish it first.`), a workout whose ending has not uploaded (`Try again`), and sets not
+  uploaded, `2 sets not uploaded yet. Deleting doesn’t upload them. Upload them now to keep them in
+  an export, or discard them and delete.` — `Upload now` / `Discard and delete`. `Upload now` only
+  uploads. If rows remain pending after it, the notice says `Couldn’t confirm the upload finished.
+  Some workout data may have uploaded. Your account was not deleted. Check your connection and try
+  again.` If the signed-in account changed, the notice says to reload before deleting. A lost
+  delete response says `Couldn’t confirm whether your account was deleted. Reload to check.` A
+  definite server refusal says `Overload refused the deletion. Nothing was deleted. Reload and try
+  again.`
+- **Deleted:** the sign-out wipe runs (`08` §7), and the sign-in page opens with a flag notice,
+  `Deleted`, `Your account was deleted.`
 
 ---
 

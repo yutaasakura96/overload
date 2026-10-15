@@ -14,6 +14,7 @@ import type { ReportError } from './lib/error-report.js';
 import { problem, validationErrors, type ProblemCode } from './lib/problem.js';
 import { adminRoutes } from './routes/admin.js';
 import { exerciseRoutes } from './routes/exercises.js';
+import { exportRoutes } from './routes/export.js';
 import { healthRoutes } from './routes/health.js';
 import { meRoutes } from './routes/me.js';
 import { routineRoutes } from './routes/routines.js';
@@ -103,6 +104,7 @@ export function createApp({ auth, config, db, log = console.log, reportError }: 
 
   app.openapiRoutes(healthRoutes);
   app.openapiRoutes(meRoutes({ config, db }));
+  app.openapiRoutes(exportRoutes({ config, db }));
   app.openapiRoutes(exerciseRoutes({ config, db }));
   app.openapiRoutes(routineRoutes({ config, db }));
   app.openapiRoutes(trainingRoutes({ config, db }));

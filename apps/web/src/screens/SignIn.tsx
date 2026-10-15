@@ -45,6 +45,11 @@ export function SignIn({ searchParams }: { searchParams: URLSearchParams }) {
         <p className="sign-in__lede">
           Invite only. Sign in with the Google account you were invited with.
         </p>
+        {searchParams.get('deleted') === '1' && (
+          <Notice tone="flag" word="Deleted">
+            Your account was deleted.
+          </Notice>
+        )}
         {searchParams.get('wipe') === 'failed' && (
           <Notice tone="flag" word="Saved data">
             Saved data couldn't be cleared from this device.

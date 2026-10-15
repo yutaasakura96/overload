@@ -33,6 +33,35 @@ export async function listRoutines(db: Database, userId: string): Promise<UserRo
   return withSlots(db, routines);
 }
 
+export async function exportRoutines(
+  db: Database,
+  userId: string,
+  page: { limit: number; after?: { position: number; id: string } | undefined },
+): Promise<{ items: UserRoutine[]; next: { position: number; id: string } | null }> {
+  const found = await db
+    .select({ id: routine.id, name: routine.name, position: routine.position })
+    .from(routine)
+    .where(
+      and(
+        eq(routine.userId, userId),
+        page.after === undefined
+          ? undefined
+          : sql`(${routine.position}, ${routine.id}) > (${page.after.position}, ${page.after.id}::uuid)`,
+      ),
+    )
+    .orderBy(asc(routine.position), asc(routine.id))
+    .limit(page.limit + 1);
+  const shown = found.slice(0, page.limit);
+  const last = shown.at(-1);
+  return {
+    items: await withSlots(db, shown),
+    next:
+      found.length > page.limit && last !== undefined
+        ? { position: last.position, id: last.id }
+        : null,
+  };
+}
+
 export async function getRoutine(
   db: Database,
   userId: string,

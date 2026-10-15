@@ -1463,6 +1463,44 @@ test.describe('sign-out with a workout on the device', () => {
     expect(errors).toEqual([]);
   });
 
+  test('offline Upload now keeps the pending warning visible', async ({ page, context }) => {
+    const name = `Offline upload ${Date.now()}`;
+    await page.clock.install();
+    await saveProfile(page);
+    await createRoutine(page, name, ['Chin-Up']);
+    await page.getByRole('button', { name: 'Create routine' }).click();
+    await start(page, name);
+    await expect(dataState(page)).toContainText('SYNCED');
+    await page.route('**/api/workouts/sync', async (route) => {
+      const response = await route.fetch();
+      const body: { results: { table: string }[] } = await response.json();
+      await route.fulfill({
+        response,
+        json: { results: body.results.filter((result) => result.table !== 'sets') },
+      });
+    });
+    await completeSet(page, { reps: '6' });
+    await finish(page);
+    await toToday(page);
+    await page.clock.pauseAt(Date.now() + 1000);
+    await expect(async () => {
+      await page.getByRole('button', { name: 'Sign out' }).click();
+      await expect(page.getByText('1 set not uploaded yet.')).toBeVisible({ timeout: 1000 });
+    }).toPass();
+    await page.goto('/account');
+    await page.getByRole('textbox', { name: 'Type DELETE to confirm' }).fill('DELETE');
+    await page.getByRole('button', { name: 'Delete account' }).click();
+    await expect(page.getByText(/1 set not uploaded yet/)).toBeVisible();
+    await context.setOffline(true);
+    await page.getByRole('button', { name: 'Upload now' }).click();
+    await expect(
+      page.getByText(
+        'Couldn’t confirm the upload finished. Some workout data may have uploaded. Your account was not deleted. Check your connection and try again.',
+      ),
+    ).toBeVisible();
+    await expect(page).toHaveURL('/account');
+  });
+
   test('a launch that cannot end an idle workout on the device leaves it in progress', async ({
     page,
   }) => {

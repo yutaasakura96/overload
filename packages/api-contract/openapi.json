@@ -286,18 +286,166 @@
         },
         "description": "Omitted fields are unchanged and `null` clears one. The first save creates the profile."
       },
-      "ExerciseList": {
+      "ExportPage": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "section": {
+                "type": "string",
+                "enum": [
+                  "profile"
+                ]
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ExportProfile"
+                }
+              },
+              "nextCursor": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Opaque. Send it back as `cursor` for the next page."
+              }
+            },
+            "required": [
+              "section",
+              "items",
+              "nextCursor"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "section": {
+                "type": "string",
+                "enum": [
+                  "exercises"
+                ]
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Exercise"
+                }
+              },
+              "nextCursor": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Opaque. Send it back as `cursor` for the next page."
+              }
+            },
+            "required": [
+              "section",
+              "items",
+              "nextCursor"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "section": {
+                "type": "string",
+                "enum": [
+                  "routines"
+                ]
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Routine"
+                }
+              },
+              "nextCursor": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Opaque. Send it back as `cursor` for the next page."
+              }
+            },
+            "required": [
+              "section",
+              "items",
+              "nextCursor"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "section": {
+                "type": "string",
+                "enum": [
+                  "workouts"
+                ]
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/WorkoutDetail"
+                }
+              },
+              "nextCursor": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Opaque. Send it back as `cursor` for the next page."
+              }
+            },
+            "required": [
+              "section",
+              "items",
+              "nextCursor"
+            ]
+          }
+        ],
+        "description": "One page of one section. `profile` has one item; `exercises`, `routines` and `workouts` are cursor-paged. Workouts include ones in progress."
+      },
+      "ExportProfile": {
         "type": "object",
         "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Exercise"
-            }
+          "user": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+              },
+              "name": {
+                "type": "string"
+              },
+              "email": {
+                "type": "string",
+                "format": "email"
+              },
+              "image": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "email",
+              "image"
+            ]
+          },
+          "profile": {
+            "$ref": "#/components/schemas/Profile"
           }
         },
         "required": [
-          "items"
+          "user",
+          "profile"
         ]
       },
       "Exercise": {
@@ -449,6 +597,326 @@
           null
         ],
         "description": "The one group the library files an exercise under (docs/04 `exercise`)."
+      },
+      "Routine": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+          },
+          "name": {
+            "type": "string",
+            "example": "Push A"
+          },
+          "position": {
+            "type": "integer",
+            "description": "Place in the routine list, 0 first."
+          },
+          "exercises": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RoutineSlot"
+            },
+            "description": "In order."
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "position",
+          "exercises"
+        ]
+      },
+      "RoutineSlot": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+          },
+          "exerciseId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+          },
+          "targetSets": {
+            "type": "integer",
+            "example": 3
+          },
+          "repLow": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "repHigh": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "exerciseId",
+          "targetSets",
+          "repLow",
+          "repHigh"
+        ],
+        "description": "Null reps fall back to the caller’s setting, then the exercise’s default."
+      },
+      "WorkoutDetail": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11",
+            "description": "Made on the phone (UUIDv7)."
+          },
+          "routineId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "example": "Push A"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-11-11T09:01:40.000Z"
+          },
+          "endedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "example": "2026-11-11T09:01:40.000Z",
+            "description": "Null while the workout is in progress."
+          },
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 2000
+          },
+          "clientUpdatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-11-11T09:01:40.000Z",
+            "description": "The phone’s clock at the last edit."
+          },
+          "exercises": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+                },
+                "workoutId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+                },
+                "exerciseId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+                },
+                "routineExerciseId": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "uuid",
+                  "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+                },
+                "position": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 1000
+                },
+                "targetSets": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "minimum": 1,
+                  "maximum": 20,
+                  "description": "Copied from the routine at start."
+                },
+                "repLow": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 100
+                },
+                "repHigh": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 100
+                },
+                "incrementKg": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 100,
+                  "example": 2.5
+                },
+                "clientUpdatedAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "example": "2026-11-11T09:01:40.000Z"
+                },
+                "name": {
+                  "type": "string",
+                  "example": "Barbell Bench Press"
+                },
+                "sets": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+                      },
+                      "workoutExerciseId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+                      },
+                      "position": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 1000,
+                        "description": "Order within the exercise, warm-ups included. Never renumbered."
+                      },
+                      "weightKg": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 9999.99,
+                        "example": 82.5
+                      },
+                      "reps": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 100,
+                        "example": 10
+                      },
+                      "rir": {
+                        "type": [
+                          "integer",
+                          "null"
+                        ],
+                        "minimum": 0,
+                        "maximum": 10
+                      },
+                      "rpe": {
+                        "type": [
+                          "number",
+                          "null"
+                        ],
+                        "minimum": 1,
+                        "maximum": 10
+                      },
+                      "isWarmup": {
+                        "type": "boolean"
+                      },
+                      "performedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2026-11-11T09:01:40.000Z"
+                      },
+                      "clientUpdatedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2026-11-11T09:01:40.000Z"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "workoutExerciseId",
+                      "position",
+                      "weightKg",
+                      "reps",
+                      "rir",
+                      "rpe",
+                      "isWarmup",
+                      "performedAt",
+                      "clientUpdatedAt"
+                    ]
+                  },
+                  "description": "In `position` order, warm-ups included."
+                }
+              },
+              "required": [
+                "id",
+                "workoutId",
+                "exerciseId",
+                "routineExerciseId",
+                "position",
+                "targetSets",
+                "repLow",
+                "repHigh",
+                "incrementKg",
+                "clientUpdatedAt",
+                "name",
+                "sets"
+              ]
+            },
+            "description": "In order. One that logged no set is still listed."
+          }
+        },
+        "required": [
+          "id",
+          "routineId",
+          "name",
+          "startedAt",
+          "endedAt",
+          "note",
+          "clientUpdatedAt",
+          "exercises"
+        ],
+        "description": "One workout whole. Every row is as the sync batch holds it, so a set can be sent back edited, or deleted, through `/api/workouts/sync`."
+      },
+      "ExportSection": {
+        "type": "string",
+        "enum": [
+          "profile",
+          "exercises",
+          "routines",
+          "workouts"
+        ],
+        "description": "The sections built so far. Later milestones add theirs (docs/07 §2)."
+      },
+      "ExerciseList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Exercise"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ]
       },
       "ExerciseCreate": {
         "type": "object",
@@ -810,76 +1278,6 @@
           "items"
         ]
       },
-      "Routine": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
-          },
-          "name": {
-            "type": "string",
-            "example": "Push A"
-          },
-          "position": {
-            "type": "integer",
-            "description": "Place in the routine list, 0 first."
-          },
-          "exercises": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/RoutineSlot"
-            },
-            "description": "In order."
-          }
-        },
-        "required": [
-          "id",
-          "name",
-          "position",
-          "exercises"
-        ]
-      },
-      "RoutineSlot": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
-          },
-          "exerciseId": {
-            "type": "string",
-            "format": "uuid",
-            "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
-          },
-          "targetSets": {
-            "type": "integer",
-            "example": 3
-          },
-          "repLow": {
-            "type": [
-              "integer",
-              "null"
-            ]
-          },
-          "repHigh": {
-            "type": [
-              "integer",
-              "null"
-            ]
-          }
-        },
-        "required": [
-          "id",
-          "exerciseId",
-          "targetSets",
-          "repLow",
-          "repHigh"
-        ],
-        "description": "Null reps fall back to the caller’s setting, then the exercise’s default."
-      },
       "RoutineCreate": {
         "type": "object",
         "properties": {
@@ -1120,232 +1518,6 @@
           "items"
         ],
         "description": "When each of the caller’s routines was last done. A routine never done, or deleted, is absent."
-      },
-      "WorkoutDetail": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11",
-            "description": "Made on the phone (UUIDv7)."
-          },
-          "routineId": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "format": "uuid",
-            "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
-          },
-          "name": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 80,
-            "example": "Push A"
-          },
-          "startedAt": {
-            "type": "string",
-            "format": "date-time",
-            "example": "2026-11-11T09:01:40.000Z"
-          },
-          "endedAt": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "format": "date-time",
-            "example": "2026-11-11T09:01:40.000Z",
-            "description": "Null while the workout is in progress."
-          },
-          "note": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "maxLength": 2000
-          },
-          "clientUpdatedAt": {
-            "type": "string",
-            "format": "date-time",
-            "example": "2026-11-11T09:01:40.000Z",
-            "description": "The phone’s clock at the last edit."
-          },
-          "exercises": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "id": {
-                  "type": "string",
-                  "format": "uuid",
-                  "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
-                },
-                "workoutId": {
-                  "type": "string",
-                  "format": "uuid",
-                  "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
-                },
-                "exerciseId": {
-                  "type": "string",
-                  "format": "uuid",
-                  "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
-                },
-                "routineExerciseId": {
-                  "type": [
-                    "string",
-                    "null"
-                  ],
-                  "format": "uuid",
-                  "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
-                },
-                "position": {
-                  "type": "integer",
-                  "minimum": 0,
-                  "maximum": 1000
-                },
-                "targetSets": {
-                  "type": [
-                    "integer",
-                    "null"
-                  ],
-                  "minimum": 1,
-                  "maximum": 20,
-                  "description": "Copied from the routine at start."
-                },
-                "repLow": {
-                  "type": "integer",
-                  "minimum": 1,
-                  "maximum": 100
-                },
-                "repHigh": {
-                  "type": "integer",
-                  "minimum": 1,
-                  "maximum": 100
-                },
-                "incrementKg": {
-                  "type": "number",
-                  "minimum": 0,
-                  "maximum": 100,
-                  "example": 2.5
-                },
-                "clientUpdatedAt": {
-                  "type": "string",
-                  "format": "date-time",
-                  "example": "2026-11-11T09:01:40.000Z"
-                },
-                "name": {
-                  "type": "string",
-                  "example": "Barbell Bench Press"
-                },
-                "sets": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "properties": {
-                      "id": {
-                        "type": "string",
-                        "format": "uuid",
-                        "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
-                      },
-                      "workoutExerciseId": {
-                        "type": "string",
-                        "format": "uuid",
-                        "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
-                      },
-                      "position": {
-                        "type": "integer",
-                        "minimum": 0,
-                        "maximum": 1000,
-                        "description": "Order within the exercise, warm-ups included. Never renumbered."
-                      },
-                      "weightKg": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 9999.99,
-                        "example": 82.5
-                      },
-                      "reps": {
-                        "type": "integer",
-                        "minimum": 1,
-                        "maximum": 100,
-                        "example": 10
-                      },
-                      "rir": {
-                        "type": [
-                          "integer",
-                          "null"
-                        ],
-                        "minimum": 0,
-                        "maximum": 10
-                      },
-                      "rpe": {
-                        "type": [
-                          "number",
-                          "null"
-                        ],
-                        "minimum": 1,
-                        "maximum": 10
-                      },
-                      "isWarmup": {
-                        "type": "boolean"
-                      },
-                      "performedAt": {
-                        "type": "string",
-                        "format": "date-time",
-                        "example": "2026-11-11T09:01:40.000Z"
-                      },
-                      "clientUpdatedAt": {
-                        "type": "string",
-                        "format": "date-time",
-                        "example": "2026-11-11T09:01:40.000Z"
-                      }
-                    },
-                    "required": [
-                      "id",
-                      "workoutExerciseId",
-                      "position",
-                      "weightKg",
-                      "reps",
-                      "rir",
-                      "rpe",
-                      "isWarmup",
-                      "performedAt",
-                      "clientUpdatedAt"
-                    ]
-                  },
-                  "description": "In `position` order, warm-ups included."
-                }
-              },
-              "required": [
-                "id",
-                "workoutId",
-                "exerciseId",
-                "routineExerciseId",
-                "position",
-                "targetSets",
-                "repLow",
-                "repHigh",
-                "incrementKg",
-                "clientUpdatedAt",
-                "name",
-                "sets"
-              ]
-            },
-            "description": "In order. One that logged no set is still listed."
-          }
-        },
-        "required": [
-          "id",
-          "routineId",
-          "name",
-          "startedAt",
-          "endedAt",
-          "note",
-          "clientUpdatedAt",
-          "exercises"
-        ],
-        "description": "One workout whole. Every row is as the sync batch holds it, so a set can be sent back edited, or deleted, through `/api/workouts/sync`."
       },
       "LastTimes": {
         "type": "object",
@@ -2488,6 +2660,88 @@
           },
           "422": {
             "description": "`validation_failed`, including an unknown time zone",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/me/export": {
+      "get": {
+        "summary": "One section of the caller’s export, a page at a time",
+        "parameters": [
+          {
+            "schema": {
+              "$ref": "#/components/schemas/ExportSection"
+            },
+            "required": true,
+            "description": "The sections built so far. Later milestones add theirs (docs/07 §2).",
+            "name": "section",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30,
+              "description": "Default 30, at most 100."
+            },
+            "required": false,
+            "description": "Default 30, at most 100.",
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "The previous page’s `nextCursor`."
+            },
+            "required": false,
+            "description": "The previous page’s `nextCursor`.",
+            "name": "cursor",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One page of the section, and the cursor of the next",
+            "headers": {
+              "Overload-User": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "The id of the user whose session answered. Keep the body for that account only."
+                },
+                "required": true,
+                "description": "The id of the user whose session answered. Keep the body for that account only."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "An unknown section, a limit outside 1 to 100, or a cursor that does not decode to this section’s sort key and id",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session",
             "content": {
               "application/problem+json": {
                 "schema": {

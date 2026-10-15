@@ -79,6 +79,7 @@ function selectUserExercises(db: Queryable, userId: string) {
     .select({
       id: exercise.id,
       name: exercise.name,
+      sortName: sql<string>`lower(${exercise.name})`,
       equipment: exercise.equipment,
       muscleGroup: exercise.muscleGroup,
       secondaryMuscleGroups: exercise.secondaryMuscleGroups,
@@ -141,6 +142,31 @@ export async function listExercises(
     )
     .orderBy(sql`lower(${exercise.name})`, asc(exercise.id));
   return rows.map(toUserExercise);
+}
+
+export async function exportExercises(
+  db: Database,
+  userId: string,
+  page: { limit: number; after?: { name: string; id: string } | undefined },
+): Promise<{ items: UserExercise[]; next: { name: string; id: string } | null }> {
+  const found = await selectUserExercises(db, userId)
+    .where(
+      and(
+        visibleTo(userId),
+        page.after === undefined
+          ? undefined
+          : sql`(lower(${exercise.name}), ${exercise.id}) > (${page.after.name}, ${page.after.id}::uuid)`,
+      ),
+    )
+    .orderBy(sql`lower(${exercise.name})`, asc(exercise.id))
+    .limit(page.limit + 1);
+  const shown = found.slice(0, page.limit);
+  const last = shown.at(-1);
+  return {
+    items: shown.map(toUserExercise),
+    next:
+      found.length > page.limit && last !== undefined ? { name: last.sortName, id: last.id } : null,
+  };
 }
 
 /** One exercise this user can see, hidden or not. */

@@ -246,15 +246,20 @@ The endpoint list is `docs/07`.
 
 ## 6. Account deletion (S10)
 
-- `user.deleteUser.enabled: true`. Deleting a Better Auth `user` row cascades through every table of
-  ours (`04`).
+- `user.deleteUser.enabled: true`. Deleting a Better Auth `user` row cascades through the user's
+  data tables (`04`); the access and bookkeeping exceptions are in `07` §2.
 - **Fresh session required.** Better Auth guards deletion with a session younger than `freshAge`
   (1 day). For a Google-only account that is the confirmation: if the session is older, the app
   asks the user to sign in with Google again, then offers deletion.
-- **Confirmation:** the screen names what will go (workouts, sets, food list, plans, weigh-ins,
-  health data), says what outlasts it (access records for a year, backups for up to 30 days), and
-  offers an export first. The user types `DELETE` to confirm.
-- **`beforeDelete`** removes the user's `invite` row. "Removes their access" in S10 means the email
+- **Confirmation:** the screen names the data currently in the app that will go (`10` §8.5), says
+  what outlasts it (access records for a year, backups for up to 30 days), and offers an export
+  first. The user types `DELETE` to confirm.
+- Immediately before deletion, the client reads the session without the cookie cache and checks
+  that its user id is the one shown on the screen. A missing or different session stops deletion;
+  the user reloads the page. Pending device rows are checked for that confirmed user id.
+- **`beforeDelete`** removes the user's `invite` row. *As built* (`06`, 2026-10-15) it deletes the
+  whole account itself, in one transaction with the `account_deleted` audit row, and Better Auth's
+  own delete after it finds nothing left. "Removes their access" in S10 means the email
   is no longer invited, and keeping the address after the account is gone would keep personal data
   that the user asked to remove. To come back, they need a new invite.
 - **The admin cannot delete their own account** while the `ADMIN_EMAIL` env var names them. The API

@@ -112,9 +112,9 @@ not the caller's.
 
 ### 1.4 Lists, filtering and sorting
 
-- **Small, bounded lists are returned whole**, with no pagination: exercises, routines, foods,
-  rotation groups, phases, day routines, invites, ingest tokens and sync state. Each is tens of rows
-  for one user.
+- **Ordinary reads of small, bounded lists are returned whole**, with no pagination: exercises,
+  routines, foods, rotation groups, phases, day routines, invites, ingest tokens and sync state. Each
+  is tens of rows for one user. Export pages its sections separately (§2).
 - **Growing lists use cursor pagination:** workouts, weigh-ins, expenditure estimates and meal
   estimates.
   - Request: `?limit=` (default 30, maximum 100) and `?cursor=`, taken from the previous page.
@@ -161,7 +161,7 @@ only.
 | `*` | `/api/auth/*` | — | Better Auth: Google sign-in, callback, `get-session`, `sign-out`, `list-sessions`, `revoke-other-sessions`, `revoke-sessions` (sign out everywhere, `08` §7), `delete-user` | Better Auth's | Better Auth's |
 | GET | `/api/me` | M | The signed-in user, their profile, and `isAdmin` | 200 | 401 |
 | PATCH | `/api/me/profile` | M | Timezone, weight unit, height, sex, birth date, training weekdays. Omitted fields are unchanged; the first save creates the profile. An unknown IANA zone is a 422 on `timezone` | 200 profile | 401, 422 |
-| GET | `/api/me/export` | M | One section of the export (S10), paged | 200 | 401, 422 |
+| GET | `/api/me/export` | M | One section of the export (S10), paged | 200 | 400, 401 |
 | GET | `/api/admin/invites` | A | Every invite, newest first | 200 | 401, 404 |
 | POST | `/api/admin/invites` | A | Invite an email. A repeat of the same create returns the stored invite | 201 / 200 | 401, 404, 409 `invite_exists`, 409 `id_conflict`, 422 |
 | POST | `/api/admin/invites/{id}/revoke` | A | Revoke (`08` §8). Idempotent: revoking a revoked invite returns it unchanged | 200 | 401, 404, 409 `admin_account` |
@@ -204,6 +204,14 @@ the file in the browser as `overload-export-2026-11-04.json`.
   `mealEstimates`, `protocolSuggestions`, `ingestTokens` (labels and dates only, never hashes).
 - Paged as in §1.4. Each item is the row as the API's normal read returns it, with its children
   nested (a workout carries its exercises and sets).
+- **As built in slice 7** (`06`, 2026-10-15): M1's four sections, `profile`, `exercises`,
+  `routines` and `workouts`. `profile` is one item, `{ user, profile }`, as `/api/me` without
+  `isAdmin`. `exercises` pages by name then id; `routines` pages by position then id; `workouts`
+  pages newest `startedAt` then id first, a workout in progress included, each as
+  `GET /api/workouts/{id}` returns it.
+  A section not built yet, a `limit` outside 1 to 100, or a cursor that does not decode to this
+  section's sort key and id is a 400. `profile` accepts no cursor. The cursor is opaque and
+  unsigned; each query remains scoped to the caller's user id.
 - `exercises` returns what `GET /api/exercises?includeHidden=true` returns: hidden ones included,
   each with the caller's settings and `overrides`.
 - **Every table that holds a user's rows is in some section**, directly or nested. The exceptions
@@ -217,7 +225,7 @@ the file in the browser as `overload-export-2026-11-04.json`.
 GET /api/me/export?section=workouts&limit=100
 ```
 ```json
-{ "section": "workouts", "items": [{ "id": "0192w001-…", "name": "Push A", "startedAt": "2026-11-04T09:02:11.000Z", "exercises": [ … ] }], "nextCursor": "eyJ0IjoiMjAyNi0xMC0yOCIsImlkIjoiMDE5MnYwMDEifQ" }
+{ "section": "workouts", "items": [{ "id": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11", "name": "Push A", "startedAt": "2026-11-04T09:02:11.000Z", "exercises": [ … ] }], "nextCursor": "eyJzZWN0aW9uIjoid29ya291dHMiLCJzdGFydGVkQXQiOiIyMDI2LTExLTA0VDA5OjAyOjExLjAwMFoiLCJpZCI6IjAxOTJhMDAxLTdjMWUtN2EzMy05YzJkLTRiNmYxZTBhOWQxMSJ9" }
 ```
 
 ### `POST /api/admin/invites`
@@ -537,7 +545,8 @@ GET /api/workouts?limit=30&cursor=WyIyMDI2LTEw…
   is not counted. `total` is every finished workout the caller has, on every page, for the
   screen's `194 WORKOUTS`.
 - The order is `startedAt` then `id`, both descending, and the cursor is the last item's pair
-  (§1.4). A `limit` outside 1 to 100, or a cursor this route did not make, is a 400.
+  (§1.4). A `limit` outside 1 to 100, or a cursor that does not decode to a start time and valid
+  id, is a 400.
 - `exercises` holds each exercise that logged a working set, in the workout's order, with its top
   set (`CONTEXT.md`): the heaviest working set and the most reps done at that weight.
   `workingSets` counts them. Warm-ups are in neither (S6).

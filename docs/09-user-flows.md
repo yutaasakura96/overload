@@ -238,16 +238,18 @@ sees when it does not simply succeed.
 
 ### F7. Export, then delete account
 
-1. Account screen → **Export** → the client pages through every section and saves `overload-export-<date>.json` (S10, `07` §2).
+1. `Your data` (`/account`, from the footer) → **Export** → the client pages through every section and saves `overload-export-<date>.json` (S10, `07` §2).
 2. **Delete account** → if the session is older than 1 day, sign in with Google again (`08` §6).
 3. The screen lists what goes and offers export again. The user types `DELETE`.
-4. Deleted → the device runs the sign-out wipe (F8) → `/sign-in`.
+4. Deleted → the device runs the sign-out wipe (F8) → `/sign-in`, which says `Your account was deleted.`
 
 | Step | Goes wrong | User sees |
 | --- | --- | --- |
 | 1 | Export fails | Inline message, retry |
 | 3 | The admin account | Refused, `admin_account` (`08` §6) |
-| 3 | Pending sets on the device | F8's dialog first. Deletion never uploads them |
+| 3 | Pending sets on the device | In-place choices to upload or discard (`10` §8.5); deletion never uploads them |
+| 3 | Session names another account or is gone | No deletion; reload the page |
+| 3 | Delete response is lost | Outcome unknown; reload to check whether the account remains |
 
 **Abandon:** nothing happens until `DELETE` is confirmed. The fresh sign-in in step 2 is harmless.
 

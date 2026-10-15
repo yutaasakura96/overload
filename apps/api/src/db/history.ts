@@ -134,9 +134,63 @@ export async function getWorkout(
   userId: string,
   id: string,
 ): Promise<WorkoutDetail | undefined> {
-  const own = and(eq(workout.id, id), eq(workout.userId, userId));
-  const [stored] = await db.select().from(workout).where(own);
+  const [stored] = await db
+    .select()
+    .from(workout)
+    .where(and(eq(workout.id, id), eq(workout.userId, userId)));
   if (stored === undefined) return undefined;
+  const [detail] = await withChildren(db, userId, [stored]);
+  return detail;
+}
+
+/**
+ * Every workout the user has, in progress or finished, each whole as `getWorkout` returns it: one
+ * page of them after `after`, newest `startedAt` first, for the export (S10).
+ */
+export async function exportWorkouts(
+  db: Database,
+  userId: string,
+  page: { limit: number; after?: WorkoutCursor | undefined },
+): Promise<{ items: WorkoutDetail[]; next: WorkoutCursor | null }> {
+  const { after } = page;
+  const found = await db
+    .select()
+    .from(workout)
+    .where(
+      after === undefined
+        ? eq(workout.userId, userId)
+        : and(
+            eq(workout.userId, userId),
+            sql`(${workout.startedAt}, ${workout.id}) < (${after.startedAt}::timestamptz, ${after.id}::uuid)`,
+          ),
+    )
+    .orderBy(desc(workout.startedAt), desc(workout.id))
+    .limit(page.limit + 1);
+  const shown = found.slice(0, page.limit);
+  const last = shown.at(-1);
+  return {
+    items: await withChildren(db, userId, shown),
+    next:
+      found.length > page.limit && last !== undefined
+        ? { startedAt: last.startedAt.toISOString(), id: last.id }
+        : null,
+  };
+}
+
+/** The user's workouts given, each with its exercises and their sets in order. */
+async function withChildren(
+  db: Database,
+  userId: string,
+  workouts: (typeof workout.$inferSelect)[],
+): Promise<WorkoutDetail[]> {
+  if (workouts.length === 0) return [];
+  const own = and(
+    eq(workout.userId, userId),
+    inArray(
+      workout.id,
+      workouts.map((each) => each.id),
+    ),
+  );
   const exercises = await db
     .select({ row: workoutExercise, name: exercise.name })
     .from(workoutExercise)
@@ -151,16 +205,18 @@ export async function getWorkout(
     .innerJoin(workout, eq(workout.id, workoutExercise.workoutId))
     .where(own)
     .orderBy(asc(set.position), asc(set.id));
-  return {
+  return workouts.map((stored) => ({
     ...toWorkoutRow(stored),
-    exercises: exercises.map(({ row, name }) => ({
-      ...toWorkoutExerciseRow(row),
-      name,
-      sets: sets
-        .filter((each) => each.row.workoutExerciseId === row.id)
-        .map((each) => toSetRow(each.row)),
-    })),
-  };
+    exercises: exercises
+      .filter(({ row }) => row.workoutId === stored.id)
+      .map(({ row, name }) => ({
+        ...toWorkoutExerciseRow(row),
+        name,
+        sets: sets
+          .filter((each) => each.row.workoutExerciseId === row.id)
+          .map((each) => toSetRow(each.row)),
+      })),
+  }));
 }
 
 /** When a routine was last done: its newest finished workout. */
