@@ -112,9 +112,9 @@ not the caller's.
 
 ### 1.4 Lists, filtering and sorting
 
-- **Small, bounded lists are returned whole**, with no pagination: exercises, routines, foods,
-  rotation groups, phases, day routines, invites, ingest tokens and sync state. Each is tens of rows
-  for one user.
+- **Ordinary reads of small, bounded lists are returned whole**, with no pagination: exercises,
+  routines, foods, rotation groups, phases, day routines, invites, ingest tokens and sync state. Each
+  is tens of rows for one user. Export pages its sections separately (§2).
 - **Growing lists use cursor pagination:** workouts, weigh-ins, expenditure estimates and meal
   estimates.
   - Request: `?limit=` (default 30, maximum 100) and `?cursor=`, taken from the previous page.
@@ -225,7 +225,7 @@ the file in the browser as `overload-export-2026-11-04.json`.
 GET /api/me/export?section=workouts&limit=100
 ```
 ```json
-{ "section": "workouts", "items": [{ "id": "0192w001-…", "name": "Push A", "startedAt": "2026-11-04T09:02:11.000Z", "exercises": [ … ] }], "nextCursor": "eyJ0IjoiMjAyNi0xMC0yOCIsImlkIjoiMDE5MnYwMDEifQ" }
+{ "section": "workouts", "items": [{ "id": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11", "name": "Push A", "startedAt": "2026-11-04T09:02:11.000Z", "exercises": [ … ] }], "nextCursor": "eyJzZWN0aW9uIjoid29ya291dHMiLCJzdGFydGVkQXQiOiIyMDI2LTExLTA0VDA5OjAyOjExLjAwMFoiLCJpZCI6IjAxOTJhMDAxLTdjMWUtN2EzMy05YzJkLTRiNmYxZTBhOWQxMSJ9" }
 ```
 
 ### `POST /api/admin/invites`
@@ -545,7 +545,8 @@ GET /api/workouts?limit=30&cursor=WyIyMDI2LTEw…
   is not counted. `total` is every finished workout the caller has, on every page, for the
   screen's `194 WORKOUTS`.
 - The order is `startedAt` then `id`, both descending, and the cursor is the last item's pair
-  (§1.4). A `limit` outside 1 to 100, or a cursor this route did not make, is a 400.
+  (§1.4). A `limit` outside 1 to 100, or a cursor that does not decode to a start time and valid
+  id, is a 400.
 - `exercises` holds each exercise that logged a working set, in the workout's order, with its top
   set (`CONTEXT.md`): the heaviest working set and the most reps done at that weight.
   `workingSets` counts them. Warm-ups are in neither (S6).

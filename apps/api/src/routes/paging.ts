@@ -2,7 +2,7 @@ import { z } from '@hono/zod-openapi';
 import type { WorkoutCursor } from '../db/history.js';
 import { Uuid } from './schemas.js';
 
-// Cursor pagination for the growing lists (docs/07 §1.4).
+// Cursor pagination shared by growing lists and export sections (docs/07 §1.4, §2).
 
 /** A page's default and largest size. */
 const PAGE_DEFAULT = 30;

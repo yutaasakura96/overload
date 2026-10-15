@@ -1007,7 +1007,8 @@ their data often enough that re-inviting them becomes a chore.
 - Last write wins; there are no ETags.
 - No `/v1`. The contract grows by adding; a breaking change becomes a new route, and CI checks the
   spec diff.
-- Cursor pagination only on growing lists; bounded lists are returned whole.
+- Ordinary read endpoints use cursor pagination only on growing lists; bounded lists are returned
+  whole. Export pages each section (`07` §2).
 - Plan generation is an explicit `POST /api/plan-days/generate`, so no GET writes (except the cron,
   which Vercel calls with GET).
 - Export is sectioned and paged, and the client assembles the file. Vercel caps response bodies at
