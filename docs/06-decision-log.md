@@ -3611,7 +3611,7 @@ screen and the revoked-access state (`10` §8.4).
   `access_revoked`; on a shared device a different revoked person could mark the last user's sets.
   Accepted: the sets stay on the device, never dropped, and a member restored sees them to discard.
 
-**Changed:** `00`, `04`, `08`, `09`, `10`, `11`.
+**Changed:** `00`, `04`, `07`, `08`, `09`, `10`, `11`.
 
 ### 2026-10-14 — Today: when each routine was last done
 
