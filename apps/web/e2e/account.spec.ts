@@ -63,6 +63,17 @@ test('a member deletes their account after typing DELETE', async ({ context, pag
   }
 });
 
+test('a missing session lookup still offers server-checked deletion', async ({ context, page }) => {
+  await signIn(context, memberId);
+  await page.route('**/api/auth/get-session', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: 'null' }),
+  );
+  await page.goto('/account');
+  const remove = page.getByRole('button', { name: 'Delete account' });
+  await page.getByRole('textbox', { name: 'Type DELETE to confirm' }).fill('DELETE');
+  await expect(remove).toBeEnabled();
+});
+
 test('the admin is told their account can’t be deleted', async ({ context, page }) => {
   await signIn(context, adminId);
   await page.goto('/account');

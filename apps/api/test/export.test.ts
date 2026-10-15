@@ -50,7 +50,15 @@ describe('GET /api/me/export', () => {
     expect((await t.app.request('/api/me/export?section=profile')).status).toBe(401);
   });
 
-  it.each(['', 'section=foods', 'section=workouts&limit=0', 'section=workouts&cursor=nope'])(
+  it.each([
+    '',
+    'section=foods',
+    'section=workouts&limit=0',
+    'section=workouts&cursor=nope',
+    'section=profile&cursor=nope',
+    'section=exercises&cursor=nope',
+    'section=routines&cursor=nope',
+  ])(
     'refuses %j as a bad request',
     async (query) => {
       const { cookie } = await t.createSignedInUser('bad@example.test');

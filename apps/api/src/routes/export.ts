@@ -64,6 +64,9 @@ export function exportRoutes({ db }: RouteDeps) {
       handler: async (c) => {
         const { section, limit, cursor } = c.req.valid('query');
         const user = c.get('user');
+        if (section !== 'workouts' && cursor !== undefined) {
+          return problem(c, 'bad_request', { detail: 'Invalid parameter: cursor' });
+        }
         // The small lists come whole, in one page (docs/07 §1.4).
         if (section === 'profile') {
           const profile = await getProfile(db, user.id);

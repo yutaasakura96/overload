@@ -97,8 +97,12 @@ function useFreshness(): [Freshness, (next: Freshness) => void] {
       .getSession()
       .then((result) => {
         const createdAt = result.data?.session.createdAt;
-        if (!current || createdAt === undefined) return;
-        setFreshness(Date.now() - new Date(createdAt).getTime() < FRESH_MS ? 'fresh' : 'stale');
+        if (!current) return;
+        setFreshness(
+          createdAt === undefined || Date.now() - new Date(createdAt).getTime() < FRESH_MS
+            ? 'fresh'
+            : 'stale',
+        );
       })
       // Unknown: the form is offered, and the server's own check answers.
       .catch(() => {
