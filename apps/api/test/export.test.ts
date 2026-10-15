@@ -179,6 +179,7 @@ describe('GET /api/me/export', () => {
       ).status,
     ).toBe(201);
 
+    let exercisesCursor: string | null = null;
     for (const section of ['exercises', 'routines'] as const) {
       const response = await send(
         'GET',
@@ -198,19 +199,21 @@ describe('GET /api/me/export', () => {
         ids.push(...page.items.map((item) => item['id']));
         cursor = page.nextCursor;
         if (section === 'exercises' && ids.length === 13) {
-          expect(cursor).not.toBeNull();
-          const wrong = await t.app.request(`/api/me/export?section=routines&cursor=${cursor}`, {
-            headers: { cookie },
-          });
-          expect(wrong.status).toBe(400);
-          const profile = await t.app.request(`/api/me/export?section=profile&cursor=${cursor}`, {
-            headers: { cookie },
-          });
-          expect(profile.status).toBe(400);
+          exercisesCursor = cursor;
         }
       } while (cursor !== null);
       expect(ids).toEqual(whole.items.map((item) => item.id));
     }
+    expect(exercisesCursor).not.toBeNull();
+    const wrong = await t.app.request(`/api/me/export?section=routines&cursor=${exercisesCursor}`, {
+      headers: { cookie },
+    });
+    expect(wrong.status).toBe(400);
+    const profile = await t.app.request(
+      `/api/me/export?section=profile&cursor=${exercisesCursor}`,
+      { headers: { cookie } },
+    );
+    expect(profile.status).toBe(400);
   });
 
   it('carries none of another user’s rows', async () => {
