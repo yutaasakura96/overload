@@ -209,7 +209,9 @@ the file in the browser as `overload-export-2026-11-04.json`.
   `isAdmin`. `exercises` pages by name then id; `routines` pages by position then id; `workouts`
   pages newest `startedAt` then id first, a workout in progress included, each as
   `GET /api/workouts/{id}` returns it.
-  A section not built yet, a `limit` outside 1 to 100, or a cursor this route did not make is a 400.
+  A section not built yet, a `limit` outside 1 to 100, or a cursor that does not decode to this
+  section's sort key and id is a 400. The cursor is opaque and unsigned; each query remains scoped
+  to the caller's user id.
 - `exercises` returns what `GET /api/exercises?includeHidden=true` returns: hidden ones included,
   each with the caller's settings and `overrides`.
 - **Every table that holds a user's rows is in some section**, directly or nested. The exceptions

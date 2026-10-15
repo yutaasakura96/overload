@@ -75,7 +75,7 @@ const getExport = createRoute({
       content: { 'application/json': { schema: ExportPage } },
     },
     400: problemResponse(
-      'An unknown section, a limit outside 1 to 100, or a cursor this route did not make',
+      'An unknown section, a limit outside 1 to 100, or a cursor that does not decode to this section’s sort key and id',
     ),
     401: problemResponse('No session'),
   },

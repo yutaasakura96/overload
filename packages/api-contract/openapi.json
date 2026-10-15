@@ -2731,7 +2731,7 @@
             }
           },
           "400": {
-            "description": "An unknown section, a limit outside 1 to 100, or a cursor this route did not make",
+            "description": "An unknown section, a limit outside 1 to 100, or a cursor that does not decode to this section’s sort key and id",
             "content": {
               "application/problem+json": {
                 "schema": {

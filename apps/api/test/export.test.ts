@@ -72,6 +72,9 @@ describe('GET /api/me/export', () => {
     'section=profile&cursor=nope',
     'section=exercises&cursor=nope',
     'section=routines&cursor=nope',
+    `section=exercises&cursor=${Buffer.from(JSON.stringify({ section: 'exercises', name: 1, id: randomUUID() })).toString('base64url')}`,
+    `section=routines&cursor=${Buffer.from(JSON.stringify({ section: 'routines', position: '0', id: randomUUID() })).toString('base64url')}`,
+    `section=workouts&cursor=${Buffer.from(JSON.stringify({ section: 'workouts', startedAt: new Date().toISOString(), id: 'bad' })).toString('base64url')}`,
   ])('refuses %j as a bad request', async (query) => {
     const { cookie } = await t.createSignedInUser('bad@example.test');
     const res = await t.app.request(`/api/me/export?${query}`, { headers: { cookie } });

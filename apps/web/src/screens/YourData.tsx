@@ -3,7 +3,13 @@ import { useQuery } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { authClient } from '../auth-client';
 import { AppBar, DataState, Notice, TextField } from '../components';
-import { exportFileName, readExport, saveExport, SECTION_COUNT } from '../export';
+import {
+  exportAccountIsCurrent,
+  exportFileName,
+  readExport,
+  saveExport,
+  SECTION_COUNT,
+} from '../export';
 import { goBack, type Navigate } from '../navigation';
 import { markSigningIn, meQuery, takeSigningIn, useAccount } from '../query';
 import { deleteAccount, type DeleteAccountResult } from '../sign-out';
@@ -27,31 +33,40 @@ export function YourData({ me, navigate }: { me: Me; navigate: Navigate }) {
         slot={<DataState at={checked} />}
         back={{ label: 'Back', onClick: () => goBack(navigate, '/') }}
       />
-      <ExportBlock timeZone={timeZone} />
+      <ExportBlock timeZone={timeZone} userId={me.user.id} />
       <DeleteBlock me={me} navigate={navigate} />
     </main>
   );
 }
 
 /** Pages through every section and saves the file (docs/09 F7 step 1). */
-function ExportBlock({ timeZone }: { timeZone: string }) {
+function ExportBlock({ timeZone, userId }: { timeZone: string; userId: string }) {
   const [reading, setReading] = useState<number>();
   const [saved, setSaved] = useState<string>();
   const [failed, setFailed] = useState(false);
+  const mounted = useRef(false);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
   const run = async () => {
     setReading(0);
     setSaved(undefined);
     setFailed(false);
     try {
-      const file = await readExport(setReading);
+      const file = await readExport(userId, setReading);
+      if (!mounted.current) return;
+      if (!exportAccountIsCurrent(userId)) throw new Error('Export account changed');
       const name = exportFileName(timeZone);
       saveExport(file, name);
       setSaved(name);
     } catch {
-      setFailed(true);
+      if (mounted.current) setFailed(true);
     }
-    setReading(undefined);
+    if (mounted.current) setReading(undefined);
   };
 
   return (

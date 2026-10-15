@@ -182,7 +182,7 @@ export interface paths {
             'application/json': components['schemas']['ExportPage'];
           };
         };
-        /** @description An unknown section, a limit outside 1 to 100, or a cursor this route did not make */
+        /** @description An unknown section, a limit outside 1 to 100, or a cursor that does not decode to this section’s sort key and id */
         400: {
           headers: {
             [name: string]: unknown;

@@ -10,6 +10,8 @@ type Cookies = Parameters<import('@playwright/test').BrowserContext['addCookies'
 const adminId = process.env.E2E_ADMIN_ID ?? '';
 const memberId = process.env.E2E_USER_ID ?? '';
 
+test.use({ serviceWorkers: 'block' });
+
 const signIn = async (context: import('@playwright/test').BrowserContext, userId: string) => {
   if (userId === '') throw new Error('global setup did not create the test users');
   const cookies: Cookies = JSON.parse(apiFixture('cookies', userId, 'localhost'));
@@ -38,6 +40,33 @@ test('a member exports their data as one file', async ({ context, page }) => {
     expect.objectContaining({ user: expect.objectContaining({ id: memberId }) }),
   ]);
   await expect(page.getByText(`Saved ${file.suggestedFilename()}.`)).toBeVisible();
+});
+
+test('leaving the screen during export does not save a file', async ({ context, page }) => {
+  await signIn(context, memberId);
+  const requested = Promise.withResolvers<void>();
+  const release = Promise.withResolvers<void>();
+  await page.route('**/api/me/export?**', async (route) => {
+    if (new URL(route.request().url()).searchParams.get('section') !== 'workouts') {
+      await route.continue();
+      return;
+    }
+    requested.resolve();
+    await release.promise;
+    await route.continue();
+  });
+  await page.goto('/account');
+  await page.getByRole('button', { name: 'Export your data' }).click();
+  await requested.promise;
+  await page.getByRole('button', { name: 'Back' }).click();
+  await expect(page).toHaveURL('/');
+  const download = page.waitForEvent('download', { timeout: 500 });
+  const response = page.waitForResponse((reply) =>
+    reply.url().includes('/api/me/export?section=workouts'),
+  );
+  release.resolve();
+  await response;
+  await expect(download).rejects.toThrow();
 });
 
 test('a member deletes their account after typing DELETE', async ({ context, page }, testInfo) => {
