@@ -1727,7 +1727,7 @@ export interface components {
       trainingWeekdays?: number[];
       weightUnit?: components['schemas']['WeightUnit'];
     };
-    /** @description One page of one section. `profile`, `exercises` and `routines` come whole in one page; `workouts`, in progress ones included, come newest first a page at a time. */
+    /** @description One page of one section. `profile` has one item; `exercises`, `routines` and `workouts` are cursor-paged. Workouts include ones in progress. */
     ExportPage:
       | {
           /** @enum {string} */

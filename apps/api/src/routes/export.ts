@@ -1,13 +1,13 @@
 import { createRoute, defineOpenAPIRoute, z } from '@hono/zod-openapi';
 import type { AppEnv, RouteDeps } from '../app-env.js';
-import { listExercises } from '../db/exercises.js';
+import { exportExercises } from '../db/exercises.js';
 import { exportWorkouts } from '../db/history.js';
 import { getProfile } from '../db/profile.js';
-import { listRoutines } from '../db/routines.js';
+import { exportRoutines } from '../db/routines.js';
 import { accountHeaders } from '../lib/account.js';
 import { problem, problemResponse } from '../lib/problem.js';
-import { decodeCursor, encodeCursor, pageQuery } from './paging.js';
-import { ExportPage, ExportSection } from './schemas.js';
+import { pageQuery } from './paging.js';
+import { ExportPage, ExportSection, Uuid } from './schemas.js';
 
 // S10's export (docs/07 §2). Sectioned and paged because Vercel caps a response body at 4.5 MB; the
 // client fetches every section page by page and builds the file in the browser.
@@ -25,6 +25,30 @@ export const EXPORTED_TABLES = {
 } as const satisfies Record<ExportSection, readonly string[]>;
 
 type ExportSection = z.infer<typeof ExportSection>;
+
+const ExportCursor = z.discriminatedUnion('section', [
+  z.object({ section: z.literal('exercises'), name: z.string(), id: Uuid }),
+  z.object({ section: z.literal('routines'), position: z.number().int(), id: Uuid }),
+  z.object({
+    section: z.literal('workouts'),
+    startedAt: z.iso.datetime({ offset: true }),
+    id: Uuid,
+  }),
+]);
+
+type ExportCursor = z.infer<typeof ExportCursor>;
+
+const encodeExportCursor = (cursor: ExportCursor) =>
+  Buffer.from(JSON.stringify(cursor)).toString('base64url');
+
+function decodeExportCursor(text: string): ExportCursor | undefined {
+  try {
+    const read = ExportCursor.safeParse(JSON.parse(Buffer.from(text, 'base64url').toString()));
+    return read.success ? read.data : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 /** Access and bookkeeping, not the user's data (docs/07 §2). */
 export const NOT_EXPORTED = [
@@ -64,10 +88,13 @@ export function exportRoutes({ db }: RouteDeps) {
       handler: async (c) => {
         const { section, limit, cursor } = c.req.valid('query');
         const user = c.get('user');
-        if (section !== 'workouts' && cursor !== undefined) {
+        const after = cursor === undefined ? undefined : decodeExportCursor(cursor);
+        if (
+          (cursor !== undefined && (after === undefined || after.section !== section)) ||
+          (section === 'profile' && cursor !== undefined)
+        ) {
           return problem(c, 'bad_request', { detail: 'Invalid parameter: cursor' });
         }
-        // The small lists come whole, in one page (docs/07 §1.4).
         if (section === 'profile') {
           const profile = await getProfile(db, user.id);
           const { id, name, email, image } = user;
@@ -77,22 +104,42 @@ export function exportRoutes({ db }: RouteDeps) {
           );
         }
         if (section === 'exercises') {
-          const items = await listExercises(db, user.id, { includeHidden: true });
-          return c.json({ section, items, nextCursor: null }, 200);
+          const page = await exportExercises(db, user.id, {
+            limit,
+            after: after?.section === 'exercises' ? after : undefined,
+          });
+          return c.json(
+            {
+              section,
+              items: page.items,
+              nextCursor: page.next === null ? null : encodeExportCursor({ section, ...page.next }),
+            },
+            200,
+          );
         }
         if (section === 'routines') {
-          return c.json({ section, items: await listRoutines(db, user.id), nextCursor: null }, 200);
+          const page = await exportRoutines(db, user.id, {
+            limit,
+            after: after?.section === 'routines' ? after : undefined,
+          });
+          return c.json(
+            {
+              section,
+              items: page.items,
+              nextCursor: page.next === null ? null : encodeExportCursor({ section, ...page.next }),
+            },
+            200,
+          );
         }
-        const after = cursor === undefined ? undefined : decodeCursor(cursor);
-        if (cursor !== undefined && after === undefined) {
-          return problem(c, 'bad_request', { detail: 'Invalid parameter: cursor' });
-        }
-        const page = await exportWorkouts(db, user.id, { limit, after });
+        const page = await exportWorkouts(db, user.id, {
+          limit,
+          after: after?.section === 'workouts' ? after : undefined,
+        });
         return c.json(
           {
             section,
             items: page.items,
-            nextCursor: page.next === null ? null : encodeCursor(page.next),
+            nextCursor: page.next === null ? null : encodeExportCursor({ section, ...page.next }),
           },
           200,
         );

@@ -18,6 +18,20 @@ async function exportOf(cookie: string, query: string) {
   return body;
 }
 
+async function exportAll(cookie: string, section: string) {
+  const items: Page['items'] = [];
+  let cursor: string | null = null;
+  do {
+    const page = await exportOf(
+      cookie,
+      `section=${section}&limit=100${cursor === null ? '' : `&cursor=${cursor}`}`,
+    );
+    items.push(...page.items);
+    cursor = page.nextCursor;
+  } while (cursor !== null);
+  return items;
+}
+
 describe('export completeness', () => {
   it('has every table with a user id column in a section or on the exceptions', async () => {
     const { rows } = await t.db.execute<{ table_name: string }>(sql`
@@ -58,15 +72,12 @@ describe('GET /api/me/export', () => {
     'section=profile&cursor=nope',
     'section=exercises&cursor=nope',
     'section=routines&cursor=nope',
-  ])(
-    'refuses %j as a bad request',
-    async (query) => {
-      const { cookie } = await t.createSignedInUser('bad@example.test');
-      const res = await t.app.request(`/api/me/export?${query}`, { headers: { cookie } });
-      expect(res.status).toBe(400);
-      expect((await res.json()).code).toBe('bad_request');
-    },
-  );
+  ])('refuses %j as a bad request', async (query) => {
+    const { cookie } = await t.createSignedInUser('bad@example.test');
+    const res = await t.app.request(`/api/me/export?${query}`, { headers: { cookie } });
+    expect(res.status).toBe(400);
+    expect((await res.json()).code).toBe('bad_request');
+  });
 
   it('carries everything the user owns, section by section', async () => {
     const { cookie, user } = await t.createSignedInUser('owner@example.test');
@@ -84,15 +95,12 @@ describe('GET /api/me/export', () => {
       nextCursor: null,
     });
 
-    const exercises = await exportOf(cookie, 'section=exercises');
-    expect(exercises.nextCursor).toBeNull();
-    expect(exercises.items).toContainEqual(
+    const exercises = await exportAll(cookie, 'exercises');
+    expect(exercises).toContainEqual(
       expect.objectContaining({ id: made.customId, custom: true, restSeconds: 90 }),
     );
     // Hidden ones are included, with the caller's settings.
-    expect(exercises.items).toContainEqual(
-      expect.objectContaining({ id: made.hiddenId, hidden: true }),
-    );
+    expect(exercises).toContainEqual(expect.objectContaining({ id: made.hiddenId, hidden: true }));
 
     const routines = await exportOf(cookie, 'section=routines');
     expect(routines.items).toEqual([
@@ -153,6 +161,55 @@ describe('GET /api/me/export', () => {
     expect(second.nextCursor).toBeNull();
   });
 
+  it('pages exercises and routines without repeating items or accepting another section’s cursor', async () => {
+    const { cookie } = await t.createSignedInUser('lists@example.test');
+    const made = await fillAccount(t, cookie);
+    const send = sender(t, cookie);
+    const secondRoutineId = randomUUID();
+    expect(
+      (
+        await send('POST', '/api/routines', {
+          id: secondRoutineId,
+          name: 'Second',
+          exercises: [{ id: randomUUID(), exerciseId: made.customId }],
+        })
+      ).status,
+    ).toBe(201);
+
+    for (const section of ['exercises', 'routines'] as const) {
+      const response = await send(
+        'GET',
+        section === 'exercises' ? '/api/exercises?includeHidden=true' : '/api/routines',
+      );
+      expect(response.status).toBe(200);
+      const whole: { items: { id: string }[] } = await response.json();
+      const ids: unknown[] = [];
+      let cursor: string | null = null;
+      do {
+        const page = await exportOf(
+          cookie,
+          `section=${section}&limit=13${cursor === null ? '' : `&cursor=${cursor}`}`,
+        );
+        expect(page.items.length).toBeGreaterThan(0);
+        expect(page.items.length).toBeLessThanOrEqual(13);
+        ids.push(...page.items.map((item) => item['id']));
+        cursor = page.nextCursor;
+        if (section === 'exercises' && ids.length === 13) {
+          expect(cursor).not.toBeNull();
+          const wrong = await t.app.request(`/api/me/export?section=routines&cursor=${cursor}`, {
+            headers: { cookie },
+          });
+          expect(wrong.status).toBe(400);
+          const profile = await t.app.request(`/api/me/export?section=profile&cursor=${cursor}`, {
+            headers: { cookie },
+          });
+          expect(profile.status).toBe(400);
+        }
+      } while (cursor !== null);
+      expect(ids).toEqual(whole.items.map((item) => item.id));
+    }
+  });
+
   it('carries none of another user’s rows', async () => {
     const owner = await t.createSignedInUser('mine@example.test');
     const made = await fillAccount(t, owner.cookie);
@@ -162,9 +219,9 @@ describe('GET /api/me/export', () => {
     expect(profile.items).toEqual([
       { user: expect.objectContaining({ id: other.user.id }), profile: null },
     ]);
-    const exercises = await exportOf(other.cookie, 'section=exercises');
-    expect(exercises.items.map((item) => item['id'])).not.toContain(made.customId);
-    expect(exercises.items.some((item) => item['hidden'] === true)).toBe(false);
+    const exercises = await exportAll(other.cookie, 'exercises');
+    expect(exercises.map((item) => item['id'])).not.toContain(made.customId);
+    expect(exercises.some((item) => item['hidden'] === true)).toBe(false);
     expect((await exportOf(other.cookie, 'section=routines')).items).toEqual([]);
     expect((await exportOf(other.cookie, 'section=workouts')).items).toEqual([]);
   });

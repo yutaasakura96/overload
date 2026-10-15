@@ -206,8 +206,9 @@ the file in the browser as `overload-export-2026-11-04.json`.
   nested (a workout carries its exercises and sets).
 - **As built in slice 7** (`06`, 2026-10-15): M1's four sections, `profile`, `exercises`,
   `routines` and `workouts`. `profile` is one item, `{ user, profile }`, as `/api/me` without
-  `isAdmin`. The small lists come whole, with `nextCursor: null`; `workouts` pages newest
-  `startedAt` first, a workout in progress included, each as `GET /api/workouts/{id}` returns it.
+  `isAdmin`. `exercises` pages by name then id; `routines` pages by position then id; `workouts`
+  pages newest `startedAt` then id first, a workout in progress included, each as
+  `GET /api/workouts/{id}` returns it.
   A section not built yet, a `limit` outside 1 to 100, or a cursor this route did not make is a 400.
 - `exercises` returns what `GET /api/exercises?includeHidden=true` returns: hidden ones included,
   each with the caller's settings and `overrides`.

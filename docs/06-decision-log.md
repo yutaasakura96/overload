@@ -3575,10 +3575,10 @@ Issue `#7`, S10, built as `07` §2 and `08` §6 describe. No artboard draws the 
 is designed from `05`'s tokens and the profile form's blocks.
 
 - **The export's four M1 sections** are `profile` (the user and their profile, as `/api/me` without
-  `isAdmin`), `exercises` (as `?includeHidden=true`), `routines`, and `workouts`. The first three
-  are small lists and come whole in one page; `workouts` is cursor-paged like History, newest first,
-  and unlike History includes a workout still in progress, each whole as `GET /api/workouts/{id}`
-  returns it. The section map and the exceptions sit in `routes/export.ts`; the completeness test
+  `isAdmin`), `exercises` (as `?includeHidden=true`), `routines`, and `workouts`. `profile` has one
+  item; the other sections are cursor-paged. `workouts` is newest first and, unlike History,
+  includes a workout still in progress, each whole as `GET /api/workouts/{id}` returns it.
+  The section map and the exceptions sit in `routes/export.ts`; the completeness test
   reads every table with a `user_id` or `…_user_id` column.
 - **A bad `section`, `limit` or `cursor` is 400 `bad_request`**, as every query parameter of the
   wrong type is (`07` §1.3), not the 422 `07` §2 first listed. A section named in `07` §2 that is

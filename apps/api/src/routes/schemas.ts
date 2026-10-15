@@ -809,6 +809,6 @@ export const ExportPage = z
   ])
   .openapi('ExportPage', {
     description:
-      'One page of one section. `profile`, `exercises` and `routines` come whole in one page; ' +
-      '`workouts`, in progress ones included, come newest first a page at a time.',
+      'One page of one section. `profile` has one item; `exercises`, `routines` and ' +
+      '`workouts` are cursor-paged. Workouts include ones in progress.',
   });
