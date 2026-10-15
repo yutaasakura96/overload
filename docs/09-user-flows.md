@@ -247,7 +247,7 @@ sees when it does not simply succeed.
 | --- | --- | --- |
 | 1 | Export fails | Inline message, retry |
 | 3 | The admin account | Refused, `admin_account` (`08` §6) |
-| 3 | Pending sets on the device | F8's dialog first. Deletion never uploads them |
+| 3 | Pending sets on the device | In-place choices to upload or discard (`10` §8.5); deletion never uploads them |
 | 3 | Session names another account or is gone | No deletion; reload the page |
 | 3 | Delete response is lost | Outcome unknown; reload to check whether the account remains |
 

@@ -808,7 +808,9 @@ data-state slot. In order:
   progress (`Finish it first.`), a workout whose ending has not uploaded (`Try again`), and sets not
   uploaded, `2 sets not uploaded yet. Deleting doesn’t upload them. Upload them now to keep them in
   an export, or discard them and delete.` — `Upload now` / `Discard and delete`. `Upload now` only
-  uploads. If the signed-in account changed, the notice says to reload before deleting. A lost
+  uploads. If rows remain pending after it, the notice says `Couldn’t confirm the upload finished.
+  Some workout data may have uploaded. Your account was not deleted. Check your connection and try
+  again.` If the signed-in account changed, the notice says to reload before deleting. A lost
   delete response says `Couldn’t confirm whether your account was deleted. Reload to check.` A
   definite server refusal says `Overload refused the deletion. Nothing was deleted. Reload and try
   again.`
