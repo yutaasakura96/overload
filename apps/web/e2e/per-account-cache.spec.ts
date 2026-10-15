@@ -703,9 +703,7 @@ test('a queued three-hour ending stays with its account after another account is
   await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
   await expect
     .poll(async () => {
-      const workout = (await recordsOf(page, userA)).find(
-        (record) => record.table === 'workouts',
-      );
+      const workout = (await recordsOf(page, userA)).find((record) => record.table === 'workouts');
       return typeof workout?.row.endedAt;
     })
     .toBe('string');
