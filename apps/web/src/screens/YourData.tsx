@@ -174,7 +174,15 @@ function DeleteBlock({ me, navigate }: { me: Me; navigate: Navigate }) {
   const upload = () => {
     setBusy(true);
     void requestUpload()
-      .then(() => setStopped(undefined))
+      .then(() => {
+        const state = useWorkoutStore.getState();
+        setStopped(
+          recordsLoadedFor(state, me.user.id) &&
+            recordsOf(state, me.user.id).every((record) => record.state === 'acknowledged')
+            ? undefined
+            : 'upload-failed',
+        );
+      })
       .catch(() => setStopped('upload-failed'))
       .finally(() => setBusy(false));
   };
@@ -324,8 +332,9 @@ function Stopped({
   }
   if (stopped === 'upload-failed') {
     return (
-      <Notice tone="flag" word="Not uploaded">
-        Couldn’t reach Overload. Nothing was uploaded or deleted. Try again.
+      <Notice tone="flag" word="Upload incomplete">
+        Couldn’t confirm the upload finished. Some workout data may have uploaded. Your account was
+        not deleted. Check your connection and try again.
       </Notice>
     );
   }
