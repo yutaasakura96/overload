@@ -1,5 +1,5 @@
 import type { Me, WeightUnit } from '@overload/api-contract';
-import { useId, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { api, unwrap } from '../api';
 import {
   AppBar,
@@ -88,6 +88,7 @@ function WeighInForm({
   const [bodyFat, setBodyFat] = useState('');
   // One id per weigh-in being typed, so a retried save lands once (docs/07 §1.2).
   const [id] = useState(newId);
+  const uncertain = useRef<{ id: string; fields: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<SaveProblem>();
   const form = useFocusRefused(problem);
@@ -131,14 +132,22 @@ function WeighInForm({
       setProblem(onDevice);
       return;
     }
+    const fields = JSON.stringify([weight, date, time, bodyFat]);
+    const saveId =
+      uncertain.current === null
+        ? id
+        : uncertain.current.fields === fields
+          ? uncertain.current.id
+          : newId();
     setBusy(true);
     setProblem(undefined);
+    let answered = false;
     try {
       await forAccount(async () =>
         unwrap(
           await api.POST('/api/weigh-ins', {
             body: {
-              id,
+              id: saveId,
               measuredAt: measuredAt.toISOString(),
               weightKg,
               bodyFatPct: fat === null ? null : Math.round(fat * 10) / 10,
@@ -146,10 +155,12 @@ function WeighInForm({
           }),
         ),
       );
+      answered = true;
       await refreshWeighIns();
       onSaved();
     } catch (error) {
       const next = saveProblem(error);
+      if (!answered && next.kind === 'unreached') uncertain.current = { id: saveId, fields };
       // The server's own words for a weight are in kg; the field says it in the user's unit.
       if (next.kind === 'refused' && next.fields.has('weightKg'))
         next.fields.set('weightKg', range(unit));

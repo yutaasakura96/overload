@@ -101,6 +101,46 @@ test('types a weight, sees it on the section, then deletes it', async ({ page })
   await expect(recent(page).getByRole('listitem')).toHaveCount(0);
 });
 
+test('keeps the id for an uncertain retry and changes it after editing', async ({ page }) => {
+  await page.goto('/progress/weight/new');
+  await page.getByRole('textbox', { name: 'Weight' }).fill('82.4');
+  await page.getByLabel('Date', { exact: true }).fill(tokyoDate(1));
+  await page.getByLabel('Time', { exact: true }).fill('07:40');
+
+  const sentIds: string[] = [];
+  await page.route('**/api/weigh-ins', async (route) => {
+    if (route.request().method() !== 'POST') return route.continue();
+    const body: { id: string } = route.request().postDataJSON();
+    const response = await route.fetch();
+    expect(response.status()).toBe(sentIds.length === 0 ? 201 : 200);
+    sentIds.push(body.id);
+    await route.abort();
+  });
+
+  const save = page.getByRole('button', { name: 'Save weigh-in' });
+  await save.click();
+  await expect(page.getByText('Couldn’t reach Overload.')).toBeVisible();
+  await save.click();
+  await expect.poll(() => sentIds.length).toBe(2);
+  await expect(save).toBeEnabled();
+  expect(sentIds[1]).toBe(sentIds[0]);
+  await page.unroute('**/api/weigh-ins');
+
+  await page.getByRole('textbox', { name: 'Weight' }).fill('82.5');
+  await page.getByLabel('Time', { exact: true }).fill('07:41');
+  await save.click();
+  await expect(page).toHaveURL('/progress/weight');
+  await expect(recent(page).getByRole('listitem')).toHaveCount(2);
+  const response = await page.request.get('/api/weigh-ins');
+  expect(response.ok()).toBe(true);
+  const { weighIns }: { weighIns: { id: string; weightKg: number }[] } = await response.json();
+  expect(weighIns).toEqual([
+    expect.objectContaining({ weightKg: 82.5 }),
+    expect.objectContaining({ id: sentIds[0], weightKg: 82.4 }),
+  ]);
+  expect(weighIns[0]?.id).not.toBe(sentIds[0]);
+});
+
 test('marks a second reading of the day as stored, and draws the trend from the third day', async ({
   page,
 }) => {
