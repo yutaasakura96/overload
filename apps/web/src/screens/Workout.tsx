@@ -1199,13 +1199,20 @@ function ExerciseChanges({
     }
   };
 
-  const remove = (exercise: WorkoutExerciseRecord) => {
+  const remove = (exercise: WorkoutExerciseRecord, confirmed: boolean) => {
     const index = exercises.indexOf(exercise);
     const next = exercises[index + 1] ?? exercises[index - 1];
-    setAsking(undefined);
     void change(
-      () => removeExercise(exercise.id),
-      next === undefined ? '' : idOf('remove', next.id),
+      async () => {
+        if (await removeExercise(exercise.id, confirmed)) {
+          focusNext.current = idOf('keep', exercise.id);
+          setAsking(exercise.id);
+          return;
+        }
+        setAsking(undefined);
+        focusNext.current = next === undefined ? '' : idOf('remove', next.id);
+      },
+      undefined,
     );
   };
 
@@ -1269,7 +1276,7 @@ function ExerciseChanges({
                       className="button button--tertiary slot__remove"
                       disabled={busy}
                       onClick={() => {
-                        if (logged === 0) return remove(exercise);
+                        if (logged === 0) return remove(exercise, false);
                         focusNext.current = idOf('keep', exercise.id);
                         return setAsking(exercise.id);
                       }}
@@ -1301,7 +1308,7 @@ function ExerciseChanges({
                         type="button"
                         className="button button--secondary"
                         disabled={busy}
-                        onClick={() => remove(exercise)}
+                        onClick={() => remove(exercise, true)}
                       >
                         Remove
                       </button>

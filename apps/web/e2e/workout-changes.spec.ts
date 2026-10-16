@@ -103,6 +103,43 @@ test('two tabs starting empty workouts keep one in progress', async ({ page, con
   await expect.poll(() => stored().filter((workout) => workout.endedAt === null).length).toBe(1);
 });
 
+test('stale exercise removal asks about new sets and rejects later logging', async ({
+  page,
+  context,
+}) => {
+  await saveProfile(page);
+  await page.getByRole('button', { name: 'Start an empty workout' }).click();
+  await page.getByRole('button', { name: 'Start workout' }).click();
+  await addExercises(page, ['Barbell Bench Press']);
+  await changes(page).getByRole('button', { name: 'Reorder or remove' }).click();
+  await expect(changes(page)).toContainText('NO SETS YET');
+
+  const other = await context.newPage();
+  await other.goto('/workout');
+  await expect(other.getByRole('heading', { name: 'Barbell Bench Press', level: 2 })).toBeVisible();
+  for (const tab of [page, other]) {
+    await tab.evaluate(() => {
+      BroadcastChannel.prototype.postMessage = () => {};
+    });
+  }
+
+  await completeSet(other, '80', '10');
+  await expect(other.getByRole('row', { name: /^1 80 10/ })).toBeVisible();
+  await other.getByRole('textbox', { name: /^Weight in/ }).fill('82.5');
+  await other.getByRole('textbox', { name: 'Reps', exact: true }).fill('8');
+  await page
+    .getByRole('button', { name: 'Remove Barbell Bench Press' })
+    .evaluate((button) => button.click());
+  await expect(
+    page.getByText('Remove Barbell Bench Press? Its 1 logged set goes with it.'),
+  ).toBeVisible();
+  await changes(page).getByRole('button', { name: 'Remove', exact: true }).click();
+  await expect(page.getByText('No exercises yet.')).toBeVisible();
+
+  await other.getByRole('button', { name: 'Complete set' }).evaluate((button) => button.click());
+  await expect(other.getByText('Couldn’t save the set on this device. Try again')).toBeVisible();
+});
+
 test('starts an empty workout, adds two exercises, logs a set and finishes', async ({ page }) => {
   await saveProfile(page);
   const empty = page.getByRole('region', { name: 'No routines yet' });

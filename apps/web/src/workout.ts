@@ -436,8 +436,9 @@ export async function addExercises(input: {
  * Removes an exercise from the open workout, and its logged sets with it. Each goes from the screen
  * now and from the device once the server has answered its deletion, which buries it (docs/07 §3.4).
  */
-export async function removeExercise(id: string): Promise<void> {
+export async function removeExercise(id: string, confirmed: boolean): Promise<boolean> {
   let removedSets: string[] = [];
+  let needsConfirmation = false;
   await mutate((records) => {
     const record = records.find(
       (each): each is WorkoutExerciseRecord =>
@@ -446,6 +447,10 @@ export async function removeExercise(id: string): Promise<void> {
     if (record === undefined || stillOpen(records, record.workoutId) === undefined)
       return undefined;
     const sets = setsOf(records, id);
+    if (sets.length > 0 && !confirmed) {
+      needsConfirmation = true;
+      return undefined;
+    }
     removedSets = sets.map((set) => set.id);
     return { put: [asDeletion(record), ...sets.map((set) => asDeletion(set))] };
   });
@@ -454,6 +459,7 @@ export async function removeExercise(id: string): Promise<void> {
   if (rest !== undefined && removedSets.includes(rest.setId)) {
     useWorkoutStore.setState({ rest: undefined });
   }
+  return needsConfirmation;
 }
 
 /**
@@ -493,6 +499,14 @@ export async function completeSet(input: {
   const now = new Date().toISOString();
   const id = newId();
   const shown = await mutate((records) => {
+    const exercise = records.find(
+      (record): record is WorkoutExerciseRecord =>
+        record.table === 'workoutExercises' &&
+        record.id === input.exercise.id &&
+        record.deletedAt === undefined,
+    );
+    if (exercise === undefined || stillOpen(records, exercise.workoutId) === undefined)
+      throw new Error('workout exercise is no longer open');
     // A deleted set keeps its place: positions are never renumbered (docs/04 `set`).
     const positions = records.flatMap((record) =>
       record.table === 'sets' && record.row.workoutExerciseId === input.exercise.id
