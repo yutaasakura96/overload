@@ -87,13 +87,13 @@ const yieldOf = (id) => {
 // MEXT's boiled values, used for a cooked portion when no batch was weighed (docs/02 Empty states).
 const APPROX = { broccoli: { kcal: 30, p: 3.9, c: 5.2, f: 0.4, fib: 4.3 } };
 
-function itemMacros([id, qty, unit]) {
+function itemMacros([id, qty, unit, savedYield]) {
   const f = food(id);
   let grams = unit === 'pc' ? qty * f.piece : qty;
   let per = f;
   let approx = false;
   if (unit === 'cooked') {
-    const y = yieldOf(id);
+    const y = savedYield === undefined ? yieldOf(id) : savedYield;
     if (y === null) {
       per = APPROX[id] ?? f;
       approx = true;
@@ -115,9 +115,10 @@ const TARGETS = (() => {
 // the next morning is Saturday, a rest day, with Friday as yesterday.
 const YESTERDAY_ISO = TODAY;
 const dayIso = () => (S.clock === 'morning' ? addDays(TODAY, 1) : TODAY);
-const planFor = (iso) => (iso === TODAY ? PLAN_TODAY : PLAN_REST);
+const planFor = (iso) => (iso === TODAY ? (S.calorieGap ? PLAN_CAPPED : PLAN_TODAY) : PLAN_REST);
 const actualMeal = (iso, meal) => ({ ...meal, items: S.mealItems[iso]?.[meal.id] ?? meal.items });
-const isTraining = (iso) => planFor(iso) === PLAN_TODAY;
+const snapshotItems = (items) => items.map(([id, qty, unit, savedYield]) => [id, qty, unit, unit === 'cooked' ? (savedYield === undefined ? yieldOf(id) : savedYield) : undefined]);
+const isTraining = (iso) => iso === TODAY;
 const nowTime = () => NOW[S.clock];
 
 function statusesFor(iso) {
@@ -132,6 +133,7 @@ function statusesFor(iso) {
       }
     }
     S.days[iso] = init;
+    S.mealItems[iso] = Object.fromEntries(planFor(iso).filter((meal) => init[meal.id] !== 'planned').map((meal) => [meal.id, snapshotItems(meal.items)]));
   }
   return S.days[iso];
 }
@@ -143,7 +145,6 @@ function dayTotals(iso) {
   const planned = sum(planFor(iso).map(mealMacros));
   let shown = planned;
   if (S.shortfall && iso === dayIso()) shown = { ...planned, p: planned.p - 24, kcal: planned.kcal - 70 };
-  if (S.calorieGap && iso === dayIso()) shown = { ...shown, kcal: Math.min(shown.kcal, TARGETS.kcal - 250) };
   const eaten = sum(planFor(iso).filter((m) => ['as_planned', 'adjusted', 'replaced'].includes(st[m.id])).map((m) => mealMacros(actualMeal(iso, m))));
   return { planned: shown, eaten };
 }
@@ -285,7 +286,7 @@ function foodRows(meal, dim = false) {
       const [id, qty, unit] = item;
       const f = food(id);
       const amount = unit === 'pc' ? `${qty}<span class="meal__unit"> ${qty === 1 ? 'piece' : 'pieces'}</span>` : `${qty}<span class="meal__unit"> g</span>`;
-      const approx = unit === 'cooked' && yieldOf(id) === null;
+      const approx = unit === 'cooked' && (item[3] === undefined ? yieldOf(id) : item[3]) === null;
       return `<li class="meal__food"><span class="meal__food-name">${esc(f.name)}${unit === 'cooked' ? `<span class="meal__qual"> cooked${approx ? ', approx.' : ''}</span>` : ''}</span><span class="meal__grams">${amount}</span></li>`;
     })
     .join('')}</ul>`;
@@ -728,6 +729,19 @@ function labelScreen() {
 }
 
 const BASIS = [['100g', 'Per 100 g'], ['piece', 'Per piece'], ['serving', 'Per serving'], ['package', 'Per package']];
+const NUTRIENTS = [['kcal', 'Calories', 'kcal'], ['p', 'Protein', 'g'], ['c', 'Carbs', 'g'], ['f', 'Fat', 'g'], ['fib', 'Fiber', 'g']];
+
+function candidatePer100(c, key) {
+  const edited = c.values?.[key];
+  if (edited === '' || (edited === undefined && c.printed?.[key] == null)) return null;
+  const factor = (c.manual && c.basis === '100g') || (edited !== undefined && !c.manual) ? 1 : 100 / Number(c.basisGrams);
+  if (!Number.isFinite(factor)) return null;
+  return Math.round(Number(edited ?? c.printed[key]) * factor * 10) / 10;
+}
+
+function manualPreview(c) {
+  return `<div class="printed__head"><span class="section-label">Per 100 g, as it will be saved</span></div><dl class="printed__grid">${NUTRIENTS.map(([key, label, unit]) => `<div><dt>${label}</dt><dd>${candidatePer100(c, key) ?? '—'}<span class="values__unit"> ${unit}</span></dd></div>`).join('')}</dl>`;
+}
 
 function confirmScreen() {
   const c = S.candidate;
@@ -754,16 +768,17 @@ function confirmScreen() {
       ${field({ label: 'Name', key: 'cName', value: c.name, mono: false, placeholder: 'What you call it' })}
       ${field({ label: 'Brand', key: 'cBrand', value: c.brand ?? '', mono: false, placeholder: 'Optional', note: 'OPTIONAL' })}
       ${c.manual ? `<div class="field"><span class="field__label">The packet gives values</span>${segments(BASIS, c.basis, 'basis', 'm2-seg--basis')}</div>${c.basis === '100g' ? '' : field({ label: 'That amount weighs', key: 'cBasisG', value: c.basisGrams ?? '', unit: 'g', placeholder: '0' })}` : ''}
-      <div class="m2-subhead"><span class="section-label">Per 100 g, as it will be saved</span>${c.basis !== '100g' && !c.manual ? '<span class="m2-subhead__note">converted from the label</span>' : ''}</div>
+      <div class="m2-subhead"><span class="section-label">${c.manual && c.basis !== '100g' ? 'As printed' : 'Per 100 g, as it will be saved'}</span>${c.basis !== '100g' && !c.manual ? '<span class="m2-subhead__note">converted from the label</span>' : ''}</div>
       <div class="form__pair">${valueField('Calories', 'cK', 'kcal', 'kcal')}${valueField('Protein', 'cP', 'p', 'g')}</div>
       <div class="form__pair">${valueField('Carbs', 'cC', 'c', 'g')}${valueField('Fat', 'cF', 'f', 'g')}</div>
       ${valueField('Fiber', 'cFib', 'fib', 'g')}
+      ${c.manual && c.basis !== '100g' ? `<section class="printed" id="manual-preview">${manualPreview(c)}</section>` : ''}
       <div class="field"><span class="field__label">This food is</span>${segments([['raw', 'Raw'], ['cooked', 'Cooked']], c.state, 'cState', 'm2-seg--basis')}</div>
       ${field({ label: 'One piece weighs', key: 'cPiece', value: c.piece ?? '', unit: 'g', placeholder: '—', note: 'EMPTY: COUNTED IN GRAMS' })}
       ${field({ label: 'A cooked batch keeps for', key: 'cKeeps', value: c.keeps ?? '', unit: 'days', placeholder: '—', note: 'EMPTY: NOT BATCH-COOKED' })}
       <div class="field"><div class="field__label-row"><label class="field__label" for="f-cGroup">Rotation group</label><span class="field__note">OPTIONAL</span></div><select id="f-cGroup" class="field__input field__select" data-field="cGroup"><option value="">None</option>${GROUPS.map((g) => `<option value="${g.id}"${c.group === g.id ? ' selected' : ''}>${g.name}</option>`).join('')}</select></div>
     </div>
-    <div class="section-actions"><button type="button" class="button button--primary" data-act="saveFood">Save to my foods</button><button type="button" class="button button--tertiary" data-act="back">Discard</button></div></main>`;
+    <div class="section-actions"><button type="button" class="button button--primary" data-act="saveFood"${c.manual && c.basis !== '100g' && !(Number(c.basisGrams) > 0) ? ' disabled' : ''}>Save to my foods</button><button type="button" class="button button--tertiary" data-act="back">Discard</button></div></main>`;
 }
 
 // ---------------------------------------------------------------- goal phase and targets (S14), your day (S15)
@@ -1073,8 +1088,8 @@ function newCandidate(kind) {
 function confirmMeal(iso, id, status, items) {
   statusesFor(iso)[id] = status;
   S.mealItems[iso] ??= {};
-  if (status === 'planned' || status === 'skipped' || status === 'as_planned') delete S.mealItems[iso][id];
-  else S.mealItems[iso][id] = items;
+  if (status === 'planned' || status === 'skipped') delete S.mealItems[iso][id];
+  else S.mealItems[iso][id] = snapshotItems(items ?? planFor(iso).find((meal) => meal.id === id).items);
   S.open = null;
 }
 
@@ -1133,6 +1148,7 @@ const ACT = {
   adjustSwap({ i, id }) {
     S.adjust.items[Number(i)][0] = id;
     S.adjust.items[Number(i)][2] = food(id).cooked ? 'cooked' : undefined;
+    S.adjust.items[Number(i)][3] = undefined;
     render();
   },
   adjustSave() {
@@ -1298,9 +1314,9 @@ const ACT = {
   },
   saveFood() {
     const c = S.candidate;
-    const k = c.basisGrams ? 100 / c.basisGrams : 1;
-    const per = (x) => c.values?.[x] !== undefined ? (c.values[x] === '' ? null : Number(c.values[x])) : c.printed?.[x] == null ? null : Math.round(c.printed[x] * k * 10) / 10;
-    if (!c.duplicate && c.name.trim()) FOODS.push({ id: `new${FOODS.length}`, name: c.name.trim(), brand: c.brand || null, state: c.state, kcal: per('kcal'), p: per('p'), c: per('c'), f: per('f'), fib: per('fib'), source: c.manual ? 'manual' : c.sourceLine.startsWith('MEXT') ? 'mext' : c.sourceLine.startsWith('BARCODE') ? 'open_food_facts' : 'label_photo', ref: null, group: c.group || null, piece: Number(c.piece) || null, keeps: Number(c.keeps) || null, cooked: Number(c.keeps) > 0 });
+    if (c.manual && c.basis !== '100g' && !(Number(c.basisGrams) > 0)) return;
+    if (!c.duplicate && c.name.trim()) FOODS.push({ id: `new${FOODS.length}`, name: c.name.trim(), brand: c.brand || null, state: c.state, kcal: candidatePer100(c, 'kcal'), p: candidatePer100(c, 'p'), c: candidatePer100(c, 'c'), f: candidatePer100(c, 'f'), fib: candidatePer100(c, 'fib'), source: c.manual ? 'manual' : c.sourceLine.startsWith('MEXT') ? 'mext' : c.sourceLine.startsWith('BARCODE') ? 'open_food_facts' : 'label_photo', ref: null, group: c.group || null, piece: Number(c.piece) || null, keeps: Number(c.keeps) || null, cooked: Number(c.keeps) > 0 });
+    FOODS.sort((a, b) => a.name.localeCompare(b.name));
     S.setup.foods = true;
     S.emptyFoods = false;
     S.foodTab = 'foods';
@@ -1486,6 +1502,12 @@ document.addEventListener('input', (event) => {
     S.candidate.values[{ cK: 'kcal', cP: 'p', cC: 'c', cF: 'f', cFib: 'fib' }[key]] = el.value;
   } else if (['rWake', 'rBed', 'rWs', 'rWe', 'rTrain'].includes(key)) {
     S.routineForm[S.routineDay][{ rWake: 'wake', rBed: 'bed', rWs: 'workStart', rWe: 'workEnd', rTrain: 'train' }[key]] = el.value;
+  }
+  if (S.candidate?.manual && (key === 'cBasisG' || ['cK', 'cP', 'cC', 'cF', 'cFib'].includes(key))) {
+    const preview = document.getElementById('manual-preview');
+    if (preview) preview.innerHTML = manualPreview(S.candidate);
+    const save = document.querySelector('[data-act="saveFood"]');
+    if (save) save.disabled = S.candidate.basis !== '100g' && !(Number(S.candidate.basisGrams) > 0);
   }
 });
 

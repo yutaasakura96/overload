@@ -325,7 +325,8 @@ the meal and still lets the day be complete.
   padded, and a secondary `Add a protein source`. The meter says `22 g to go`.
 - **Calorie gap after a capped portion** (PRD edge case): a `notice--flag` under the totals says
   calories remain short because a portion reached its sensible maximum; the plan leaves the gap
-  visible. Reachable in the prototype's Today screen map.
+  visible. The sample portions, meal cards, day total and end-of-day preview use the same capped
+  plan. Reachable in the prototype's Today screen map.
 - **Offline** (`09` F11): the slot reads `OFFLINE · FROM 07:12`; a `notice--flag` says the plan is
   as it was at that time and confirming waits for a connection. The actions are disabled, with one
   line under them saying nothing is lost.
@@ -919,7 +920,9 @@ EMPTY` or `NOT READ`; never guessed. Then `Raw` / `Cooked`, `One piece weighs` (
 grams), `A cooked batch keeps for` (empty: not batch-cooked) and the rotation group, then `Save to
 my foods` and a tertiary `Discard`. **By hand**, the same screen empty, with `The packet gives
 values` as four segments (`Per 100 g`, `Per piece`, `Per serving`, `Per package`) and, for any but
-the first, `That amount weighs`. A duplicate shows `Already on your list` with a link to it.
+the first, `That amount weighs`. For those other bases, the fields hold the packet's numbers and
+the converted per-100 g values appear below them before saving. A duplicate shows `Already on
+your list` with a link to it.
 
 **Rotation groups.** A lede (the planner varies the week within a group; Adjust offers the others as
 swaps), then a section per group, `STARCH · 2`, with its foods as 48px rows and a tertiary `Remove`,

@@ -90,6 +90,11 @@ const PLAN_TODAY = [
   { id: 'm5', time: '21:30', label: 'Evening', items: [['yogurt', 150], ['oats', 25], ['egg', 1, 'pc']] },
 ];
 
+const PLAN_CAPPED = PLAN_TODAY.map((meal) => ({
+  ...meal,
+  items: meal.items.map(([id, qty, unit]) => [id, meal.id === 'm3' && id === 'rice' ? 100 : meal.id === 'm4' && id === 'potato' ? 100 : qty, unit]),
+}));
+
 // The rest-day plan, four meals, no workout in the day.
 const PLAN_REST = [
   { id: 'r1', time: '08:00', label: 'Breakfast', items: [['egg', 3, 'pc'], ['oats', 80], ['yogurt', 150]] },
