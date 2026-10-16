@@ -903,7 +903,8 @@ GET /api/weigh-ins?from=2026-11-01&to=2026-11-05  →  200
   reading ever, so a short range starts from where the weight was.
 - `trendAvailable` is false with fewer than 3 weighed days up to `to`, and every `trendKg` is then
   `null` (PRD empty state). `weekChangeKg` is the latest trend less the trend at the latest weighed
-  day on or before a week before today, to the hundredth; null without a trend or such a day.
+  day on or before a week before today, to the hundredth; null without a trend or such a day, or
+  when the latest weighed day is itself on or before that week boundary.
 - A typed weight is 20 to 300 kg to the hundredth, body fat 1 to 75% to the tenth. A repeat of the
   same create returns the stored row (200); the same id with other content, or another user's id,
   is 409 `id_conflict`.
