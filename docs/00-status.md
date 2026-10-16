@@ -13,15 +13,16 @@
 - 2026-09-16: Phase 3 — `docs/05-design-system.md` and `docs/10-screen-specifications.md` written from the six `.dc.html` files. Every hex code, size, tracking value and grid measurement lifted from source; contrast ratios computed, not estimated. The canvas's "THE SYSTEM" sticky note was found inaccurate and is superseded by `docs/05`.
 
 ## Next
-**Planned 2026-10-16: M2 next, built now** (`06`, 2026-10-16). The owner answered thirteen
-planning questions. M2, meal plan + weight, is built in seven slices on milestone `M2`, weight
+**Planned 2026-10-16: M2 next, built now** (`06`, 2026-10-16). The owner answered thirteen planning
+questions. M2, meal plan + weight, is built in seven slices on milestone `M2` (`#76`–`#82`), weight
 first, during M1's 4 weeks of logging. M1's two unbuilt pieces, changing a live workout's exercises
-and starting an empty workout, are one close-out issue built alongside it, an exception to `02`'s
-milestone rule. A clickable prototype of every M2 screen, reviewed in one sitting, comes before the
-screen slices; Today becomes the whole day, with a Food tab and weight in Progress. Building comes
-first: seeded or fake data is fine until the app is built. Owed, and Yuta's: the two weight
-hardware tests (`06`, 2026-09-19) and an Anthropic API key with a small balance for label reads.
-#69 follows the weight slice with its rules decided; #52 is M3, in S23's catalogue; #53 stays last.
+and starting an empty workout, are one close-out issue (`#74`) built alongside it, an exception to
+`02`'s milestone rule. A clickable prototype of every M2 screen (`#75`), reviewed in one sitting,
+comes before the screen slices; Today becomes the whole day, with a Food tab and weight in Progress.
+Building comes first: seeded or fake data is fine until the app is built. Owed, and Yuta's: the two
+weight hardware tests (`06`, 2026-09-19) and an Anthropic API key with a small balance for label
+reads. #69 follows the weight slice with its rules decided; #52 is M3, in S23's catalogue; #53 stays
+last.
 
 **Phase 7 — Build, after slice 7.** Slice 7, export and delete (S10), is built on `fm/overload-7`,
 in review against `develop`; it is the last of M1's slices. The slice boundaries and deferred work
