@@ -33,7 +33,6 @@ const swap = (size = 13) => icon('<path d="M7 4 3 8l4 4M3 8h14M17 20l4-4-4-4M21 
 const S = {
   screen: 'today',
   stack: [],
-  tabs: 'five',
   clock: 'midday',
   offline: false,
   shortfall: false,
@@ -69,7 +68,6 @@ const S = {
   phaseForm: null,
   routineForm: null,
   routineDay: 'training',
-  trainTab: 'routines',
   sheet: null,
   flash: '',
 };
@@ -190,12 +188,10 @@ function appBar({ title, subline, back = false }) {
     </div>${dataState()}</header>`;
 }
 
+// Five tabs, as approved at the review (Q1, 2026-10-16).
 function tabs(current) {
-  const list =
-    S.tabs === 'five'
-      ? [['today', 'Today'], ['food', 'Food'], ['progress', 'Progress'], ['routines', 'Routines'], ['exercises', 'Exercises']]
-      : [['today', 'Today'], ['food', 'Food'], ['progress', 'Progress'], ['training', 'Training']];
-  return `<nav class="tabs m2-tabs m2-tabs--${S.tabs}" aria-label="Sections">${list
+  const list = [['today', 'Today'], ['food', 'Food'], ['progress', 'Progress'], ['routines', 'Routines'], ['exercises', 'Exercises']];
+  return `<nav class="tabs m2-tabs" aria-label="Sections">${list
     .map(([id, label]) => `<button type="button" class="tabs__tab" data-act="tab" data-tab="${id}"${id === current ? ' aria-current="page"' : ''}>${label}</button>`)
     .join('')}</nav>`;
 }
@@ -967,7 +963,7 @@ function progressOther() {
     ${protoNote(`${what} is unchanged from M1 (docs/10 §9). Only the fourth section, Weight, is new. Open Weight to see it.`)}</main>`;
 }
 
-// ---------------------------------------------------------------- Routines and Exercises: five tabs or one (Q7)
+// ---------------------------------------------------------------- Routines and Exercises, unchanged from M1
 
 function trainingList(which) {
   if (which === 'routines')
@@ -976,16 +972,11 @@ function trainingList(which) {
 }
 
 function routinesScreen() {
-  return `<main class="m2">${appBar({ title: 'Routines' })}${tabs('routines')}${protoNote('Unchanged from M1. Shown to compare the five tabs with four.')}${trainingList('routines')}</main>`;
+  return `<main class="m2">${appBar({ title: 'Routines' })}${tabs('routines')}${protoNote('Unchanged from M1 (docs/10 §8.1).')}${trainingList('routines')}</main>`;
 }
 function exercisesScreen() {
-  return `<main class="m2">${appBar({ title: 'Exercises' })}${tabs('exercises')}${protoNote('Unchanged from M1. Shown to compare the five tabs with four.')}${trainingList('exercises')}</main>`;
+  return `<main class="m2">${appBar({ title: 'Exercises' })}${tabs('exercises')}${protoNote('Unchanged from M1 (docs/10 §8.1).')}${trainingList('exercises')}</main>`;
 }
-function trainingScreen() {
-  return `<main class="m2">${appBar({ title: 'Training', subline: S.trainTab === 'routines' ? 'ROUTINES' : 'EXERCISES' })}${tabs('training')}<div class="m2-seg-wrap">${segments([['routines', 'Routines'], ['exercises', 'Exercises']], S.trainTab, 'trainTab', 'm2-seg--sub')}</div>
-    ${protoNote('Routines and Exercises as two sections of one tab, as Progress holds History, Strength, Balance and Weight. Each is unchanged inside.')}${trainingList(S.trainTab)}</main>`;
-}
-
 function workoutStub() {
   return `<main class="m2">${appBar({ title: 'Push A', subline: '0:04 ELAPSED', back: true })}${protoNote('The workout screen is M1’s, unchanged (docs/prototype/ and docs/10 §1). Back returns to Today, where the workout’s place in the day shows it in progress.')}</main>`;
 }
@@ -1017,7 +1008,6 @@ const SCREENS = {
   progress: progressOther,
   routines: routinesScreen,
   exercises: exercisesScreen,
-  training: trainingScreen,
   workout: workoutStub,
 };
 
@@ -1087,10 +1077,6 @@ const ACT = {
   progTab({ id }) {
     S.progTab = id;
     root(id === 'weight' ? 'weight' : 'progress');
-  },
-  trainTab({ id }) {
-    S.trainTab = id;
-    render();
   },
   openMeal({ id }) {
     S.open = S.open === id ? 'none' : id;

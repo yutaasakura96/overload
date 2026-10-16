@@ -17,8 +17,10 @@
 questions. M2, meal plan + weight, is built in seven slices on milestone `M2` (`#76`–`#82`), weight
 first, during M1's 4 weeks of logging. M1's two unbuilt pieces, changing a live workout's exercises
 and starting an empty workout, are one close-out issue (`#74`) built alongside it, an exception to
-`02`'s milestone rule. A clickable prototype of every M2 screen (`#75`), reviewed in one sitting,
-comes before the screen slices; Today becomes the whole day, with a Food tab and weight in Progress.
+`02`'s milestone rule. A clickable prototype of every M2 screen (`#75`) was reviewed in one sitting
+and approved on 2026-10-16 with five tabs, every other question as drawn (`06`; `docs/prototype/m2/`);
+the screen slices are built to it. Today becomes the whole day, with a Food tab and weight in
+Progress.
 Building comes first: seeded or fake data is fine until the app is built. Owed, and Yuta's: the two
 weight hardware tests (`06`, 2026-09-19) and an Anthropic API key with a small balance for label
 reads. #69 follows the weight slice with its rules decided; #52 is M3, in S23's catalogue; #53 stays
@@ -338,7 +340,8 @@ Findings Yuta leaves as they are go under **Reviewed, kept** below, one line eac
 _(nothing — both group 6 items landed in `11` §2 on 2026-09-23.)_
 
 ### Reviewed, kept
-- `10` §7.3 scroll and sticky for screens 3–6: left open for each screen's M2 `/grill-with-docs` (2026-09-22).
+- ~~`10` §7.3 scroll and sticky for screens 3–6: left open for each screen's M2 `/grill-with-docs` (2026-09-22).~~
+  **Decided 2026-10-16** at the M2 prototype review (`06`, Q9).
 
 ### Phase 5 — done 2026-09-21
 Written: `CLAUDE.md`, `.claude/settings.json`, `.claude/hooks/pre-edit-branch-guard.sh`,
@@ -374,7 +377,7 @@ Contrast, error colour, overlay colours and the four extraction deviations. See 
 
 ### The four deliberate Phase 2 gaps — decided in review 2026-09-22
 Evidence tag, data-state slot and warm-up expand are decided in `10` §7 and drawn in 2b. Scroll and
-sticky are kept open for M2 (see *Reviewed, kept*).
+sticky were decided at the M2 prototype review on 2026-10-16 (`10` §7.3).
 
 ### Check when built — raised by Phase 4
 `docs/03` §11 lists the unverified items. The ones that bite first:

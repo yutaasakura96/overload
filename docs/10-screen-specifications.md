@@ -6,16 +6,18 @@ document does not restate them.
 scoped design pass (review 2b), which also added seven state artboards (table below).
 
 Each artboard is 390 × 844 and static. Screen 1's built scroll behavior is recorded in §7.3;
-the reviewed workout prototype is in `docs/prototype/`.
+the reviewed workout prototype is in `docs/prototype/`. Screens 3 to 6 were redrawn, and every M2
+screen no artboard drew was drawn, in the M2 prototype, approved 2026-10-16 (`docs/prototype/m2/`,
+`06`). For those screens the prototype supersedes the artboards below.
 
 | # | Screen | Artboard | PRD stories | Milestone |
 | --- | --- | --- | --- | --- |
 | 1 | Live workout | `Main.dc.html` | S1, S2, S3, S5, S6 | M1 |
 | 2 | Exercise progress | `Progress.dc.html` | S7, S20 | M1 / M3 |
-| 3 | Today's meal plan | `MealPlan.dc.html` | S16, S18 | M2 |
-| 4 | End-of-day check | `EndOfDay.dc.html` | S18 | M2 |
-| 5 | Prep plan + grocery | `PrepList.dc.html` | S13, S17 | M2 |
-| 6 | Weight + maintenance | `WeightTrend.dc.html` | S11, S18a | M2 |
+| 3 | Today, the whole day (was: today's meal plan) | `MealPlan.dc.html`, superseded by `docs/prototype/m2/` | S16, S18 | M2 |
+| 4 | End-of-day check | `EndOfDay.dc.html`, superseded | S18 | M2 |
+| 5 | The Food tab: prep, grocery, batches | `PrepList.dc.html`, superseded | S13, S17 | M2 |
+| 6 | Weight, in Progress | `WeightTrend.dc.html`, superseded | S11, S18a | M2 |
 
 State artboards, on the canvas page *States (review 2b)*:
 
@@ -256,188 +258,224 @@ Read seated. Four independently toggleable overlays are the reason the whole app
 
 ---
 
-## 3. Today's meal plan
+## 3. Today, the whole day (was: today's meal plan)
 
-**Longer than one viewport in reality.** The artboard shows five timeline entries plus the training
-marker and ends flush; a real day with six meals plus adjustments will exceed 844. Scroll behaviour
-is a gap — §7.3.
+**Approved 2026-10-16** (`06`). Today became the whole day (Q7 of 2026-10-16), and the screen was
+redrawn after the 2026-10-09 readability review in the M2 prototype (`docs/prototype/m2/`, its
+screens 01 to 08). The prototype is the reference for layout, wording, order and sizes; the artboard
+`MealPlan.dc.html` is superseded. What the redraw changed: totals and macros say in words where the
+day stands, a meal lists its foods as rows, and every action is a word.
 
 ### Structure
 
-| Block | Geometry | Content |
-| --- | --- | --- |
-| App bar | `18px 16px 13px` | `TUE 16 SEP`; right: the data-state slot. `TRAINING 18:30` was dropped on 2026-09-22 because the timeline already marks 18:30 |
-| Macro totals | `14px 16px 13px`, bottom `line/hairline`, 11px gap | Row 1: `2,480` 26px mono/500/`-0.01em` + `/ 2,500 kcal` 12px mono `text/quaternary`; right: `−0.8%` 11px mono `done` in a `3px 7px` box with a `line/done` border. Row 2: four macro meters — `PRO 182/180`, `CARB 276/280`, `FAT 76/78`, `FIB 36/35` |
-| Timeline | `14px 16px 0`, `42px 1fr` grid, 10px gap per entry, 11px bottom padding between entries | Five meal entries plus a training marker |
+| Block | Content |
+| --- | --- |
+| App bar | `TODAY` over `FRI 16 OCT · TRAINING DAY` (or `REST DAY`); right: the data-state slot. Sticks (§7.3) |
+| Tabs | Five: `Today`, `Food`, `Progress`, `Routines`, `Exercises` (Q1 of the M2 review). `Food` is new |
+| Day totals | `2,331` 26px mono/500 + `of 2,350 kcal planned` 13px; right: `−0.8%` in a 1px `line/done` box (`flag` beyond ±5%). Under it `Eaten so far: 521 kcal, 41 g protein`. Then four macro meters: label (`Protein`, `Carbs`, `Fat`, `Fiber`), `183 / 181` 13px mono, the 3px meter, and a word: `on target` (within 2 g), `24 g over` or `12 g to go`, uncoloured. Sticks under the app bar (§7.3) |
+| End-of-day card | From 60 minutes before bedtime, or the next morning for yesterday (`09` F11): `2` 26px mono in `flag`, `2 meals not confirmed yet` (or `Yesterday: 2 meals not confirmed`) and a line of context, on `surface/flag` with `line/flag`. Opens screen 4. Shown only while a meal is unconfirmed and the date was not left incomplete |
+| The day | `THE DAY` label, then the timeline (`05` §4.11, its time at 12px mono/500): each meal, and on a training day the workout at its training time |
+| Other workouts | `OR START ANOTHER WORKOUT` (rest day: `REST DAY. START A WORKOUT ANYWAY`): §8.2's start rows for the other routines |
+| Your plan | Two link rows: `Cut since 4 Sep · week 7` over `2,350 kcal, provisional · 181 g protein` (opens the goal phase, §8.6), and `Your day` over the meal counts (opens your day, §8.6). Q18 |
 
-### Timeline entries as drawn
+### Timeline entries
 
-| Time | State | Card |
-| --- | --- | --- |
-| 07:00 | Confirmed | `BREAKFAST` + check and `EATEN` in `done`; foods as one 10px mono string at 1.6 |
-| 11:30 | Active | `LUNCH` + `745 kcal · P 58`; four foods as name/quantity rows at 11px, `cooked` qualifiers in `text/quaternary`; three actions |
-| 16:30 | Planned | `PRE-TRAINING` + **evidence tag** `CARBS ↑ · MODERATE`; foods as one string |
-| 18:30 | Training | 9px `accent` square marker, `PUSH A` 10px `0.14em` `accent`, 24px tall row |
-| 19:45 | Planned | `POST-TRAINING` + `690 kcal · P 56` |
-| 21:30 | Planned | `EVENING` + `310 kcal · P 24`; last entry, rail line omitted |
+| Entry | Drawn as |
+| --- | --- |
+| A planned meal | A button card, `line/hairline`: the meal's name 15px, `467 kcal · 29 g protein` 12px mono `text/tertiary` on the right; the foods as rows, name 12px `text/tertiary` with `cooked` (and `approx.` without a batch) in `text/quaternary`, grams 12px mono. Tapping it opens it (Q6). A meal with more carbs for training carries the evidence tag `MORE CARBS · MODERATE` on its own row under the card, so the tag is never inside the card's button |
+| The next meal due | Open, as `05` §4.5's active card: name 15px, then the macro line and the tag, then the foods at 13px with grams 13px mono/500 `text/primary`, then the actions |
+| A confirmed meal | One row: name 15px `text/secondary` and, in `done` with the check, `Eaten as planned`, `Eaten, adjusted`, `Replaced` or `Skipped`. Opened, it says `Confirmed. Changing it replaces this, never adds to it.` over `Adjust` / `Replaced` / `Undo` |
+| The workout | A 9px `accent` square on the rail; a card with a 2px `accent` left edge: `WORKOUT` 10px `0.12em` `accent`, the routine's name 15px, `5 exercises · 17 sets · last done Mon 12 Oct`, and a 44px primary `Start` (Q5) |
+
+Meals are named by their place in the day: `Breakfast`, `Lunch`, `Before training`, `After training`,
+`Evening`; a rest day's are `Breakfast`, `Lunch`, `Afternoon`, `Dinner` (Q19).
+
+### Actions (S18)
+
+Four, on any meal (Q6, Q7): `Eaten as planned`, a 48px primary with the check, then `Adjust`,
+`Replaced` (with the swap icon) and `Skipped` as three equal secondaries. `Skipped` counts nothing for
+the meal and still lets the day be complete.
+
+- **Adjust** (its own screen, back to Today): one row per food, its name 15px over `cooked weight`,
+  `whole pieces` or `as weighed`, and a stepper (`−` / the amount 17px mono / `+`, 44px buttons) in
+  5 g steps or whole pieces. A food in a rotation group offers the others in it as swap chips. A
+  box shows the meal `578 → 593 kcal` and protein before and after. `Save as eaten, adjusted`, a
+  tertiary `Cancel`. Taking a food to 0 g is refused in place (`notice--error`, `REFUSED` and the
+  reason) and the meal stays as planned (`09` F11, a 422 on adjust).
+- **Replaced** (its own screen): `From my foods` / `By hand` segments. From the list: a search and
+  rows with `ADD 100 G`, the picked foods under `EATEN INSTEAD` with `Remove`. By hand: what it was,
+  and calories, protein, carbs and fat. One line says photo and text estimates arrive in M3.
+  `Save as replaced`.
 
 ### States and rules
 
-- **The plan is the log (S18).** A meal is confirmed, never typed. `EATEN AS PLANNED` is the primary
-  action on the active card; `ADJUST` edits quantities; `REPL` swaps the meal for something else.
-  An unconfirmed meal never counts as eaten.
-- **Only the next-due meal is active.** All others are confirmed or planned. The rail marker and the
-  card border carry the state together.
-- **Carb timing.** The pre-training meal's tag is the only recommendation surfaced on this screen,
-  and it is the reason the evidence-tag component exists — §7.1. Tapping it opens the sources sheet
-  (`MealPlan-Sources`).
-- **The tag's 44px hit area fits without a taller row.** The tag sits in the card's header row, 10px
-  below the card top. A 44px-tall area centred on it reaches 4.5px above the card, into the 11px gap
-  between entries, and about 7px down over the food string. Neither holds another target. This holds
-  only while a planned card's body is not itself tappable; if it becomes so, the tag's area wins inside
-  its bounds.
-- **Macro meters cap at 100%.** PRO reads 182 against 180 at full width. An over-target macro is not
-  visually distinguished from an on-target one. If overshoot must be visible, that is a new state.
-- **Food list empty** (PRD): the plan cannot be built; prompt to add a protein source first. No
-  empty artboard exists for this screen.
+- **The plan is the log (S18).** A meal is confirmed, never typed; an unconfirmed meal never counts.
+- **The macro meters cap at 100% and say the rest in words** (Q8). An over-target macro is not
+  coloured.
+- **The tag's 44px hit area** (§7.1) sits on its own row under a closed card and inside an open one,
+  so it never shares a target with the card.
+- **First run** (`09` F10): the first missing step is Today's empty state, `STEP 1 OF 4 · YOUR MEAL
+  PLAN` in `accent` mono over the step's title, one sentence and its primary (`Add your details`,
+  `Add a food`, `Set your goal`, `Set your day`), then the four steps listed with a check for each one
+  done. Starting a workout stays under it, as `START A WORKOUT`.
+- **While the plan is made:** skeleton blocks in `line/hairline` for the totals and four entries, and
+  `Making today's plan from your foods…`. The skeleton pulses only without reduced motion.
+- **Shortfall** (PRD edge case): a `notice--flag` under the totals, `PROTEIN 22 G SHORT`, a sentence
+  saying the foods cannot reach the target without going over calories and that nothing else was
+  padded, and a secondary `Add a protein source`. The meter says `22 g to go`.
+- **Offline** (`09` F11): the slot reads `OFFLINE · FROM 07:12`; a `notice--flag` says the plan is
+  as it was at that time and confirming waits for a connection. The actions are disabled, with one
+  line under them saying nothing is lost.
+- **Food list empty** opens the first-run step `Your foods`. A plan day older than 7 days is
+  read-only: the same cards without actions (`09` F11).
 
 ---
 
 ## 4. End-of-day check
 
-The sweep that keeps expenditure data honest. Read once, late, on a phone, with the intent of
-tapping one button.
-
-**Fits one viewport** with two unconfirmed meals. Three or more will push the pinned action block —
-this screen has the same scroll gap as 3, 5 and 6 (§7.3).
+**Approved 2026-10-16** (`06`), redrawn in the M2 prototype (`docs/prototype/m2/`, screens 09 and
+10). Read once, late, on a phone, with the intent of tapping one button. Reached from the
+end-of-day card on Today (§3).
 
 ### Structure
 
-| Block | Geometry | Content |
-| --- | --- | --- |
-| App bar | `18px 16px 13px` | `END OF DAY` over a subline, `TUE 16 SEP · 22:40` 11px mono `text/quaternary` (moved from the right on 2026-09-22); right: the data-state slot |
-| Headline | `22px 16px 0`, 10px gap | `2` 38px mono/500/`-0.02em`/0.9 in `flag` + `meals unconfirmed` 15px `text/primary` |
-| Consequence panel | `11px 12px`, 1px `line/flag`, `surface/flag`, 9px gap | 14px info icon in `flag`, then 11px/1.55 `text/secondary`: leaving these marks the day `incomplete` (the word in `flag`) and it will not count towards the expenditure estimate |
-| Unconfirmed list | `20px 16px 0`, 9px gap | `UNCONFIRMED` section label, then one card per meal: 1px `line/border`, `12px` padding, 9px gap — time 11px mono + title 11px `0.08em` `text/primary` + kcal right; foods as one mono string; three secondary actions |
-| If confirmed | `20px 16px 0`, 1px `line/hairline`, `13px` padding, 11px gap | `IF CONFIRMED` label; 2 × 1fr of `2,480 / 2,500` and `182 / 180` at 19px mono over 9px `KCAL` / `PROTEIN` labels; 1px divider; `Complete days this phase` with `11 → 12` |
-| Actions | `bottom: 20px`, 9px gap | `CONFIRM ALL AS PLANNED` 60px primary with a 20px check; `LEAVE DAY INCOMPLETE` 46px tertiary |
+| Block | Content |
+| --- | --- |
+| App bar | Back chevron, `END OF DAY` over `FRI 16 OCT · 22:05` (or `· YESTERDAY`); right: the data-state slot |
+| Headline | `2` 38px mono/500/`-0.02em`/0.9 in `flag` + `meals are not confirmed` 15px |
+| Consequence | `notice--flag` with the info icon: `If you leave them, the day is incomplete (the word in flag): it stays out of the maintenance check, and nothing is counted as eaten.` |
+| Not confirmed | `NOT CONFIRMED` label, then a card per meal (`line/border`, 12px padding): time 12px mono, name 15px, kcal 12px mono on the right; the foods as rows at 12px; four secondaries, `As planned` (with the check), `Adjust`, `Replaced`, `Skipped` |
+| If you confirm them all | `line/hairline` box: `2,331 / 2,350` `kcal eaten` and `183 / 181` `g protein` at 19px mono over 11px labels; a hairline; `Complete days this phase` with `30 → 31` |
+| Actions | Pinned to the foot over a `line/hairline` top edge on `surface/ground` (§7.3): `Confirm all as planned`, 60px primary with a 20px check; `Leave day incomplete`, 46px tertiary |
 
 ### States and rules
 
-- **The whole screen is a preview.** Nothing is written until an action is tapped. The "if confirmed"
-  block states the exact consequence, including the complete-day counter that feeds S18a and S21.
-- **Per-meal actions are all secondary** here, unlike screen 3, because the screen has one primary.
-- **Leaving the day incomplete is a real choice**, not a dismissal. It is offered at equal
-  prominence in tertiary weight, and the consequence is stated above the fold.
-- **Reached from a card on Today**: the evening card, 60 minutes before bedtime, or the next
-  morning's "Yesterday" card (`09` F11). **Leave day incomplete** writes nothing to the server; the
-  phone remembers the date so neither card asks again.
-- **Zero unconfirmed meals** is unreachable: a card shows only for a day with at least one
-  unconfirmed meal (decided 2026-09-22, `09` F11). No artboard needed.
+- **The whole screen is a preview.** Nothing is written until an action is tapped.
+- **Per-meal actions are all secondary** here, because the screen has one primary.
+- **Leaving the day incomplete is a real choice**, at equal width in tertiary weight, and asked once
+  (`09` F11). Back on Today a confirmation line says it won't ask again.
+- **Confirming the last meal one by one** turns the screen into its done state: `Every meal is
+  confirmed`, the day counted towards the maintenance check, and `Back to Today`.
+- **Zero unconfirmed meals** is never reached from a card (decided 2026-09-22, `09` F11).
 
 ---
 
-## 5. Prep plan + grocery
+## 5. The Food tab: prep plan, grocery list, batches
 
-**Longer than one viewport in reality.** The artboard shows five cook rows and a five-item grocery
-preview with `+ 4 more`; a real week has nine grocery items and may have more cook rows. §7.3.
+**Approved 2026-10-16** (`06`), redrawn in the M2 prototype (`docs/prototype/m2/`, screens 11 to
+14). The Food tab (Q7) holds four sections as `05` §4.8's segments under the tabs: `Prep`, `Grocery`,
+`Foods`, `Batches`, opening on `Prep` (Q3). `Foods` is §8.6.
 
-### Structure
+### Prep (S17, Q8)
 
-| Block | Geometry | Content |
-| --- | --- | --- |
-| App bar | `18px 16px 13px` | `WEEK OF 16 SEP`; right: the data-state slot. `7 DAYS` was dropped on 2026-09-22 because the title already says it |
-| Tabs | `14px 16px 0`, 2 × 1fr, 5px gap, 44px | `PREP PLAN` (active, 600) / `GROCERY` |
-| Yield source | Inset 16px, `10px 11px`, 1px `line/hairline` | `Using yields from your last batch` 10px `text/quaternary`; right: `9 SEP` 10px mono `text/quaternary` |
-| Column heads | `18px 16px 7px`, then 1px `line/hairline` inset | `COOK · RAW · COOKED` 9px `0.1em` `text/quaternary`; RAW and COOKED right-aligned; fourth column unlabelled |
-| Cook rows | `11px 16px`, grid `1fr 74px 74px 44px`, 8px gap, `line/row` bottom | Name 13px `text/primary` over a 9px mono yield note in `text/quaternary`; raw 15px mono `text/primary`; cooked 15px mono `text/quaternary`; 44 × 44 check cell |
-| Grocery preview | `22px 16px 0`, 10px gap | `GROCERY LIST` label + `9 ITEMS · RAW` 10px mono `text/quaternary`; then a card at `12px` padding, 8px gap: name 12px `text/secondary` / quantity 12px mono `text/tertiary`; `+ 4 more` 11px mono `accent` |
+| Block | Content |
+| --- | --- |
+| App bar | `FOOD` over `PREP FOR THE WEEK OF 19 OCT`; right: the data-state slot |
+| Lede | 13px: raw grams to cook, from next week's plan and each food's last weighed batch; shop and cook by the raw figure |
+| A cook day | One section per cook day (Q10). Its head sticks under the app bar while its rows pass (§7.3): `Sunday 18 Oct` 15px over `FIRST COOK DAY` (or `SECOND COOK DAY`) 10px `accent`, and the column heads `RAW · COOKED`. Then one 11px line on what it covers, `Covers Monday to Wednesday.`, and on the second day why it exists: `Chicken keeps 4 days, so Sunday's batch runs out after Wednesday.` |
+| Cook row | Grid `1fr 70px 56px 44px`: the food 15px over the yield note 11px and `For Mon 19 to Wed 21` 10px mono; raw 17px mono/500 with `g`; cooked 13px mono `text/quaternary` (`≈ 644` without a batch); the 44 × 44 check cell |
+| Not batch-cooked | A section saying which foods are cooked on the day by the meal's grams, and which days use another food from the group because a batch would not keep (rice keeps 3 days, so Wednesday and Sunday use potato) |
+| Grocery link | Link row `Grocery list` over `13 items, raw weight, both cook days summed` |
+| Footnote | `Next week's plan, made Fri 16 Oct` / `7 days · 2 cook days` (`05` §4.15, as a normal block) |
 
-### Cook rows as drawn
+**The yield note** is a sentence, one of four: `Yield 75% from your batch of 11 Oct. Keeps 4 days.`;
+the same over a week old, in `flag`, ending `Weigh this week's batch.` (`09` F12); with no batch,
+in `flag`, `No batch weighed yet, so cooked amounts are approximate (MEXT's boiled values).`; or a
+rotation rule. **Ticking a row** marks it cooked and opens `Record a batch` with that cook's raw
+grams filled in (Q12). Untick undoes it.
 
-| Food | Yield note | Raw | Cooked | Check |
-| --- | --- | --- | --- | --- |
-| Chicken breast | `yield 75%` | 1,400 | 1,050 | inert |
-| Rice | `yield 280%` | 900 | 2,520 | done |
-| Potato | `yield 90%` | 1,200 | 1,080 | inert |
-| Broccoli | `no batch — raw weight` | 1,050 | `—` | inert |
-| Okra | `rotates with broccoli` | 600 | `—` | inert |
+### Grocery (S17)
 
-### States and rules
+`FOOD` over `GROCERY FOR THE WEEK OF 19 OCT`. A count line, `13 of 13 left to buy` (the figure
+17px mono) with `RAW WEIGHT` on the right. Two sections, `FOR THE COOK DAYS` and `FOR THE WEEK`. Each
+item is one 60px button row: the 44 × 44 check cell, the food 15px over its note 10px mono (`1,400 +
+1,850 for two cooks`, `for the first cook`, `for the week`), and the quantity 17px mono/500, in `g`
+or `pieces`. A ticked row is `text/quaternary` and struck through. `Clear the ticks` appears once one
+is ticked. One list for the week (Q11); the ticks are kept on the phone only. Footnote: `Ticks stay
+on this phone` / `13 items`.
 
-- **Yields are per-batch and recorded (S13).** The yield note is the row's provenance and carries
-  three cases as drawn: a recorded percentage, no batch recorded, and a rotation rule. A fourth case
-  from the PRD — falling back to the database's cooked values, marked approximate — has no
-  treatment. It should reuse the yield-note slot.
-- **Cooked is `—`** where no conversion applies. The raw figure is the one to shop and cook by,
-  which is why raw is `text/primary` and cooked is `text/quaternary`.
-- **The check cell is a prep-progress toggle**, not a done-state display: it is the only interactive
-  element in the row.
-- **The grocery tab is undesigned.** Only the preview card exists. The grocery list itself needs a
-  screen — 9 items, raw quantities, presumably checkable, and it is what gets read in a shop.
-- **`+ 4 more` has no touch target** (`docs/05` §3.2). It either becomes a 44px row or the preview
-  card gets a footer control.
+### Batches (S13)
+
+`FOOD` over `BATCHES`. A lede saying what a batch is and that the newest is the one in use, then a
+primary `Record a batch`. A section per batch-cooked food, `CHICKEN BREAST, SKINLESS · KEEPS 4 DAYS`,
+with the flag line when its newest batch is over a week old or missing, and one row per batch,
+newest first: the food 13px with `CURRENT` (9px in a `line/accent` box) on the newest, `Sunday 11 Oct
+· 1,400 g raw → 1,050 g cooked` 11px mono, and the yield 15px mono on the right.
+
+**Record a batch** (its own screen, `RECORD A BATCH` over `WEIGHED AFTER COOKING` or `FROM THE PREP
+PLAN`): the food (a select of batch-cooked foods), `Cooked on` (a date, today by default), `Raw
+weight` and `Cooked weight` side by side, a yield box (`75%` 26px mono and `100 g cooked counts as
+133 g raw. Plans made from now on use it; past ones keep theirs.`), and `Keeps for … days` with the
+note `EVERY BATCH OF THIS FOOD` and a line on what it does to the plan. `Save batch`. Either weight
+at 0 is refused under the cooked field; cooked above raw is accepted (`09` F12).
 
 ---
 
-## 6. Weight + maintenance
+## 6. Weight, a section of Progress
 
-**Longer than one viewport in reality** once the phase footer and any history below it are real.
-§7.3.
+**Approved 2026-10-16** (`06`), redrawn in the M2 prototype (`docs/prototype/m2/`, screens 27 to
+32). Weight is the fourth section of Progress, after History, Strength and Balance (Q4; §9).
 
 ### Structure
 
-| Block | Geometry | Content |
-| --- | --- | --- |
-| App bar | `18px 16px 13px` | `WEIGHT`; right: 5px `done` dot + `SYNCED 06:41` 10px mono `text/quaternary` |
-| Headline | `18px 16px 0` | `TREND` label over `82.4` 42px mono + `kg`. Right: `−0.42` 13px mono `done` over `KG / WEEK` |
-| Chart | `18px 16px 0`, SVG 358 × 186 | 30 daily-weight discs in `line/control`, 7-point smoothed `accent` trend, solid latest point. Value labels on the left edge |
-| Legend | `4px 16px 0`, 18px gap | 14 × 2px `accent` swatch + `Smoothed trend`; 5px `line/control` dot + `Morning weigh-in`; when a fallback weight is in view, a 5px ring (1.5px `line/control`) + `Not a morning weigh-in` |
-| Maintenance check | `20px 16px 0`, active card, `14px` padding, 13px gap | See below |
-| Phase footer | `bottom: 18px` | `CUT` 10px `0.08em` `text/quaternary` + `target −0.5%/wk` 10px mono `text/quaternary`; right: `week 6` |
+| Block | Content |
+| --- | --- |
+| App bar | `PROGRESS` over `WEIGHT`; right: the data-state slot |
+| Sections | The tabs, then §9's sections with a fourth, `Weight` |
+| Headline | `TREND` label over `82.7` 42px mono + `kg`. Right: `−0.29 kg` 15px mono in `done` over `in the last week` |
+| Span | Two segments, `30 DAYS` and `SINCE 4 SEP` (the phase's start) (Q16) |
+| Chart | SVG 358 × 186: daily weights as discs in `line/control`, a weight that was not a morning weigh-in as a 1.5px ring, the trend in `accent` at 2px with its latest point solid; kg on the left edge, three dates along the foot |
+| Legend | `Trend`; `Morning weigh-in`; when a ring is in view, `Not a morning weigh-in` |
+| Weigh-in actions | Two side by side: secondary `Type a weight` (§8.6) and tertiary `Scale: set up` or `Scale: arrived 07:01` (§8.6) |
+| Maintenance check | See below |
+| Recent weigh-ins | The newest six: date, time 10px mono (`· not morning` when so), kg 15px mono, and `Scale` or, for a typed one, a tertiary `Delete` |
+| Phase | A link row, `Cut since 4 Sep · week 7` over `Target: lose 0.5% a week, about 0.4 kg`, which opens the goal phase. A normal row, not pinned (§7.3) |
+| Footnote | `The trend smooths each day's weight` / `10% a day` |
 
 ### Maintenance check card (S18a)
 
+An active card (`05` §4.5, 14px padding, 12px gap).
+
 | Row | Spec |
 | --- | --- |
-| Header | `MAINTENANCE CHECK` 10px `0.12em` `accent`; right: `LAST 14 DAYS · 12 COMPLETE` 10px mono `text/quaternary` |
-| Figures | `1fr 1fr`, 14px gap: `AVG INTAKE` → `2,450` 22px mono + `kcal`; `TREND CHANGE` → `−0.1` 22px mono + `kg/wk` |
-| Divider | 1px `line/hairline` |
-| Result | `Implied maintenance` 11px `text/secondary`; right: `≈ 2,500` 24px mono/500 in `accent` + `kcal` |
-| Caveat | `Read-only. Your targets are unchanged until you apply this.` 10px/1.55 `text/quaternary` |
-| Action | `APPLY TO TARGETS` 52px primary |
+| Header | `MAINTENANCE CHECK` 10px `0.12em` `accent`; right: `LAST 14 DAYS · 12 COMPLETE` 10px mono |
+| Figures | Two columns: `You ate, on average` over `2,339` 22px mono + `kcal a day`; `Your trend moved` over `−0.33` 22px mono + `kg a week` |
+| Result | Over a hairline: `So your maintenance is about` 12px, and `≈ 2,700` 24px mono in `accent` + `kcal` |
+| Caveat | `Read-only. Your targets stay at 2,350 kcal until you apply this.` 11px |
+| Action | `Apply to targets`, 52px primary |
+
+**Applying asks once** (Q17), in `05` §4.16's sheet: `Set your calories to 2,250 kcal a day?`, a
+sentence that it is the maintenance figure less the deficit for the phase's rate (0.5% a week of
+82.4 kg at 7,700 kcal per kg, about 450 kcal), that protein is unchanged, and that unconfirmed meals
+and the rest of the week are planned again; `Now 2,350 provisional → New 2,250 measured`; `Apply
+2,250 kcal` and `Not now`. Once applied the caveat says so and the action goes.
 
 ### States and rules
 
-- **Read-only until applied**, per the decision log. The caveat sits directly above the action, and
-  the `≈` on the result is part of the number, not decoration.
-- **The window** is always the trailing 14 calendar days, counting complete days only (S18a, the same
-  window as S21). The header says both: `LAST 14 DAYS · 12 COMPLETE`. The original `14 COMPLETE DAYS`
-  was replaced, because after the gate the window can hold fewer than 14 complete days.
-- **Under 14 complete days in total** (`WeightTrend-Countdown`): the card shows its header, with the
-  right side reading `9 OF 14 COMPLETE` (a count towards the gate, since there is no window yet), then
-  `5` at 22px mono with `complete days to go`, and one 10px line saying what a complete day is.
-  No figures, no result, no action. It is not replaced by the provisional estimate, which is a
-  calorie target (`CONTEXT.md`), not this check.
-- **Too little recent logging** (fewer than 5 of the newest 7 days complete, S18a;
-  `WeightTrend-LowLogging`): one 11px line in `flag` with the 14px info icon, above the caveat,
-  `Based on too little recent logging`. `APPLY TO TARGETS` stays enabled;
-  the estimate is read-only until applied either way.
-- **Fewer than 3 days of weight data** (PRD): raw points only, no trend line. The legend's first
-  entry and the headline rate both need a treatment for that case.
-- **Only daily weights are plotted** (`CONTEXT.md`): the first weigh-in before 10:00, or failing
-  that the day's first weigh-in. A fallback daily weight feeds the trend like any other and is
-  drawn as a hollow ring in `line/control` (1.5px stroke, r=2) instead of a filled disc, with a third
-  legend entry, `Not a morning weigh-in`. The day's other readings are stored but not drawn.
-- The countdown, the low-logging line, the ring and the third legend entry are drawn in the two
-  state artboards (2026-09-22).
+- **Read-only until applied.** The `≈` is part of the number.
+- **The window** is the trailing 14 calendar days, complete days only (S18a, S21).
+- **Under 14 complete days in total:** the header's right reads `9 OF 14 COMPLETE DAYS`, then `5`
+  22px mono with `complete days to go`, and one line saying what a complete day is. No figures, no
+  action.
+- **Too few weigh-ins** (`03` §8.3; `07` §5 `needs_weigh_in`): `Weigh in to see this` 15px, a line
+  saying it needs 3 weigh-ins in the window, one in its newest 7 days, how many there are and the
+  newest's date, and a secondary `Type a weight`.
+- **Too little recent logging** (fewer than 5 of the newest 7 days complete): one 11px line in
+  `flag` with the 14px info icon above the caveat, `Based on too little recent logging: 3 of the last
+  7 days are complete.` `Apply to targets` stays enabled.
+- **Fewer than 3 days of weight** (PRD): the headline becomes `LATEST WEIGH-IN` over the reading,
+  with `The trend starts from your third day of weigh-ins. 1 to go.` on the right; raw points only,
+  no span segments, and the legend has no `Trend`.
+- **No weigh-ins:** an empty state, `No weigh-ins yet`, a sentence on the two ways in, a primary
+  `Type a weight` and a secondary `Set up the scale`.
+- **Only daily weights are plotted** (`CONTEXT.md`); the day's other readings are stored, not drawn.
 
 ---
 
 ## 7. Gaps carried out of Phase 2
 
 Four things were left undesigned deliberately. Three were decided and drawn in the 2026-09-22 design
-pass. Scroll and sticky stay open for M2.
+pass. Scroll and sticky were decided for M2 at the prototype review of 2026-10-16 (§7.3).
 
 ### 7.1 The evidence tag — one component, three strengths, a route to the source
 
@@ -496,30 +534,28 @@ toggle; the expanded rows are for review. Editing one from here is left to M1's 
 
 ### 7.3 Scroll behaviour and sticky headers
 
-Screens 3, 4, 5 and 6 are single-viewport artboards of screens that are longer in reality. Screen 2
-fits and needs no scroll. Screen 1's artboard fits, but a real exercise can outgrow it.
-
 **Screen 1, decided 2026-10-03** (`06`). The document scrolls. The app bar sticks to the top on
 `surface/ground` and keeps its `line/hairline`: no shadow, no heavier line. The rest bar is fixed
 to the bottom over the safe-area inset, and the screen keeps matching padding under itself.
 Nothing else sticks. Completing a set scrolls the new active card into view (`nearest`, instant
 under reduced motion) and focuses it. `scroll-padding` keeps a focused control clear of both bars.
 
-What the artboards imply but do not specify:
+**The M2 screens, decided 2026-10-16** (`06`; Q9 of the M2 review), as the approved prototype
+(`docs/prototype/m2/`) behaves. Every screen's document scrolls and its app bar sticks, as on
+screen 1. Under it:
 
-| Screen | Should plausibly stick | Currently drawn as |
+| Screen | Sticks | Otherwise |
 | --- | --- | --- |
-| 3 | App bar + macro totals — the running total is the reason to look | Static block, 13px bottom border |
-| 4 | The action block is already pinned at `bottom: 20px`; it must stay pinned when the list scrolls behind it | Absolutely positioned |
-| 5 | App bar + tabs; column heads while the cook table scrolls | Static |
-| 6 | Nothing needs to stick; the footer is pinned at `bottom: 18px` and should become a normal bottom block instead | Absolutely positioned |
+| 3, Today | The day totals, directly under the app bar. The tabs scroll away | The end-of-day card, the timeline and the rest scroll |
+| 4, End of day | The two actions, pinned to the foot over a `line/hairline` top edge, with the list scrolling behind them and the screen padded to clear them | — |
+| 5, Prep | Each cook day's head (the day, which cook day, the column heads), under the app bar while its own rows pass; the next day's head replaces it | Grocery and Batches: only the app bar |
+| 6, Weight | Only the app bar | The phase footer is a normal row at the end, no longer pinned |
+| §8.6's screens | Only the app bar | Forms end in their action, not pinned |
 
-**Decisions needed:** which blocks stick, what a stuck block looks like (the artboards have no
-elevation, no shadow and one raised surface — `surface/raised` (`docs/05` §1.1), currently used only by the
-rest bar), and whether a stuck block keeps its hairline or gains the heavier `line/border`.
-
-**Where it is decided:** in each screen's `/grill-with-docs` during M2, when real content lengths
-exist. Reviewed and kept as open on 2026-09-22.
+**A stuck block looks like screen 1's bar:** `surface/ground` behind it, its own `line/hairline`, no
+shadow, no raised surface, no heavier border. *Rejected at the review:* stuck blocks on
+`surface/raised` with `line/border`; and only the app bar sticking, which lets Today's totals
+scroll away.
 
 ### 7.4 Data-state slot — decided and drawn
 
@@ -556,17 +592,20 @@ screens and states the PRD requires that Phase 2 did not draw.
   specified in §8.1, from slice 2; Today and the start itself in §8.2, from slice 3. The finish
   summary is the workout's page in History (§9, 2026-10-11). Start empty and changing a live
   workout's exercises are not designed yet; they are built alongside M2 (`06`, 2026-10-16).
-- **Food list management** (S12) and manual label entry.
-- **Goal phase and macro target setup** (S14), routine and meal count (S15).
-- **The grocery list proper** (S17) — only a preview card exists.
+- **Food list management** (S12) and manual label entry, goal phase and macro target setup (S14),
+  routine and meal count (S15), typed weight (S11) and the scale's setup. Drawn in the M2 prototype
+  and approved 2026-10-16: §8.6.
+- **The grocery list proper** (S17): drawn and approved 2026-10-16, §5.
 - **Invite administration and revoked access** (S9), export and delete (S10). Both built from
   the system: §8.4 and §8.5.
 - **Health connection setup and the health dashboard** (S19, S24).
 - **Photo and text meal estimation** (S22) and its confirm-before-save step.
 - **Plateau protocols** (S23) beyond the evidence tag itself.
-- **S18a and S21 with too few weigh-ins to estimate** (`03` §8.3): `Weigh in to see this` in place of the figure. Added by review 2026-09-22.
+- **S18a and S21 with too few weigh-ins to estimate** (`03` §8.3): `Weigh in to see this` in place of the figure. Added by review 2026-09-22; S18a's drawn 2026-10-16 (§6).
 - **Every error and failure state except the refused set.** The refused set is drawn
-  (`Main-Refused`, 2026-09-22). A rejected save elsewhere, revoked access and the discard confirm are not.
+  (`Main-Refused`, 2026-09-22). The M2 screens' error and empty states (a refused adjust, a shortfall,
+  offline, the barcode and label-read failures, no foods, no weigh-ins) are drawn in the M2 prototype
+  (§3 to §6, §8.6). Revoked access and the discard confirm are not.
 - **Full screen and the iPhone Focus guide** (`#51`). Not in the artboards: built from the reviewed
   prototype (`docs/prototype/`). Full screen is in §1, the guide in §8.3.
 
@@ -579,7 +618,9 @@ components, and pass the polish gate (`AGENTS.md`). Nothing here adds a token or
 
 - **Tabs.** `Today`, `Progress`, `Routines` and `Exercises`, `05` §4.8's tabs as links with
   `aria-current`, under the app bar of the four top-level screens. Since slice 3 `/` is Today and
-  the library is `/exercises` (`06`, 2026-10-03); `Progress` joined on 2026-10-11 (§9).
+  the library is `/exercises` (`06`, 2026-10-03); `Progress` joined on 2026-10-11 (§9). M2 adds
+  `Food` second, making five: `Today`, `Food`, `Progress`, `Routines`, `Exercises` (approved
+  2026-10-16, §3; merging Routines and Exercises was not taken).
 - **Back.** Screen 2's back chevron plus a 12px title, the chevron's 44px target reaching into the
   bar's padding. Its accessible name says where it goes, or `Back` on a screen reached from more
   than one place (screen 2 and a workout in History), where it returns to the one it came from.
@@ -661,9 +702,10 @@ filter, or use `New exercise`.
 
 No artboard exists, so these were designed in the build (issue #3) from `05`'s tokens and
 components, and pass the polish gate (`AGENTS.md`). Nothing here adds a token or an icon. In M2,
-Today becomes the whole day (`06`, 2026-10-16): the meal timeline with the workout marked in it, as
-screen 3 draws, and starting a workout. Prep, grocery, the food list and batches go in a new Food
-tab, and weight joins Progress as a section. The M2 prototype draws it before it is built.
+Today becomes the whole day (`06`, 2026-10-16): the meal timeline with the workout marked in it, and
+starting a workout. Prep, grocery, the food list and batches go in a new Food tab, and weight joins
+Progress as a section. The approved M2 prototype draws it (§3, `docs/prototype/m2/`): the start rows
+below stay, under the day, and the M1 blocks after them keep their order.
 
 **Today** (`/`). The app bar's title is `Today` over the date in the profile's time zone, with the
 data-state slot. Under the tabs, in order:
@@ -821,6 +863,100 @@ data-state slot. In order:
 
 ---
 
+### 8.6 The M2 screens no artboard drew (approved 2026-10-16)
+
+Drawn in the M2 prototype (`docs/prototype/m2/`, screens 15 to 26, 33 and 34) and approved at the
+review of 2026-10-16 (`06`). Each is built from it at 390pt, dark and light, from `05`'s tokens, and
+clears the polish gate. Every form below uses `05` §4.18's fields; a value saved per 100 g says so.
+
+**Foods** (`Food` tab, `Foods` section; S12). `FOOD` over `YOUR FOODS · 14`. A search field
+(`Name or brand`) that filters as you type, then a primary `Add a food`. One flat list by name (Q13):
+each 60px row has the food 15px (and its brand in `text/tertiary`), `105 kcal · 23.3 g protein · per
+100 g raw` 11px mono, and tags in 1px `line/field` boxes for its rotation group, `Batch-cooked ·
+keeps 4 days` and `Counted in pieces`; a forward chevron opens it. No match: `None of your foods match
+"xyz".` with `Add it as a new food`. Under the list a link row to `Rotation groups`, and the footnote
+`Values per 100 g of the state named` / `raw or cooked`. **Empty** (PRD): `No foods yet`, a sentence
+saying the plan is built only from them, starting with a protein source, and `Add a food`.
+
+**One food.** The app bar has the name over its source (`MEXT FOOD TABLE · 11220`). `PER 100 G, RAW`
+lists the five values (15px mono); `HOW THE PLAN USES IT` gives counted in, rotation group and
+batch-cooked; a batch-cooked food lists its batches (§5) and offers `Record a batch`. Then `Edit` and
+`Archive`, with one line: archiving takes it off the list and out of new plans, and past plans keep it.
+
+**Add a food** (`09` F9, in its order). A search field, `Search the MEXT food table`; from two
+characters, the matches as rows: the English name 14px, MEXT's own name 12px as MEXT prints it (`鶏
+若どり むね 皮なし 生`), and `105 kcal · 23.3 g protein per 100 g · MEXT 11220`. No match says so and
+points to the barcode. Under `NOT IN THE TABLE?`: `Scan a barcode`, `Photograph the label` and `Enter
+it by hand`, each with a line on what it is. A pick opens the check screen; one already on the list
+says so there.
+
+**Scan a barcode.** The camera in a 260px box with a 2px `accent` frame and `Hold the barcode inside
+the frame`. Found: straight to the check screen. Not found: `Not in Open Food Facts` with the code,
+`Photograph the label` (primary) and `Enter it by hand`. Already on the list: `Already on your
+list`, naming the food, with `Open` it. Open Food Facts down or limited: `notice--flag`, `Open Food
+Facts isn't answering`, with the same two ways on.
+
+**Photograph the label.** The camera with a square frame, `Fill the frame with the 栄養成分表示`, one
+line (flat, good light, every line in view; the photo is read once and not kept) and `Take the
+photo`. While it reads: `Reading the label. This takes a few seconds.` Unreadable: `Couldn't read the
+label`, `Retake` and `Enter it by hand`. The daily cap: `notice--flag`, `Photo reads used up for
+today`, and `Enter it by hand`. The reader down: `notice--flag`, `The reader isn't answering`, and
+`Continue by hand`, which opens the check screen with what was read.
+
+**Check before saving** (F9 step 5; a candidate is not a record). The app bar's subline names the
+source (`LABEL PHOTO · READ 12:14`, `BARCODE · OPEN FOOD FACTS`, `TYPED BY HAND`). After a label or
+barcode, an `AS PRINTED` box (Q14) gives the source's basis (`Per package (113 g)`) and its five
+values, `not printed` (or `not read`) in `flag` where it gave none. Then name, brand, and `PER 100 G,
+AS IT WILL BE SAVED` with `converted from the label`: calories, protein, carbs, fat and fiber, each
+editable. A value the source did not give is empty with `—` and a note, `NOT ON THE LABEL: LEFT
+EMPTY` or `NOT READ`; never guessed. Then `Raw` / `Cooked`, `One piece weighs` (empty: counted in
+grams), `A cooked batch keeps for` (empty: not batch-cooked) and the rotation group, then `Save to
+my foods` and a tertiary `Discard`. **By hand**, the same screen empty, with `The packet gives
+values` as four segments (`Per 100 g`, `Per piece`, `Per serving`, `Per package`) and, for any but
+the first, `That amount weighs`. A duplicate shows `Already on your list` with a link to it.
+
+**Rotation groups.** A lede (the planner varies the week within a group; Adjust offers the others as
+swaps), then a section per group, `STARCH · 2`, with its foods as 48px rows and a tertiary `Remove`,
+and `+ Add a food to starch`. A secondary `New group`.
+
+**About you** (F10 step 0). `ABOUT YOU` over `STEP 1 OF 4`: weight (from a weigh-in when there is
+one, noted so), height, birth date, and `Sex, for the formula only` as two segments. `Save`.
+
+**Goal phase and targets** (S14). `GOAL PHASE` over `CUT SINCE 4 SEP · WEEK 7` (or `STEP 3 OF 4`).
+`Cut` / `Maintain` / `Bulk` segments. Each field carries `DEFAULT`, `YOURS` or `PROVISIONAL` in its
+note, and under it what it means in plain figures: target rate `0.5` `% bodyweight` → `That is about
+0.4 kg a week at 82.4 kg.`; protein `2.2` `g per kg` → `181 g a day`, with why a cut starts at the
+top; fat `27` `% of calories` → `71 g a day. Carbohydrate is what remains: 247 g.`; calories `2350`
+`kcal a day`. Each default's source is an evidence tag in the line under it (`0.5–1% A WEEK ·
+MODERATE`, `1.6–2.2 G/KG · STRONG`). A `PROVISIONAL` box on `surface/flag` says the calories are a
+formula's estimate until the maintenance check is applied, and names the formula (chosen and cited
+in slice 4). Changing the type while a phase is open says `A cut is open` and that saving ends it
+today and keeps it; the action becomes `End the cut and start a bulk`.
+
+**Your day** (S15). `YOUR DAY` over `MEAL TIMES AND COUNT` (or `STEP 4 OF 4`). `Training day` /
+`Rest day` segments; training weekdays as seven 44px toggles; wake, bed, work start and end, and on
+a training day the training time. A `RECOMMENDED` active card: a stepper with the meal count, the
+times and names as a list, why (`181 g of protein over 5 meals is about 36 g each, 0.44 g per kg,
+inside 0.4–0.55.` and the meals around training), its evidence tag (`0.4–0.55 G/KG A MEAL ·
+MODERATE`), and under a hairline that meal count does not change fat loss at equal calories. A
+changed count adds `Yours: 4 meals. The recommendation was 5.` in `flag`. `Use these meals`.
+
+**Type a weight** (S11; a permanent option, `06` 2026-10-16). `Weight` in kg, then `Date` and `Time`,
+which start at now and can be changed (Q15). One line under them says how the time counts: before
+10:00 it is the morning's weigh-in unless the scale sent an earlier one; after, it counts only on a
+day with no reading before 10:00 and is marked as not a morning weigh-in. `Body fat`, optional.
+`Save weigh-in`. Out of range is refused under the field (`A weight between 20 and 300 kg.`). One
+line says a typed weigh-in can be deleted and one from the scale cannot.
+
+**Weight from the scale** (#77). A status box: `Weight from the scale` over `Never arrived` and
+`Finish the steps below, then weigh in`, or on `surface/done` `Arrived today 07:01` with the reading.
+Then numbered steps for the route the hardware tests pick (`06`, 2026-09-19); the prototype draws
+both. *Google Health:* link Fitbit in EufyLife; allow Overload to read weight (`Connect Google`, then
+`Connected as …`); weigh in. *Health Auto Export:* Premium; `Make a token`, shown once with `Copy`;
+the automation's settings (`overload-weight`, metric Weight, the ingest address in a mono box, the
+bearer header); weigh in and unlock, because iOS sends Health data only while unlocked. Then `Revoke
+the token`.
+
 ## 9. Progress: History and a workout's page (issue #48)
 
 No artboard exists. These were drawn first as a clickable prototype, reviewed and approved by the
@@ -828,9 +964,10 @@ owner on 2026-10-10 (`docs/prototype/`, `06` 2026-10-11), and built to match it 
 `05`'s tokens. Nothing here adds a token or an icon; the two new components are `05` §4.20 and
 §4.21.
 
-**The Progress tab** (`/progress`). The fourth tab of §8.1, second in the row. Under the tabs, 14px
-down, three sections as `05` §4.8's segments, links with `aria-current`: `History`
-(`/progress`), `Strength` (`/progress/strength`) and `Balance` (`/progress/balance`).
+**The Progress tab** (`/progress`). The fourth tab of §8.1, second in the row (third from M2, after
+`Food`). Under the tabs, 14px down, three sections as `05` §4.8's segments, links with
+`aria-current`: `History` (`/progress`), `Strength` (`/progress/strength`) and `Balance`
+(`/progress/balance`). M2 adds a fourth, `Weight` (§6).
 
 ### History (`/progress`)
 

@@ -10,6 +10,7 @@ layout, wording, order and sizes. It is not product code and nothing imports it.
 - `src/`: what the file was built from. `proto.css` holds the page around the phone and the new parts; the rest
   is the app's own stylesheet as it was that day.
 - `screens/`: screenshots of the screens as reviewed.
+- `m2/`: the prototype of every M2 screen, approved on 2026-10-16. It has its own README.
 
 All of it runs on generated sample data. A screen built from it uses the design-system tokens the
 prototype uses (`docs/05`) and still clears the polish gate.

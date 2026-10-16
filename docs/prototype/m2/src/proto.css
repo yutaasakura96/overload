@@ -320,6 +320,10 @@ body {
   margin: 0;
   padding-left: 18px;
 }
+.phone-caption span:last-child {
+  flex: none;
+  white-space: nowrap;
+}
 .phone-caption span:first-child {
   min-width: 0;
   overflow: hidden;
@@ -396,7 +400,7 @@ body {
 .m2 {
   padding-bottom: 40px;
 }
-.m2-tabs--five .tabs__tab {
+.m2-tabs .tabs__tab {
   min-width: 0;
   font-size: 11px;
 }
@@ -2160,4 +2164,8 @@ button.routines__row {
 .routines__text {
   display: grid;
   gap: 3px;
+}
+.question__drawn {
+  font-size: 12px;
+  color: var(--text-tertiary);
 }

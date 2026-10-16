@@ -3148,6 +3148,10 @@ body {
   margin: 0;
   padding-left: 18px;
 }
+.phone-caption span:last-child {
+  flex: none;
+  white-space: nowrap;
+}
 .phone-caption span:first-child {
   min-width: 0;
   overflow: hidden;
@@ -3224,7 +3228,7 @@ body {
 .m2 {
   padding-bottom: 40px;
 }
-.m2-tabs--five .tabs__tab {
+.m2-tabs .tabs__tab {
   min-width: 0;
   font-size: 11px;
 }
@@ -4989,6 +4993,10 @@ button.routines__row {
   display: grid;
   gap: 3px;
 }
+.question__drawn {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
 
     </style>
   </head>
@@ -5001,7 +5009,7 @@ button.routines__row {
 
       <div class="page__side side">
         <section>
-          <h1>Overload M2: every screen, to correct before building</h1>
+          <h1>Overload M2: every screen, reviewed and approved</h1>
           <p class="lede">
             The phone is clickable and behaves like the app, on generated sample data: a cut in its seventh week, a food
             list of fourteen foods, sixty days of weigh-ins. It draws M2 whole: Today as the whole day (Q7), the new Food tab,
@@ -5009,7 +5017,7 @@ button.routines__row {
             artboard drew, with their error and empty states. It uses the app's own stylesheet, so the look is today's.
           </p>
           <p class="lede">
-            Click a button and it works. Click anything else, a line of text or a figure, to leave a comment on it.
+            Click a button and it works. Approved by the owner on 2026-10-16 with five tabs; the M2 screens are built to it.
           </p>
         </section>
 
@@ -5026,27 +5034,13 @@ button.routines__row {
         </section>
 
         <section>
-          <h2>Open product questions</h2>
+          <h2>Product questions, answered</h2>
           <p class="lede" style="margin-bottom: 14px">
-            Nineteen choices the prototype had to draw one way. None is settled: each says what is drawn and offers the
-            alternatives. Q1, the tab count, is drawn both ways. To answer, choose an option, queue it, then press Send to
-            Agent. A question left unanswered keeps what is drawn.
+            Nineteen choices the prototype had to draw one way. The owner reviewed it in one sitting on 2026-10-16: five
+            tabs for Q1, and every other question kept as drawn. No M1 look-and-feel notes were raised. The answers are
+            recorded in <code>docs/06</code>.
           </p>
           <div class="questions" id="questions"></div>
-        </section>
-
-        <section>
-          <h2>M1 look-and-feel notes</h2>
-          <p class="lede" style="margin-bottom: 14px">
-            Anything about the M1 screens you want changed. Each note becomes a small issue (Q13 of 2026-10-16).
-          </p>
-          <form class="question m1-notes">
-            <label class="field__label" for="m1-where">Where</label>
-            <input id="m1-where" name="m1-where" class="question__note" placeholder="Workout screen, History, Today…" />
-            <label class="field__label" for="m1-note">What to change</label>
-            <textarea id="m1-note" name="m1-note" class="question__note" rows="3" placeholder="The note"></textarea>
-            <div class="question__foot"><button type="submit" class="button button--secondary">Queue this note</button><span class="question__status" role="status"></span></div>
-          </form>
         </section>
 
         <section>
@@ -5274,7 +5268,6 @@ const swap = (size = 13) => icon('<path d="M7 4 3 8l4 4M3 8h14M17 20l4-4-4-4M21 
 const S = {
   screen: 'today',
   stack: [],
-  tabs: 'five',
   clock: 'midday',
   offline: false,
   shortfall: false,
@@ -5310,7 +5303,6 @@ const S = {
   phaseForm: null,
   routineForm: null,
   routineDay: 'training',
-  trainTab: 'routines',
   sheet: null,
   flash: '',
 };
@@ -5431,12 +5423,10 @@ function appBar({ title, subline, back = false }) {
     </div>${dataState()}</header>`;
 }
 
+// Five tabs, as approved at the review (Q1, 2026-10-16).
 function tabs(current) {
-  const list =
-    S.tabs === 'five'
-      ? [['today', 'Today'], ['food', 'Food'], ['progress', 'Progress'], ['routines', 'Routines'], ['exercises', 'Exercises']]
-      : [['today', 'Today'], ['food', 'Food'], ['progress', 'Progress'], ['training', 'Training']];
-  return `<nav class="tabs m2-tabs m2-tabs--${S.tabs}" aria-label="Sections">${list
+  const list = [['today', 'Today'], ['food', 'Food'], ['progress', 'Progress'], ['routines', 'Routines'], ['exercises', 'Exercises']];
+  return `<nav class="tabs m2-tabs" aria-label="Sections">${list
     .map(([id, label]) => `<button type="button" class="tabs__tab" data-act="tab" data-tab="${id}"${id === current ? ' aria-current="page"' : ''}>${label}</button>`)
     .join('')}</nav>`;
 }
@@ -6208,7 +6198,7 @@ function progressOther() {
     ${protoNote(`${what} is unchanged from M1 (docs/10 §9). Only the fourth section, Weight, is new. Open Weight to see it.`)}</main>`;
 }
 
-// ---------------------------------------------------------------- Routines and Exercises: five tabs or one (Q7)
+// ---------------------------------------------------------------- Routines and Exercises, unchanged from M1
 
 function trainingList(which) {
   if (which === 'routines')
@@ -6217,16 +6207,11 @@ function trainingList(which) {
 }
 
 function routinesScreen() {
-  return `<main class="m2">${appBar({ title: 'Routines' })}${tabs('routines')}${protoNote('Unchanged from M1. Shown to compare the five tabs with four.')}${trainingList('routines')}</main>`;
+  return `<main class="m2">${appBar({ title: 'Routines' })}${tabs('routines')}${protoNote('Unchanged from M1 (docs/10 §8.1).')}${trainingList('routines')}</main>`;
 }
 function exercisesScreen() {
-  return `<main class="m2">${appBar({ title: 'Exercises' })}${tabs('exercises')}${protoNote('Unchanged from M1. Shown to compare the five tabs with four.')}${trainingList('exercises')}</main>`;
+  return `<main class="m2">${appBar({ title: 'Exercises' })}${tabs('exercises')}${protoNote('Unchanged from M1 (docs/10 §8.1).')}${trainingList('exercises')}</main>`;
 }
-function trainingScreen() {
-  return `<main class="m2">${appBar({ title: 'Training', subline: S.trainTab === 'routines' ? 'ROUTINES' : 'EXERCISES' })}${tabs('training')}<div class="m2-seg-wrap">${segments([['routines', 'Routines'], ['exercises', 'Exercises']], S.trainTab, 'trainTab', 'm2-seg--sub')}</div>
-    ${protoNote('Routines and Exercises as two sections of one tab, as Progress holds History, Strength, Balance and Weight. Each is unchanged inside.')}${trainingList(S.trainTab)}</main>`;
-}
-
 function workoutStub() {
   return `<main class="m2">${appBar({ title: 'Push A', subline: '0:04 ELAPSED', back: true })}${protoNote('The workout screen is M1’s, unchanged (docs/prototype/ and docs/10 §1). Back returns to Today, where the workout’s place in the day shows it in progress.')}</main>`;
 }
@@ -6258,7 +6243,6 @@ const SCREENS = {
   progress: progressOther,
   routines: routinesScreen,
   exercises: exercisesScreen,
-  training: trainingScreen,
   workout: workoutStub,
 };
 
@@ -6328,10 +6312,6 @@ const ACT = {
   progTab({ id }) {
     S.progTab = id;
     root(id === 'weight' ? 'weight' : 'progress');
-  },
-  trainTab({ id }) {
-    S.trainTab = id;
-    render();
   },
   openMeal({ id }) {
     S.open = S.open === id ? 'none' : id;
@@ -6721,8 +6701,7 @@ const MAP = [
   {
     group: 'Navigation (Q7)',
     items: [
-      { id: 'tabs5', issue: '#75 · Q7', name: 'Five tabs', on: () => false, jump: () => setTabs('five') },
-      { id: 'tabs4', issue: '#75 · Q7', name: 'Four tabs: Routines and Exercises as one', on: () => S.screen === 'training', jump: () => (setTabs('four'), root('training')) },
+      { id: 'tabs5', issue: '#75 · Q1', name: 'Five tabs: Routines and Exercises stay', on: () => S.screen === 'routines' || S.screen === 'exercises', jump: () => root('routines') },
     ],
   },
   {
@@ -6792,13 +6771,6 @@ const MAP = [
 ];
 const ALL = MAP.flatMap((g) => g.items);
 
-function setTabs(variant) {
-  S.tabs = variant;
-  document.getElementById('phone-scroll').scrollTop = 0;
-  if (variant === 'five' && S.screen === 'training') return root('routines');
-  if (variant === 'four' && (S.screen === 'routines' || S.screen === 'exercises')) return root('training');
-  render();
-}
 function setWeight(data, maint) {
   S.applied = null;
   S.weightData = data;
@@ -6809,22 +6781,12 @@ function setWeight(data, maint) {
 
 const NOTES = {
   tabs5: {
-    title: 'Five tabs (Q7)',
+    title: 'Five tabs (Q1, approved)',
     points: [
       'Today, <strong>Food</strong>, Progress, Routines, Exercises. Food is new; the other four are M1’s.',
-      'At 390pt the five labels share 358pt. Look at whether <strong>EXERCISES</strong> still reads at the app’s 11px.',
-      'Switch with <strong>Tab bar</strong> above the map to compare on any screen.',
+      'Approved at the review on 2026-10-16. Merging Routines and Exercises into one tab was the alternative, not taken.',
     ],
-    tryIt: 'Tap each tab. Then switch the tab bar to four and tap Training.',
-  },
-  tabs4: {
-    title: 'Four tabs: Routines and Exercises as one (Q7)',
-    points: [
-      'Routines and Exercises become two sections of one tab, as Progress holds its sections.',
-      'The tab is called <strong>Training</strong> here; its name is Q2.',
-      'Nothing inside either section changes.',
-    ],
-    tryIt: 'Switch between Routines and Exercises inside the tab, then go back to five tabs.',
+    tryIt: 'Tap each tab.',
   },
   today: {
     title: 'Today becomes the whole day (Q7, screen 3 redrawn)',
@@ -7020,7 +6982,6 @@ const SIDE_ACT = {
     document.documentElement.dataset.theme = id;
     renderSide();
   },
-  tabsVariant: ({ id }) => setTabs(id),
   clock({ id }) {
     freshToday(id);
   },
@@ -7034,22 +6995,20 @@ function controls() {
   const theme = document.documentElement.dataset.theme ?? 'dark';
   const seg = (items, value, act) => `<div class="ctl__seg" role="group">${items.map(([id, label]) => `<button type="button" class="ctl__btn" data-act="${act}" data-id="${id}" aria-pressed="${id === value}">${label}</button>`).join('')}</div>`;
   return `<div class="ctl"><span class="ctl__label">Theme</span>${seg([['dark', 'Dark'], ['light', 'Light']], theme, 'theme')}</div>
-    <div class="ctl"><span class="ctl__label">Tab bar</span>${seg([['five', 'Five tabs'], ['four', 'Four tabs']], S.tabs, 'tabsVariant')}</div>
     <div class="ctl"><span class="ctl__label">Clock</span>${seg([['midday', 'Fri 12:10'], ['evening', 'Fri 22:05'], ['morning', 'Sat 07:40']], S.clock, 'clock')}</div>`;
 }
 
 function renderSide() {
   const cur = current();
-  const tabNote = S.screen === 'routines' || S.screen === 'exercises' ? NOTES.tabs5 : null;
-  document.getElementById('phone-caption').textContent = cur ? `${cur.issue} · ${cur.name}` : tabNote ? '#75 · Five tabs' : 'M1, unchanged';
+  document.getElementById('phone-caption').textContent = cur ? `${cur.issue} · ${cur.name}` : 'M1, unchanged';
   document.getElementById('controls').innerHTML = controls();
   document.getElementById('map').innerHTML = MAP.map(
     (g) => `<div class="map-group"><h3 class="map-group__title">${g.group}</h3><div class="screen-map">${g.items
-      .map((m) => `<button type="button" class="screen-map__item" data-act="jump" data-id="${m.id}" aria-current="${m === cur || (m.id === 'tabs5' && tabNote !== null)}"><span class="screen-map__issue">${m.issue}</span><span class="screen-map__name">${m.name}</span></button>`)
+      .map((m) => `<button type="button" class="screen-map__item" data-act="jump" data-id="${m.id}" aria-current="${m === cur}"><span class="screen-map__issue">${m.issue}</span><span class="screen-map__name">${m.name}</span></button>`)
       .join('')}</div></div>`,
   ).join('');
-  const note = cur ? NOTES[cur.id] : (tabNote ?? FALLBACK);
-  const qs = QUESTIONS.filter((q) => q.screens.includes(cur?.id ?? (tabNote ? 'tabs5' : '')));
+  const note = cur ? NOTES[cur.id] : FALLBACK;
+  const qs = QUESTIONS.filter((q) => q.screens.includes(cur?.id ?? ''));
   document.getElementById('now').innerHTML = `<span class="now__label">On the phone now</span><h3>${note.title}</h3>
     <ul>${note.points.map((p) => `<li>${p}</li>`).join('')}</ul>
     ${qs.length ? `<p class="now__qs">Questions on this screen: ${qs.map((q) => `<a href="#q-${q.key}">${q.key}</a>`).join(', ')}</p>` : ''}
@@ -7060,19 +7019,20 @@ const QUESTIONS = [
   {
     key: 'Q1',
     issue: '#75 nav',
-    screens: ['tabs5', 'tabs4'],
+    screens: ['tabs5'],
     title: 'Five tabs, or Routines and Exercises merged into one',
-    drawn: 'Both are drawn; use <strong>Tab bar</strong> above to switch on any screen. Five: Today, Food, Progress, Routines, Exercises. Four: Today, Food, Progress, Training. At 390pt the five labels are tight at the app’s 11px (look at EXERCISES).',
-    options: ['Five tabs', 'Four tabs, Routines and Exercises merged'],
-    open: true,
+    drawn: 'Both were drawn. Five: Today, Food, Progress, Routines, Exercises. Four: Today, Food, Progress, Training.',
+    answer: '<strong>Five tabs.</strong> The merged tab is not built.',
+    options: ['Four tabs, with Routines and Exercises merged as Training'],
   },
   {
     key: 'Q2',
     issue: '#75 nav',
-    screens: ['tabs4'],
+    screens: [],
     title: 'If merged, what the tab is called',
     drawn: '<strong>Training</strong>, with Routines and Exercises as its two sections.',
-    options: ['Workouts', 'Lifts', 'Gym'],
+    answer: 'Kept as drawn, and moot: Q1 kept five tabs.',
+    options: [],
   },
   {
     key: 'Q3',
@@ -7212,60 +7172,16 @@ const QUESTIONS = [
   },
 ];
 
+// Answered at the review, 2026-10-16 (docs/06). Each shows what was drawn and the answer.
 function renderQuestions() {
   document.getElementById('questions').innerHTML = QUESTIONS.map(
-    (q) => `<form class="question" id="q-${q.key}" data-lavish-question="${q.key}" data-key="${q.key}">
+    (q) => `<div class="question" id="q-${q.key}">
       <div class="question__head"><span class="question__key">${q.key} · ${q.issue}</span><span class="question__title">${q.title}</span></div>
-      <p class="question__applied"><span class="question__applied-word">${q.open ? 'Both drawn, not chosen' : 'As drawn in the prototype'}</span>${q.drawn}</p>
-      <div class="question__options">
-        ${q.open ? '' : '<label class="question__option"><input type="radio" name="' + q.key + '" value="Keep it as drawn"> Keep it as drawn</label>'}
-        ${q.options.map((o) => `<label class="question__option"><input type="radio" name="${q.key}" value="${esc(o)}"> ${o}</label>`).join('')}
-        <label class="question__option"><input type="radio" name="${q.key}" value="Something else"> Something else (say what below)</label>
-      </div>
-      <textarea class="question__note" name="${q.key}-note" rows="1" placeholder="Optional note" aria-label="Note for ${q.key}"></textarea>
-      <div class="question__foot"><button type="submit" class="button button--secondary">Queue this answer</button><span class="question__status" role="status"></span></div></form>`,
+      <p class="question__applied"><span class="question__applied-word">Approved 2026-10-16</span>${q.answer ?? `Kept as drawn. ${q.drawn}`}</p>
+      ${q.answer ? `<p class="question__drawn">${q.drawn}</p>` : ''}
+      ${q.options.length ? `<p class="question__drawn">Not taken: ${q.options.join('; ')}.</p>` : ''}</div>`,
   ).join('');
 }
-
-function queue(form, key, text, short, data) {
-  const status = form.querySelector('.question__status');
-  if (window.lavish?.queuePrompt === undefined) {
-    status.textContent = 'Not sent: open this page through Lavish to queue answers.';
-    return;
-  }
-  window.lavish.queuePrompt(text, { tag: key.startsWith('M1') ? 'm1-note' : 'question-answer', text: short, element: form, queueKey: key, data });
-  status.textContent = `Queued: ${short}. Press Send to Agent when you are done.`;
-}
-
-document.addEventListener('submit', (event) => {
-  const form = event.target.closest('form.question, form.m1-notes');
-  if (form === null) return;
-  event.preventDefault();
-  const data = new FormData(form);
-  const status = form.querySelector('.question__status');
-  if (form.classList.contains('m1-notes')) {
-    const note = String(data.get('m1-note') ?? '').trim();
-    const where = String(data.get('m1-where') ?? '').trim();
-    if (note === '') {
-      status.textContent = 'Write the note first.';
-      return;
-    }
-    const key = `M1-${Date.now()}`;
-    queue(form, key, `M1 look-and-feel note${where ? ` (${where})` : ''}: ${note}`, `M1 note${where ? ` on ${where}` : ''}`, { where, note });
-    form.reset();
-    return;
-  }
-  const key = form.dataset.key;
-  const q = QUESTIONS.find((item) => item.key === key);
-  const answer = data.get(key);
-  const note = String(data.get(`${key}-note`) ?? '').trim();
-  if (answer === null && note === '') {
-    status.textContent = 'Choose an answer or write a note first.';
-    return;
-  }
-  const text = `${key} (${q.issue}) ${q.title}: ${answer ?? 'note only'}${note === '' ? '' : `. Note: ${note}`}`;
-  queue(form, key, text, `${key}: ${answer ?? 'note'}`, { question: key, answer, note });
-});
 
 renderQuestions();
 render(true);

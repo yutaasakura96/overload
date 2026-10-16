@@ -3746,3 +3746,54 @@ lifts in kg or lb was decided on 2026-09-23 and is built.
 prepaid balance for label reads (2026-09-19).
 
 **Changed:** `00`, `01`, `02`, `04`, `06`, `09`, `10`, `CONTEXT.md`.
+
+### 2026-10-16 — The M2 prototype reviewed: five tabs, everything else as drawn
+
+Issue `#75`. A clickable prototype of every M2 screen was built as Q6 of the same day asked, on
+generated sample data, from the app's stylesheet and `05`'s tokens, and the owner reviewed it in one
+sitting on 2026-10-16. It is committed under `docs/prototype/m2/` with screenshots of the approved
+screens, and is the reference for how the M2 screens look, read and behave, as `docs/prototype/` is
+for `#47` to `#51`. It redraws screens 3 to 6 after the 2026-10-09 readability review (figures and
+states said in words, foods as rows, actions as words) and draws every screen `10` §8 listed as
+undrawn, with their error and empty states. No M1 look-and-feel notes were raised.
+
+The prototype raised nineteen questions. The owner chose five tabs for Q1 and kept every other one as
+drawn:
+
+- **Q1. Five tabs:** `Today`, `Food`, `Progress`, `Routines`, `Exercises`. *Rejected:* four, with
+  Routines and Exercises merged into one tab. Q2, that tab's name, falls with it.
+- **Q3.** The Food tab has four sections, `Prep`, `Grocery`, `Foods`, `Batches`, and opens on Prep.
+- **Q4.** Weight is the fourth section of Progress, after Balance.
+- **Q5.** The day's routine is started from its place in Today's timeline; the other routines are
+  listed under the day. *Rejected:* a Start section above the day.
+- **Q6.** Any meal can be confirmed from Today: the next one due is open, the others open on a tap.
+- **Q7.** `Skipped` is a fourth action beside `Eaten as planned`, `Adjust` and `Replaced`.
+- **Q8.** The macro meters say `on target`, `24 g over` or `12 g to go`, uncoloured.
+- **Q9.** What sticks while scrolling (`10` §7.3, open since 2026-09-22): every app bar; Today's day
+  totals; each prep cook day's head; the end-of-day check's two actions at the foot. Weight's phase
+  footer becomes a normal row. A stuck block looks like screen 1's bar: the ground, its hairline, no
+  shadow.
+- **Q10.** The prep plan is grouped by cook day, each saying what it covers and why a second exists.
+- **Q11.** One grocery list for the week, both cooks summed, ticks kept on the phone.
+- **Q12.** Ticking a prep row opens `Record a batch` with its raw grams filled in.
+- **Q13.** The food list is one list by name, each row tagged with its rotation group.
+- **Q14.** After a label read or barcode, an `As printed` box gives the source's basis and values
+  above the per-100 g fields that are saved.
+- **Q15.** A typed weight's date and time start at now and can be changed.
+- **Q16.** The weight chart has two spans: 30 days, and since the phase began.
+- **Q17.** On a cut, `Apply to targets` sets calories to the maintenance estimate less the deficit for
+  the phase's rate (rate × bodyweight × 7,700 ÷ 7), and asks once, showing both numbers and that
+  unconfirmed meals are planned again. *Rejected:* setting the maintenance figure itself; applying
+  without asking.
+- **Q18.** The goal phase and the day routine open from `Your plan` at the foot of Today, and the
+  phase also from Weight.
+- **Q19.** Meals are named by their place in the day (`Breakfast`, `Lunch`, `Before training`,
+  `After training`, `Evening`), not numbered.
+
+Not settled by the review, and still owed: the automatic weight route, which the hardware tests pick
+(2026-09-19; the prototype draws both setups); the provisional calorie formula, chosen and cited in
+slice 4; what `Apply to targets` sets on a bulk or a maintenance phase, settled in slice 7. The
+screens' new type sizes and components enter `05` as each slice builds them, as `#47` did.
+
+**Changed:** `00`, `06`, `09` F13, `10` §3 to §6, §7.3, §8, §8.1, §8.2, §8.6 (new), §9,
+`docs/prototype/m2/`.

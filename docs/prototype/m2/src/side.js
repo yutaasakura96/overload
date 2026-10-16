@@ -18,8 +18,7 @@ const MAP = [
   {
     group: 'Navigation (Q7)',
     items: [
-      { id: 'tabs5', issue: '#75 · Q7', name: 'Five tabs', on: () => false, jump: () => setTabs('five') },
-      { id: 'tabs4', issue: '#75 · Q7', name: 'Four tabs: Routines and Exercises as one', on: () => S.screen === 'training', jump: () => (setTabs('four'), root('training')) },
+      { id: 'tabs5', issue: '#75 · Q1', name: 'Five tabs: Routines and Exercises stay', on: () => S.screen === 'routines' || S.screen === 'exercises', jump: () => root('routines') },
     ],
   },
   {
@@ -89,13 +88,6 @@ const MAP = [
 ];
 const ALL = MAP.flatMap((g) => g.items);
 
-function setTabs(variant) {
-  S.tabs = variant;
-  document.getElementById('phone-scroll').scrollTop = 0;
-  if (variant === 'five' && S.screen === 'training') return root('routines');
-  if (variant === 'four' && (S.screen === 'routines' || S.screen === 'exercises')) return root('training');
-  render();
-}
 function setWeight(data, maint) {
   S.applied = null;
   S.weightData = data;
@@ -106,22 +98,12 @@ function setWeight(data, maint) {
 
 const NOTES = {
   tabs5: {
-    title: 'Five tabs (Q7)',
+    title: 'Five tabs (Q1, approved)',
     points: [
       'Today, <strong>Food</strong>, Progress, Routines, Exercises. Food is new; the other four are M1’s.',
-      'At 390pt the five labels share 358pt. Look at whether <strong>EXERCISES</strong> still reads at the app’s 11px.',
-      'Switch with <strong>Tab bar</strong> above the map to compare on any screen.',
+      'Approved at the review on 2026-10-16. Merging Routines and Exercises into one tab was the alternative, not taken.',
     ],
-    tryIt: 'Tap each tab. Then switch the tab bar to four and tap Training.',
-  },
-  tabs4: {
-    title: 'Four tabs: Routines and Exercises as one (Q7)',
-    points: [
-      'Routines and Exercises become two sections of one tab, as Progress holds its sections.',
-      'The tab is called <strong>Training</strong> here; its name is Q2.',
-      'Nothing inside either section changes.',
-    ],
-    tryIt: 'Switch between Routines and Exercises inside the tab, then go back to five tabs.',
+    tryIt: 'Tap each tab.',
   },
   today: {
     title: 'Today becomes the whole day (Q7, screen 3 redrawn)',
@@ -317,7 +299,6 @@ const SIDE_ACT = {
     document.documentElement.dataset.theme = id;
     renderSide();
   },
-  tabsVariant: ({ id }) => setTabs(id),
   clock({ id }) {
     freshToday(id);
   },
@@ -331,22 +312,20 @@ function controls() {
   const theme = document.documentElement.dataset.theme ?? 'dark';
   const seg = (items, value, act) => `<div class="ctl__seg" role="group">${items.map(([id, label]) => `<button type="button" class="ctl__btn" data-act="${act}" data-id="${id}" aria-pressed="${id === value}">${label}</button>`).join('')}</div>`;
   return `<div class="ctl"><span class="ctl__label">Theme</span>${seg([['dark', 'Dark'], ['light', 'Light']], theme, 'theme')}</div>
-    <div class="ctl"><span class="ctl__label">Tab bar</span>${seg([['five', 'Five tabs'], ['four', 'Four tabs']], S.tabs, 'tabsVariant')}</div>
     <div class="ctl"><span class="ctl__label">Clock</span>${seg([['midday', 'Fri 12:10'], ['evening', 'Fri 22:05'], ['morning', 'Sat 07:40']], S.clock, 'clock')}</div>`;
 }
 
 function renderSide() {
   const cur = current();
-  const tabNote = S.screen === 'routines' || S.screen === 'exercises' ? NOTES.tabs5 : null;
-  document.getElementById('phone-caption').textContent = cur ? `${cur.issue} · ${cur.name}` : tabNote ? '#75 · Five tabs' : 'M1, unchanged';
+  document.getElementById('phone-caption').textContent = cur ? `${cur.issue} · ${cur.name}` : 'M1, unchanged';
   document.getElementById('controls').innerHTML = controls();
   document.getElementById('map').innerHTML = MAP.map(
     (g) => `<div class="map-group"><h3 class="map-group__title">${g.group}</h3><div class="screen-map">${g.items
-      .map((m) => `<button type="button" class="screen-map__item" data-act="jump" data-id="${m.id}" aria-current="${m === cur || (m.id === 'tabs5' && tabNote !== null)}"><span class="screen-map__issue">${m.issue}</span><span class="screen-map__name">${m.name}</span></button>`)
+      .map((m) => `<button type="button" class="screen-map__item" data-act="jump" data-id="${m.id}" aria-current="${m === cur}"><span class="screen-map__issue">${m.issue}</span><span class="screen-map__name">${m.name}</span></button>`)
       .join('')}</div></div>`,
   ).join('');
-  const note = cur ? NOTES[cur.id] : (tabNote ?? FALLBACK);
-  const qs = QUESTIONS.filter((q) => q.screens.includes(cur?.id ?? (tabNote ? 'tabs5' : '')));
+  const note = cur ? NOTES[cur.id] : FALLBACK;
+  const qs = QUESTIONS.filter((q) => q.screens.includes(cur?.id ?? ''));
   document.getElementById('now').innerHTML = `<span class="now__label">On the phone now</span><h3>${note.title}</h3>
     <ul>${note.points.map((p) => `<li>${p}</li>`).join('')}</ul>
     ${qs.length ? `<p class="now__qs">Questions on this screen: ${qs.map((q) => `<a href="#q-${q.key}">${q.key}</a>`).join(', ')}</p>` : ''}
@@ -357,19 +336,20 @@ const QUESTIONS = [
   {
     key: 'Q1',
     issue: '#75 nav',
-    screens: ['tabs5', 'tabs4'],
+    screens: ['tabs5'],
     title: 'Five tabs, or Routines and Exercises merged into one',
-    drawn: 'Both are drawn; use <strong>Tab bar</strong> above to switch on any screen. Five: Today, Food, Progress, Routines, Exercises. Four: Today, Food, Progress, Training. At 390pt the five labels are tight at the app’s 11px (look at EXERCISES).',
-    options: ['Five tabs', 'Four tabs, Routines and Exercises merged'],
-    open: true,
+    drawn: 'Both were drawn. Five: Today, Food, Progress, Routines, Exercises. Four: Today, Food, Progress, Training.',
+    answer: '<strong>Five tabs.</strong> The merged tab is not built.',
+    options: ['Four tabs, with Routines and Exercises merged as Training'],
   },
   {
     key: 'Q2',
     issue: '#75 nav',
-    screens: ['tabs4'],
+    screens: [],
     title: 'If merged, what the tab is called',
     drawn: '<strong>Training</strong>, with Routines and Exercises as its two sections.',
-    options: ['Workouts', 'Lifts', 'Gym'],
+    answer: 'Kept as drawn, and moot: Q1 kept five tabs.',
+    options: [],
   },
   {
     key: 'Q3',
@@ -509,60 +489,16 @@ const QUESTIONS = [
   },
 ];
 
+// Answered at the review, 2026-10-16 (docs/06). Each shows what was drawn and the answer.
 function renderQuestions() {
   document.getElementById('questions').innerHTML = QUESTIONS.map(
-    (q) => `<form class="question" id="q-${q.key}" data-lavish-question="${q.key}" data-key="${q.key}">
+    (q) => `<div class="question" id="q-${q.key}">
       <div class="question__head"><span class="question__key">${q.key} · ${q.issue}</span><span class="question__title">${q.title}</span></div>
-      <p class="question__applied"><span class="question__applied-word">${q.open ? 'Both drawn, not chosen' : 'As drawn in the prototype'}</span>${q.drawn}</p>
-      <div class="question__options">
-        ${q.open ? '' : '<label class="question__option"><input type="radio" name="' + q.key + '" value="Keep it as drawn"> Keep it as drawn</label>'}
-        ${q.options.map((o) => `<label class="question__option"><input type="radio" name="${q.key}" value="${esc(o)}"> ${o}</label>`).join('')}
-        <label class="question__option"><input type="radio" name="${q.key}" value="Something else"> Something else (say what below)</label>
-      </div>
-      <textarea class="question__note" name="${q.key}-note" rows="1" placeholder="Optional note" aria-label="Note for ${q.key}"></textarea>
-      <div class="question__foot"><button type="submit" class="button button--secondary">Queue this answer</button><span class="question__status" role="status"></span></div></form>`,
+      <p class="question__applied"><span class="question__applied-word">Approved 2026-10-16</span>${q.answer ?? `Kept as drawn. ${q.drawn}`}</p>
+      ${q.answer ? `<p class="question__drawn">${q.drawn}</p>` : ''}
+      ${q.options.length ? `<p class="question__drawn">Not taken: ${q.options.join('; ')}.</p>` : ''}</div>`,
   ).join('');
 }
-
-function queue(form, key, text, short, data) {
-  const status = form.querySelector('.question__status');
-  if (window.lavish?.queuePrompt === undefined) {
-    status.textContent = 'Not sent: open this page through Lavish to queue answers.';
-    return;
-  }
-  window.lavish.queuePrompt(text, { tag: key.startsWith('M1') ? 'm1-note' : 'question-answer', text: short, element: form, queueKey: key, data });
-  status.textContent = `Queued: ${short}. Press Send to Agent when you are done.`;
-}
-
-document.addEventListener('submit', (event) => {
-  const form = event.target.closest('form.question, form.m1-notes');
-  if (form === null) return;
-  event.preventDefault();
-  const data = new FormData(form);
-  const status = form.querySelector('.question__status');
-  if (form.classList.contains('m1-notes')) {
-    const note = String(data.get('m1-note') ?? '').trim();
-    const where = String(data.get('m1-where') ?? '').trim();
-    if (note === '') {
-      status.textContent = 'Write the note first.';
-      return;
-    }
-    const key = `M1-${Date.now()}`;
-    queue(form, key, `M1 look-and-feel note${where ? ` (${where})` : ''}: ${note}`, `M1 note${where ? ` on ${where}` : ''}`, { where, note });
-    form.reset();
-    return;
-  }
-  const key = form.dataset.key;
-  const q = QUESTIONS.find((item) => item.key === key);
-  const answer = data.get(key);
-  const note = String(data.get(`${key}-note`) ?? '').trim();
-  if (answer === null && note === '') {
-    status.textContent = 'Choose an answer or write a note first.';
-    return;
-  }
-  const text = `${key} (${q.issue}) ${q.title}: ${answer ?? 'note only'}${note === '' ? '' : `. Note: ${note}`}`;
-  queue(form, key, text, `${key}: ${answer ?? 'note'}`, { question: key, answer, note });
-});
 
 renderQuestions();
 render(true);
