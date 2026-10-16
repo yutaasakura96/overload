@@ -145,6 +145,17 @@ describe('weekChangeKg', () => {
     expect(weekChangeKg(trended, '2026-10-07')).toBeNull();
     expect(weekChangeKg(weightTrend([day('2026-10-01', 80)]).days, '2026-10-30')).toBeNull();
   });
+
+  it('is null when the latest weighed day is on or before the week boundary', () => {
+    const stale = weightTrend([
+      day('2026-10-01', 84),
+      day('2026-10-02', 83),
+      day('2026-10-03', 82),
+    ]);
+    expect(weekChangeKg(stale.days, '2026-10-16')).toBeNull();
+    expect(weekChangeKg(stale.days, '2026-10-10')).toBeNull(); // 3 Oct is the boundary itself
+    expect(weekChangeKg(stale.days, '2026-10-09')).not.toBeNull();
+  });
 });
 
 describe('weightSection', () => {

@@ -537,7 +537,12 @@ export async function refreshLastTime(): Promise<void> {
 export const currentWeightUnit = () =>
   queryClient.getQueryData<Me>(ME_KEY)?.profile?.weightUnit ?? 'kg';
 
-/** After the profile is saved: /api/me carries it, so the cached answer takes the new one. */
+/**
+ * After the profile is saved: /api/me carries it, so the cached answer takes the new one. The
+ * weigh-ins' days and trend are counted in its time zone, so a changed zone refetches them.
+ */
 export function setProfile(profile: NonNullable<Me['profile']>) {
+  const zoneChanged = queryClient.getQueryData<Me>(ME_KEY)?.profile?.timezone !== profile.timezone;
   queryClient.setQueryData<Me>(ME_KEY, (me) => (me === undefined ? me : { ...me, profile }));
+  if (zoneChanged) void refreshWeighIns();
 }
