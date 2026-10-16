@@ -1465,7 +1465,6 @@ test.describe('sign-out with a workout on the device', () => {
 
   test('offline Upload now keeps the pending warning visible', async ({ page, context }) => {
     const name = `Offline upload ${Date.now()}`;
-    await page.clock.install();
     await saveProfile(page);
     await createRoutine(page, name, ['Chin-Up']);
     await page.getByRole('button', { name: 'Create routine' }).click();
@@ -1482,7 +1481,6 @@ test.describe('sign-out with a workout on the device', () => {
     await completeSet(page, { reps: '6' });
     await finish(page);
     await toToday(page);
-    await page.clock.pauseAt(Date.now() + 1000);
     await expect(async () => {
       await page.getByRole('button', { name: 'Sign out' }).click();
       await expect(page.getByText('1 set not uploaded yet.')).toBeVisible({ timeout: 1000 });
