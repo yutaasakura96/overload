@@ -102,11 +102,15 @@ export function weightTrend(days: DailyWeight[]): { days: TrendDay[]; trendAvail
 
 /**
  * How far the trend moved in the last week: the latest day's trend less the trend at the latest
- * weighed day on or before a week before `today`. Null without a trend or without that earlier day.
+ * weighed day on or before a week before `today`. Null without a trend, without that earlier day,
+ * or when the latest weighed day is itself on or before that boundary.
  */
 export function weekChangeKg(days: TrendDay[], today: string): number | null {
-  const latest = days.at(-1)?.trendKg;
+  const last = days.at(-1);
+  const latest = last?.trendKg;
   const weekAgo = addDays(today, -7);
+  // A latest weigh-in at or before the boundary is not this week's movement.
+  if (last === undefined || last.date <= weekAgo) return null;
   const before = days.filter((each) => each.date <= weekAgo).at(-1)?.trendKg;
   if (latest === undefined || latest === null || before === undefined || before === null) {
     return null;

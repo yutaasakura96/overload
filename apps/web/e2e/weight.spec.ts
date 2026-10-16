@@ -1,6 +1,6 @@
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { WEB_ORIGIN } from '../playwright.config';
-import { apiFixture } from './fixture';
+import { apiFixture, chooseTimezone } from './fixture';
 
 type Cookies = Parameters<BrowserContext['addCookies']>[0];
 
@@ -187,4 +187,43 @@ test('shows weights in pounds when the profile says so', async ({ page }) => {
   // 82.4 kg is 181.66 lb, to the tenth.
   await expect(recent(page).getByRole('listitem')).toContainText('181.7');
   await expect(recent(page).getByRole('listitem')).toContainText('lb');
+});
+
+test('counts the days again in the new zone once the profile’s time zone is saved', async ({
+  page,
+}) => {
+  await weighIn(page, 1, 82.4); // 07:00 in Tokyo, 18:00 the day before in New York.
+  await page.goto('/progress/weight');
+  await expect(recent(page).getByRole('listitem')).toContainText('07:00');
+  await expect(recent(page).getByRole('listitem')).not.toContainText('not morning');
+
+  // Without a reload, so the weigh-ins stay in the cache.
+  const tabs = page.getByRole('navigation', { name: 'Sections' });
+  await tabs.getByRole('link', { name: 'Today' }).click();
+  await chooseTimezone(page, 'America/New_York');
+  await page.getByRole('button', { name: 'Save profile' }).click();
+  await expect(page.getByText('Saved.')).toBeVisible();
+
+  await tabs.getByRole('link', { name: 'Progress' }).click();
+  await page
+    .getByRole('navigation', { name: 'Progress' })
+    .getByRole('link', { name: 'Weight' })
+    .click();
+  await expect(recent(page).getByRole('listitem')).toContainText('18:00');
+  await expect(recent(page).getByRole('listitem')).toContainText('not morning');
+});
+
+test('shows no movement for the last week when the latest weigh-in is older than a week', async ({
+  page,
+}) => {
+  await weighIn(page, 15, 84);
+  await weighIn(page, 14, 83);
+  await weighIn(page, 13, 82);
+  await page.goto('/progress/weight');
+  await expect(page.locator('.whead__label')).toHaveText('Trend');
+  await expect(page.getByText('in the last week')).toHaveCount(0);
+
+  await weighIn(page, 0, 81);
+  await page.reload();
+  await expect(page.getByText('in the last week')).toBeVisible();
 });
