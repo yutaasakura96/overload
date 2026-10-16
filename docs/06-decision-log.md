@@ -3666,3 +3666,81 @@ carries `Last done Fri 9 Oct, 5 days ago` or `Not done yet`, in the routine row'
 - **Not built here:** the prototype's `How it is going` rows are not part of `#61`.
 
 **Changed:** `00`, `06`, `07`, `10`, `11`.
+
+### 2026-10-16 — After M1: M2 next, M1's two unbuilt pieces alongside it, and how M2 is built
+
+The owner answered thirteen planning questions on 2026-10-16 (the scout report of that day, Q1 to
+Q13). The answers, and what each changes:
+
+- **M2, meal plan + weight, is next (Q1: A).** The settled order of 2026-09-16 stands. M3, #52 and
+  #53 come after it.
+- **M1's two unbuilt pieces are built alongside M2 (Q2: C).** Adding, removing and reordering
+  exercises in a live workout (S4) and starting an empty workout (the PRD's *Workout start* empty
+  state) were owed since slice 3 and slice 4. They become one close-out issue, built while M2 is
+  built. This is an exception to `02`'s rule that a milestone's MUSTs ship before the next one
+  starts, and `02` now says so. *Rejected:* closing M1 first (A), which delays M2 by about a slice;
+  and moving them to LATER (B), which leaves a taken machine with no way to change the workout.
+- **M2 is built during M1's 4 weeks of logging (Q3: A).** The clock of `01`'s M1 test starts once
+  the whole of M1 is in production. A problem found in the gym still goes first.
+- **Build first; the data does not have to be real.** The owner, verbatim: "As I said before, the
+  most important part is building the app. The data itself doesn't have to be real. We can use fake
+  data until we fully build the app, and we need to prioritize building it." Seeded or fake weigh-ins,
+  foods, batches and confirmed days are fine for building and checking every M2 slice, including
+  the maintenance check's 14 complete days. `01`'s success tests still need real use, after the
+  build.
+- **The morning weight route (Q4: A).** The owner runs the two hardware tests of 2026-09-19 this week,
+  and the written decision rule there picks the route. That entry stays open until the tests are run.
+  **Typed weight is a permanent user option** next to the automatic route, not only a fallback for
+  a missing reading (the owner's note on Q4). It does not replace the automatic route: `01`'s M2
+  test still needs the weight to arrive by itself, and typed-only entry stays rejected. If the rule
+  lands on Health Auto Export, `ingest_token`, its route and the revoke of 2026-10-15 move from M3
+  into M2's automatic-route slice, as `07` §6 already allows.
+- **Seven M2 slices, weight first (Q5: A):**
+  1. Typed weight, the trend and the weight screen.
+  2. The automatic route.
+  3. The food list.
+  4. Goal phase, targets, routine and meal count, and the generated plan.
+  5. Confirming meals and the end-of-day check.
+  6. Prep and grocery, with Q8's shelf life.
+  7. The maintenance check.
+
+  Weigh-ins start first because the maintenance check needs 3 or more of them in its window. #69
+  can follow slice 1.
+- **A clickable prototype of every M2 screen comes first, reviewed in one sitting (Q6: A).** The
+  approach of `#47` to `#51` (2026-10-10). It draws the six screens `10` §8 lists as undrawn, redraws
+  screens 3 to 6 after the 2026-10-09 readability review, and settles their scroll and sticky
+  headers (`10` §7.3) and Q7's navigation. The screen slices wait for the review; typed weight's
+  data and API do not.
+- **Today becomes the whole day (Q7: A).** Today shows the day's meal timeline with the workout
+  marked in it, as screen 3 draws, and starting a workout. Prep, grocery, the food list and batches
+  go in a new Food tab. Weight joins Progress as a section. The prototype draws it; the tab count
+  (five tabs, or Routines and Exercises merged) is settled at its review. *Rejected:* a separate
+  Meals tab (B), which splits the day's plan and the day's workout.
+- **A batch keeps for N days, and the week can have a second cook day (Q8: B).** Each batch-cooked
+  food records how many days a cooked batch keeps. Where a food would not last until the end of the
+  week, the prep plan splits it into two cooks and names the second cook day. *Rejected:* the newest
+  batch counting until a new one (A), which can plan chicken cooked eight days ago; and counting down
+  each batch's portions (C), which is inventory tracking.
+- **#69, bodyweight on bodyweight lifts, decided (Q9: A, Q10: A, Q11: B):**
+  - The weight that counts for a workout is that day's weight, by `04`'s one definition (the first
+    reading before 10:00, else the day's first). With no reading that day, the latest earlier day's
+    weight counts.
+  - A bodyweight lift counts all of the bodyweight plus any added kg. A logged 0 kg means bodyweight
+    only.
+  - A workout older than the first weigh-in counts the first later weigh-in and says so, for example
+    "counted at your weigh-in of 12 Nov".
+  - Each lift shows which weigh-in it was counted at. #69 waits for M2's weight slice.
+- **#52, when to bulk, cut or maintain, is M3 (Q12: A).** It becomes more entries in S23's plateau
+  protocol catalogue, such as "end the cut", "take a maintenance break" or "start a bulk", each with
+  its evidence tag, sources, and Accept or Dismiss. The phase stays the user's decision (2026-09-21).
+  The rules themselves are for M3's grill.
+- **#53, polish, stays last (Q13: A).** Look-and-feel notes on M1 go to the M2 prototype review.
+  Notes from the 4 weeks of use become small issues.
+
+**Corrected in passing:** `01` and `02` still listed pound units as out of scope and LATER. Showing
+lifts in kg or lb was decided on 2026-09-23 and is built.
+
+**Owner's own steps, not agent work:** the two hardware tests, and an Anthropic API key with a small
+prepaid balance for label reads (2026-09-19).
+
+**Changed:** `00`, `01`, `02`, `04`, `06`, `09`, `10`, `CONTEXT.md`.

@@ -420,6 +420,8 @@ One reading from the scale, or one typed by hand (S11).
   timezone; failing that, the day's first reading, flagged as not a morning weigh-in (S11, and the
   "several weigh-ins in one day" edge case). The smoothed trend line is computed in `domain/`, never
   written back.
+- **A bodyweight lift counts that day's weight** (#69, `06` 2026-10-16): with no reading that day,
+  the latest earlier day's; before the first weigh-in, the first later one, labelled as such.
 
 ---
 
@@ -441,6 +443,7 @@ everything downstream does one kind of arithmetic.
 | `fat_g` | numeric(6,2) | no | — | Per 100 g |
 | `fiber_g` | numeric(6,2) | no | `0` | Per 100 g |
 | `piece_weight_g` | numeric(6,2) | yes | — | Set for foods counted in units. One egg = 55 g. `NULL` means grams only |
+| `keeps_days` | smallint | yes | — | How many days a cooked batch of this food keeps (S13). The prep plan adds a second cook day where a batch would not last the week (S17). `NULL` for a food not batch-cooked. *Added 2026-10-16* (`06`) |
 | `source` | text | no | — | `mext` \| `open_food_facts` \| `label_photo` \| `manual`, `CHECK` |
 | `source_ref` | text | yes | — | MEXT food code, or the barcode |
 | `rotation_group_id` | uuid | yes | — | → `rotation_group.id`, `ON DELETE SET NULL` |
