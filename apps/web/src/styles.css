@@ -272,11 +272,13 @@ button {
 .tabs__tab {
   display: grid;
   place-items: center;
+  min-width: 0;
   min-height: var(--target-min);
   border: 1px solid var(--line-hairline);
   border-radius: var(--radius);
   font-size: 11px;
-  letter-spacing: 0.08em;
+  /* Five tabs at 390pt (Q1, docs/06 2026-10-16): EXERCISES fits its fifth with this spacing. */
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--text-quaternary);
   text-decoration: none;
@@ -3012,4 +3014,337 @@ fieldset.field > legend {
 }
 .field__input--when {
   font-size: 16px;
+}
+
+/* The Food tab's food list and adding a food (S12; docs/10 §8.6, the M2 prototype's screens 15 to
+   23). Every value is per 100 g of the state named. */
+.foods,
+.pick,
+.ways,
+.group {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.food-field {
+  padding: 16px var(--gutter) 0;
+}
+.food-lede {
+  margin: 16px var(--gutter) 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+.food-hint {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--text-tertiary);
+}
+.food-hint--gutter {
+  margin: 12px var(--gutter) 0;
+}
+.food-status {
+  display: block;
+  margin: 14px var(--gutter) 0;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+.section-actions--tight {
+  padding-top: 12px;
+}
+.section-actions--flush {
+  padding: 0;
+}
+.inline-link {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.foods {
+  margin-top: 16px;
+  border-top: 1px solid var(--line-hairline);
+}
+.foods__row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 60px;
+  padding: 10px var(--gutter);
+  border-bottom: 1px solid var(--line-row);
+  color: var(--text-tertiary);
+  text-decoration: none;
+}
+.foods__name {
+  display: block;
+  font-size: 15px;
+  color: var(--text-primary);
+}
+.foods__brand {
+  color: var(--text-tertiary);
+}
+.foods__macros {
+  display: block;
+  margin-top: 3px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+.foods__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 5px;
+}
+.foods__tag {
+  padding: 2px 6px;
+  border: 1px solid var(--line-field);
+  border-radius: var(--radius);
+  font-size: 10px;
+  color: var(--text-tertiary);
+}
+.foods__none {
+  margin: 0;
+  padding: 14px var(--gutter);
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+.values {
+  margin: 0;
+  border-top: 1px solid var(--line-hairline);
+}
+.values__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line-row);
+}
+.values dt {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.values dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.values dd.values__word {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 400;
+}
+.values__unit {
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--text-quaternary);
+}
+.pick {
+  margin-top: 12px;
+  border-top: 1px solid var(--line-hairline);
+}
+.pick__row {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  min-height: 56px;
+  padding: 9px var(--gutter);
+  border: 0;
+  border-bottom: 1px solid var(--line-row);
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.pick__name {
+  font-size: 14px;
+  color: var(--text-primary);
+}
+.pick__jp {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.pick__meta {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-quaternary);
+}
+.ways {
+  border-top: 1px solid var(--line-hairline);
+}
+.ways__row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 3px 12px;
+  align-items: center;
+  width: 100%;
+  min-height: 60px;
+  padding: 10px 0;
+  border: 0;
+  border-bottom: 1px solid var(--line-row);
+  background: none;
+  font: inherit;
+  text-align: left;
+  color: var(--text-tertiary);
+  cursor: pointer;
+}
+.ways__name {
+  font-size: 15px;
+  color: var(--text-primary);
+}
+.ways__meta {
+  grid-column: 1;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-tertiary);
+}
+.ways__row svg {
+  grid-row: 1 / span 2;
+  grid-column: 2;
+}
+/* The camera box stays dark in both themes: it frames a picture, not the page. */
+.viewfinder {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 260px;
+  margin: 16px var(--gutter) 0;
+  overflow: hidden;
+  border-radius: var(--radius);
+  background: #050607;
+}
+.viewfinder__video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.viewfinder__frame {
+  position: relative;
+  width: 230px;
+  height: 120px;
+  border: 2px solid var(--accent);
+  border-radius: var(--radius);
+}
+.viewfinder--label .viewfinder__frame {
+  width: 180px;
+  height: 180px;
+  margin-bottom: 24px;
+}
+.viewfinder__caption {
+  position: absolute;
+  bottom: 12px;
+  padding: 0 12px;
+  font-size: 12px;
+  text-align: center;
+  color: #a8b4c0;
+}
+.printed {
+  margin: 16px var(--gutter) 0;
+  padding: 11px 12px;
+  border: 1px solid var(--line-hairline);
+  border-radius: var(--radius);
+}
+.printed--inline {
+  margin: 0;
+}
+.printed__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.printed__head .section-label {
+  margin: 0;
+}
+.printed__basis {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.printed__grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+  margin: 10px 0 0;
+}
+.printed__grid dt {
+  font-size: 10px;
+  color: var(--text-quaternary);
+}
+.printed__grid dd {
+  margin: 2px 0 0;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.printed__none {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--flag);
+}
+.food-subhead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: -10px;
+}
+.food-subhead .section-label {
+  margin: 0;
+}
+.food-subhead__note {
+  font-size: 10px;
+  color: var(--text-quaternary);
+}
+.segments--four {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.segments--four .segments__segment {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-align: center;
+}
+.group {
+  border-top: 1px solid var(--line-hairline);
+}
+.group__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  border-bottom: 1px solid var(--line-row);
+  font-size: 14px;
+  color: var(--text-primary);
+}
+.group__row--empty {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+.group__add {
+  min-height: var(--target-min);
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 12px;
+  color: var(--accent);
+  cursor: pointer;
+}
+.group__add-form {
+  display: grid;
+  gap: 12px;
+  padding-top: 12px;
 }

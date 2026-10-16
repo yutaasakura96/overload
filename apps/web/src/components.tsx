@@ -93,11 +93,12 @@ export function ScreenTabs({
   current,
   navigate,
 }: {
-  current: '/' | '/progress' | '/routines' | '/exercises';
+  current: '/' | '/food' | '/progress' | '/routines' | '/exercises';
   navigate: (path: string) => void;
 }) {
   const tabs = [
     { path: '/', label: 'Today' },
+    { path: '/food', label: 'Food' },
     { path: '/progress', label: 'Progress' },
     { path: '/routines', label: 'Routines' },
     { path: '/exercises', label: 'Exercises' },
@@ -313,7 +314,7 @@ export function NumberField({
         htmlFor={id}
         label={label}
         note={note}
-        context={[labelContext, unit === undefined ? undefined : `in ${unitNames[unit]}`]
+        context={[labelContext, unit === undefined ? undefined : `in ${unitNames[unit] ?? unit}`]
           .filter(Boolean)
           .join(' ')}
       />
@@ -349,6 +350,9 @@ const unitNames: Record<string, string> = {
   lb: 'pounds',
   s: 'seconds',
   '%': 'percent',
+  g: 'grams',
+  kcal: 'kilocalories',
+  days: 'days',
 };
 
 export function FieldLabel({

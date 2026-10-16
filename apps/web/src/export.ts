@@ -6,7 +6,15 @@ import { confirmedAccountData, currentAccount } from './query';
 // S10's export (docs/07 §2, docs/09 F7): the client pages through every section and builds the
 // file in the browser, since one response could pass Vercel's 4.5 MB cap.
 
-const SECTIONS = ['profile', 'exercises', 'routines', 'workouts', 'weighIns'] as const;
+const SECTIONS = [
+  'profile',
+  'exercises',
+  'routines',
+  'workouts',
+  'weighIns',
+  'foods',
+  'rotationGroups',
+] as const;
 
 type Section = (typeof SECTIONS)[number];
 type ExportFile = { exportedAt: string } & Record<Section, ExportPage['items'][number][]>;
@@ -46,6 +54,8 @@ export async function readExport(
     routines: await read('routines', 2),
     workouts: await read('workouts', 3),
     weighIns: await read('weighIns', 4),
+    foods: await read('foods', 5),
+    rotationGroups: await read('rotationGroups', 6),
   };
 }
 
