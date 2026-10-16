@@ -3820,7 +3820,11 @@ on generated weigh-ins (owner, 2026-10-16).
 - **A second typed weigh-in at the same instant is 409 `weigh_in_exists`**, from
   `UNIQUE (user_id, source, measured_at)`; a repeat under the same id is the stored row, as every
   create is. The form sends the instant it opened at, to the millisecond, unless the date or time
-  was changed, so two quick weigh-ins do not collide on a minute.
+  was changed, so two quick weigh-ins do not collide on a minute. After a save whose outcome is
+  unknown (no answer, or a 5xx), an unchanged retry reuses its id; a changed field gets a fresh id
+  (owner). If the first landed at the same instant, that is `weigh_in_exists`, and the form links to
+  the weight list to delete it. *Rejected:* overwriting or merging the saved reading, and a schema
+  change to the uniqueness rule.
 - **Bounds:** a weight of 20 to 300 kg to the hundredth, body fat 1 to 75% to the tenth. A pounds
   user types pounds; the form converts to kg before sending and says the bounds in pounds.
 - **What the section leaves out until its slice:** `Scale: set up` and the scale route (`#77`), the

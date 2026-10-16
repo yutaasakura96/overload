@@ -848,8 +848,8 @@ of each top-level screen, before `Invites` for the admin. The footer's links kee
 data-state slot. In order:
 
 - **Export:** one sentence, `Everything you have logged, in one JSON file: your profile, exercises
-  and their settings, routines, and every workout with its sets.`, then a secondary `Export your
-  data`. While it reads it says `Exporting… 2 of 4`; when the file is handed to the browser,
+  and their settings, routines, every workout with its sets, and weigh-ins.`, then a secondary
+  `Export your data`. While it reads it says `Exporting… 2 of 5`, one step per section; when the file is handed to the browser,
   `Saved overload-export-2026-10-15.json.` under it, dated in the profile's time zone. A failure
   is a flag notice, `Not exported`, `Couldn’t reach Overload. Try again when you have signal.`, and
   the button stays for the retry (`09` F7).
