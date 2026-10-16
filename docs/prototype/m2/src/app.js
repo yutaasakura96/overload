@@ -61,6 +61,7 @@ const S = {
   weightSpan: '30',
   weightData: 'full',
   maint: 'ready',
+  applied: null,
   weigh: null,
   route: 'hae',
   routeState: 'never',
@@ -294,9 +295,10 @@ function mealCard(iso, meal, { active }) {
   const open = S.open === meal.id || (S.open === null && active);
   const macroLine = `<span class="meal__macros">${n0(m.kcal)} kcal · ${n0(m.p)} g protein</span>`;
   const tag = meal.carbs && !confirmed ? `<div class="meal__tag">${evidenceTag('MORE CARBS', 'carbs')}</div>` : '';
-  const head = `<div class="meal__head"><span class="meal__title">${esc(meal.label)}</span>${confirmed ? `<span class="meal__done">${st === 'skipped' ? '' : check(13, 'var(--done)')}${STATUS_WORD[st]}</span>` : macroLine}</div>`;
+  const right = confirmed ? `<span class="meal__done">${st === 'skipped' ? '' : check(13, 'var(--done)')}${STATUS_WORD[st]}</span>` : open ? '' : macroLine;
+  const head = `<div class="meal__head"><span class="meal__title">${esc(meal.label)}</span>${right}</div>`;
   if (!open) {
-    return `<button type="button" class="meal meal--${confirmed ? 'confirmed' : 'planned'}" data-act="openMeal" data-id="${meal.id}">${head}${tag ? '' : ''}${foodRows(meal, true)}</button>${tag ? `<div class="meal__tag-row">${tag}</div>` : ''}`;
+    return `<button type="button" class="meal meal--${confirmed ? 'confirmed' : 'planned'}" data-act="openMeal" data-id="${meal.id}">${head}${foodRows(meal, true)}</button>${tag ? `<div class="meal__tag-row">${tag}</div>` : ''}`;
   }
   const disabled = S.offline ? ' disabled' : '';
   const actions = confirmed
@@ -378,8 +380,9 @@ function setupStep() {
 }
 
 function startList(iso) {
-  const others = isTraining(iso) ? ROUTINES.slice(1) : ROUTINES;
-  return `<section class="today__section"><h2 class="section-label">${isTraining(iso) ? 'Or start another workout' : 'Rest day. Start a workout anyway'}</h2><ul class="starts">${others
+  const others = isTraining(iso) && setupStep() === null ? ROUTINES.slice(1) : ROUTINES;
+  const label = setupStep() !== null ? 'Start a workout' : isTraining(iso) ? 'Or start another workout' : 'Rest day. Start a workout anyway';
+  return `<section class="today__section"><h2 class="section-label">${label}</h2><ul class="starts">${others
     .map((r) => `<li><button type="button" class="starts__row" data-act="startWorkout"><span class="routines__text"><span class="routines__name">${r.name}</span><span class="routines__meta">${r.exercises} EXERCISES · ${r.sets} SETS</span><span class="routines__preview">Last done ${dayLabel(r.last)}</span></span><span class="starts__go">START</span></button></li>`)
     .join('')}</ul></section>`;
 }
@@ -522,7 +525,7 @@ function prepScreen() {
           const key = `${dayIndex}-${p.food}`;
           const done = S.prepDone[key];
           const cooked = y === null ? `≈ ${n0(p.raw * 0.92)}` : n0(p.raw * y);
-          const covers = `${dayLabel(p.covers[0])} to ${dayLabel(p.covers[1])}`;
+          const covers = `${weekday(p.covers[0]).slice(0, 3)} ${toDate(p.covers[0]).getUTCDate()} to ${weekday(p.covers[1]).slice(0, 3)} ${toDate(p.covers[1]).getUTCDate()}`;
           return `<li class="cook__row${done ? ' cook__row--done' : ''}"><div class="cook__food"><span class="cook__name">${esc(f.name)}</span><span class="cook__note${note.flag ? ' cook__note--flag' : ''}">${note.text}</span><span class="cook__span">For ${covers}</span></div>
             <span class="cook__raw">${n0(p.raw)}<span class="cook__unit"> g</span></span><span class="cook__cooked">${cooked}</span>
             <button type="button" class="check-cell cook__check${done ? ' check-cell--done' : ''}" data-act="prepTick" data-id="${key}" aria-pressed="${!!done}" aria-label="${esc(f.name)} cooked">${check(15, done ? 'var(--done)' : 'var(--line-control)')}</button></li>`;
@@ -638,7 +641,7 @@ function batchScreen() {
       <div class="form__pair">${field({ label: 'Raw weight', key: 'batchRaw', value: b.raw, unit: 'g', note: b.fromPrep ? 'FROM THE PLAN' : '', placeholder: '0', mode: 'numeric' })}${field({ label: 'Cooked weight', key: 'batchCooked', value: b.cooked, unit: 'g', placeholder: '0', mode: 'numeric', error: b.refused ? 'Both weights must be above 0 g.' : '' })}</div>
       <div class="yield-box" id="yield-box">${yieldBox(y)}</div>
       ${field({ label: 'Keeps for', key: 'batchKeeps', value: b.keeps, unit: 'days', note: 'EVERY BATCH OF THIS FOOD', mode: 'numeric' })}
-      <p class="m2-hint">How many days a cooked batch keeps in the fridge. The plan puts ${esc(f.name.toLowerCase())} only on days a batch covers, and adds a second cook day when one batch can’t cover the week.</p>
+      <p class="m2-hint">How many days a cooked batch keeps in the fridge. The plan puts it only on days a batch covers, and adds a second cook day when one batch can’t cover the week.</p>
     </div>
     <div class="section-actions"><button type="button" class="button button--primary" data-act="batchSave">Save batch</button></div></main>`;
 }
@@ -723,9 +726,15 @@ function confirmScreen() {
   const printed =
     c.basis !== '100g' && c.printed
       ? `<section class="printed"><div class="printed__head"><span class="section-label">As printed</span><span class="printed__basis">${BASIS.find((b) => b[0] === c.basis)[1]} (${c.basisGrams} g)</span></div>
-        <dl class="printed__grid">${[['kcal', 'Energy', 'kcal'], ['p', 'Protein', 'g'], ['c', 'Carbs', 'g'], ['f', 'Fat', 'g'], ['fib', 'Fiber', 'g']].map(([k, l, u]) => `<div><dt>${l}</dt><dd>${c.printed[k] === null ? '<span class="printed__none">not printed</span>' : `${c.printed[k]}<span class="values__unit"> ${u}</span>`}</dd></div>`).join('')}</dl></section>`
+        <dl class="printed__grid">${[['kcal', 'Energy', 'kcal'], ['p', 'Protein', 'g'], ['c', 'Carbs', 'g'], ['f', 'Fat', 'g'], ['fib', 'Fiber', 'g']].map(([k, l, u]) => `<div><dt>${l}</dt><dd>${c.printed[k] === null ? `<span class="printed__none">${c.partial && k !== 'fib' ? 'not read' : 'not printed'}</span>` : `${c.printed[k]}<span class="values__unit"> ${u}</span>`}</dd></div>`).join('')}</dl></section>`
       : '';
   const v = c.printed ?? {};
+  // A value the source did not give stays empty and says why: never guessed (F9 step 5).
+  const valueField = (label, key, k, unit) => {
+    const missing = !c.manual && v[k] === null;
+    const note = missing ? (c.partial && k !== 'fib' ? 'NOT READ' : 'NOT ON THE LABEL: LEFT EMPTY') : '';
+    return field({ label, key, value: c.manual || missing ? '' : per100(v[k]), unit, placeholder: missing ? '—' : '0', note });
+  };
   return `<main class="m2">${appBar({ title: 'Check before saving', subline: c.sourceLine, back: true })}
     ${c.duplicate ? `<div class="notice notice--flag m2-notice">${info()}<div><span class="notice__word" style="color:var(--flag)">Already on your list</span><p>${esc(c.name)} is saved already. <button type="button" class="m2-inline-link" data-act="foodOpen" data-id="${c.duplicate}">Open it</button></p></div></div>` : ''}
     ${c.partial ? `<div class="notice notice--flag m2-notice">${info()}<span>Only part of the label was read before the reader stopped. The empty fields are yours to fill.</span></div>` : ''}
@@ -736,12 +745,12 @@ function confirmScreen() {
       ${field({ label: 'Brand', key: 'cBrand', value: c.brand ?? '', mono: false, placeholder: 'Optional', note: 'OPTIONAL' })}
       ${c.manual ? `<div class="field"><span class="field__label">The packet gives values</span>${segments(BASIS, c.basis, 'basis', 'm2-seg--basis')}</div>${c.basis === '100g' ? '' : field({ label: 'That amount weighs', key: 'cBasisG', value: c.basisGrams ?? '', unit: 'g', placeholder: '0' })}` : ''}
       <div class="m2-subhead"><span class="section-label">Per 100 g, as it will be saved</span>${c.basis !== '100g' && !c.manual ? '<span class="m2-subhead__note">converted from the label</span>' : ''}</div>
-      <div class="form__pair">${field({ label: 'Calories', key: 'cK', value: c.manual ? '' : per100(v.kcal), unit: 'kcal', placeholder: '0' })}${field({ label: 'Protein', key: 'cP', value: c.manual ? '' : per100(v.p), unit: 'g', placeholder: '0' })}</div>
-      <div class="form__pair">${field({ label: 'Carbs', key: 'cC', value: c.manual ? '' : per100(v.c), unit: 'g', placeholder: '0' })}${field({ label: 'Fat', key: 'cF', value: c.manual ? '' : per100(v.f), unit: 'g', placeholder: c.partial ? 'not read' : '0' })}</div>
-      ${field({ label: 'Fiber', key: 'cFib', value: c.manual || v.fib === null ? '' : per100(v.fib), unit: 'g', placeholder: v.fib === null && !c.manual ? 'not on the label' : '0', note: v.fib === null && !c.manual ? 'LEFT EMPTY, NOT GUESSED' : '' })}
+      <div class="form__pair">${valueField('Calories', 'cK', 'kcal', 'kcal')}${valueField('Protein', 'cP', 'p', 'g')}</div>
+      <div class="form__pair">${valueField('Carbs', 'cC', 'c', 'g')}${valueField('Fat', 'cF', 'f', 'g')}</div>
+      ${valueField('Fiber', 'cFib', 'fib', 'g')}
       <div class="field"><span class="field__label">This food is</span>${segments([['raw', 'Raw'], ['cooked', 'Cooked']], c.state, 'cState', 'm2-seg--basis')}</div>
-      ${field({ label: 'One piece weighs', key: 'cPiece', value: c.piece ?? '', unit: 'g', placeholder: 'Leave empty to count in grams', note: 'OPTIONAL' })}
-      ${field({ label: 'A cooked batch keeps for', key: 'cKeeps', value: c.keeps ?? '', unit: 'days', placeholder: 'Leave empty if not batch-cooked', note: 'OPTIONAL' })}
+      ${field({ label: 'One piece weighs', key: 'cPiece', value: c.piece ?? '', unit: 'g', placeholder: '—', note: 'EMPTY: COUNTED IN GRAMS' })}
+      ${field({ label: 'A cooked batch keeps for', key: 'cKeeps', value: c.keeps ?? '', unit: 'days', placeholder: '—', note: 'EMPTY: NOT BATCH-COOKED' })}
       <div class="field"><div class="field__label-row"><label class="field__label" for="f-cGroup">Rotation group</label><span class="field__note">OPTIONAL</span></div><select id="f-cGroup" class="field__input field__select" data-field="cGroup"><option value="">None</option>${GROUPS.map((g) => `<option value="${g.id}"${c.group === g.id ? ' selected' : ''}>${g.name}</option>`).join('')}</select></div>
     </div>
     <div class="section-actions"><button type="button" class="button button--primary" data-act="saveFood">Save to my foods</button><button type="button" class="button button--tertiary" data-act="back">Discard</button></div></main>`;
@@ -804,7 +813,7 @@ function routineScreen() {
     </div>
     <section class="recommend"><div class="recommend__head"><span class="recommend__label">Recommended</span><div class="stepper stepper--small"><button type="button" class="stepper__btn" data-act="mealCount" data-d="-1" aria-label="One meal fewer">−</button><span class="stepper__value">${meals}<span class="stepper__unit"> meals</span></span><button type="button" class="stepper__btn" data-act="mealCount" data-d="1" aria-label="One meal more">+</button></div></div>
       <ol class="recommend__times">${times.map(([t, l]) => `<li><span class="recommend__time">${t}</span><span>${l}</span></li>`).join('')}</ol>
-      <p class="recommend__why">${TARGETS.p} g of protein over ${meals} meals is about ${Math.round(perMeal)} g each, ${n1(perMeal / PROFILE.weightKg)}0 g per kg${perMeal / PROFILE.weightKg >= 0.4 && perMeal / PROFILE.weightKg <= 0.55 ? ', inside 0.4–0.55' : perMeal / PROFILE.weightKg > 0.55 ? ', above 0.55: one more meal would spread it better' : ', under 0.4: one fewer meal would make each count'}.${training ? ' One meal sits about 2 hours before training and one soon after.' : ''}</p>
+      <p class="recommend__why">${TARGETS.p} g of protein over ${meals} meals is about ${Math.round(perMeal)} g each, ${(perMeal / PROFILE.weightKg).toFixed(2)} g per kg${perMeal / PROFILE.weightKg >= 0.4 && perMeal / PROFILE.weightKg <= 0.55 ? ', inside 0.4–0.55' : perMeal / PROFILE.weightKg > 0.55 ? ', above 0.55: one more meal would spread it better' : ', under 0.4: one fewer meal would make each count'}.${training ? ' One meal sits about 2 hours before training and one soon after.' : ''}</p>
       ${sourceLine('', 'protein')}
       <p class="recommend__note">How many meals you eat does not change fat loss at equal calories. The count is for spreading protein, so pick what fits your day.</p>
       ${meals !== (training ? ROUTINE.training.meals : ROUTINE.rest.meals) ? `<p class="recommend__yours">Yours: ${meals} meals. The recommendation was ${training ? ROUTINE.training.meals : ROUTINE.rest.meals}.</p>` : ''}</section>
@@ -819,14 +828,10 @@ function recommendTimes(r, meals) {
   if (r.train) {
     const tr = toMin(r.train);
     const fixed = [[tr - 120, 'Before training'], [tr + 75, 'After training']];
-    const restCount = Math.max(0, meals - 2);
+    const before = Math.max(0, meals - 2 - (meals >= 5 ? 1 : 0));
     const out = [];
-    for (let i = 0; i < restCount; i += 1) {
-      const span = tr - 120 - start;
-      out.push([start + (span / Math.max(1, restCount)) * i, ['Breakfast', 'Lunch', 'Snack', 'Snack'][i] ?? 'Meal']);
-    }
-    if (meals >= 5) out[out.length - 1] = [end, 'Evening'];
-    return [...out.slice(0, meals >= 5 ? restCount - 1 : restCount), ...fixed, ...(meals >= 5 ? [[end, 'Evening']] : [])].sort((a, b) => a[0] - b[0]).map(([m, l]) => [fromMin(m), l]);
+    for (let i = 0; i < before; i += 1) out.push([start + ((tr - 120 - start) / before) * i, ['Breakfast', 'Lunch', 'Afternoon', 'Snack'][i] ?? 'Meal']);
+    return [...out, ...fixed, ...(meals >= 5 ? [[end, 'Evening']] : [])].sort((a, b) => a[0] - b[0]).map(([m, l]) => [fromMin(m), l]);
   }
   const labels = ['Breakfast', 'Lunch', 'Afternoon', 'Dinner', 'Evening', 'Late'];
   return Array.from({ length: meals }, (_, i) => [fromMin(start + ((end - start) / Math.max(1, meals - 1)) * i), meals === 3 ? ['Breakfast', 'Lunch', 'Dinner'][i] : labels[i]]);
@@ -877,8 +882,8 @@ function maintCard() {
     <div class="maint__figs"><div><span class="maint__label">You ate, on average</span><span class="maint__fig">${n0(m.intake)}<span class="maint__unit"> kcal a day</span></span></div><div><span class="maint__label">Your trend moved</span><span class="maint__fig">${signed(m.perWeek, 2)}<span class="maint__unit"> kg a week</span></span></div></div>
     <div class="maint__result"><span class="maint__result-words">So your maintenance is about</span><span class="maint__result-fig">≈ ${n0(Math.round(m.kcal / 10) * 10)}<span class="maint__unit"> kcal</span></span></div>
     ${low ? `<p class="maint__low">${info(14)}Based on too little recent logging: ${3} of the last 7 days are complete.</p>` : ''}
-    <p class="maint__caveat">Read-only. Your targets stay at ${n0(TARGETS.kcal)} kcal until you apply this.</p>
-    <button type="button" class="button button--primary maint__apply" data-act="applyAsk">Apply to targets</button></section>`;
+    ${S.applied ? `<p class="maint__caveat">Applied today: your calories are ${n0(S.applied)} kcal, measured. The next check can be applied in a week.</p>` : `<p class="maint__caveat">Read-only. Your targets stay at ${n0(TARGETS.kcal)} kcal until you apply this.</p>
+    <button type="button" class="button button--primary maint__apply" data-act="applyAsk">Apply to targets</button>`}</section>`;
 }
 
 function applySheet() {
@@ -1279,6 +1284,10 @@ const ACT = {
     render();
   },
   saveFood() {
+    const c = S.candidate;
+    const k = c.basisGrams ? 100 / c.basisGrams : 1;
+    const per = (x) => (c.printed?.[x] == null ? 0 : Math.round(c.printed[x] * k * 10) / 10);
+    if (!c.duplicate && c.name) FOODS.unshift({ id: `new${FOODS.length}`, name: c.name, brand: c.brand || null, state: c.state, kcal: per('kcal'), p: per('p'), c: per('c'), f: per('f'), fib: per('fib'), source: 'manual', ref: null, group: c.group || null, keeps: null, cooked: false });
     S.setup.foods = true;
     S.emptyFoods = false;
     S.foodTab = 'foods';
@@ -1374,6 +1383,8 @@ const ACT = {
     render();
   },
   applyDo() {
+    const m = maintenance();
+    S.applied = Math.round(m.kcal / 10) * 10 - Math.round(((PHASE.ratePct / 100) * PROFILE.weightKg * 7700) / 7 / 10) * 10;
     S.sheet = null;
     S.flash = 'Applied. Your calories are now measured, not provisional. The week was planned again.';
     render();

@@ -91,11 +91,13 @@ const ALL = MAP.flatMap((g) => g.items);
 
 function setTabs(variant) {
   S.tabs = variant;
+  document.getElementById('phone-scroll').scrollTop = 0;
   if (variant === 'five' && S.screen === 'training') return root('routines');
   if (variant === 'four' && (S.screen === 'routines' || S.screen === 'exercises')) return root('training');
   render();
 }
 function setWeight(data, maint) {
+  S.applied = null;
   S.weightData = data;
   S.maint = maint;
   S.progTab = 'weight';
@@ -486,7 +488,7 @@ const QUESTIONS = [
     issue: '#82',
     screens: ['weight', 'low'],
     title: 'What Apply to targets sets on a cut',
-    drawn: 'Calories become the maintenance estimate less the deficit for the phase’s rate (here about 2,610 − 300). It asks once, saying both numbers and that unconfirmed meals are planned again.',
+    drawn: 'Calories become the maintenance estimate less the deficit for the phase’s rate (here about 2,700 − 450 = 2,250). It asks once, saying both numbers and that unconfirmed meals are planned again.',
     options: ['Calories become the maintenance figure itself; lower them by hand', 'Apply without asking'],
   },
   {
