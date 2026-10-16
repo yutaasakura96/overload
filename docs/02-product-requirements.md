@@ -121,11 +121,12 @@ As a user, I want each day's targets split into meals with grams of each food fr
 - Gram amounts round to 5 g. Foods counted in units (e.g. eggs) stay whole.
 - On training days, more of the day's carbohydrate is placed in the meals before and after training. This recommendation carries an evidence tag.
 - Days rotate between the marked alternatives so the week isn't identical. The plan for a day type stays stable otherwise.
+- The week has at most two cook days. A batch-cooked food appears only on days covered by a batch cooked on one of those days; each batch covers `keeps_days` calendar days starting on its cook day. Other days use other foods. If the resulting plan misses a target, show the closest plan and name the shortfall (`03` §8.2).
 
 **S17. Prep plan and grocery list — MUST**
 As a user who batch-cooks, I want a weekly prep list and shopping list worked out from the plan, so that the plan actually gets cooked.
 - The prep plan lists raw amounts to cook per food for the coming week, using the last recorded yield.
-- Where a food keeps for fewer days than the week needs, the prep plan splits it into two cooks and names the second cook day.
+- The prep plan assigns those amounts to the planned cook days and names the second day when used.
 - The grocery list sums the week's raw quantities per food.
 
 **S18. The plan is the log — MUST**

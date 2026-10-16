@@ -261,7 +261,7 @@ _Avoid_: daily review, close-out
 
 **Prep plan**:
 The raw grams to cook per food for the coming week, worked out from the plan and the current batch
-yield, with a second cook day for a food that would not keep all week. Derived.
+yield, assigned to the plan's at most two cook days (S16–S17). Derived.
 _Avoid_: prep list (the screen title may use it), cooking plan
 
 **Grocery list**:

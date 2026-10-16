@@ -423,8 +423,8 @@ written (the short food list: S12, S16, S18; batch prep: S13, S17). Three gaps, 
   with the rest bar counting over and a wake lock while resting where the browser grants one. Built
   in slice 3. A locked phone stays silent; that is the accepted limit.
 - ~~**No shelf life, and a batch never runs out.**~~ **Decided 2026-10-16** (`06`): `keeps_days`
-  on `food`, and the prep plan names a second cook day where a food would not last the week (S13,
-  S17). Built in M2's prep slice.
+  on `food`; S16 plans food only on days covered by at most two cook days, and S17 names the second
+  cook day when used. Built in M2's prep slice.
 
 ### Standing
 - Design risk on record: if the real failure mode turns out to be not logging at all because the app reads as a spreadsheet, Quiet was the better bet. Revisit after M1 is in daily use. Phase 3 did not soften Instrument — the contrast cost is recorded as a measured deviation and left for Yuta.

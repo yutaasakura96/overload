@@ -3717,9 +3717,11 @@ Q13). The answers, and what each changes:
   (five tabs, or Routines and Exercises merged) is settled at its review. *Rejected:* a separate
   Meals tab (B), which splits the day's plan and the day's workout.
 - **A batch keeps for N days, and the week can have a second cook day (Q8: B).** Each batch-cooked
-  food records how many days a cooked batch keeps. Where a food would not last until the end of the
-  week, the prep plan splits it into two cooks and names the second cook day. *Rejected:* the newest
-  batch counting until a new one (A), which can plan chicken cooked eight days ago; and counting down
+  food records how many days a cooked batch keeps. The planner uses at most two cook days in the week
+  and places each food only on days covered by its batches. Other days use other foods; if targets
+  remain short, it names the shortfall (`03` §8.2). The prep plan names the second cook day when used.
+  *Rejected:* the newest batch counting until a new one (A), which can plan chicken cooked eight days
+  ago; and counting down
   each batch's portions (C), which is inventory tracking.
 - **#69, bodyweight on bodyweight lifts, decided (Q9: A, Q10: A, Q11: B):**
   - The weight that counts for a workout is that day's weight, by `04`'s one definition (the first

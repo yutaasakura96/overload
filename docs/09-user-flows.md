@@ -359,8 +359,8 @@ incomplete until it is confirmed or locks.
 ### F12. Weekly prep
 
 1. Prep screen → the prep plan for the coming week: raw grams per food, from the plan and the current
-   batch yield (S17). A food whose `keeps_days` would not last the week is split into two cooks, and
-   the second cook day is named (`06`, 2026-10-16).
+   batch yield (S17). It lists the plan's at most two cook days, naming the second when used; planned
+   servings fall only on days covered by each food's `keeps_days` (`02` S16–S17).
 2. **Grocery list** → the same, summed per food to buy.
 3. After cooking → **Record batch**: food, raw weight, cooked weight, date → save. Future plan items
    use the new yield; past ones keep their snapshot.
