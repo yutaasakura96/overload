@@ -96,9 +96,9 @@ completion control is enabled regardless; a missing weight or reps is refused on
   `Pick a weight you can lift for 6–10 reps with one to three left in you. From the next workout,
   this line shows what you did and what to aim for.` (`Bodyweight × 6–10` and `Do 6–10 reps…` for a
   bodyweight exercise.) No LAST column value; the card's label row reads `FIRST WORKOUT`.
-- **Unknown last time.** If cached data was unavailable at start, or an older saved workout has no
-  history flag, the block shows only `Last time could not be loaded.` It makes no claim about the
-  connection or whether this is the first workout; no first-workout tag appears.
+- **Unknown last time.** If cached data was unavailable when the exercise joined the workout, or an
+  older saved workout has no history flag, the block shows only `Last time could not be loaded.` It
+  makes no claim about the connection or whether this is the first workout; no first-workout tag appears.
 - **Target (S4), decided 2026-10-03** (`06`). The label counts working sets against
   `target_sets`: `SET 3 OF 4`, then `SET 5 · EXTRA` past the target, and `SET 3` with no target.
   With the warm-up toggle on it reads `WARM-UP`, and a warm-up never moves the count.

@@ -66,12 +66,13 @@ Vocabulary is `CONTEXT.md`'s: **workout** (not session), **confirm**, **pending*
 Works identically offline. Every write below goes to the IndexedDB set store first and uploads later
 (`03` §8.1).
 
-1. **Start.** Tap a routine on Today. The phone creates the `workout` and its
-   `workout_exercise` rows with UUIDv7 ids, copying rep range, increment and target sets (`04`):
+1. **Start.** Tap a routine on Today, or start an empty workout (F2 step 3). The phone creates the
+   `workout` with a UUIDv7 id; a routine also creates its `workout_exercise` rows with UUIDv7 ids,
+   copying rep range, increment and target sets (`04`):
    the routine slot's range if it has one, else the user's own, else the exercise's default.
    Last time and suggestions come from the offline cache when available (`07` §3, "Last time and
-   suggestions") and are kept with the workout from then on. Without that data, last time is
-   unknown (`10` §1).
+   suggestions") and are kept with each exercise from when it joins the workout. Without that data,
+   last time is unknown (`10` §1).
 2. **Log a set.** The active set card opens with weight, reps and RIR as specified in `10` §1.
    Edit or clear the figures, optionally mark a warm-up (S6), then tap the tick. RPE entry waits
    for a later slice (`06`, 2026-10-03). The set is written locally before the screen updates.

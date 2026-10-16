@@ -268,10 +268,10 @@ here does not touch the routine (S4).
 | `exercise_id` | uuid | no | — | → `exercise.id`, `NO ACTION DEFERRABLE INITIALLY DEFERRED`, for the reason under `routine_exercise` |
 | `routine_exercise_id` | uuid | yes | — | The routine slot it was started from. **No FK**, see below. Null for rows made before 2026-10-04 and for an exercise that came from no slot |
 | `position` | integer | no | — | Order within the workout |
-| `target_sets` | smallint | yes | — | Copied from the routine slot at start |
-| `rep_low` | smallint | no | — | **Resolved and copied at start**: routine slot → user setting → exercise default |
+| `target_sets` | smallint | yes | — | Copied from the routine slot at start; 3 for an exercise added during a workout |
+| `rep_low` | smallint | no | — | **Resolved and copied when the exercise joins the workout**: routine slot → user setting → exercise default |
 | `rep_high` | smallint | no | — | Same |
-| `increment_kg` | numeric(5,2) | no | — | Copied at start, same order |
+| `increment_kg` | numeric(5,2) | no | — | Copied when the exercise joins the workout, same order |
 | `client_updated_at` | timestamptz | no | — | Same sync guard as `workout` |
 | `created_at` | timestamptz | no | `now()` | |
 | `updated_at` | timestamptz | no | `now()` | |
@@ -361,7 +361,7 @@ Migration `0012_slice4_sync_tombstone` creates the table with `(user_id, id)` as
 | Query | Path |
 | --- | --- |
 | **Last time** (S2): the previous workout's weight × reps per working set, in order | `workout (user_id, started_at DESC)` → `workout_exercise (exercise_id)` → `set (workout_exercise_id, position)`, `is_warmup = false` |
-| **Suggestion** (S3): did every working set hit the top of the range last time | Same rows, plus `workout_exercise.rep_high` copied at start |
+| **Suggestion** (S3): did every working set hit the top of the range last time | Same rows, plus `workout_exercise.rep_high` copied when the exercise joined the workout |
 | **Chart** (S7): best working set per workout over a span, Epley `weight × (1 + reps / 30)` | `workout (user_id, started_at DESC)` filtered by span → the same join, `is_warmup = false` |
 | **Upload a set** (S1) | `INSERT … ON CONFLICT (id) DO UPDATE … WHERE set.client_updated_at < EXCLUDED.client_updated_at` on the PK. *Changed 2026-09-21* from `DO NOTHING`, so a retry or stale copy changes nothing (`docs/07` §3.4). An edit made offline is the same upsert under a newer `client_updated_at` |
 | **Delete through sync** (S1) | `DELETE` by PK where `client_updated_at < deletedAt`, then `INSERT INTO sync_tombstone … ON CONFLICT (user_id, id) DO NOTHING`. Every upsert first reads `sync_tombstone` by `(user_id, id)` for the row's id and its parent's |
