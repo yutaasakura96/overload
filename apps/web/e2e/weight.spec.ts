@@ -101,44 +101,60 @@ test('types a weight, sees it on the section, then deletes it', async ({ page })
   await expect(recent(page).getByRole('listitem')).toHaveCount(0);
 });
 
-test('keeps the id for an uncertain retry and changes it after editing', async ({ page }) => {
-  await page.goto('/progress/weight/new');
-  await page.getByRole('textbox', { name: 'Weight' }).fill('82.4');
-  await page.getByLabel('Date', { exact: true }).fill(tokyoDate(1));
-  await page.getByLabel('Time', { exact: true }).fill('07:40');
+// A page the service worker controls fetches through it, where WebKit shows a route nothing.
+test.describe('with no service worker', () => {
+  test.use({ serviceWorkers: 'block' });
 
-  const sentIds: string[] = [];
-  await page.route('**/api/weigh-ins', async (route) => {
-    if (route.request().method() !== 'POST') return route.continue();
-    const body: { id: string } = route.request().postDataJSON();
-    const response = await route.fetch();
-    expect(response.status()).toBe(sentIds.length === 0 ? 201 : 200);
-    sentIds.push(body.id);
-    await route.abort();
+  test('keeps the id for an uncertain retry and links to a saved reading after editing', async ({
+    page,
+  }) => {
+    await page.goto('/progress/weight/new');
+    await page.getByRole('textbox', { name: 'Weight' }).fill('82.4');
+    await page.getByLabel('Date', { exact: true }).fill(tokyoDate(1));
+    await page.getByLabel('Time', { exact: true }).fill('07:40');
+
+    const sentIds: string[] = [];
+    await page.route('**/api/weigh-ins', async (route) => {
+      if (route.request().method() !== 'POST') return route.continue();
+      const body: { id: string } = route.request().postDataJSON();
+      if (sentIds.length === 2) {
+        sentIds.push(body.id);
+        await route.continue();
+        return;
+      }
+      const response = await route.fetch();
+      expect(response.status()).toBe(sentIds.length === 0 ? 201 : 200);
+      sentIds.push(body.id);
+      await route.abort();
+    });
+
+    const save = page.getByRole('button', { name: 'Save weigh-in' });
+    await save.click();
+    await expect(page.getByText('Couldn’t reach Overload.')).toBeVisible();
+    await save.click();
+    await expect.poll(() => sentIds.length).toBe(2);
+    await expect(save).toBeEnabled();
+    expect(sentIds[1]).toBe(sentIds[0]);
+
+    await page.getByRole('textbox', { name: 'Weight' }).fill('82.5');
+    const refused = page.waitForResponse(
+      (response) =>
+        response.url().includes('/api/weigh-ins') && response.request().method() === 'POST',
+    );
+    await save.click();
+    expect((await refused).status()).toBe(409);
+    expect(sentIds[2]).not.toBe(sentIds[0]);
+    await expect(page.getByText('A weigh-in for that time is already saved.')).toBeVisible();
+    const weightList = page.getByRole('link', { name: 'View weight list' });
+    await expect(weightList).toHaveAttribute('href', '/progress/weight');
+    const response = await page.request.get('/api/weigh-ins');
+    expect(response.ok()).toBe(true);
+    const { weighIns }: { weighIns: { id: string; weightKg: number }[] } = await response.json();
+    expect(weighIns).toEqual([expect.objectContaining({ id: sentIds[0], weightKg: 82.4 })]);
+    await weightList.click();
+    await expect(page).toHaveURL('/progress/weight');
+    await expect(recent(page).getByRole('listitem')).toContainText('82.4');
   });
-
-  const save = page.getByRole('button', { name: 'Save weigh-in' });
-  await save.click();
-  await expect(page.getByText('Couldn’t reach Overload.')).toBeVisible();
-  await save.click();
-  await expect.poll(() => sentIds.length).toBe(2);
-  await expect(save).toBeEnabled();
-  expect(sentIds[1]).toBe(sentIds[0]);
-  await page.unroute('**/api/weigh-ins');
-
-  await page.getByRole('textbox', { name: 'Weight' }).fill('82.5');
-  await page.getByLabel('Time', { exact: true }).fill('07:41');
-  await save.click();
-  await expect(page).toHaveURL('/progress/weight');
-  await expect(recent(page).getByRole('listitem')).toHaveCount(2);
-  const response = await page.request.get('/api/weigh-ins');
-  expect(response.ok()).toBe(true);
-  const { weighIns }: { weighIns: { id: string; weightKg: number }[] } = await response.json();
-  expect(weighIns).toEqual([
-    expect.objectContaining({ weightKg: 82.5 }),
-    expect.objectContaining({ id: sentIds[0], weightKg: 82.4 }),
-  ]);
-  expect(weighIns[0]?.id).not.toBe(sentIds[0]);
 });
 
 test('marks a second reading of the day as stored, and draws the trend from the third day', async ({

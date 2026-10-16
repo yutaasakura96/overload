@@ -968,8 +968,9 @@ day with no reading before 10:00 and is marked as not a morning weigh-in. `Body 
 line says a typed weigh-in can be deleted and one from the scale cannot. *Built in M2 slice 1* at
 `/progress/weight/new`: the weight is typed in the profile's unit (`A weight between 44.1 and 661.3
 lb.` in pounds), body fat is 1 to 75%, a time not yet come is refused under the time, and a second
-typed weigh-in at the same minute is refused there too (`weigh_in_exists`). Saved, it returns to
-Weight, which says `Weigh-in saved.` once.
+typed weigh-in at the same time is refused (`weigh_in_exists`), with a link to the weight list to
+delete the saved reading before typing a correction. Saved, it returns to Weight, which says
+`Weigh-in saved.` once.
 
 **Weight from the scale** (#77). A status box: `Weight from the scale` over `Never arrived` and
 `Finish the steps below, then weigh in`, or on `surface/done` `Arrived today 07:01` with the reading.

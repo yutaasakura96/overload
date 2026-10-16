@@ -64,6 +64,7 @@ export function WeighIn({ me, navigate }: { me: Me; navigate: Navigate }) {
         <WeighInForm
           unit={profile.weightUnit}
           timeZone={profile.timezone}
+          navigate={navigate}
           onSaved={() => navigate('/progress/weight', { replace: true, note: 'weighed' })}
         />
       )}
@@ -74,10 +75,12 @@ export function WeighIn({ me, navigate }: { me: Me; navigate: Navigate }) {
 function WeighInForm({
   unit,
   timeZone,
+  navigate,
   onSaved,
 }: {
   unit: WeightUnit;
   timeZone: string;
+  navigate: Navigate;
   onSaved: () => void;
 }) {
   // Date and time start at now and can be changed (Q15).
@@ -98,11 +101,7 @@ function WeighInForm({
 
   const refused = (path: string) =>
     problem?.kind === 'refused' ? problem.fields.get(path) : undefined;
-  const whenError =
-    refused('measuredAt') ??
-    (problem?.kind === 'refused' && problem.code === 'weigh_in_exists'
-      ? 'You already typed a weigh-in at this time.'
-      : undefined);
+  const whenError = refused('measuredAt');
 
   const save = async () => {
     const typed = parseFigure(weight);
@@ -176,7 +175,23 @@ function WeighInForm({
 
   return (
     <>
-      <SaveNotice problem={problem} what="weigh-in" />
+      {problem?.kind === 'refused' && problem.code === 'weigh_in_exists' ? (
+        <Notice tone="error" word="Already saved">
+          A weigh-in for that time is already saved.{' '}
+          <a
+            href="/progress/weight"
+            onClick={(event) => {
+              event.preventDefault();
+              navigate('/progress/weight');
+            }}
+          >
+            View weight list
+          </a>{' '}
+          to delete it and type the corrected one.
+        </Notice>
+      ) : (
+        <SaveNotice problem={problem} what="weigh-in" />
+      )}
       <form
         ref={form}
         className="form"
