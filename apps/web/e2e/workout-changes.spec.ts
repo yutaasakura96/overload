@@ -59,6 +59,50 @@ async function completeSet(page: Page, weight: string, reps: string) {
 
 const order = (page: Page) => changes(page).locator('.slot__name');
 
+test('two tabs starting empty workouts keep one in progress', async ({ page, context }) => {
+  await saveProfile(page);
+  const other = await context.newPage();
+  await other.goto('/');
+  for (const tab of [page, other]) {
+    await tab.getByRole('button', { name: 'Start an empty workout' }).click();
+    await expect(tab.getByRole('textbox', { name: 'Workout name' })).toBeVisible();
+  }
+  await page.getByRole('textbox', { name: 'Workout name' }).fill('First tab');
+  await other.getByRole('textbox', { name: 'Workout name' }).fill('Second tab');
+
+  await Promise.all([
+    page.getByRole('button', { name: 'Start workout' }).evaluate((button) => button.click()),
+    other.getByRole('button', { name: 'Start workout' }).evaluate((button) => button.click()),
+  ]);
+  await expect(page).toHaveURL('/workout');
+  await expect(other).toHaveURL('/workout');
+  const openOnDevice = () =>
+    page.evaluate(
+      () =>
+        new Promise<number>((resolve, reject) => {
+          const request = indexedDB.open('overload-sets');
+          request.onerror = () => reject(request.error);
+          request.onsuccess = () => {
+            const rows = request.result.transaction('rows', 'readonly').objectStore('rows').getAll();
+            rows.onerror = () => reject(rows.error);
+            rows.onsuccess = () =>
+              resolve(
+                rows.result.filter(
+                  (record) =>
+                    record.table === 'workouts' &&
+                    record.deletedAt === undefined &&
+                    record.row.endedAt === null,
+                ).length,
+              );
+          };
+        }),
+    );
+  expect(await openOnDevice()).toBe(1);
+  await expect(page.getByRole('heading', { name: /^(First|Second) tab$/ })).toBeVisible();
+  await expect(other.getByRole('heading', { name: /^(First|Second) tab$/ })).toBeVisible();
+  await expect.poll(() => stored().filter((workout) => workout.endedAt === null).length).toBe(1);
+});
+
 test('starts an empty workout, adds two exercises, logs a set and finishes', async ({ page }) => {
   await saveProfile(page);
   const empty = page.getByRole('region', { name: 'No routines yet' });

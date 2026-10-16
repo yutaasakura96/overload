@@ -357,6 +357,9 @@ function exerciseRecord(input: {
   };
 }
 
+const startIfNone = (records: StoreRecord[], put: StoreRecord[]): Change | undefined =>
+  openWorkout(records) === undefined ? { put } : undefined;
+
 /** Starts a workout from a routine (docs/09 F3 step 1): the workout and its exercises, on the device. */
 export async function startWorkout(input: {
   userId: string;
@@ -375,7 +378,8 @@ export async function startWorkout(input: {
     if (exercise === undefined) return [];
     return [exerciseRecord({ workout, exercise, position, slot, lastTimes: input.lastTimes, now })];
   });
-  if (!(await mutate(() => ({ put: [workout, ...exercises] }), input.userId))) return;
+  if (!(await mutate((records) => startIfNone(records, [workout, ...exercises]), input.userId)))
+    return;
   useWorkoutStore.setState({ rest: undefined, idleEnded: undefined });
 }
 
@@ -386,7 +390,7 @@ export async function startWorkout(input: {
 export async function startEmptyWorkout(input: { userId: string; name: string }): Promise<void> {
   const name = input.name.trim() || EMPTY_WORKOUT_NAME;
   const workout = workoutRecord(input.userId, { routineId: null, name }, new Date().toISOString());
-  if (!(await mutate(() => ({ put: [workout] }), input.userId))) return;
+  if (!(await mutate((records) => startIfNone(records, [workout]), input.userId))) return;
   useWorkoutStore.setState({ rest: undefined, idleEnded: undefined });
 }
 
