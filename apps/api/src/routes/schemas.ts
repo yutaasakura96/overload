@@ -1043,7 +1043,8 @@ const Per100gCandidate = z
 
 export const BarcodeLookup = z
   .object({
-    candidate: FoodCandidate.nullable().openapi({
+    // A union, not `.nullable()`: that would make the registered FoodCandidate itself nullable.
+    candidate: z.union([FoodCandidate, z.null()]).openapi({
       description: 'Null when the barcode is on the list already: nothing is looked up.',
     }),
     per100g: Per100gCandidate,

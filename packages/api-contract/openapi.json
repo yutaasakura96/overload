@@ -3432,7 +3432,15 @@
         "type": "object",
         "properties": {
           "candidate": {
-            "$ref": "#/components/schemas/FoodCandidate"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FoodCandidate"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null when the barcode is on the list already: nothing is looked up."
           },
           "per100g": {
             "type": [
@@ -3497,10 +3505,7 @@
         ]
       },
       "FoodCandidate": {
-        "type": [
-          "object",
-          "null"
-        ],
+        "type": "object",
         "properties": {
           "name": {
             "type": [
@@ -3573,20 +3578,13 @@
           "fatG",
           "fiberG"
         ],
-        "description": "Null when the barcode is on the list already: nothing is looked up."
+        "description": "What a source gave, as printed, on its basis. A value it did not give is null, never a guess. Not saved."
       },
       "LabelRead": {
         "type": "object",
         "properties": {
           "candidate": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/FoodCandidate"
-              },
-              {
-                "description": "What a source gave, as printed, on its basis. A value it did not give is null, never a guess. Not saved."
-              }
-            ]
+            "$ref": "#/components/schemas/FoodCandidate"
           },
           "per100g": {
             "type": [

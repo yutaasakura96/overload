@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { and, eq } from 'drizzle-orm';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { food, modelCallCount } from '../src/db/schema';
 import { MODEL_CALLS_PER_DAY } from '../src/db/model-calls';
 import type { BarcodeLookup, LabelImage, LabelRead } from '../src/lib/food-candidate';
@@ -36,6 +36,16 @@ const t = useTestApp({
 
 /** The same app with no reader set up, as until the owner sets the Anthropic key. */
 const unset = useTestApp();
+
+/** The same sources, keeping the request log's lines. */
+const logLines: string[] = [];
+const logged = useTestApp({
+  log: (line) => logLines.push(line),
+  foodSources: {
+    openFoodFacts: { lookup: async () => barcodeAnswer },
+    labelReader: { read: async () => labelAnswer },
+  },
+});
 
 type Food = {
   id: string;
@@ -635,5 +645,51 @@ describe('POST /api/label-reads', () => {
 
   it('answers 401 without a session', async () => {
     expect((await photo('', jpeg())).status).toBe(401);
+  });
+});
+
+describe('what the food routes log (docs/03 §7)', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('logs ids and codes only: no food name, value, search word, barcode or photo', async () => {
+    const errors = vi.spyOn(console, 'error');
+    const { cookie, send } = await member('logged@example.test', logged);
+    logLines.length = 0;
+    const made = await add(
+      send,
+      per100({ name: 'Kinpira gobo', brand: 'Mitsukan', energyKcal: 471.9, sourceRef: null }),
+    );
+    expect((await send('PATCH', `/api/foods/${made.id}`, { proteinG: 31.7 })).status).toBe(200);
+    expect((await send('GET', '/api/reference-foods?q=natto')).status).toBe(200);
+    barcodeAnswer = { kind: 'found', candidate };
+    expect((await send('GET', '/api/barcodes/4909876543210')).status).toBe(200);
+    labelAnswer = read;
+    expect((await photo(cookie, jpeg(), logged)).status).toBe(200);
+    expect((await send('DELETE', `/api/foods/${made.id}`)).status).toBe(204);
+
+    expect(logLines).toHaveLength(6);
+    for (const line of logLines) {
+      expect(Object.keys(JSON.parse(line)).toSorted()).toEqual([
+        'method',
+        'ms',
+        'requestId',
+        'route',
+        'status',
+      ]);
+    }
+    const all = logLines.join('\n');
+    for (const value of [
+      'Kinpira',
+      'Mitsukan',
+      '471.9',
+      '31.7',
+      'natto',
+      '4909876543210',
+      'Rolled oats',
+      'サラダチキン',
+    ]) {
+      expect(all).not.toContain(value);
+    }
+    expect(errors).not.toHaveBeenCalled();
   });
 });

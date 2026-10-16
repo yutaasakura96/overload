@@ -1,4 +1,4 @@
-import Anthropic, { BadRequestError } from '@anthropic-ai/sdk';
+import Anthropic from '@anthropic-ai/sdk';
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import { z } from 'zod';
 import { BASIS_KINDS } from '../domain/food.js';
@@ -72,10 +72,10 @@ export function labelReader({ apiKey }: { apiKey: string }): LabelReader {
         });
         if (response.stop_reason === 'refusal') return { kind: 'unreadable' };
         answer = response.parsed_output;
-      } catch (error) {
-        // A photo the API itself refuses (corrupt, not an image) is unreadable; the rest is the
-        // reader being down, which the user carries on from by hand (docs/09 F9).
-        if (error instanceof BadRequestError) return { kind: 'unreadable' };
+      } catch {
+        // Any error is the reader failing, never the photo: the photo was re-encoded on the phone
+        // and its type checked here, and a spent workspace answers 400 too (docs/13 §3). Retaking
+        // would spend another of the day's calls, so the user carries on by hand (docs/09 F9).
         return { kind: 'failed' };
       }
       return labelReadOf(answer);

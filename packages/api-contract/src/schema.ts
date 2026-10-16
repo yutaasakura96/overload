@@ -3976,7 +3976,8 @@ export interface components {
       existingFoodId: string | null;
     };
     BarcodeLookup: {
-      candidate: components['schemas']['FoodCandidate'];
+      /** @description Null when the barcode is on the list already: nothing is looked up. */
+      candidate: components['schemas']['FoodCandidate'] | null;
       /** @description The candidate converted to per 100 g, as it would be saved. Null when the basis has no weight. */
       per100g: {
         energyKcal: number | null;
@@ -3992,7 +3993,7 @@ export interface components {
        */
       existingFoodId: string | null;
     };
-    /** @description Null when the barcode is on the list already: nothing is looked up. */
+    /** @description What a source gave, as printed, on its basis. A value it did not give is null, never a guess. Not saved. */
     FoodCandidate: {
       name: string | null;
       brand: string | null;
@@ -4003,9 +4004,9 @@ export interface components {
       carbG: number | null;
       fatG: number | null;
       fiberG: number | null;
-    } | null;
+    };
     LabelRead: {
-      candidate: components['schemas']['FoodCandidate'] & unknown;
+      candidate: components['schemas']['FoodCandidate'];
       /** @description The candidate converted to per 100 g, as it would be saved. Null when the basis has no weight. */
       per100g: {
         energyKcal: number | null;

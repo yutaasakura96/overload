@@ -36,7 +36,8 @@ export type GoogleIdentity = { sub: string; email: string; emailVerified: boolea
 export function useTestApp({
   committed = false,
   foodSources = noFoodSources,
-}: { committed?: boolean; foodSources?: FoodSources } = {}) {
+  log = () => {},
+}: { committed?: boolean; foodSources?: FoodSources; log?: (line: string) => void } = {}) {
   // max: 1 and no idle timeout keep every query, Better Auth's included, on the one connection that
   // holds the open transaction.
   const pool = new Pool({
@@ -98,7 +99,7 @@ export function useTestApp({
     },
     plugins: [testUtils()],
   });
-  const app = createApp({ auth, config: testConfig, db, log: () => {}, foodSources });
+  const app = createApp({ auth, config: testConfig, db, log, foodSources });
 
   beforeAll(async () => {
     await pool.query('SELECT 1');
