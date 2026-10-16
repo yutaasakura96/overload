@@ -398,3 +398,111 @@ export const bodyMeasurement = pgTable(
     check('body_measurement_source_check', sql`${t.source} IN ('apple_health', 'manual')`),
   ],
 );
+
+/**
+ * The MEXT catalogue, 日本食品標準成分表（八訂）増補2023年 (S12, docs/04). Shared and read-only: a pick
+ * copies its values into a new `food`. Seeded by a generated migration (seed/mext.ts); its name
+ * search index uses pg_trgm, in a custom migration.
+ */
+export const referenceFood = pgTable(
+  'reference_food',
+  {
+    code: text('code').notNull().primaryKey(),
+    name: text('name').notNull(),
+    // The 2015 English table's name for the same food number; null for a food added since.
+    nameEn: text('name_en'),
+    foodGroup: smallint('food_group').notNull(),
+    state: text('state', { enum: ['raw', 'cooked'] }).notNull(),
+    energyKcal: numeric('energy_kcal', { precision: 7, scale: 2, mode: 'number' }).notNull(),
+    proteinG: numeric('protein_g', { precision: 6, scale: 2, mode: 'number' }).notNull(),
+    carbG: numeric('carb_g', { precision: 6, scale: 2, mode: 'number' }).notNull(),
+    fatG: numeric('fat_g', { precision: 6, scale: 2, mode: 'number' }).notNull(),
+    fiberG: numeric('fiber_g', { precision: 6, scale: 2, mode: 'number' }).notNull(),
+    ...timestamps,
+  },
+  (t) => [
+    check('reference_food_state_check', sql`${t.state} IN ('raw', 'cooked')`),
+    check('reference_food_food_group_check', sql`${t.foodGroup} BETWEEN 1 AND 18`),
+  ],
+);
+
+/** A set of foods that stand in for each other (S12): okra ↔ broccoli, rice ↔ potato. */
+export const rotationGroup = pgTable(
+  'rotation_group',
+  {
+    id: id(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    ...timestamps,
+  },
+  (t) => [index('rotation_group_user_id_idx').on(t.userId)],
+);
+
+export const foodSourceValues = ['mext', 'open_food_facts', 'label_photo', 'manual'] as const;
+
+/**
+ * One food on the user's own list (S12), its values per 100 g of the state named. Archived, it is
+ * off the list and out of new plans, and past plans still name it. The two keys that refuse a
+ * duplicate on the list (the same barcode or MEXT code; the same name, brand and state) are
+ * expression indexes, in a custom migration.
+ */
+export const food = pgTable(
+  'food',
+  {
+    id: id(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    brand: text('brand'),
+    state: text('state', { enum: ['raw', 'cooked'] })
+      .notNull()
+      .default('raw'),
+    energyKcal: numeric('energy_kcal', { precision: 7, scale: 2, mode: 'number' }).notNull(),
+    proteinG: numeric('protein_g', { precision: 6, scale: 2, mode: 'number' }).notNull(),
+    carbG: numeric('carb_g', { precision: 6, scale: 2, mode: 'number' }).notNull(),
+    fatG: numeric('fat_g', { precision: 6, scale: 2, mode: 'number' }).notNull(),
+    fiberG: numeric('fiber_g', { precision: 6, scale: 2, mode: 'number' }).notNull().default(0),
+    pieceWeightG: numeric('piece_weight_g', { precision: 6, scale: 2, mode: 'number' }),
+    keepsDays: smallint('keeps_days'),
+    source: text('source', { enum: foodSourceValues }).notNull(),
+    sourceRef: text('source_ref'),
+    rotationGroupId: uuid('rotation_group_id').references(() => rotationGroup.id, {
+      onDelete: 'set null',
+    }),
+    archivedAt: instant('archived_at'),
+    ...timestamps,
+  },
+  (t) => [
+    index('food_user_id_idx').on(t.userId).where(sql`${t.archivedAt} IS NULL`),
+    index('food_user_id_source_ref_idx').on(t.userId, t.sourceRef),
+    index('food_rotation_group_id_idx').on(t.rotationGroupId),
+    check('food_state_check', sql`${t.state} IN ('raw', 'cooked')`),
+    check(
+      'food_source_check',
+      sql`${t.source} IN ('mext', 'open_food_facts', 'label_photo', 'manual')`,
+    ),
+    check('food_piece_weight_g_check', sql`${t.pieceWeightG} > 0`),
+    check('food_keeps_days_check', sql`${t.keepsDays} BETWEEN 1 AND 30`),
+  ],
+);
+
+/**
+ * Model calls a user made on one local day: label reads now, meal estimates in M3, counted together
+ * against one daily cap (docs/06, 2026-09-22). A label read leaves no other row, so the count is its
+ * own store. Bookkeeping, not exported.
+ */
+export const modelCallCount = pgTable(
+  'model_call_count',
+  {
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    day: date('day', { mode: 'string' }).notNull(),
+    calls: smallint('calls').notNull().default(0),
+    ...timestamps,
+  },
+  (t) => [primaryKey({ name: 'model_call_count_pkey', columns: [t.userId, t.day] })],
+);

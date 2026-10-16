@@ -1,22 +1,27 @@
 import { OpenAPIHono } from '@hono/zod-openapi';
 import type { Hook } from '@hono/zod-openapi';
 import type { Context, Next } from 'hono';
+import { bodyLimit } from 'hono/body-limit';
 import { csrf } from 'hono/csrf';
 import { HTTPException } from 'hono/http-exception';
 import { requestId } from 'hono/request-id';
 import { and, eq, isNotNull } from 'drizzle-orm';
-import type { AppEnv, RouteDeps } from './app-env.js';
+import type { AppEnv, FoodSources, RouteDeps } from './app-env.js';
 import type { Auth } from './auth/auth.js';
 import { invite } from './db/schema.js';
 import { ACCOUNT_HEADER } from './lib/account.js';
 import { describeError } from './lib/error-log.js';
+import { labelReader } from './lib/label-reader.js';
+import { openFoodFacts } from './lib/open-food-facts.js';
 import type { ReportError } from './lib/error-report.js';
 import { problem, validationErrors, type ProblemCode } from './lib/problem.js';
 import { adminRoutes } from './routes/admin.js';
 import { exerciseRoutes } from './routes/exercises.js';
 import { exportRoutes } from './routes/export.js';
+import { LABEL_PHOTO_MAX_BYTES, foodRoutes } from './routes/foods.js';
 import { healthRoutes } from './routes/health.js';
 import { meRoutes } from './routes/me.js';
+import { rotationGroupRoutes } from './routes/rotation-groups.js';
 import { routineRoutes } from './routes/routines.js';
 import { trainingRoutes } from './routes/training.js';
 import { weighInRoutes } from './routes/weigh-ins.js';
@@ -27,6 +32,8 @@ export type AppDeps = RouteDeps & {
   log?: (line: string) => void;
   /** Sentry, when SENTRY_DSN is set (src/sentry.ts). Awaited, so the event is sent before the 500. */
   reportError?: ReportError;
+  /** Open Food Facts and the label reader. Tests pass stubs; by default, the real ones. */
+  foodSources?: FoodSources;
 };
 
 const AUTH_PREFIX = '/api/auth/';
@@ -52,7 +59,17 @@ const validationHook: Hook<unknown, AppEnv, string, unknown> = (result, c) => {
   });
 };
 
-export function createApp({ auth, config, db, log = console.log, reportError }: AppDeps) {
+export function createApp({
+  auth,
+  config,
+  db,
+  log = console.log,
+  reportError,
+  foodSources = {
+    openFoodFacts: openFoodFacts({ userAgent: `Overload/1 (${config.webOrigin})` }),
+    labelReader: config.anthropicApiKey === null ? null : labelReader({ apiKey: config.anthropicApiKey }),
+  },
+}: AppDeps) {
   const app = new OpenAPIHono<AppEnv>({ defaultHook: validationHook });
 
   app.use('*', requestId({ generator: () => `req_${crypto.randomUUID().replaceAll('-', '')}` }));
@@ -101,6 +118,16 @@ export function createApp({ auth, config, db, log = console.log, reportError }: 
     return next();
   });
 
+  // A label photo over the limit is refused before it is read into memory (docs/07 §1.5). The
+  // margin is the multipart framing around the image.
+  app.use(
+    '/api/label-reads',
+    bodyLimit({
+      maxSize: LABEL_PHOTO_MAX_BYTES + 64 * 1024,
+      onError: (c) => problem(c, 'payload_too_large'),
+    }),
+  );
+
   app.on(['GET', 'POST'], `${AUTH_PREFIX}*`, (c) => auth.handler(c.req.raw));
 
   app.openapiRoutes(healthRoutes);
@@ -110,6 +137,8 @@ export function createApp({ auth, config, db, log = console.log, reportError }: 
   app.openapiRoutes(routineRoutes({ config, db }));
   app.openapiRoutes(trainingRoutes({ config, db }));
   app.openapiRoutes(weighInRoutes({ config, db }));
+  app.openapiRoutes(foodRoutes({ config, db, foodSources }));
+  app.openapiRoutes(rotationGroupRoutes({ config, db }));
   app.openapiRoutes(adminRoutes({ config, db }));
 
   app.openAPIRegistry.registerComponent('securitySchemes', 'session', {
