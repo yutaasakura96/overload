@@ -3829,7 +3829,7 @@ on generated weigh-ins (owner, 2026-10-16).
   week's change is printed uncoloured, because without a phase there is no direction that counts as
   progress; the prototype's green was a cut's.
 - **A typed weigh-in is deleted with one tap**, as the prototype draws it, and the screen says
-  `Weigh-in deleted.` with `Undo`, which sends the same weigh-in back under its own id. *Rejected:*
+  `Weigh-in deleted.` *Rejected:*
   `DeleteConfirm`'s two steps, which do not fit the row.
 - **The form is `/progress/weight/new`**, opened from the section; saving returns to the section,
   which says `Weigh-in saved.` once.

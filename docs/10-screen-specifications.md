@@ -484,7 +484,7 @@ and the rest of the week are planned again; `Now 2,350 provisional → New 2,250
   span segments are left out and the chart is the last 30 days, with `No weigh-ins in the last 30
   days.` when it is empty. The empty state offers `Type a weight` alone, and says to type the
   morning weight before 10:00. A typed weigh-in's `Delete` acts at once and the screen says
-  `Weigh-in deleted.` with `Undo`, which puts it back (`Weigh-in put back.`); without a profile the section asks for one first. The chart is hidden from
+  `Weigh-in deleted.`; without a profile the section asks for one first. The chart is hidden from
   screen readers and read out as one sentence instead; the list carries every value.
 
 ---

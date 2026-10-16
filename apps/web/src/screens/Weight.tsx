@@ -1,7 +1,7 @@
 import type { Me, WeighIn, WeighIns, WeightDay, WeightUnit } from '@overload/api-contract';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
-import { api, expectOk, unwrap } from '../api';
+import { api, expectOk } from '../api';
 import { AccountFooter, AppBar, CheckIcon, DataState, Notice, ScreenTabs } from '../components';
 import { axisDates, dateX } from '../chart';
 import { clockLabel, dayLabel, localDate } from '../dates';
@@ -45,31 +45,10 @@ export function Weight({ me, navigate }: { me: Me; navigate: Navigate }) {
   const profile = me.profile;
   const weighIns = useQuery({ ...weighInsQuery, enabled: confirmed && profile != null });
   const weighed = useEntryNote() === 'weighed';
-  // The weigh-in just deleted, kept so Undo can put it back under its own id; then whether it was.
-  const [deleted, setDeleted] = useState<WeighIn>();
-  const [restored, setRestored] = useState(false);
-  const [restoring, setRestoring] = useState(false);
+  const [deleted, setDeleted] = useState(false);
   const [problem, setProblem] = useState<SaveProblem>();
   const data = weighIns.data;
   const typeOne = () => navigate('/progress/weight/new', { returns: true });
-
-  const undo = async (weighIn: WeighIn) => {
-    setRestoring(true);
-    try {
-      const { id, measuredAt, weightKg, bodyFatPct } = weighIn;
-      await forAccount(async () =>
-        unwrap(
-          await api.POST('/api/weigh-ins', { body: { id, measuredAt, weightKg, bodyFatPct } }),
-        ),
-      );
-      await refreshWeighIns();
-      setDeleted(undefined);
-      setRestored(true);
-    } catch (error) {
-      setProblem(saveProblem(error));
-    }
-    setRestoring(false);
-  };
 
   return (
     <main className="progress">
@@ -99,24 +78,10 @@ export function Weight({ me, navigate }: { me: Me; navigate: Navigate }) {
         </Notice>
       )}
       <SaveNotice problem={problem} what="weigh-in" />
-      {(weighed || deleted !== undefined || restored) && problem === undefined && (
+      {(weighed || deleted) && problem === undefined && (
         <output className="saved-line">
           <CheckIcon size={13} color="var(--done)" />
-          {deleted !== undefined
-            ? 'Weigh-in deleted.'
-            : restored
-              ? 'Weigh-in put back.'
-              : 'Weigh-in saved.'}
-          {deleted !== undefined && (
-            <button
-              type="button"
-              className="button button--tertiary saved-line__undo"
-              disabled={restoring}
-              onClick={() => void undo(deleted)}
-            >
-              Undo
-            </button>
-          )}
+          {deleted ? 'Weigh-in deleted.' : 'Weigh-in saved.'}
         </output>
       )}
 
@@ -141,13 +106,12 @@ export function Weight({ me, navigate }: { me: Me; navigate: Navigate }) {
           unit={profile.weightUnit}
           timeZone={profile.timezone}
           onType={typeOne}
-          onDeleted={(weighIn) => {
+          onDeleted={() => {
             setProblem(undefined);
-            setRestored(false);
-            setDeleted(weighIn);
+            setDeleted(true);
           }}
           onProblem={(next) => {
-            setDeleted(undefined);
+            setDeleted(false);
             setProblem(next);
           }}
         />
@@ -170,7 +134,7 @@ function WeightBody({
   unit: WeightUnit;
   timeZone: string;
   onType: () => void;
-  onDeleted: (weighIn: WeighIn) => void;
+  onDeleted: () => void;
   onProblem: (problem: SaveProblem) => void;
 }) {
   // The day the screen opened on: the chart's span ends on it.
@@ -405,7 +369,7 @@ function WeighInRow({
   day: WeightDay | undefined;
   unit: WeightUnit;
   timeZone: string;
-  onDeleted: (weighIn: WeighIn) => void;
+  onDeleted: () => void;
   onProblem: (problem: SaveProblem) => void;
 }) {
   const [busy, setBusy] = useState(false);
@@ -420,7 +384,7 @@ function WeighInRow({
         expectOk(await api.DELETE('/api/weigh-ins/{id}', { params: { path: { id: weighIn.id } } })),
       );
       await refreshWeighIns();
-      onDeleted(weighIn);
+      onDeleted();
     } catch (error) {
       onProblem(saveProblem(error));
       setBusy(false);

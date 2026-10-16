@@ -98,14 +98,7 @@ test('types a weight, sees it on the section, then deletes it', async ({ page })
   await expect(page.getByText('Weigh-in deleted.')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'No weigh-ins yet' })).toBeVisible();
 
-  // Undo puts it back under its own id; deleting it again leaves none.
-  await page.getByRole('button', { name: 'Undo' }).click();
-  await expect(page.getByText('Weigh-in put back.')).toBeVisible();
-  await expect(recent(page).getByRole('listitem')).toContainText('82.4');
-  await recent(page)
-    .getByRole('button', { name: /Delete/ })
-    .click();
-  await expect(page.getByRole('heading', { name: 'No weigh-ins yet' })).toBeVisible();
+  await expect(recent(page).getByRole('listitem')).toHaveCount(0);
 });
 
 test('marks a second reading of the day as stored, and draws the trend from the third day', async ({
