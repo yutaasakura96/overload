@@ -1207,23 +1207,20 @@ function ExerciseChanges({
   const remove = (exercise: WorkoutExerciseRecord, confirmed: boolean) => {
     const index = exercises.indexOf(exercise);
     const next = exercises[index + 1] ?? exercises[index - 1];
-    void change(
-      async () => {
-        const result = await removeExercise(
-          exercise.id,
-          confirmed ? setsOf(records, exercise.id).length : 0,
-        );
-        if (result.setCount !== undefined) {
-          focusNext.current = idOf('keep', exercise.id);
-          setAsking(exercise.id);
-          return;
-        }
-        if (!result.applied) throw new Error('workout was not changed');
-        setAsking(undefined);
-        focusNext.current = next === undefined ? '' : idOf('remove', next.id);
-      },
-      undefined,
-    );
+    void change(async () => {
+      const result = await removeExercise(
+        exercise.id,
+        confirmed ? setsOf(records, exercise.id).length : 0,
+      );
+      if (result.setCount !== undefined) {
+        focusNext.current = idOf('keep', exercise.id);
+        setAsking(exercise.id);
+        return;
+      }
+      if (!result.applied) throw new Error('workout was not changed');
+      setAsking(undefined);
+      focusNext.current = next === undefined ? '' : idOf('remove', next.id);
+    }, undefined);
   };
 
   return (
@@ -1342,10 +1339,13 @@ function ExerciseChanges({
                         aria-disabled={first || busy}
                         onClick={() => {
                           if (first || busy) return;
-                          void change(async () => {
-                            if (!(await moveExercise(exercise.id, -1)))
-                              throw new Error('workout was not changed');
-                          }, idOf('up', exercise.id));
+                          void change(
+                            async () => {
+                              if (!(await moveExercise(exercise.id, -1)))
+                                throw new Error('workout was not changed');
+                            },
+                            idOf('up', exercise.id),
+                          );
                         }}
                       >
                         <Chevron direction="up" />
@@ -1358,10 +1358,13 @@ function ExerciseChanges({
                         aria-disabled={last || busy}
                         onClick={() => {
                           if (last || busy) return;
-                          void change(async () => {
-                            if (!(await moveExercise(exercise.id, 1)))
-                              throw new Error('workout was not changed');
-                          }, idOf('down', exercise.id));
+                          void change(
+                            async () => {
+                              if (!(await moveExercise(exercise.id, 1)))
+                                throw new Error('workout was not changed');
+                            },
+                            idOf('down', exercise.id),
+                          );
                         }}
                       >
                         <Chevron direction="down" />

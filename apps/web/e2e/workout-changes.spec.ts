@@ -85,11 +85,14 @@ test('two tabs starting empty workouts keep one in progress', async ({ page, con
       () =>
         new Promise<number>((resolve, reject) => {
           const request = indexedDB.open('overload-sets');
-          request.onerror = () => reject(request.error);
-          request.onsuccess = () => {
-            const rows = request.result.transaction('rows', 'readonly').objectStore('rows').getAll();
-            rows.onerror = () => reject(rows.error);
-            rows.onsuccess = () =>
+          request.addEventListener('error', () => reject(request.error));
+          request.addEventListener('success', () => {
+            const rows = request.result
+              .transaction('rows', 'readonly')
+              .objectStore('rows')
+              .getAll();
+            rows.addEventListener('error', () => reject(rows.error));
+            rows.addEventListener('success', () =>
               resolve(
                 rows.result.filter(
                   (record) =>
@@ -97,8 +100,9 @@ test('two tabs starting empty workouts keep one in progress', async ({ page, con
                     record.deletedAt === undefined &&
                     record.row.endedAt === null,
                 ).length,
-              );
-          };
+              ),
+            );
+          });
         }),
     );
   expect(await openOnDevice()).toBe(1);
@@ -131,9 +135,7 @@ test('stale exercise removal asks about new sets and rejects later logging', asy
   await expect(other.getByRole('row', { name: /^1 80 10/ })).toBeVisible();
   await other.getByRole('textbox', { name: /^Weight in/ }).fill('82.5');
   await other.getByRole('textbox', { name: 'Reps', exact: true }).fill('8');
-  await page
-    .getByRole('button', { name: 'Remove Barbell Bench Press' })
-    .evaluate(clickButtonNow);
+  await page.getByRole('button', { name: 'Remove Barbell Bench Press' }).evaluate(clickButtonNow);
   await expect(
     page.getByText('Remove Barbell Bench Press? Its 1 logged set goes with it.'),
   ).toBeVisible();
@@ -141,9 +143,7 @@ test('stale exercise removal asks about new sets and rejects later logging', asy
   await expect(other.getByRole('row', { name: /^2 82\.5 8/ })).toBeVisible();
   await other.getByRole('textbox', { name: /^Weight in/ }).fill('85');
   await other.getByRole('textbox', { name: 'Reps', exact: true }).fill('6');
-  await changes(page)
-    .getByRole('button', { name: 'Remove', exact: true })
-    .evaluate(clickButtonNow);
+  await changes(page).getByRole('button', { name: 'Remove', exact: true }).evaluate(clickButtonNow);
   await expect(
     page.getByText('Remove Barbell Bench Press? Its 2 logged sets go with it.'),
   ).toBeVisible();
