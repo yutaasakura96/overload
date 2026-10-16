@@ -5,7 +5,8 @@ import { WEB_ORIGIN, type useTestApp } from './harness';
 // An account with a row in every table a member writes, for the export and the deletion (S10): a
 // profile, a custom exercise with its setting, a hidden seeded exercise, a routine using the custom
 // exercise, a finished workout that logged it, one still in progress, a set deleted through the
-// sync batch so its tombstone exists, and a typed weigh-in (M2).
+// sync batch so its tombstone exists, a typed weigh-in (M2), and a food in a rotation group with a
+// second food archived (M2 slice 3).
 
 type TestApp = ReturnType<typeof useTestApp>;
 
@@ -143,5 +144,56 @@ export async function fillAccount(t: TestApp, cookie: string) {
   };
   await ok(send('POST', '/api/weigh-ins', weighIn), 201);
 
-  return { customId, hiddenId, routineId, finished, open, removedSetId: removed.id, weighIn };
+  const groupId = randomUUID();
+  await ok(send('POST', '/api/rotation-groups', { id: groupId, name: 'Starch', foodIds: [] }), 201);
+  const foodId = randomUUID();
+  await ok(
+    send('POST', '/api/foods', {
+      id: foodId,
+      name: 'White rice',
+      state: 'cooked',
+      basis: { kind: 'per_100g', grams: null },
+      energyKcal: 156,
+      proteinG: 2.5,
+      carbG: 34.6,
+      fatG: 0.3,
+      fiberG: 1.5,
+      keepsDays: 3,
+      source: 'mext',
+      sourceRef: '01088',
+      rotationGroupId: groupId,
+    }),
+    201,
+  );
+  const archivedFoodId = randomUUID();
+  await ok(
+    send('POST', '/api/foods', {
+      id: archivedFoodId,
+      name: 'Okra',
+      state: 'raw',
+      basis: { kind: 'per_100g', grams: null },
+      energyKcal: 26,
+      proteinG: 2.1,
+      carbG: 2.2,
+      fatG: 0.2,
+      fiberG: 5,
+      source: 'manual',
+    }),
+    201,
+  );
+  const archived = await send('DELETE', `/api/foods/${archivedFoodId}`);
+  expect(archived.status).toBe(204);
+
+  return {
+    customId,
+    hiddenId,
+    routineId,
+    finished,
+    open,
+    removedSetId: removed.id,
+    weighIn,
+    groupId,
+    foodId,
+    archivedFoodId,
+  };
 }

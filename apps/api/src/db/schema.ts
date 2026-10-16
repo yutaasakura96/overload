@@ -476,7 +476,9 @@ export const food = pgTable(
     ...timestamps,
   },
   (t) => [
-    index('food_user_id_idx').on(t.userId).where(sql`${t.archivedAt} IS NULL`),
+    index('food_user_id_idx')
+      .on(t.userId)
+      .where(sql`${t.archivedAt} IS NULL`),
     index('food_user_id_source_ref_idx').on(t.userId, t.sourceRef),
     index('food_rotation_group_id_idx').on(t.rotationGroupId),
     check('food_state_check', sql`${t.state} IN ('raw', 'cooked')`),

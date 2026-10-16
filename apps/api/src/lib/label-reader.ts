@@ -1,4 +1,4 @@
-import Anthropic from '@anthropic-ai/sdk';
+import Anthropic, { BadRequestError } from '@anthropic-ai/sdk';
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import { z } from 'zod';
 import { BASIS_KINDS } from '../domain/food.js';
@@ -75,7 +75,7 @@ export function labelReader({ apiKey }: { apiKey: string }): LabelReader {
       } catch (error) {
         // A photo the API itself refuses (corrupt, not an image) is unreadable; the rest is the
         // reader being down, which the user carries on from by hand (docs/09 F9).
-        if (error instanceof Anthropic.BadRequestError) return { kind: 'unreadable' };
+        if (error instanceof BadRequestError) return { kind: 'unreadable' };
         return { kind: 'failed' };
       }
       return labelReadOf(answer);

@@ -225,6 +225,11 @@
               ]
             },
             "description": "Present only for `setup_incomplete`: the steps to finish first."
+          },
+          "existingFoodId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Present only for `food_exists`: the food already on the list."
           }
         },
         "required": [
@@ -432,9 +437,67 @@
               "items",
               "nextCursor"
             ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "section": {
+                "type": "string",
+                "enum": [
+                  "foods"
+                ]
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Food"
+                }
+              },
+              "nextCursor": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Opaque. Send it back as `cursor` for the next page."
+              }
+            },
+            "required": [
+              "section",
+              "items",
+              "nextCursor"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "section": {
+                "type": "string",
+                "enum": [
+                  "rotationGroups"
+                ]
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/RotationGroup"
+                }
+              },
+              "nextCursor": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Opaque. Send it back as `cursor` for the next page."
+              }
+            },
+            "required": [
+              "section",
+              "items",
+              "nextCursor"
+            ]
           }
         ],
-        "description": "One page of one section. `profile` has one item; `exercises`, `routines`, `workouts` and `weighIns` are cursor-paged. Workouts include ones in progress."
+        "description": "One page of one section. `profile` has one item; `exercises`, `routines`, `workouts`, `weighIns`, `foods` and `rotationGroups` are cursor-paged. Workouts include ones in progress, and `foods` archived ones."
       },
       "ExportProfile": {
         "type": "object",
@@ -969,6 +1032,169 @@
           "source"
         ]
       },
+      "Food": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+          },
+          "name": {
+            "type": "string",
+            "example": "鶏むね肉（皮なし）"
+          },
+          "brand": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "state": {
+            "$ref": "#/components/schemas/FoodState"
+          },
+          "energyKcal": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 900,
+            "example": 105
+          },
+          "proteinG": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "example": 23.3
+          },
+          "carbG": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "example": 0.1
+          },
+          "fatG": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "example": 1.9
+          },
+          "fiberG": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "example": 0
+          },
+          "pieceWeightG": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "exclusiveMinimum": 0,
+            "maximum": 5000,
+            "example": 55,
+            "description": "Set for a food counted in pieces. Null: counted in grams."
+          },
+          "keepsDays": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "maximum": 30,
+            "example": 4,
+            "description": "How many days a cooked batch keeps. Null: not batch-cooked."
+          },
+          "source": {
+            "$ref": "#/components/schemas/FoodSource"
+          },
+          "sourceRef": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The MEXT food code, or the barcode."
+          },
+          "rotationGroupId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+          },
+          "archivedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "example": "2026-11-11T09:01:40.000Z",
+            "description": "Off the list and out of new plans; past plans still name it."
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "brand",
+          "state",
+          "energyKcal",
+          "proteinG",
+          "carbG",
+          "fatG",
+          "fiberG",
+          "pieceWeightG",
+          "keepsDays",
+          "source",
+          "sourceRef",
+          "rotationGroupId",
+          "archivedAt"
+        ],
+        "description": "One food on the list. Values are per 100 g of `state`."
+      },
+      "FoodState": {
+        "type": "string",
+        "enum": [
+          "raw",
+          "cooked"
+        ],
+        "description": "The state the values are for: weighed raw, or weighed cooked."
+      },
+      "FoodSource": {
+        "type": "string",
+        "enum": [
+          "mext",
+          "open_food_facts",
+          "label_photo",
+          "manual"
+        ]
+      },
+      "RotationGroup": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+          },
+          "name": {
+            "type": "string",
+            "example": "Starch"
+          },
+          "foodIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid",
+              "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+            },
+            "description": "Its foods on the list, by name."
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "foodIds"
+        ]
+      },
       "ExportSection": {
         "type": "string",
         "enum": [
@@ -976,7 +1202,9 @@
           "exercises",
           "routines",
           "workouts",
-          "weighIns"
+          "weighIns",
+          "foods",
+          "rotationGroups"
         ],
         "description": "The sections built so far. Later milestones add theirs (docs/07 §2)."
       },
@@ -2873,6 +3101,616 @@
           "weightKg"
         ]
       },
+      "FoodList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Food"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "FoodCreate": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11",
+            "description": "Made on the device (UUIDv7). A repeat returns the row."
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "example": "サラダチキン プレーン"
+          },
+          "brand": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 80,
+            "description": "Default: none."
+          },
+          "state": {
+            "$ref": "#/components/schemas/FoodState"
+          },
+          "basis": {
+            "$ref": "#/components/schemas/Basis"
+          },
+          "energyKcal": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100000
+          },
+          "proteinG": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100000
+          },
+          "carbG": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100000
+          },
+          "fatG": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100000
+          },
+          "fiberG": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 100000,
+            "description": "Null when the source gave none: saved as 0."
+          },
+          "pieceWeightG": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "exclusiveMinimum": 0,
+            "maximum": 5000,
+            "example": 55
+          },
+          "keepsDays": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "maximum": 30,
+            "example": 4
+          },
+          "source": {
+            "$ref": "#/components/schemas/FoodSource"
+          },
+          "sourceRef": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 40
+          },
+          "rotationGroupId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "state",
+          "basis",
+          "energyKcal",
+          "proteinG",
+          "carbG",
+          "fatG",
+          "fiberG",
+          "source"
+        ],
+        "description": "A confirmed food, with its values on the basis they were read in. The API converts to per 100 g."
+      },
+      "Basis": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "per_100g",
+              "per_piece",
+              "per_serving",
+              "per_package"
+            ]
+          },
+          "grams": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "exclusiveMinimum": 0,
+            "maximum": 10000,
+            "description": "The weight of the piece, serving or package, when known. `per_100g` is 100 whatever is sent."
+          }
+        },
+        "required": [
+          "kind",
+          "grams"
+        ],
+        "description": "The amount a set of values is for (docs/07 §4)."
+      },
+      "FoodPatch": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "brand": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "state": {
+            "$ref": "#/components/schemas/FoodState"
+          },
+          "energyKcal": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 900,
+            "example": 105
+          },
+          "proteinG": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "example": 23.3
+          },
+          "carbG": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "example": 0.1
+          },
+          "fatG": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "example": 1.9
+          },
+          "fiberG": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "example": 0
+          },
+          "pieceWeightG": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "exclusiveMinimum": 0,
+            "maximum": 5000,
+            "example": 55
+          },
+          "keepsDays": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "maximum": 30,
+            "example": 4
+          },
+          "rotationGroupId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+          }
+        },
+        "description": "Values per 100 g. An omitted field is unchanged."
+      },
+      "ReferenceFoodList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReferenceFood"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "ReferenceFood": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "11220"
+          },
+          "name": {
+            "type": "string",
+            "description": "As MEXT prints it.",
+            "example": "＜鳥肉類＞　にわとり　［若どり・主品目］　むね　皮なし　生"
+          },
+          "nameEn": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "From the 2015 English table, by food number. Null for a food added since.",
+            "example": "Chicken, broiler, breast, meat without skin, raw"
+          },
+          "foodGroup": {
+            "type": "integer",
+            "description": "MEXT 食品群, 1 to 18."
+          },
+          "state": {
+            "$ref": "#/components/schemas/FoodState"
+          },
+          "energyKcal": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 900,
+            "example": 105
+          },
+          "proteinG": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "example": 23.3
+          },
+          "carbG": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "example": 0.1
+          },
+          "fatG": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "example": 1.9
+          },
+          "fiberG": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "example": 0
+          },
+          "existingFoodId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11",
+            "description": "The food on the caller’s list with this MEXT code, if there is one."
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "nameEn",
+          "foodGroup",
+          "state",
+          "energyKcal",
+          "proteinG",
+          "carbG",
+          "fatG",
+          "fiberG",
+          "existingFoodId"
+        ],
+        "description": "One entry of 日本食品標準成分表（八訂）増補2023年 (MEXT), per 100 g."
+      },
+      "BarcodeLookup": {
+        "type": "object",
+        "properties": {
+          "candidate": {
+            "$ref": "#/components/schemas/FoodCandidate"
+          },
+          "per100g": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "energyKcal": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "proteinG": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "carbG": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "fatG": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "fiberG": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "energyKcal",
+              "proteinG",
+              "carbG",
+              "fatG",
+              "fiberG"
+            ],
+            "description": "The candidate converted to per 100 g, as it would be saved. Null when the basis has no weight."
+          },
+          "existingFoodId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11",
+            "description": "The food on the caller’s list with this barcode, if there is one."
+          }
+        },
+        "required": [
+          "candidate",
+          "per100g",
+          "existingFoodId"
+        ]
+      },
+      "FoodCandidate": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "properties": {
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "brand": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "state": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FoodState"
+              },
+              {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Null when the source does not say."
+              }
+            ]
+          },
+          "basis": {
+            "$ref": "#/components/schemas/Basis"
+          },
+          "energyKcal": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "proteinG": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "carbG": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "fatG": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "fiberG": {
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "brand",
+          "state",
+          "basis",
+          "energyKcal",
+          "proteinG",
+          "carbG",
+          "fatG",
+          "fiberG"
+        ],
+        "description": "Null when the barcode is on the list already: nothing is looked up."
+      },
+      "LabelRead": {
+        "type": "object",
+        "properties": {
+          "candidate": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FoodCandidate"
+              },
+              {
+                "description": "What a source gave, as printed, on its basis. A value it did not give is null, never a guess. Not saved."
+              }
+            ]
+          },
+          "per100g": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "energyKcal": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "proteinG": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "carbG": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "fatG": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "fiberG": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "energyKcal",
+              "proteinG",
+              "carbG",
+              "fatG",
+              "fiberG"
+            ],
+            "description": "The candidate converted to per 100 g, as it would be saved. Null when the basis has no weight."
+          },
+          "model": {
+            "type": "string",
+            "example": "claude-haiku-4-5"
+          }
+        },
+        "required": [
+          "candidate",
+          "per100g",
+          "model"
+        ]
+      },
+      "RotationGroupList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RotationGroup"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "RotationGroupCreate": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11",
+            "description": "Made on the device (UUIDv7). A repeat returns the group."
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "example": "Starch"
+          },
+          "foodIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid",
+              "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+            },
+            "maxItems": 100,
+            "description": "Its foods. Each leaves any group it was in."
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "foodIds"
+        ]
+      },
+      "RotationGroupPatch": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "foodIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid",
+              "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+            },
+            "maxItems": 100,
+            "description": "The whole membership. A food left out stays on the list, ungrouped."
+          }
+        }
+      },
       "InviteList": {
         "type": "object",
         "properties": {
@@ -4696,6 +5534,825 @@
           },
           "409": {
             "description": "`managed_by_apple_health`: it came from Apple Health, which would send it again; delete it there",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/foods": {
+      "get": {
+        "summary": "The food list, by name",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ],
+              "description": "Include archived foods. Default `false`."
+            },
+            "required": false,
+            "description": "Include archived foods. Default `false`.",
+            "name": "includeArchived",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Every food on the list, by name",
+            "headers": {
+              "Overload-User": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "The id of the user whose session answered. Keep the body for that account only."
+                },
+                "required": true,
+                "description": "The id of the user whose session answered. Keep the body for that account only."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FoodList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A parameter of the wrong type",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Add a confirmed food, converted to per 100 g",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FoodCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "A repeat of the same create: the stored food",
+            "headers": {
+              "Overload-User": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "The id of the user whose session answered. Keep the body for that account only."
+                },
+                "required": true,
+                "description": "The id of the user whose session answered. Keep the body for that account only."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Food"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Created",
+            "headers": {
+              "Overload-User": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "The id of the user whose session answered. Keep the body for that account only."
+                },
+                "required": true,
+                "description": "The id of the user whose session answered. Keep the body for that account only."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Food"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`id_conflict`: the id is in use with other content; `food_exists`: the same barcode, MEXT code, or name, brand and state is on the list, named by `existingFoodId`",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`validation_failed`, including a basis without its weight, a value above what 100 g can hold, and a rotation group that is not the caller’s",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/foods/{id}": {
+      "patch": {
+        "summary": "Edit a food’s values per 100 g, piece weight, keeping days or rotation group",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FoodPatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The food as it now stands",
+            "headers": {
+              "Overload-User": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "The id of the user whose session answered. Keep the body for that account only."
+                },
+                "required": true,
+                "description": "The id of the user whose session answered. Keep the body for that account only."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Food"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A malformed id",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The caller has no food with that id",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`food_exists`: another food on the list has that name, brand and state",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`validation_failed`",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Archive a food. Past plans keep it. 204 whenever the caller has no listed food with that id afterwards",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Archived, or never on the caller’s list",
+            "headers": {
+              "Overload-User": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "The id of the user whose session answered. Keep the body for that account only."
+                },
+                "required": true,
+                "description": "The id of the user whose session answered. Keep the body for that account only."
+              }
+            }
+          },
+          "400": {
+            "description": "A malformed id",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reference-foods": {
+      "get": {
+        "summary": "Search the MEXT table (八訂 増補2023), 20 results, best match first",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80,
+              "description": "Words in the English name or the name as MEXT prints it. Every word must match.",
+              "example": "chicken breast"
+            },
+            "required": true,
+            "description": "Words in the English name or the name as MEXT prints it. Every word must match.",
+            "name": "q",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The matches, best first",
+            "headers": {
+              "Overload-User": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "The id of the user whose session answered. Keep the body for that account only."
+                },
+                "required": true,
+                "description": "The id of the user whose session answered. Keep the body for that account only."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReferenceFoodList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`q` empty or over 80 characters",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/barcodes/{code}": {
+      "get": {
+        "summary": "Look a barcode up in Open Food Facts. A candidate, never a saved food",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{8,14}$",
+              "example": "4901234567894"
+            },
+            "required": true,
+            "name": "code",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The candidate and its values per 100 g; or, when the list has that barcode, `existingFoodId` and no lookup",
+            "headers": {
+              "Overload-User": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "The id of the user whose session answered. Keep the body for that account only."
+                },
+                "required": true,
+                "description": "The id of the user whose session answered. Keep the body for that account only."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BarcodeLookup"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Not a barcode of 8 to 14 digits",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`not_found`: not in Open Food Facts",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`rate_limited`: Open Food Facts’ 15 reads a minute",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "`upstream_failed`: Open Food Facts did not answer",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/label-reads": {
+      "post": {
+        "summary": "Read the 栄養成分表示 in a photo. A candidate with its basis, never a saved food",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "image": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "JPEG, PNG or WebP, at most 4 MB. The client resizes to 1568 px on the long edge."
+                  }
+                },
+                "required": [
+                  "image"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "What the label prints, on its basis, and the same per 100 g",
+            "headers": {
+              "Overload-User": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "The id of the user whose session answered. Keep the body for that account only."
+                },
+                "required": true,
+                "description": "The id of the user whose session answered. Keep the body for that account only."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LabelRead"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "`payload_too_large`: over 4 MB",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`validation_failed`: no image, or not JPEG, PNG or WebP; `unreadable_label`: no nutrition table the model could read",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`model_cap_reached`: the day’s model calls, label reads and meal estimates together, are used up",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "`upstream_failed`: the reader did not answer, or is not set up",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rotation-groups": {
+      "get": {
+        "summary": "The rotation groups, by name, with their foods",
+        "responses": {
+          "200": {
+            "description": "Every group, by name",
+            "headers": {
+              "Overload-User": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "The id of the user whose session answered. Keep the body for that account only."
+                },
+                "required": true,
+                "description": "The id of the user whose session answered. Keep the body for that account only."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RotationGroupList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Make a group of foods that stand in for each other",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RotationGroupCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "A repeat of the same create: the stored group",
+            "headers": {
+              "Overload-User": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "The id of the user whose session answered. Keep the body for that account only."
+                },
+                "required": true,
+                "description": "The id of the user whose session answered. Keep the body for that account only."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RotationGroup"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Created",
+            "headers": {
+              "Overload-User": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "The id of the user whose session answered. Keep the body for that account only."
+                },
+                "required": true,
+                "description": "The id of the user whose session answered. Keep the body for that account only."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RotationGroup"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`id_conflict`: the id is in use with other content",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`validation_failed`, including a food that is not on the caller’s list",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rotation-groups/{id}": {
+      "patch": {
+        "summary": "Rename a group, or replace its foods",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RotationGroupPatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The group as it now stands",
+            "headers": {
+              "Overload-User": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "The id of the user whose session answered. Keep the body for that account only."
+                },
+                "required": true,
+                "description": "The id of the user whose session answered. Keep the body for that account only."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RotationGroup"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A malformed id",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The caller has no group with that id",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`validation_failed`, including a food that is not on the caller’s list",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete a group. Its foods stay, ungrouped",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "The caller has no group with that id",
+            "headers": {
+              "Overload-User": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "The id of the user whose session answered. Keep the body for that account only."
+                },
+                "required": true,
+                "description": "The id of the user whose session answered. Keep the body for that account only."
+              }
+            }
+          },
+          "400": {
+            "description": "A malformed id",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session",
             "content": {
               "application/problem+json": {
                 "schema": {

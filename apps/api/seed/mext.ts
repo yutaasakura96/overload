@@ -88,8 +88,7 @@ function unzip(file: Buffer): Map<string, Buffer> {
     const commentLength = file.readUInt16LE(at + 32);
     const local = file.readUInt32LE(at + 42);
     const name = file.toString('utf8', at + 46, at + 46 + nameLength);
-    const dataStart =
-      local + 30 + file.readUInt16LE(local + 26) + file.readUInt16LE(local + 28);
+    const dataStart = local + 30 + file.readUInt16LE(local + 26) + file.readUInt16LE(local + 28);
     const data = file.subarray(dataStart, dataStart + compressed);
     parts.set(name, method === 0 ? Buffer.from(data) : inflateRawSync(data));
     at += 46 + nameLength + extraLength + commentLength;
@@ -113,9 +112,13 @@ const itemText = (xml: string) =>
     .map((match) => unescapeXml(match[1] ?? ''))
     .join('');
 
-const columnIndex = (ref: string) =>
-  [...(ref.match(/^[A-Z]+/)?.[0] ?? '')].reduce((n, letter) => n * 26 + letter.charCodeAt(0) - 64, 0) -
-  1;
+/** `A` is 0, `Z` 25, `AA` 26: the column of a cell reference such as `AB13`. */
+function columnIndex(ref: string) {
+  const letters = ref.match(/^[A-Z]+/)?.[0] ?? '';
+  let index = 0;
+  for (let i = 0; i < letters.length; i += 1) index = index * 26 + letters.charCodeAt(i) - 64;
+  return index - 1;
+}
 
 /** The first sheet as rows of cell text, by row and column index from 0. */
 export function readFirstSheet(path: string): string[][] {
@@ -130,16 +133,18 @@ export function readFirstSheet(path: string): string[][] {
   const rows: string[][] = [];
   for (const row of sheet.matchAll(/<row\b[^>]*\br="(\d+)"[^>]*>([\s\S]*?)<\/row>/g)) {
     const cells: string[] = [];
-    for (const cell of (row[2] ?? '').matchAll(
-      /<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g,
-    )) {
+    for (const cell of (row[2] ?? '').matchAll(/<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g)) {
       const attributes = cell[1] ?? '';
       const ref = attributes.match(/\br="([A-Z]+\d+)"/)?.[1] ?? '';
       const type = attributes.match(/\bt="(\w+)"/)?.[1];
       const body = cell[2] ?? '';
       const value = unescapeXml(body.match(/<v>([\s\S]*?)<\/v>/)?.[1] ?? '');
       cells[columnIndex(ref)] =
-        type === 's' ? (shared[Number(value)] ?? '') : type === 'inlineStr' ? itemText(body) : value;
+        type === 's'
+          ? (shared[Number(value)] ?? '')
+          : type === 'inlineStr'
+            ? itemText(body)
+            : value;
     }
     rows[Number(row[1]) - 1] = Array.from(cells, (text) => text ?? '');
   }
@@ -197,7 +202,8 @@ const isCode = (text: string | undefined) => /^\d{5}$/.test(text ?? '');
 export function extract(jaPath: string, enPath: string): ReferenceFoodRow[] {
   const english = new Map<string, string>();
   for (const row of readFirstSheet(enPath)) {
-    if (isCode(row[1]) && (row[3] ?? '') !== '') english.set(row[1] ?? '', cleanEnglish(row[3] ?? ''));
+    if (isCode(row[1]) && (row[3] ?? '') !== '')
+      english.set(row[1] ?? '', cleanEnglish(row[3] ?? ''));
   }
   const foods: ReferenceFoodRow[] = [];
   for (const row of readFirstSheet(jaPath)) {

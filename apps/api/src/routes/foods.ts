@@ -110,7 +110,8 @@ const patchFood = createRoute({
 const deleteFood = createRoute({
   method: 'delete',
   path: '/api/foods/{id}',
-  summary: 'Archive a food. Past plans keep it. 204 whenever the caller has no listed food with that id afterwards',
+  summary:
+    'Archive a food. Past plans keep it. 204 whenever the caller has no listed food with that id afterwards',
   request: { params: IdParam },
   responses: {
     204: { description: 'Archived, or never on the caller’s list', headers: accountHeaders },
@@ -126,7 +127,8 @@ const getReferenceFoods = createRoute({
   request: {
     query: z.object({
       q: z.string().trim().min(1).max(80).openapi({
-        description: 'Words in the English name or the name as MEXT prints it. Every word must match.',
+        description:
+          'Words in the English name or the name as MEXT prints it. Every word must match.',
         example: 'chicken breast',
       }),
     }),

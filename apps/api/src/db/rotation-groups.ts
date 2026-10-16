@@ -121,7 +121,9 @@ export async function createRotationGroup(
   const stored = await getRotationGroup(db, userId, input.id);
   if (created && stored !== undefined) return { kind: 'created', group: stored };
   const same =
-    stored !== undefined && stored.name === input.name && sameMembers(stored.foodIds, input.foodIds);
+    stored !== undefined &&
+    stored.name === input.name &&
+    sameMembers(stored.foodIds, input.foodIds);
   return same ? { kind: 'existing', group: stored } : { kind: 'id_conflict' };
 }
 

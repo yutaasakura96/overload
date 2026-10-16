@@ -889,15 +889,10 @@ export const FoodSource = z
 export const Basis = z
   .object({
     kind: z.enum(BASIS_KINDS),
-    grams: z
-      .number()
-      .positive()
-      .max(10000)
-      .nullable()
-      .openapi({
-        description:
-          'The weight of the piece, serving or package, when known. `per_100g` is 100 whatever is sent.',
-      }),
+    grams: z.number().positive().max(10000).nullable().openapi({
+      description:
+        'The weight of the piece, serving or package, when known. `per_100g` is 100 whatever is sent.',
+    }),
   })
   .openapi('Basis', { description: 'The amount a set of values is for (docs/07 §4).' });
 
@@ -930,7 +925,10 @@ export const Food = z
       description: 'How many days a cooked batch keeps. Null: not batch-cooked.',
     }),
     source: FoodSource,
-    sourceRef: z.string().nullable().openapi({ description: 'The MEXT food code, or the barcode.' }),
+    sourceRef: z
+      .string()
+      .nullable()
+      .openapi({ description: 'The MEXT food code, or the barcode.' }),
     rotationGroupId: Uuid.nullable(),
     archivedAt: Instant.nullable().openapi({
       description: 'Off the list and out of new plans; past plans still name it.',
@@ -954,7 +952,9 @@ export const FoodCreate = z
     proteinG: Given,
     carbG: Given,
     fatG: Given,
-    fiberG: Given.nullable().openapi({ description: 'Null when the source gave none: saved as 0.' }),
+    fiberG: Given.nullable().openapi({
+      description: 'Null when the source gave none: saved as 0.',
+    }),
     pieceWeightG: PieceWeightG.nullable().optional(),
     keepsDays: KeepsDays.nullable().optional(),
     source: FoodSource,

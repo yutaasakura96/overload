@@ -66,8 +66,10 @@ describe('GET /api/me/export', () => {
 
   it.each([
     '',
-    'section=foods',
+    'section=meals',
     'section=workouts&limit=0',
+    'section=foods&cursor=nope',
+    `section=rotationGroups&cursor=${Buffer.from(JSON.stringify({ section: 'foods', id: randomUUID() })).toString('base64url')}`,
     'section=workouts&cursor=nope',
     'section=profile&cursor=nope',
     'section=exercises&cursor=nope',
@@ -141,6 +143,59 @@ describe('GET /api/me/export', () => {
       items: [{ ...made.weighIn, source: 'manual' }],
       nextCursor: null,
     });
+
+    // Archived foods too: past plans still name them.
+    const foods = await exportOf(cookie, 'section=foods');
+    expect(foods.nextCursor).toBeNull();
+    // By id, and the fixture's ids are random, so in either order.
+    expect(foods.items).toHaveLength(2);
+    expect(foods.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: made.foodId,
+          name: 'White rice',
+          energyKcal: 156,
+          keepsDays: 3,
+          rotationGroupId: made.groupId,
+          archivedAt: null,
+        }),
+        expect.objectContaining({ id: made.archivedFoodId, archivedAt: expect.any(String) }),
+      ]),
+    );
+    const groups = await exportOf(cookie, 'section=rotationGroups');
+    expect(groups).toEqual({
+      section: 'rotationGroups',
+      items: [{ id: made.groupId, name: 'Starch', foodIds: [made.foodId] }],
+      nextCursor: null,
+    });
+  });
+
+  it('pages foods by id with the cursor, each once', async () => {
+    const { cookie } = await t.createSignedInUser('foods@example.test');
+    const send = sender(t, cookie);
+    const ids: string[] = [];
+    for (const name of ['Rice', 'Potato', 'Okra']) {
+      const id = randomUUID();
+      ids.push(id);
+      const res = await send('POST', '/api/foods', {
+        id,
+        name,
+        state: 'raw',
+        basis: { kind: 'per_100g', grams: null },
+        energyKcal: 100,
+        proteinG: 1,
+        carbG: 20,
+        fatG: 0,
+        fiberG: 1,
+        source: 'manual',
+      });
+      expect(res.status).toBe(201);
+    }
+    const first = await exportOf(cookie, 'section=foods&limit=2');
+    expect(first.items).toHaveLength(2);
+    const second = await exportOf(cookie, `section=foods&limit=2&cursor=${first.nextCursor ?? ''}`);
+    expect(second.nextCursor).toBeNull();
+    expect([...first.items, ...second.items].map((item) => item['id'])).toEqual(ids.toSorted());
   });
 
   it('pages weigh-ins newest first with the cursor, each once', async () => {
@@ -269,5 +324,7 @@ describe('GET /api/me/export', () => {
     expect((await exportOf(other.cookie, 'section=routines')).items).toEqual([]);
     expect((await exportOf(other.cookie, 'section=workouts')).items).toEqual([]);
     expect((await exportOf(other.cookie, 'section=weighIns')).items).toEqual([]);
+    expect((await exportOf(other.cookie, 'section=foods')).items).toEqual([]);
+    expect((await exportOf(other.cookie, 'section=rotationGroups')).items).toEqual([]);
   });
 });

@@ -56,12 +56,19 @@ export function listFoods(
     .select(columns)
     .from(food)
     .where(
-      and(eq(food.userId, userId), options.includeArchived === true ? undefined : isNull(food.archivedAt)),
+      and(
+        eq(food.userId, userId),
+        options.includeArchived === true ? undefined : isNull(food.archivedAt),
+      ),
     )
     .orderBy(...byName);
 }
 
-export async function getFood(db: Queryable, userId: string, id: string): Promise<Food | undefined> {
+export async function getFood(
+  db: Queryable,
+  userId: string,
+  id: string,
+): Promise<Food | undefined> {
   const [found] = await db
     .select(columns)
     .from(food)
@@ -75,10 +82,7 @@ export async function getFood(db: Queryable, userId: string, id: string): Promis
  * codes are another.
  */
 const sameRef = (mext: boolean, sourceRef: string) =>
-  and(
-    sql`(${food.source} = 'mext') = ${mext}`,
-    eq(food.sourceRef, sourceRef),
-  );
+  and(sql`(${food.source} = 'mext') = ${mext}`, eq(food.sourceRef, sourceRef));
 
 export async function listedBySourceRef(
   db: Database,
@@ -113,7 +117,8 @@ async function duplicateOf(
   const keys: SQL[] = [
     sql`lower(${food.name}) = lower(${input.name}) AND lower(coalesce(${food.brand}, '')) = lower(${input.brand ?? ''}) AND ${food.state} = ${input.state}`,
   ];
-  const ref = input.sourceRef === null ? undefined : sameRef(input.source === 'mext', input.sourceRef);
+  const ref =
+    input.sourceRef === null ? undefined : sameRef(input.source === 'mext', input.sourceRef);
   if (ref !== undefined) keys.push(ref);
   const [found] = await db
     .select({ id: food.id })
@@ -147,9 +152,24 @@ export type CreateFoodResult =
   | { kind: 'food_exists'; existingFoodId: string }
   | { kind: 'unknown_rotation_group' };
 
+const FOOD_FIELDS = [
+  'name',
+  'brand',
+  'state',
+  'energyKcal',
+  'proteinG',
+  'carbG',
+  'fatG',
+  'fiberG',
+  'pieceWeightG',
+  'keepsDays',
+  'source',
+  'sourceRef',
+  'rotationGroupId',
+] as const satisfies readonly (keyof FoodInput)[];
+
 const sameFood = (stored: Food, input: FoodInput) =>
-  stored.archivedAt === null &&
-  (Object.keys(input) as (keyof FoodInput)[]).every((key) => stored[key] === input[key]);
+  stored.archivedAt === null && FOOD_FIELDS.every((key) => stored[key] === input[key]);
 
 /**
  * Adds a confirmed food. A repeat with the same content returns the stored food; a food already

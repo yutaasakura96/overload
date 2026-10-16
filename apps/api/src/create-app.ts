@@ -67,7 +67,8 @@ export function createApp({
   reportError,
   foodSources = {
     openFoodFacts: openFoodFacts({ userAgent: `Overload/1 (${config.webOrigin})` }),
-    labelReader: config.anthropicApiKey === null ? null : labelReader({ apiKey: config.anthropicApiKey }),
+    labelReader:
+      config.anthropicApiKey === null ? null : labelReader({ apiKey: config.anthropicApiKey }),
   },
 }: AppDeps) {
   const app = new OpenAPIHono<AppEnv>({ defaultHook: validationHook });
