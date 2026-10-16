@@ -310,6 +310,8 @@ The error colour is the `error` token (`docs/05` §1.4), always with the word an
   - portions rounded to 5 g, eggs and other `piece_weight_g` foods whole
   - protein spread at 0.4–0.55 g/kg per meal across the meal count
   - carbohydrate timed around the training slot on training days
+- A batch-cooked food is placed only on days its `keeps_days` covers from the week's at most two
+  cook days (`02` S16).
 - Rotation picks from a `rotation_group`, not a chain of pairs.
 - **Whether to use a solver library or hand-written code is decided when M2 starts.** The function's
   signature and the tolerance tests are written first, so the choice can be swapped.

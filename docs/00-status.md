@@ -361,8 +361,8 @@ Written: `03`, `04`, `CONTEXT.md`, `07`, `08`, `09`, `11`, `12`, `13`, and
 - no custom domain (the AWS move will cost every user a Health Auto Export reconfiguration)
 - **compliance deferred to "before the first invitee"** (`13` §9 holds the checklist and findings)
 
-- **Parked for M2 (decide before M2 starts):** morning weight source. Two hardware tests are defined
-  in `06` (2026-09-19 entry); run them, then apply the decision rule there.
+- **Morning weight source, owed this week (`06`, 2026-10-16):** run the two hardware tests in `06`
+  (2026-09-19 entry), then apply the decision rule there. Typed weight is built first either way.
 
 ## Blocked
 _(nothing)_
