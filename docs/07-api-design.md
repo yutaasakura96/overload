@@ -338,13 +338,14 @@ GET /api/training/last-time  →  200
 { "asOf": "2026-11-04T10:15:02.000Z",
   "exercises": [
     { "exerciseId": "0192a001-…", "workoutId": "0192w001-…", "performedOn": "2026-11-04",
-      "sets": [ { "workingSet": 1, "weightKg": 80, "reps": 10, "rir": 2 }, { "workingSet": 2, "weightKg": 80, "reps": 10, "rir": 2 }, { "workingSet": 3, "weightKg": 80, "reps": 10, "rir": null } ],
+      "sets": [ { "workingSet": 1, "weightKg": 80, "countedWeightKg": 80, "reps": 10, "rir": 2 }, { "workingSet": 2, "weightKg": 80, "countedWeightKg": 80, "reps": 10, "rir": 2 }, { "workingSet": 3, "weightKg": 80, "countedWeightKg": 80, "reps": 10, "rir": null } ],
+      "bodyweight": null,
       "suggestion": { "weightKg": 82.5, "rule": "top_of_range_hit", "reason": "hit 10 on every set last time" },
       "slots": [] }
   ] }
 ```
 
-`sets` holds working sets only; `workingSet` is derived, 1…n in `position` order (`04`). `rir` is `null` where the set recorded none. `suggestion.rule` is `top_of_range_hit` or `repeat`. An exercise never logged is absent from a successful response; the workout's first-time and unknown-history states are specified in `10` §1.
+`sets` holds working sets only; `workingSet` is derived, 1…n in `position` order (`04`). Each set has `weightKg` as logged and `countedWeightKg` for display. Each exercise and slot has `bodyweight`, the counted weigh-in basis or `null` for other equipment. `rir` is `null` where the set recorded none. `suggestion.rule` is `top_of_range_hit` or `repeat`. An exercise never logged is absent from a successful response; the workout's first-time and unknown-history states are specified in `10` §1.
 
 - **Which workout is last time:** the caller's most recent workout, by `started_at`, with at least
   one working set of the exercise. A workout where it only had warm-ups is passed over.

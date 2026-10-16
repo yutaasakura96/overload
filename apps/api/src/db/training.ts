@@ -2,6 +2,8 @@ import { sql } from 'drizzle-orm';
 import type { LoggedExercise, MuscleGroup } from '../domain/balance.js';
 import type { LoggedWorkout } from '../domain/progress.js';
 import { suggest, type Suggestion } from '../domain/progression.js';
+import { bodyweightOn, countedLoad, type BodyweightCount } from '../domain/bodyweight.js';
+import type { DailyWeight } from '../domain/weight.js';
 import type { LoggedLift } from '../domain/strength.js';
 import type { Database } from './connection.js';
 import { listExercises } from './exercises.js';
@@ -10,7 +12,14 @@ type Last = {
   workoutId: string;
   /** The workout's local date, read in the user's time zone. */
   performedOn: string;
-  sets: { workingSet: number; weightKg: number; reps: number; rir: number | null }[];
+  sets: {
+    workingSet: number;
+    weightKg: number;
+    countedWeightKg: number;
+    reps: number;
+    rir: number | null;
+  }[];
+  bodyweight: BodyweightCount | null;
   suggestion: Suggestion;
 };
 
@@ -52,6 +61,7 @@ export async function lastTimes(
   db: Database,
   userId: string,
   timezone: string,
+  weighedDays: DailyWeight[],
 ): Promise<LastTime[]> {
   const { rows } = await db.execute<Row>(sql`
     WITH latest AS (
@@ -112,11 +122,19 @@ export async function lastTimes(
       equipment: settings.equipment,
     });
     if (suggestion === undefined) return [];
+    const performedOn = localDate(new Date(first.started_at));
+    const bodyweight =
+      settings.equipment === 'bodyweight' ? bodyweightOn(weighedDays, performedOn) : null;
     return [
       {
         workoutId: first.workout_id,
-        performedOn: localDate(new Date(first.started_at)),
-        sets: working.map((s, index) => ({ workingSet: index + 1, ...s })),
+        performedOn,
+        sets: working.map((s, index) => ({
+          workingSet: index + 1,
+          ...s,
+          countedWeightKg: bodyweight === null ? s.weightKg : countedLoad(s.weightKg, bodyweight),
+        })),
+        bodyweight,
         suggestion,
       },
     ];

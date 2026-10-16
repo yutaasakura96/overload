@@ -3885,9 +3885,10 @@ Checked on invented weigh-ins.
   reading that day the latest earlier day's counts; with none earlier (a workout older than the
   first weigh-in) the first later one, and the answer says `later_day`. A logged 0 kg is
   bodyweight alone; 10 kg is bodyweight plus 10.
-- **Where it counts.** The chart's e1RM, top set, volume load and past sets
+- **Where it counts.** Last time on the gym screen, the chart's e1RM, top set, volume load and past sets
   (`GET /api/exercises/{id}/progress`), and the Strength overview's points, trend and verdict
-  (`GET /api/training/strength`). Both are computed at read time from the stored sets and
+  (`GET /api/training/strength`). Last time also carries the logged load for its suggestion and
+  the counted load for display. These are computed at read time from the stored sets and
   weigh-ins: nothing is written back, so a weigh-in typed or deleted later moves the figures, and
   the screens ask again after one.
 - **Which weigh-in is shown.** Every chart point, and the Strength lift, carries `bodyweight`:
@@ -3897,9 +3898,8 @@ Checked on invented weigh-ins.
   `none` (the lifter has no weigh-in at all) keeps the sets as logged, so the lift is as before:
   `No weigh-in · counted as logged`, and a lift logged only at 0 kg stays `No weight logged · no
   trend` on Strength. `bodyweight` is null on a lift of any other equipment.
-- **What is not changed.** Last time on the gym screen, the suggestion from it, and History's top
-  sets stay as logged: `Bodyweight × 8` is what was done, and the progression rule reads the load
-  the lifter chose. Only the figures that estimate strength count the lifter's weight. The
+- **What is not changed.** The suggestion from Last time and History's top sets stay as logged:
+  the progression rule reads the added load the lifter chose. The
   logged `weightKg` is never rewritten.
 - **A reading that moves a figure.** The day's weight is the one `04` defines (before 10:00,
   else the day's first), so a second reading the same day does not change a workout's load.
@@ -3907,4 +3907,3 @@ Checked on invented weigh-ins.
   weight the lifter did not weigh that day.
 
 **Changed:** `00`, `06`, `07` §3, `10` §2, §9.
-

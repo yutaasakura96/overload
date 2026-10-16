@@ -291,6 +291,19 @@ const strengthOf = async (send: Send) => {
   return body;
 };
 
+const lastTimeOf = async (send: Send, exercise: string) => {
+  const res = await send('GET', '/api/training/last-time');
+  expect(res.status).toBe(200);
+  const body: {
+    exercises: {
+      exerciseId: string;
+      sets: { weightKg: number; countedWeightKg: number }[];
+      bodyweight: Bodyweight;
+    }[];
+  } = await res.json();
+  return body.exercises.find((each) => each.exerciseId === exercise);
+};
+
 describe('the routes that count bodyweight', () => {
   it('counts the weigh-in on the chart and on the Strength screen', async () => {
     const { send } = await member('lifter@example.test');
@@ -318,6 +331,10 @@ describe('the routes that count bodyweight', () => {
       status: 'gaining',
       bodyweight: { basis: 'earlier_day', weightKg: 82, weighedOn: localDate(daysAgo(4)) },
     });
+    expect(await lastTimeOf(send, pullUp)).toMatchObject({
+      sets: [{ weightKg: 0, countedWeightKg: 82 }],
+      bodyweight: { basis: 'earlier_day', weightKg: 82 },
+    });
   });
 
   it('counts a workout before the first weigh-in at the first later one', async () => {
@@ -331,6 +348,23 @@ describe('the routes that count bodyweight', () => {
       weightKg: 90,
       weighedOn: localDate(daysAgo(2)),
     });
+    expect(await lastTimeOf(send, pullUp)).toMatchObject({
+      sets: [{ weightKg: 0, countedWeightKg: 90 }],
+      bodyweight: { basis: 'later_day', weightKg: 90 },
+    });
+  });
+
+  it('adds the logged load in Last time while keeping the suggestion on the logged load', async () => {
+    const { send } = await member('loaded@example.test');
+    const pullUp = await exerciseId(send, 'Pull-Up');
+    await weigh(send, daysAgo(4), 82);
+    await log(send, pullUp, daysAgo(3), [[10, 8]]);
+
+    expect(await lastTimeOf(send, pullUp)).toMatchObject({
+      sets: [{ weightKg: 10, countedWeightKg: 92 }],
+      bodyweight: { basis: 'earlier_day', weightKg: 82 },
+      suggestion: { weightKg: 10 },
+    });
   });
 
   it('says there was no weigh-in, and counts the logged 0 kg, without one', async () => {
@@ -343,6 +377,10 @@ describe('the routes that count bodyweight', () => {
       bodyweight: { basis: 'none' },
     });
     expect((await strengthOf(send)).lifts[0]).toMatchObject({ status: 'no_weight' });
+    expect(await lastTimeOf(send, pullUp)).toMatchObject({
+      sets: [{ weightKg: 0, countedWeightKg: 0 }],
+      bodyweight: { basis: 'none' },
+    });
   });
 
   it('leaves a lift of another equipment as logged', async () => {
@@ -356,6 +394,10 @@ describe('the routes that count bodyweight', () => {
       bodyweight: null,
     });
     expect((await strengthOf(send)).lifts[0]?.bodyweight).toBeNull();
+    expect(await lastTimeOf(send, bench)).toMatchObject({
+      sets: [{ weightKg: 60, countedWeightKg: 60 }],
+      bodyweight: null,
+    });
   });
 
   describe('across users (docs/08 §10)', () => {
@@ -370,6 +412,10 @@ describe('the routes that count bodyweight', () => {
       // B has no weigh-in of their own, so A's 120 kg counts for nothing of B's.
       expect((await progressOf(b.send, pullUp)).points[0]).toMatchObject({
         e1rmKg: 0,
+        bodyweight: { basis: 'none' },
+      });
+      expect(await lastTimeOf(b.send, pullUp)).toMatchObject({
+        sets: [{ weightKg: 0, countedWeightKg: 0 }],
         bodyweight: { basis: 'none' },
       });
       expect((await strengthOf(b.send)).lifts[0]).toMatchObject({

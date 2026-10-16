@@ -317,6 +317,28 @@ export const Suggestion = z
   })
   .openapi('Suggestion', { description: 'Today’s weight for the exercise (S3).' });
 
+export const BodyweightCount = z
+  .discriminatedUnion('basis', [
+    z.object({
+      basis: z.enum(['same_day', 'earlier_day', 'later_day']).openapi({
+        description:
+          '`same_day`: the day’s own weight. `earlier_day`: no reading that day, so the latest ' +
+          'earlier day’s. `later_day`: the workout is older than the first weigh-in, so the first ' +
+          'later one.',
+      }),
+      weightKg: z.number().openapi({ example: 82.4 }),
+      weighedOn: z.iso.date().openapi({ description: 'The local date of the weigh-in counted.' }),
+    }),
+    z.object({
+      basis: z.literal('none').openapi({ description: 'No weigh-in at all: sets as logged.' }),
+    }),
+  ])
+  .openapi({
+    description:
+      'Which weigh-in a bodyweight lift was counted at (issue #69): all of that weight plus ' +
+      'the kg logged on the set.',
+  });
+
 const LastFields = {
   workoutId: Uuid,
   performedOn: z.iso.date().openapi({ description: 'The workout’s local date.' }),
@@ -325,12 +347,18 @@ const LastFields = {
       z.object({
         workingSet: z.int(),
         weightKg: z.number(),
+        countedWeightKg: z
+          .number()
+          .openapi({
+            description: 'The load counted for display; weightKg remains the logged added load.',
+          }),
         reps: z.int(),
         rir: z.int().nullable().openapi({ description: 'Null when the set recorded none.' }),
       }),
     )
     .openapi({ description: 'Working sets only, numbered 1…n in order.' }),
   suggestion: Suggestion,
+  bodyweight: BodyweightCount.nullable(),
 };
 
 export const LastTimeSlot = z
@@ -361,28 +389,6 @@ export const LastTimes = z
 export const Span = z.enum(SPANS).openapi('Span', {
   description: 'How far back the chart reads: 4 or 12 weeks, 6 months, 1 year, or everything.',
 });
-
-export const BodyweightCount = z
-  .discriminatedUnion('basis', [
-    z.object({
-      basis: z.enum(['same_day', 'earlier_day', 'later_day']).openapi({
-        description:
-          '`same_day`: the day’s own weight. `earlier_day`: no reading that day, so the latest ' +
-          'earlier day’s. `later_day`: the workout is older than the first weigh-in, so the first ' +
-          'later one.',
-      }),
-      weightKg: z.number().openapi({ example: 82.4 }),
-      weighedOn: z.iso.date().openapi({ description: 'The local date of the weigh-in counted.' }),
-    }),
-    z.object({
-      basis: z.literal('none').openapi({ description: 'No weigh-in at all: sets as logged.' }),
-    }),
-  ])
-  .openapi({
-    description:
-      'Which weigh-in a bodyweight lift was counted at (issue #69): all of that weight plus ' +
-      'the kg logged on the set.',
-  });
 
 export const ProgressPoint = z
   .object({

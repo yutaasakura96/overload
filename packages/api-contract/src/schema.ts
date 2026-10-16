@@ -2543,11 +2543,37 @@ export interface components {
       sets: {
         workingSet: number;
         weightKg: number;
+        /** @description The load counted for display; weightKg remains the logged added load. */
+        countedWeightKg: number;
         reps: number;
         /** @description Null when the set recorded none. */
         rir: number | null;
       }[];
       suggestion: components['schemas']['Suggestion'];
+      /** @description Which weigh-in a bodyweight lift was counted at (issue #69): all of that weight plus the kg logged on the set. */
+      bodyweight:
+        | {
+            /**
+             * @description `same_day`: the day’s own weight. `earlier_day`: no reading that day, so the latest earlier day’s. `later_day`: the workout is older than the first weigh-in, so the first later one.
+             * @enum {string}
+             */
+            basis: 'same_day' | 'earlier_day' | 'later_day';
+            /** @example 82.4 */
+            weightKg: number;
+            /**
+             * Format: date
+             * @description The local date of the weigh-in counted.
+             */
+            weighedOn: string;
+          }
+        | {
+            /**
+             * @description No weigh-in at all: sets as logged.
+             * @enum {string}
+             */
+            basis: 'none';
+          }
+        | null;
       /** @description Last time for each of the caller’s routine slots that has logged the exercise. */
       slots: components['schemas']['LastTimeSlot'][];
     };
@@ -2582,11 +2608,37 @@ export interface components {
       sets: {
         workingSet: number;
         weightKg: number;
+        /** @description The load counted for display; weightKg remains the logged added load. */
+        countedWeightKg: number;
         reps: number;
         /** @description Null when the set recorded none. */
         rir: number | null;
       }[];
       suggestion: components['schemas']['Suggestion'];
+      /** @description Which weigh-in a bodyweight lift was counted at (issue #69): all of that weight plus the kg logged on the set. */
+      bodyweight:
+        | {
+            /**
+             * @description `same_day`: the day’s own weight. `earlier_day`: no reading that day, so the latest earlier day’s. `later_day`: the workout is older than the first weigh-in, so the first later one.
+             * @enum {string}
+             */
+            basis: 'same_day' | 'earlier_day' | 'later_day';
+            /** @example 82.4 */
+            weightKg: number;
+            /**
+             * Format: date
+             * @description The local date of the weigh-in counted.
+             */
+            weighedOn: string;
+          }
+        | {
+            /**
+             * @description No weigh-in at all: sets as logged.
+             * @enum {string}
+             */
+            basis: 'none';
+          }
+        | null;
     };
     /** @description Every lift the caller logged with a working set in the span, with the trend of its e1RM. Warm-ups are left out (S6). */
     StrengthOverview: {

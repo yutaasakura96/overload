@@ -79,6 +79,8 @@ completion control is enabled regardless; a missing weight or reps is refused on
   exercise opens with the two-row block of `05` §4.19, in place of the `SUGGESTED` chip the card
   carried and the coded range in the header. The suggestion is labelled `TODAY'S TARGET` on screen
   only (`CONTEXT.md`). The weight and its rule are the API's; the screen words them:
+  A bodyweight lift shows the counted load and which weigh-in supplied it, or says there was no
+  weigh-in. The target and entered weight still use the logged added load.
   - Weight up: `You reached 10 reps on every set last time, so the weight goes up by 2.5 kg. Aim
     for 6 or more.` The step named is the one the suggestion took, so a dumbbell that goes 30 to 32
     says 2 kg.

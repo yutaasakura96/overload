@@ -226,7 +226,12 @@ export function trainingRoutes({ db }: RouteDeps) {
         return c.json(
           {
             asOf: new Date().toISOString(),
-            exercises: await lastTimes(db, userId, profile.timezone),
+            exercises: await lastTimes(
+              db,
+              userId,
+              profile.timezone,
+              dailyWeights(await listWeighIns(db, userId), profile.timezone),
+            ),
           },
           200,
         );

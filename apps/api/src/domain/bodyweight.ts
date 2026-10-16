@@ -44,5 +44,9 @@ const counted = (basis: 'same_day' | 'earlier_day' | 'later_day', day: DailyWeig
  */
 export function withBodyweight(sets: LoggedSet[], count: BodyweightCount): LoggedSet[] {
   if (count.basis === 'none') return sets;
-  return sets.map((set) => ({ ...set, weightKg: round(count.weightKg + set.weightKg, 2) }));
+  return sets.map((set) => ({ ...set, weightKg: countedLoad(set.weightKg, count) }));
+}
+
+export function countedLoad(weightKg: number, count: BodyweightCount): number {
+  return count.basis === 'none' ? weightKg : round(count.weightKg + weightKg, 2);
 }

@@ -1,4 +1,5 @@
 import type {
+  BodyweightCount,
   Equipment,
   SetRow,
   Suggestion,
@@ -52,7 +53,12 @@ export type WorkoutRecord = RecordBase & { table: 'workouts'; row: WorkoutRow };
  * One working set as last time logged it, copied when the workout starts. `rir` is absent from a
  * copy kept before last time carried it.
  */
-export type LastSet = { weightKg: number; reps: number; rir?: number | null };
+export type LastSet = {
+  weightKg: number;
+  countedWeightKg?: number;
+  reps: number;
+  rir?: number | null;
+};
 
 export type WorkoutExerciseRecord = RecordBase & {
   table: 'workoutExercises';
@@ -66,6 +72,7 @@ export type WorkoutExerciseRecord = RecordBase & {
     bodyweight: boolean;
     restSeconds: number;
     lastTime: LastSet[];
+    lastTimeBodyweight?: BodyweightCount | null;
     /** Last time's local date. Absent from a copy kept before it was carried. */
     lastTimeOn?: string | null;
     lastTimeKnown?: boolean;

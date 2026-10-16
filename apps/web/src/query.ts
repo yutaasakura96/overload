@@ -514,7 +514,8 @@ export const refreshWeighIns = () =>
     predicate: (query) =>
       query.queryKey[0] === 'weigh-ins' ||
       query.queryKey[0] === 'progress' ||
-      query.queryKey[0] === 'strength',
+      query.queryKey[0] === 'strength' ||
+      query.queryKey[0] === 'last-time',
   });
 /**
  * After an acknowledged sync batch: a chart on screen is asked again, the rest when next opened.

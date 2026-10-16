@@ -10,6 +10,7 @@ import {
   type RefObject,
 } from 'react';
 import { Brief } from '../brief';
+import { countedAt } from '../bodyweight';
 import {
   AppBar,
   CheckIcon,
@@ -682,7 +683,14 @@ function ExerciseBlock({
                       index + 1
                     )}
                   </td>
-                  <td className="sets__last">{last === undefined ? '' : figures(last)}</td>
+                  <td className="sets__last">
+                    {last === undefined
+                      ? ''
+                      : figures({
+                          weightKg: last.countedWeightKg ?? last.weightKg,
+                          reps: last.reps,
+                        })}
+                  </td>
                   <td className="sets__figure">{formatWeight(set.row.weightKg, unit)}</td>
                   <td className="sets__figure">{set.row.reps}</td>
                   <td className="sets__number">{set.row.rir ?? '—'}</td>
@@ -958,7 +966,7 @@ function ActiveSet({
           </div>
           <div className="brief__when">
             {last !== undefined
-              ? `Last time ${formatWeight(last.weightKg, unit)} × ${last.reps}`
+              ? `Last time ${formatWeight(last.countedWeightKg ?? last.weightKg, unit)} × ${last.reps}${exercise.local.lastTimeBodyweight == null ? '' : ` · ${countedAt(exercise.local.lastTimeBodyweight, unit)}`}`
               : lastTime.length > 0
                 ? 'No matching set last time'
                 : lastTimeKnown && 'First workout of this exercise'}
@@ -979,7 +987,12 @@ function ActiveSet({
           {last !== undefined && !warm && (
             <span className="active-set__last">
               <span className="active-set__last-word">LAST TIME</span>
-              {formatWeight(last.weightKg, unit)} × {last.reps}
+              {formatWeight(last.countedWeightKg ?? last.weightKg, unit)} × {last.reps}
+            </span>
+          )}
+          {last !== undefined && !warm && exercise.local.lastTimeBodyweight != null && (
+            <span className="active-set__last-word">
+              {countedAt(exercise.local.lastTimeBodyweight, unit)}
             </span>
           )}
           {lastTime.length === 0 && lastTimeKnown && (
