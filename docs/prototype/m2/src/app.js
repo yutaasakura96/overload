@@ -36,9 +36,11 @@ const S = {
   clock: 'midday',
   offline: false,
   shortfall: false,
+  calorieGap: false,
   generating: false,
   setup: { profile: true, foods: true, phase: true, routine: true },
   days: {},
+  mealItems: {},
   open: null,
   eodDay: null,
   eodLeft: {},
@@ -59,6 +61,7 @@ const S = {
   progTab: 'weight',
   weightSpan: '30',
   weightData: 'full',
+  extraWeighIns: [],
   maint: 'ready',
   applied: null,
   weigh: null,
@@ -97,7 +100,7 @@ function itemMacros([id, qty, unit]) {
     } else grams /= y;
   }
   const k = grams / 100;
-  return { kcal: per.kcal * k, p: per.p * k, c: per.c * k, f: per.f * k, fib: per.fib * k, approx };
+  return { kcal: (per.kcal ?? 0) * k, p: (per.p ?? 0) * k, c: (per.c ?? 0) * k, f: (per.f ?? 0) * k, fib: (per.fib ?? 0) * k, approx };
 }
 const sum = (list) => list.reduce((t, m) => ({ kcal: t.kcal + m.kcal, p: t.p + m.p, c: t.c + m.c, f: t.f + m.f, fib: t.fib + m.fib }), { kcal: 0, p: 0, c: 0, f: 0, fib: 0 });
 const mealMacros = (meal) => sum(meal.items.map(itemMacros));
@@ -113,6 +116,7 @@ const TARGETS = (() => {
 const YESTERDAY_ISO = TODAY;
 const dayIso = () => (S.clock === 'morning' ? addDays(TODAY, 1) : TODAY);
 const planFor = (iso) => (iso === TODAY ? PLAN_TODAY : PLAN_REST);
+const actualMeal = (iso, meal) => ({ ...meal, items: S.mealItems[iso]?.[meal.id] ?? meal.items });
 const isTraining = (iso) => planFor(iso) === PLAN_TODAY;
 const nowTime = () => NOW[S.clock];
 
@@ -139,7 +143,8 @@ function dayTotals(iso) {
   const planned = sum(planFor(iso).map(mealMacros));
   let shown = planned;
   if (S.shortfall && iso === dayIso()) shown = { ...planned, p: planned.p - 24, kcal: planned.kcal - 70 };
-  const eaten = sum(planFor(iso).filter((m) => ['as_planned', 'adjusted', 'replaced'].includes(st[m.id])).map(mealMacros));
+  if (S.calorieGap && iso === dayIso()) shown = { ...shown, kcal: Math.min(shown.kcal, TARGETS.kcal - 250) };
+  const eaten = sum(planFor(iso).filter((m) => ['as_planned', 'adjusted', 'replaced'].includes(st[m.id])).map((m) => mealMacros(actualMeal(iso, m))));
   return { planned: shown, eaten };
 }
 
@@ -157,11 +162,13 @@ function trendSeries(list) {
   }
   return out;
 }
-const weighIns = () => (S.weightData === 'none' ? [] : S.weightData === 'few' ? WEIGH_INS.slice(-2) : WEIGH_INS);
+const weighIns = () => (S.weightData === 'none' ? [] : S.weightData === 'few' ? WEIGH_INS.slice(-2) : [...WEIGH_INS, ...S.extraWeighIns].sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time)));
+const dailyWeighIn = (list, date) => list.filter((w) => w.date === date && w.time < '10:00')[0] ?? list.find((w) => w.date === date);
 const trendAt = (series, iso) => series.filter((w) => w.date <= iso).at(-1)?.trend ?? series[0]?.trend;
 
 function maintenance() {
-  const series = trendSeries(WEIGH_INS);
+  const list = weighIns();
+  const series = trendSeries(list.filter((w) => w.id === dailyWeighIn(list, w.date)?.id));
   const from = addDays(TODAY, -14);
   const window = DAY_LOG.filter((d) => d.date >= from);
   const complete = window.filter((d) => d.complete);
@@ -286,7 +293,8 @@ function foodRows(meal, dim = false) {
 
 function mealCard(iso, meal, { active }) {
   const st = statusesFor(iso)[meal.id];
-  const m = mealMacros(meal);
+  const shownMeal = st === 'planned' ? meal : actualMeal(iso, meal);
+  const m = mealMacros(shownMeal);
   const confirmed = st !== 'planned';
   const open = S.open === meal.id || (S.open === null && active);
   const macroLine = `<span class="meal__macros">${n0(m.kcal)} kcal · ${n0(m.p)} g protein</span>`;
@@ -294,7 +302,7 @@ function mealCard(iso, meal, { active }) {
   const right = confirmed ? `<span class="meal__done">${st === 'skipped' ? '' : check(13, 'var(--done)')}${STATUS_WORD[st]}</span>` : open ? '' : macroLine;
   const head = `<div class="meal__head"><span class="meal__title">${esc(meal.label)}</span>${right}</div>`;
   if (!open) {
-    return `<button type="button" class="meal meal--${confirmed ? 'confirmed' : 'planned'}" data-act="openMeal" data-id="${meal.id}">${head}${foodRows(meal, true)}</button>${tag ? `<div class="meal__tag-row">${tag}</div>` : ''}`;
+    return `<button type="button" class="meal meal--${confirmed ? 'confirmed' : 'planned'}" data-act="openMeal" data-id="${meal.id}">${head}${foodRows(shownMeal, true)}</button>${tag ? `<div class="meal__tag-row">${tag}</div>` : ''}`;
   }
   const disabled = S.offline ? ' disabled' : '';
   const actions = confirmed
@@ -302,7 +310,7 @@ function mealCard(iso, meal, { active }) {
     : `<div class="meal__actions"><button type="button" class="button button--primary meal__eaten" data-act="eaten" data-id="${meal.id}"${disabled}>${check(18)}Eaten as planned</button>
         <div class="meal__more"><button type="button" class="button button--secondary" data-act="adjustOpen" data-id="${meal.id}"${disabled}>Adjust</button><button type="button" class="button button--secondary" data-act="replaceOpen" data-id="${meal.id}"${disabled}>${swap()}Replaced</button><button type="button" class="button button--secondary" data-act="skip" data-id="${meal.id}"${disabled}>Skipped</button></div>
         ${S.offline ? `<p class="meal__offline">${info(12)}Confirming needs a connection. Nothing is lost: the meal waits as planned.</p>` : ''}</div>`;
-  return `<div class="meal meal--${confirmed ? 'confirmed' : 'active'} meal--open">${head}${confirmed ? '' : `<div class="meal__sub">${macroLine}${meal.carbs ? evidenceTag('MORE CARBS', 'carbs') : ''}</div>`}${foodRows(meal)}${actions}</div>`;
+  return `<div class="meal meal--${confirmed ? 'confirmed' : 'active'} meal--open">${head}${confirmed ? '' : `<div class="meal__sub">${macroLine}${meal.carbs ? evidenceTag('MORE CARBS', 'carbs') : ''}</div>`}${foodRows(shownMeal)}${actions}</div>`;
 }
 
 function timeline(iso) {
@@ -385,7 +393,7 @@ function startList(iso) {
 
 function planRows() {
   return `<section class="today__section"><h2 class="section-label">Your plan</h2>
-    <button type="button" class="link-row link-row--flush" data-act="phaseOpen"><span><span class="link-row__name">Cut since ${dayLabel(PHASE.started, false)} · week 7</span><span class="link-row__meta">${n0(TARGETS.kcal)} kcal, provisional · ${TARGETS.p} g protein</span></span>${chevron()}</button>
+    <button type="button" class="link-row link-row--flush" data-act="phaseOpen"><span><span class="link-row__name">${PHASE.type[0].toUpperCase() + PHASE.type.slice(1)} since ${dayLabel(PHASE.started, false)} · week 7</span><span class="link-row__meta">${n0(TARGETS.kcal)} kcal, ${S.applied ? 'measured' : 'provisional'} · ${TARGETS.p} g protein</span></span>${chevron()}</button>
     <button type="button" class="link-row link-row--flush" data-act="routineOpen"><span><span class="link-row__name">Your day</span><span class="link-row__meta">Training days ${ROUTINE.training.meals} meals · rest days ${ROUTINE.rest.meals} meals</span></span>${chevron()}</button></section>`;
 }
 
@@ -410,8 +418,9 @@ function todayScreen() {
   const shortfall = S.shortfall
     ? `<div class="notice notice--flag m2-notice" role="note">${info()}<div><span class="notice__word" style="color:var(--flag)">Protein 22 g short</span><p>Your foods can’t reach ${TARGETS.p} g today without going over calories, so the plan stops at 159 g. Nothing else was padded to hide it.</p><button type="button" class="button button--secondary" data-act="addFood">Add a protein source</button></div></div>`
     : '';
+  const gap = S.calorieGap ? `<div class="notice notice--flag m2-notice" role="note">${info()}<div><span class="notice__word" style="color:var(--flag)">Calories short of target</span><p>A portion would have to grow beyond its sensible cap to close the gap. The plan leaves the gap visible instead.</p></div></div>` : '';
   return `<main class="m2">${appBar({ title: 'Today', subline: sub })}${tabs('today')}${flash()}
-    <div class="m2-stick">${dayTotalsBlock(iso)}</div>${shortfall}${eodCard()}
+    <div class="m2-stick">${dayTotalsBlock(iso)}</div>${shortfall}${gap}${eodCard()}
     ${S.offline ? `<div class="notice notice--flag m2-notice">${info()}<span>Offline. This is the plan as it was at 07:12. Confirming meals waits for a connection; a workout still works offline.</span></div>` : ''}
     <section class="today__section today__section--timeline"><h2 class="section-label">The day</h2>${timeline(iso)}</section>
     ${startList(iso)}${planRows()}</main>`;
@@ -422,7 +431,7 @@ function todayScreen() {
 function adjustScreen() {
   const meal = planFor(S.adjust.iso).find((m) => m.id === S.adjust.mealId);
   const items = S.adjust.items;
-  const before = mealMacros(meal);
+  const before = mealMacros(actualMeal(S.adjust.iso, meal));
   const after = sum(items.map(itemMacros));
   return `<main class="m2">${appBar({ title: `Adjust ${meal.label}`, subline: `${meal.time} · ${dayLabel(S.adjust.iso).toUpperCase()}`, back: true })}
     <p class="m2-lede">Change the grams, or swap a food for one in its rotation group. Saving confirms the meal as eaten, adjusted.</p>
@@ -453,9 +462,9 @@ function replaceScreen() {
           .map((f) => `<li><button type="button" class="pick__row" data-act="replacePick" data-id="${f.id}"><span class="pick__name">${esc(f.name)}</span><span class="pick__meta">${f.kcal} kcal · ${f.p} g protein per 100 g</span><span class="pick__add">ADD 100 G</span></button></li>`)
           .join('')}</ul>
         ${picked ? `<section class="today__section"><h2 class="section-label">Eaten instead</h2><ul class="replace__list">${picked}</ul></section>` : ''}`
-      : `<div class="form">${field({ label: 'What it was', key: 'handName', mono: false, placeholder: 'Ramen at the station' })}
-          <div class="form__pair">${field({ label: 'Calories', key: 'hk', unit: 'kcal', placeholder: '0' })}${field({ label: 'Protein', key: 'hp', unit: 'g', placeholder: '0' })}</div>
-          <div class="form__pair">${field({ label: 'Carbs', key: 'hc', unit: 'g', placeholder: '0' })}${field({ label: 'Fat', key: 'hf', unit: 'g', placeholder: '0' })}</div>
+      : `<div class="form">${field({ label: 'What it was', key: 'handName', value: r.hand.name ?? '', mono: false, placeholder: 'Ramen at the station' })}
+          <div class="form__pair">${field({ label: 'Calories', key: 'hk', value: r.hand.kcal ?? '', unit: 'kcal', placeholder: '0' })}${field({ label: 'Protein', key: 'hp', value: r.hand.p ?? '', unit: 'g', placeholder: '0' })}</div>
+          <div class="form__pair">${field({ label: 'Carbs', key: 'hc', value: r.hand.c ?? '', unit: 'g', placeholder: '0' })}${field({ label: 'Fat', key: 'hf', value: r.hand.f ?? '', unit: 'g', placeholder: '0' })}</div>
           <p class="m2-hint">Your own numbers, saved as typed. A photo or a short description arrives in M3.</p></div>`;
   return `<main class="m2">${appBar({ title: `Replace ${meal.label}`, subline: `${meal.time} · ${dayLabel(r.iso).toUpperCase()}`, back: true })}
     <p class="m2-lede">What did you eat instead? From your foods, or by hand.</p>
@@ -468,7 +477,8 @@ function replaceScreen() {
 function eodScreen() {
   const iso = S.eodDay;
   const left = unconfirmed(iso);
-  const { planned } = dayTotals(iso);
+  const { eaten } = dayTotals(iso);
+  const preview = sum([eaten, ...left.map(mealMacros)]);
   const m = maintenance();
   const when = iso === TODAY && S.clock === 'evening' ? `${dayLabel(iso).toUpperCase()} · 22:05` : `${dayLabel(iso).toUpperCase()} · YESTERDAY`;
   if (left.length === 0) {
@@ -484,7 +494,7 @@ function eodScreen() {
           <div class="eod-meal__actions"><button type="button" class="button button--secondary" data-act="eodEaten" data-id="${meal.id}">${check(14)}As planned</button><button type="button" class="button button--secondary" data-act="adjustOpen" data-id="${meal.id}" data-day="${iso}">Adjust</button><button type="button" class="button button--secondary" data-act="replaceOpen" data-id="${meal.id}" data-day="${iso}">Replaced</button><button type="button" class="button button--secondary" data-act="eodSkip" data-id="${meal.id}">Skipped</button></div></li>`;
       })
       .join('')}</ul></section>
-    <section class="eod__if"><h2 class="section-label">If you confirm them all</h2><div class="eod__if-grid"><div><span class="eod__if-fig">${n0(planned.kcal)}<span class="eod__if-of"> / ${n0(TARGETS.kcal)}</span></span><span class="eod__if-label">kcal eaten</span></div><div><span class="eod__if-fig">${n0(planned.p)}<span class="eod__if-of"> / ${TARGETS.p}</span></span><span class="eod__if-label">g protein</span></div></div>
+    <section class="eod__if"><h2 class="section-label">If you confirm them all</h2><div class="eod__if-grid"><div><span class="eod__if-fig">${n0(preview.kcal)}<span class="eod__if-of"> / ${n0(TARGETS.kcal)}</span></span><span class="eod__if-label">kcal eaten</span></div><div><span class="eod__if-fig">${n0(preview.p)}<span class="eod__if-of"> / ${TARGETS.p}</span></span><span class="eod__if-label">g protein</span></div></div>
       <div class="eod__if-days"><span>Complete days this phase</span><span class="eod__if-fig eod__if-fig--small">${m.total} → ${m.total + 1}</span></div></section>
     <div class="eod__actions"><button type="button" class="button button--primary eod__all" data-act="eodAll">${check(20)}Confirm all as planned</button><button type="button" class="button button--tertiary eod__leave" data-act="eodLeave">Leave day incomplete</button></div></main>`;
 }
@@ -567,7 +577,7 @@ function foodsScreen() {
     return `<main class="m2">${appBar({ title: 'Food', subline: 'YOUR FOODS' })}${tabs('food')}<div class="m2-seg-wrap">${foodTabs()}</div>
       <section class="empty-state"><h2 class="empty-state__title">No foods yet</h2><p class="empty-state__body">The meal plan is built only from your foods. Add the ones you eat, starting with a protein source: chicken, eggs, fish or tofu.</p><button type="button" class="button button--primary" data-act="addFood">Add a food</button></section></main>`;
   }
-  const list = FOODS.filter((f) => f.name.toLowerCase().includes(q));
+  const list = matchingFoods(q);
   return `<main class="m2">${appBar({ title: 'Food', subline: `YOUR FOODS · ${FOODS.length}` })}${tabs('food')}<div class="m2-seg-wrap">${foodTabs()}</div>${flash()}
     <div class="m2-field-wrap">${field({ label: 'Search your foods', key: 'foodQ', value: S.foodQ, mono: false, placeholder: 'Name or brand' })}</div>
     <div class="section-actions section-actions--tight"><button type="button" class="button button--primary" data-act="addFood">Add a food</button></div>
@@ -576,13 +586,17 @@ function foodsScreen() {
     <footer class="footnote footnote--m2"><span>Values per 100 g of the state named</span><span class="footnote__formula">raw or cooked</span></footer></main>`;
 }
 
+function matchingFoods(q) {
+  return FOODS.filter((f) => `${f.name} ${f.brand ?? ''}`.toLowerCase().includes(q)).sort((a, b) => a.name.localeCompare(b.name));
+}
+
 function foodRowsList(list, q) {
   if (list.length === 0) return `<li class="foods__none">None of your foods match “${esc(q)}”. <button type="button" class="m2-inline-link" data-act="addFood">Add it as a new food</button></li>`;
   return list
     .map((f) => {
       const group = GROUPS.find((g) => g.id === f.group);
       return `<li><button type="button" class="foods__row" data-act="foodOpen" data-id="${f.id}"><span class="foods__text"><span class="foods__name">${esc(f.name)}${f.brand ? `<span class="foods__brand"> · ${esc(f.brand)}</span>` : ''}</span>
-        <span class="foods__macros">${f.kcal} kcal · ${f.p} g protein · per 100 g ${f.state}</span>
+        <span class="foods__macros">${f.kcal ?? '—'} kcal · ${f.p ?? '—'} g protein · per 100 g ${f.state}</span>
         <span class="foods__tags">${group ? `<span class="foods__tag">${group.name}</span>` : ''}${f.cooked ? `<span class="foods__tag">Batch-cooked · keeps ${f.keeps} days</span>` : ''}${f.piece ? `<span class="foods__tag">Counted in pieces</span>` : ''}</span></span>${chevron()}</button></li>`;
     })
     .join('');
@@ -594,7 +608,7 @@ function foodScreen() {
   const rows = [['Calories', f.kcal, 'kcal'], ['Protein', f.p, 'g'], ['Carbs', f.c, 'g'], ['Fat', f.f, 'g'], ['Fiber', f.fib, 'g']];
   const batches = batchesOf(f.id);
   return `<main class="m2">${appBar({ title: f.name, subline: `${SOURCE_WORD[f.source].toUpperCase()}${f.ref ? ` · ${f.ref}` : ''}`, back: true })}
-    <section class="today__section"><h2 class="section-label">Per 100 g, ${f.state}</h2><dl class="values">${rows.map(([l, v, u]) => `<div class="values__row"><dt>${l}</dt><dd>${v}<span class="values__unit"> ${u}</span></dd></div>`).join('')}</dl></section>
+    <section class="today__section"><h2 class="section-label">Per 100 g, ${f.state}</h2><dl class="values">${rows.map(([l, v, u]) => `<div class="values__row"><dt>${l}</dt><dd>${v ?? '—'}${v === null ? '' : `<span class="values__unit"> ${u}</span>`}</dd></div>`).join('')}</dl></section>
     <section class="today__section"><h2 class="section-label">How the plan uses it</h2><dl class="values">
       <div class="values__row"><dt>Counted in</dt><dd class="values__word">${f.piece ? `pieces of ${f.piece} g` : 'grams'}</dd></div>
       <div class="values__row"><dt>Rotation group</dt><dd class="values__word">${group ? group.name : 'None'}</dd></div>
@@ -729,7 +743,7 @@ function confirmScreen() {
   const valueField = (label, key, k, unit) => {
     const missing = !c.manual && v[k] === null;
     const note = missing ? (c.partial && k !== 'fib' ? 'NOT READ' : 'NOT ON THE LABEL: LEFT EMPTY') : '';
-    return field({ label, key, value: c.manual || missing ? '' : per100(v[k]), unit, placeholder: missing ? '—' : '0', note });
+    return field({ label, key, value: c.values?.[k] ?? (c.manual || missing ? '' : per100(v[k])), unit, placeholder: missing ? '—' : '0', note });
   };
   return `<main class="m2">${appBar({ title: 'Check before saving', subline: c.sourceLine, back: true })}
     ${c.duplicate ? `<div class="notice notice--flag m2-notice">${info()}<div><span class="notice__word" style="color:var(--flag)">Already on your list</span><p>${esc(c.name)} is saved already. <button type="button" class="m2-inline-link" data-act="foodOpen" data-id="${c.duplicate}">Open it</button></p></div></div>` : ''}
@@ -896,7 +910,7 @@ function applySheet() {
 
 function weightScreen() {
   const list = weighIns();
-  const series = trendSeries(list);
+  const series = trendSeries(list.filter((w) => w.id === dailyWeighIn(list, w.date)?.id));
   if (list.length === 0) {
     return `<main class="m2">${appBar({ title: 'Progress', subline: 'WEIGHT' })}${tabs('progress')}<div class="m2-seg-wrap">${progressTabs('weight')}</div>
       <section class="empty-state"><h2 class="empty-state__title">No weigh-ins yet</h2><p class="empty-state__body">Your morning weight can arrive from the scale by itself, or you can type it. The trend line starts from your third day.</p><button type="button" class="button button--primary" data-act="weighOpen">Type a weight</button><button type="button" class="button button--secondary" data-act="go" data-id="route">Set up the scale</button></section></main>`;
@@ -906,7 +920,7 @@ function weightScreen() {
   const wkAgo = trendAt(series, addDays(TODAY, -7));
   const rate = last.trend - wkAgo;
   const lateInView = series.some((w) => !w.morning && w.date >= addDays(TODAY, -29));
-  const recent = [...series].reverse().slice(0, 6);
+  const recent = [...list].reverse().slice(0, 6);
   return `<main class="m2">${appBar({ title: 'Progress', subline: 'WEIGHT' })}${tabs('progress')}<div class="m2-seg-wrap">${progressTabs('weight')}</div>${flash()}
     <section class="whead">${trendOk
       ? `<div><span class="whead__label">Trend</span><span class="whead__fig">${n1(last.trend)}<span class="whead__unit"> kg</span></span></div><div class="whead__rate"><span class="whead__rate-fig">${signed(rate, 2)} kg</span><span class="whead__rate-words">in the last week</span></div>`
@@ -917,9 +931,9 @@ function weightScreen() {
     <div class="section-actions section-actions--row"><button type="button" class="button button--secondary" data-act="weighOpen">Type a weight</button><button type="button" class="button button--tertiary" data-act="go" data-id="route">Scale: ${S.routeState === 'synced' ? 'arrived 07:01' : 'set up'}</button></div>
     <div class="today__section">${maintCard()}</div>
     <section class="today__section"><h2 class="section-label">Recent weigh-ins</h2><ul class="weighins">${recent
-      .map((w) => `<li class="weighins__row"><span class="weighins__date">${dayLabel(w.date)}</span><span class="weighins__time">${w.time}${w.morning ? '' : ' · not morning'}</span><span class="weighins__kg">${n1(w.kg)}<span class="weighins__unit"> kg</span></span><span class="weighins__src">${w.source === 'manual' ? `<button type="button" class="button button--tertiary weighins__del" data-act="noop">Delete</button>` : 'Scale'}</span></li>`)
+      .map((w) => `<li class="weighins__row"><span class="weighins__date">${dayLabel(w.date)}</span><span class="weighins__time">${w.time}${w.id !== dailyWeighIn(list, w.date)?.id ? ' · stored, not in trend' : w.morning ? '' : ' · not morning'}</span><span class="weighins__kg">${n1(w.kg)}<span class="weighins__unit"> kg</span></span><span class="weighins__src">${w.source === 'manual' ? `<button type="button" class="button button--tertiary weighins__del" data-act="noop">Delete</button>` : 'Scale'}</span></li>`)
       .join('')}</ul></section>
-    <button type="button" class="link-row" data-act="phaseOpen"><span><span class="link-row__name">Cut since ${dayLabel(PHASE.started, false)} · week 7</span><span class="link-row__meta">Target: lose ${PHASE.ratePct}% a week, about ${n1((PHASE.ratePct / 100) * PROFILE.weightKg)} kg</span></span>${chevron()}</button>
+    <button type="button" class="link-row" data-act="phaseOpen"><span><span class="link-row__name">${PHASE.type[0].toUpperCase() + PHASE.type.slice(1)} since ${dayLabel(PHASE.started, false)} · week 7</span><span class="link-row__meta">Target: ${PHASE.type === 'cut' ? 'lose' : PHASE.type === 'bulk' ? 'gain' : 'maintain'} ${PHASE.ratePct}% a week, about ${n1((PHASE.ratePct / 100) * PROFILE.weightKg)} kg</span></span>${chevron()}</button>
     <footer class="footnote footnote--m2"><span>The trend smooths each day’s weight</span><span class="footnote__formula">10% a day</span></footer></main>`;
 }
 
@@ -1056,8 +1070,11 @@ function newCandidate(kind) {
   return { name: '', brand: '', sourceLine: 'TYPED BY HAND', basis: '100g', basisGrams: null, printed: null, state: 'raw', group: '', manual: true };
 }
 
-function confirmMeal(iso, id, status) {
+function confirmMeal(iso, id, status, items) {
   statusesFor(iso)[id] = status;
+  S.mealItems[iso] ??= {};
+  if (status === 'planned' || status === 'skipped' || status === 'as_planned') delete S.mealItems[iso][id];
+  else S.mealItems[iso][id] = items;
   S.open = null;
 }
 
@@ -1099,7 +1116,7 @@ const ACT = {
   adjustOpen({ id, day }) {
     const iso = day ?? (S.screen === 'eod' ? S.eodDay : dayIso());
     const meal = planFor(iso).find((m) => m.id === id);
-    S.adjust = { iso, mealId: id, items: meal.items.map((i) => [...i]), refused: false };
+    S.adjust = { iso, mealId: id, items: actualMeal(iso, meal).items.map((i) => [...i]), refused: false };
     go('adjust');
   },
   adjustStep({ i, d }) {
@@ -1115,15 +1132,16 @@ const ACT = {
   },
   adjustSwap({ i, id }) {
     S.adjust.items[Number(i)][0] = id;
+    S.adjust.items[Number(i)][2] = food(id).cooked ? 'cooked' : undefined;
     render();
   },
   adjustSave() {
-    confirmMeal(S.adjust.iso, S.adjust.mealId, 'adjusted');
+    confirmMeal(S.adjust.iso, S.adjust.mealId, 'adjusted', S.adjust.items);
     back('Saved as eaten, adjusted. It replaces the plan for this meal.');
   },
   replaceOpen({ id, day }) {
     const iso = day ?? (S.screen === 'eod' ? S.eodDay : dayIso());
-    S.replace = { iso, mealId: id, mode: 'list', q: '', picked: [] };
+    S.replace = { iso, mealId: id, mode: 'list', q: '', picked: [], hand: {} };
     go('replace');
   },
   replaceMode({ id }) {
@@ -1141,7 +1159,16 @@ const ACT = {
     render();
   },
   replaceSave() {
-    confirmMeal(S.replace.iso, S.replace.mealId, 'replaced');
+    const r = S.replace;
+    const items = r.mode === 'list' ? r.picked.map(([id, qty]) => [id, qty]) : [];
+    if (r.mode === 'list' && items.length === 0) return;
+    if (r.mode === 'hand') {
+      if (!r.hand.name?.trim()) return;
+      const id = `hand${FOODS.length}`;
+      FOODS.push({ id, name: r.hand.name, state: 'raw', kcal: Number(r.hand.kcal) || 0, p: Number(r.hand.p) || 0, c: Number(r.hand.c) || 0, f: Number(r.hand.f) || 0, fib: null, source: 'manual', group: null, keeps: null, cooked: false });
+      items.push([id, 100]);
+    }
+    confirmMeal(r.iso, r.mealId, 'replaced', items);
     back('Saved as replaced. The planned meal no longer counts.');
   },
   startWorkout() {
@@ -1160,7 +1187,7 @@ const ACT = {
     render();
   },
   eodAll() {
-    for (const m of unconfirmed(S.eodDay)) statusesFor(S.eodDay)[m.id] = 'as_planned';
+    for (const m of unconfirmed(S.eodDay)) confirmMeal(S.eodDay, m.id, 'as_planned');
     back(`${dayLabel(S.eodDay)} is a complete day. It counts towards the maintenance check.`);
   },
   eodLeave() {
@@ -1272,8 +1299,8 @@ const ACT = {
   saveFood() {
     const c = S.candidate;
     const k = c.basisGrams ? 100 / c.basisGrams : 1;
-    const per = (x) => (c.printed?.[x] == null ? 0 : Math.round(c.printed[x] * k * 10) / 10);
-    if (!c.duplicate && c.name) FOODS.unshift({ id: `new${FOODS.length}`, name: c.name, brand: c.brand || null, state: c.state, kcal: per('kcal'), p: per('p'), c: per('c'), f: per('f'), fib: per('fib'), source: 'manual', ref: null, group: c.group || null, keeps: null, cooked: false });
+    const per = (x) => c.values?.[x] !== undefined ? (c.values[x] === '' ? null : Number(c.values[x])) : c.printed?.[x] == null ? null : Math.round(c.printed[x] * k * 10) / 10;
+    if (!c.duplicate && c.name.trim()) FOODS.push({ id: `new${FOODS.length}`, name: c.name.trim(), brand: c.brand || null, state: c.state, kcal: per('kcal'), p: per('p'), c: per('c'), f: per('f'), fib: per('fib'), source: c.manual ? 'manual' : c.sourceLine.startsWith('MEXT') ? 'mext' : c.sourceLine.startsWith('BARCODE') ? 'open_food_facts' : 'label_photo', ref: null, group: c.group || null, piece: Number(c.piece) || null, keeps: Number(c.keeps) || null, cooked: Number(c.keeps) > 0 });
     S.setup.foods = true;
     S.emptyFoods = false;
     S.foodTab = 'foods';
@@ -1293,6 +1320,8 @@ const ACT = {
       return render();
     }
     const y = Math.round((Number(S.batch.cooked) / Number(S.batch.raw)) * 100);
+    BATCHES.push({ id: `b${BATCHES.length + 1}`, food: S.batch.food, raw: Number(S.batch.raw), cooked: Number(S.batch.cooked), on: S.batch.on });
+    food(S.batch.food).keeps = Number(S.batch.keeps) || null;
     back(`Batch saved: yield ${y}%. Plans made from now on use it.`);
   },
   profileOpen: () => go('profile'),
@@ -1310,6 +1339,10 @@ const ACT = {
     render();
   },
   phaseSave() {
+    S.applied = null;
+    Object.assign(PHASE, { type: S.phaseForm.type, ratePct: Number(S.phaseForm.rate), proteinPerKg: Number(S.phaseForm.protein), fatPct: Number(S.phaseForm.fat), kcal: Number(S.phaseForm.kcal) });
+    Object.assign(TARGETS, { kcal: PHASE.kcal, p: Math.round(PHASE.proteinPerKg * PROFILE.weightKg), f: Math.round(PHASE.kcal * PHASE.fatPct / 100 / 9) });
+    TARGETS.c = Math.round((TARGETS.kcal - TARGETS.p * 4 - TARGETS.f * 9) / 4);
     if (!S.setup.phase) {
       S.setup.phase = true;
       return back();
@@ -1336,6 +1369,7 @@ const ACT = {
     render();
   },
   routineSave() {
+    Object.assign(ROUTINE, structuredClone(S.routineForm));
     if (!S.setup.routine) {
       S.setup.routine = true;
       S.generating = true;
@@ -1362,6 +1396,10 @@ const ACT = {
       S.weigh.refused = true;
       return render();
     }
+    const morning = S.weigh.time < '10:00';
+    WEIGH_INS.push({ id: `w${Date.now()}`, date: S.weigh.date, time: S.weigh.time, kg, morning, source: 'manual' });
+    WEIGH_INS.sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
+    S.weightData = 'full';
     back(`Weigh-in saved: ${n1(kg)} kg at ${S.weigh.time}.`);
   },
   applyAsk() {
@@ -1371,6 +1409,9 @@ const ACT = {
   applyDo() {
     const m = maintenance();
     S.applied = Math.round(m.kcal / 10) * 10 - Math.round(((PHASE.ratePct / 100) * PROFILE.weightKg * 7700) / 7 / 10) * 10;
+    PHASE.kcal = TARGETS.kcal = S.applied;
+    TARGETS.f = Math.round(TARGETS.kcal * PHASE.fatPct / 100 / 9);
+    TARGETS.c = Math.round((TARGETS.kcal - TARGETS.p * 4 - TARGETS.f * 9) / 4);
     S.sheet = null;
     S.flash = 'Applied. Your calories are now measured, not provisional. The week was planned again.';
     render();
@@ -1409,7 +1450,7 @@ document.addEventListener('input', (event) => {
   if (key === undefined) return;
   if (key === 'foodQ') {
     S.foodQ = el.value;
-    document.getElementById('foods-list').innerHTML = foodRowsList(FOODS.filter((f) => f.name.toLowerCase().includes(el.value.trim().toLowerCase())), el.value.trim().toLowerCase());
+    document.getElementById('foods-list').innerHTML = foodRowsList(matchingFoods(el.value.trim().toLowerCase()), el.value.trim().toLowerCase());
   } else if (key === 'addQ') {
     S.addQ = el.value;
     const scroller = document.getElementById('phone-scroll');
@@ -1419,6 +1460,8 @@ document.addEventListener('input', (event) => {
     scroller.querySelector('#add-results');
   } else if (key === 'replaceQ') {
     S.replace.q = el.value;
+  } else if (['handName', 'hk', 'hp', 'hc', 'hf'].includes(key)) {
+    S.replace.hand[{ handName: 'name', hk: 'kcal', hp: 'p', hc: 'c', hf: 'f' }[key]] = el.value;
   } else if (key.startsWith('batch')) {
     const map = { batchRaw: 'raw', batchCooked: 'cooked', batchKeeps: 'keeps', batchOn: 'on', batchFood: 'food' };
     S.batch[map[key]] = el.value;
@@ -1435,6 +1478,15 @@ document.addEventListener('input', (event) => {
   } else if (key === 'wDate') S.weigh.date = el.value;
   else if (key === 'cBasisG') S.candidate.basisGrams = Number(el.value) || null;
   else if (key === 'cName') S.candidate.name = el.value;
+  else if (key === 'cBrand') S.candidate.brand = el.value;
+  else if (key === 'cPiece') S.candidate.piece = el.value;
+  else if (key === 'cKeeps') S.candidate.keeps = el.value;
+  else if (['cK', 'cP', 'cC', 'cF', 'cFib'].includes(key)) {
+    S.candidate.values ??= {};
+    S.candidate.values[{ cK: 'kcal', cP: 'p', cC: 'c', cF: 'f', cFib: 'fib' }[key]] = el.value;
+  } else if (['rWake', 'rBed', 'rWs', 'rWe', 'rTrain'].includes(key)) {
+    S.routineForm[S.routineDay][{ rWake: 'wake', rBed: 'bed', rWs: 'workStart', rWe: 'workEnd', rTrain: 'train' }[key]] = el.value;
+  }
 });
 
 // The phase and replace forms redraw their derived lines once a value is complete.

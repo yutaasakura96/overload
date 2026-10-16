@@ -323,6 +323,9 @@ the meal and still lets the day be complete.
 - **Shortfall** (PRD edge case): a `notice--flag` under the totals, `PROTEIN 22 G SHORT`, a sentence
   saying the foods cannot reach the target without going over calories and that nothing else was
   padded, and a secondary `Add a protein source`. The meter says `22 g to go`.
+- **Calorie gap after a capped portion** (PRD edge case): a `notice--flag` under the totals says
+  calories remain short because a portion reached its sensible maximum; the plan leaves the gap
+  visible. Reachable in the prototype's Today screen map.
 - **Offline** (`09` F11): the slot reads `OFFLINE · FROM 07:12`; a `notice--flag` says the plan is
   as it was at that time and confirming waits for a connection. The actions are disabled, with one
   line under them saying nothing is lost.
@@ -469,6 +472,9 @@ and the rest of the week are planned again; `Now 2,350 provisional → New 2,250
 - **No weigh-ins:** an empty state, `No weigh-ins yet`, a sentence on the two ways in, a primary
   `Type a weight` and a secondary `Set up the scale`.
 - **Only daily weights are plotted** (`CONTEXT.md`); the day's other readings are stored, not drawn.
+- **Several weigh-ins on one day** (PRD edge case): the first before 10:00 is the day's chart and
+  trend point. Later readings remain in Recent weigh-ins, marked as stored but not in the trend.
+  Reachable in the prototype's Weight screen map.
 
 ---
 

@@ -8,6 +8,8 @@ function freshToday(clock, extra = {}) {
   S.eodLeft = {};
   S.offline = false;
   S.shortfall = false;
+  S.calorieGap = false;
+  S.mealItems = {};
   S.generating = false;
   S.setup = { profile: true, foods: true, phase: true, routine: true };
   Object.assign(S, extra);
@@ -24,13 +26,14 @@ const MAP = [
   {
     group: 'Today, the whole day (screen 3)',
     items: [
-      { id: 'today', issue: '#79 #80', name: 'Today, a training day', on: () => S.screen === 'today' && S.clock === 'midday' && !S.offline && !S.shortfall && setupStep() === null && !S.generating, jump: () => freshToday('midday') },
+      { id: 'today', issue: '#79 #80', name: 'Today, a training day', on: () => S.screen === 'today' && S.clock === 'midday' && !S.offline && !S.shortfall && !S.calorieGap && setupStep() === null && !S.generating, jump: () => freshToday('midday') },
       { id: 'rest', issue: '#79', name: 'Today, a rest day', on: () => S.screen === 'today' && S.clock === 'morning' && setupStep() === null, jump: () => freshToday('morning', { eodLeft: { [TODAY]: true } }) },
       { id: 'evening', issue: '#80', name: 'Evening: the end-of-day card', on: () => S.screen === 'today' && S.clock === 'evening', jump: () => freshToday('evening') },
       { id: 'adjust', issue: '#80', name: 'Adjust a meal', on: () => S.screen === 'adjust', jump: () => (freshToday('midday'), ACT.adjustOpen({ id: 'm2' })) },
       { id: 'replace', issue: '#80', name: 'Replace a meal', on: () => S.screen === 'replace', jump: () => (freshToday('midday'), ACT.replaceOpen({ id: 'm2' })) },
       { id: 'setup', issue: '#79', name: 'First run: the plan’s four steps', on: () => S.screen === 'today' && setupStep() !== null, jump: () => freshToday('midday', { setup: { profile: false, foods: false, phase: false, routine: false } }) },
       { id: 'shortfall', issue: '#79', name: 'Protein short: the shortfall named', on: () => S.screen === 'today' && S.shortfall, jump: () => freshToday('midday', { shortfall: true }) },
+      { id: 'calorieGap', issue: '#79', name: 'Calories short: portion capped', on: () => S.screen === 'today' && S.calorieGap, jump: () => freshToday('midday', { calorieGap: true }) },
       { id: 'offline', issue: '#80', name: 'Offline: the cached plan', on: () => S.screen === 'today' && S.offline, jump: () => freshToday('midday', { offline: true }) },
     ],
   },
@@ -75,11 +78,12 @@ const MAP = [
   {
     group: 'Progress: weight (screen 6)',
     items: [
-      { id: 'weight', issue: '#76 #82', name: 'Weight and the maintenance check', on: () => S.screen === 'weight' && S.weightData === 'full' && S.maint === 'ready', jump: () => setWeight('full', 'ready') },
+      { id: 'weight', issue: '#76 #82', name: 'Weight and the maintenance check', on: () => S.screen === 'weight' && S.weightData === 'full' && S.maint === 'ready' && S.extraWeighIns.length === 0, jump: () => setWeight('full', 'ready') },
       { id: 'low', issue: '#82', name: 'Too little recent logging', on: () => S.screen === 'weight' && S.maint === 'low', jump: () => setWeight('full', 'low') },
       { id: 'collecting', issue: '#82', name: 'Under 14 complete days', on: () => S.screen === 'weight' && S.maint === 'collecting', jump: () => setWeight('full', 'collecting') },
       { id: 'weighin', issue: '#82', name: 'Too few weigh-ins', on: () => S.screen === 'weight' && S.maint === 'weighin', jump: () => setWeight('full', 'weighin') },
       { id: 'few', issue: '#76', name: 'Two days of weight: no trend yet', on: () => S.screen === 'weight' && S.weightData === 'few', jump: () => setWeight('few', 'collecting') },
+      { id: 'multiple', issue: '#76', name: 'Several weigh-ins in one day', on: () => S.screen === 'weight' && S.extraWeighIns.length > 0, jump: () => { setWeight('full', 'ready'); S.extraWeighIns = [{ id: 'extra1', date: TODAY, time: '05:30', kg: 82.1, morning: true, source: 'manual' }, { id: 'extra2', date: TODAY, time: '08:30', kg: 82.3, morning: true, source: 'manual' }, { id: 'extra3', date: TODAY, time: '11:15', kg: 82.8, morning: false, source: 'manual' }]; render(); } },
       { id: 'noweight', issue: '#76', name: 'No weigh-ins', on: () => S.screen === 'weight' && S.weightData === 'none', jump: () => setWeight('none', 'collecting') },
       { id: 'weigh', issue: '#76', name: 'Type a weight', on: () => S.screen === 'weigh', jump: () => (setWeight('full', 'ready'), ACT.weighOpen()) },
       { id: 'route', issue: '#77', name: 'Weight from the scale: setup', on: () => S.screen === 'route', jump: () => (setWeight('full', 'ready'), go('route')) },
@@ -90,6 +94,7 @@ const ALL = MAP.flatMap((g) => g.items);
 
 function setWeight(data, maint) {
   S.applied = null;
+  S.extraWeighIns = [];
   S.weightData = data;
   S.maint = maint;
   S.progTab = 'weight';
@@ -144,6 +149,11 @@ const NOTES = {
     title: 'The food list can’t reach protein (Edge cases)',
     points: ['The plan is the closest one and names what it missed, in grams. Nothing else is padded to hide it.', 'It offers to add a protein source.'],
     tryIt: 'Read the macro meter for protein: it says how far short.',
+  },
+  calorieGap: {
+    title: 'Calories short after a portion cap (Edge cases)',
+    points: ['A portion stops at its sensible maximum; the plan shows the calorie gap instead of enlarging it.'],
+    tryIt: 'Read the flagged notice under the day totals.',
   },
   offline: {
     title: 'Offline on Today (F11)',
@@ -274,6 +284,7 @@ const NOTES = {
   collecting: { title: 'Under 14 complete days (S18a)', points: ['A count towards the gate and what a complete day is. No figures, no action.'], tryIt: 'Compare with the full card.' },
   weighin: { title: 'Too few weigh-ins (03 §8.3)', points: ['“Weigh in to see this”, with what it needs and a way to type one.'], tryIt: 'Tap Type a weight.' },
   few: { title: 'Two days of weight (Empty states)', points: ['Raw points only, no trend line. The headline is the latest weigh-in and says when the trend starts.'], tryIt: 'Compare with the full chart.' },
+  multiple: { title: 'Several weigh-ins on one day (Edge cases)', points: ['The first reading before 10:00 counts in the trend. Later readings remain in Recent weigh-ins and say they are not in the trend.'], tryIt: 'Compare the chart with the three readings on 16 Oct.' },
   noweight: { title: 'No weigh-ins (Empty states)', points: ['Two ways in: type one, or set up the scale.'], tryIt: 'Tap Set up the scale.' },
   weigh: {
     title: 'Type a weight (S11)',
