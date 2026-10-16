@@ -112,7 +112,7 @@ async function uploadPending(): Promise<void> {
     const account = currentAccount();
     const { records, userId } = useWorkoutStore.getState();
     // Only the confirmed account's rows, under its own session (docs/08 §5).
-    if (account.status !== 'confirmed' || account.userId !== userId) return;
+    if (account.status !== 'confirmed' || userId === undefined || account.userId !== userId) return;
     const pending = tables.flatMap((table) =>
       records.filter((record) => record.table === table && record.state === 'pending'),
     );
@@ -131,7 +131,8 @@ async function uploadPending(): Promise<void> {
     // The answer lets an ended workout's rows leave the device: History reads them from the cache
     // from then on, so the cache is told what they say first (history.ts).
     keepHistory(useWorkoutStore.getState().records);
-    await applySyncResults(chunk.map(sentRowOf), results);
+    // The answer is the sending account's, even when another has been confirmed meanwhile.
+    if (!(await applySyncResults(userId, chunk.map(sentRowOf), results))) return;
     markSynced();
     refreshDerived();
     if (pending.length <= BATCH_ROWS) return;
