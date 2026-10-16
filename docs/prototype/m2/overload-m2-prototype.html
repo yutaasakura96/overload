@@ -6842,7 +6842,7 @@ const MAP = [
     items: [
       { id: 'weight', issue: '#76 #82', name: 'Weight and the maintenance check', on: () => S.screen === 'weight' && S.weightData === 'full' && S.maint === 'ready' && S.extraWeighIns.length === 0, jump: () => setWeight('full', 'ready') },
       { id: 'low', issue: '#82', name: 'Too little recent logging', on: () => S.screen === 'weight' && S.maint === 'low', jump: () => setWeight('full', 'low') },
-      { id: 'collecting', issue: '#82', name: 'Under 14 complete days', on: () => S.screen === 'weight' && S.maint === 'collecting', jump: () => setWeight('full', 'collecting') },
+      { id: 'collecting', issue: '#82', name: 'Under 14 complete days', on: () => S.screen === 'weight' && S.weightData === 'full' && S.maint === 'collecting', jump: () => setWeight('full', 'collecting') },
       { id: 'weighin', issue: '#82', name: 'Too few weigh-ins', on: () => S.screen === 'weight' && S.maint === 'weighin', jump: () => setWeight('full', 'weighin') },
       { id: 'few', issue: '#76', name: 'Two days of weight: no trend yet', on: () => S.screen === 'weight' && S.weightData === 'few', jump: () => setWeight('few', 'collecting') },
       { id: 'multiple', issue: '#76', name: 'Several weigh-ins in one day', on: () => S.screen === 'weight' && S.extraWeighIns.length > 0, jump: () => { setWeight('full', 'ready'); S.extraWeighIns = [{ id: 'extra1', date: TODAY, time: '05:30', kg: 82.1, morning: true, source: 'manual' }, { id: 'extra2', date: TODAY, time: '08:30', kg: 82.3, morning: true, source: 'manual' }, { id: 'extra3', date: TODAY, time: '11:15', kg: 82.8, morning: false, source: 'manual' }]; render(); } },
