@@ -58,6 +58,10 @@ async function completeSet(page: Page, weight: string, reps: string) {
 }
 
 const order = (page: Page) => changes(page).locator('.slot__name');
+const clickButtonNow = (button: HTMLElement | SVGElement) => {
+  if (!(button instanceof HTMLButtonElement)) throw new Error('expected button');
+  button.click();
+};
 
 test('two tabs starting empty workouts keep one in progress', async ({ page, context }) => {
   await saveProfile(page);
@@ -71,8 +75,8 @@ test('two tabs starting empty workouts keep one in progress', async ({ page, con
   await other.getByRole('textbox', { name: 'Workout name' }).fill('Second tab');
 
   await Promise.all([
-    page.getByRole('button', { name: 'Start workout' }).evaluate((button) => button.click()),
-    other.getByRole('button', { name: 'Start workout' }).evaluate((button) => button.click()),
+    page.getByRole('button', { name: 'Start workout' }).evaluate(clickButtonNow),
+    other.getByRole('button', { name: 'Start workout' }).evaluate(clickButtonNow),
   ]);
   await expect(page).toHaveURL('/workout');
   await expect(other).toHaveURL('/workout');
@@ -129,14 +133,24 @@ test('stale exercise removal asks about new sets and rejects later logging', asy
   await other.getByRole('textbox', { name: 'Reps', exact: true }).fill('8');
   await page
     .getByRole('button', { name: 'Remove Barbell Bench Press' })
-    .evaluate((button) => button.click());
+    .evaluate(clickButtonNow);
   await expect(
     page.getByText('Remove Barbell Bench Press? Its 1 logged set goes with it.'),
+  ).toBeVisible();
+  await other.getByRole('button', { name: 'Complete set' }).evaluate(clickButtonNow);
+  await expect(other.getByRole('row', { name: /^2 82\.5 8/ })).toBeVisible();
+  await other.getByRole('textbox', { name: /^Weight in/ }).fill('85');
+  await other.getByRole('textbox', { name: 'Reps', exact: true }).fill('6');
+  await changes(page)
+    .getByRole('button', { name: 'Remove', exact: true })
+    .evaluate(clickButtonNow);
+  await expect(
+    page.getByText('Remove Barbell Bench Press? Its 2 logged sets go with it.'),
   ).toBeVisible();
   await changes(page).getByRole('button', { name: 'Remove', exact: true }).click();
   await expect(page.getByText('No exercises yet.')).toBeVisible();
 
-  await other.getByRole('button', { name: 'Complete set' }).evaluate((button) => button.click());
+  await other.getByRole('button', { name: 'Complete set' }).evaluate(clickButtonNow);
   await expect(other.getByText('Couldn’t save the set on this device. Try again')).toBeVisible();
 });
 

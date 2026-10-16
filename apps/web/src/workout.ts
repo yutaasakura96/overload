@@ -411,11 +411,13 @@ export async function addExercises(input: {
   workoutId: string;
   exercises: Exercise[];
   lastTimes?: Map<string, LastTime>;
-}): Promise<void> {
+}): Promise<boolean> {
   const now = new Date().toISOString();
-  await mutate((records) => {
+  let applied = false;
+  const shown = await mutate((records) => {
     const workout = stillOpen(records, input.workoutId);
     if (workout === undefined || input.exercises.length === 0) return undefined;
+    applied = true;
     const positions = exercisesOf(records, workout.id).map((record) => record.row.position);
     const after = positions.length === 0 ? 0 : Math.max(...positions) + 1;
     return {
@@ -430,16 +432,21 @@ export async function addExercises(input: {
       ),
     };
   });
+  return applied && shown;
 }
 
 /**
  * Removes an exercise from the open workout, and its logged sets with it. Each goes from the screen
  * now and from the device once the server has answered its deletion, which buries it (docs/07 §3.4).
  */
-export async function removeExercise(id: string, confirmed: boolean): Promise<boolean> {
+export async function removeExercise(
+  id: string,
+  confirmedSets: number,
+): Promise<{ applied: boolean; setCount?: number }> {
   let removedSets: string[] = [];
-  let needsConfirmation = false;
-  await mutate((records) => {
+  let setCount: number | undefined;
+  let applied = false;
+  const shown = await mutate((records) => {
     const record = records.find(
       (each): each is WorkoutExerciseRecord =>
         each.table === 'workoutExercises' && each.id === id && each.deletedAt === undefined,
@@ -447,27 +454,29 @@ export async function removeExercise(id: string, confirmed: boolean): Promise<bo
     if (record === undefined || stillOpen(records, record.workoutId) === undefined)
       return undefined;
     const sets = setsOf(records, id);
-    if (sets.length > 0 && !confirmed) {
-      needsConfirmation = true;
+    if (sets.length !== confirmedSets) {
+      setCount = sets.length;
       return undefined;
     }
     removedSets = sets.map((set) => set.id);
+    applied = true;
     return { put: [asDeletion(record), ...sets.map((set) => asDeletion(set))] };
   });
   // Rest does not count from a set that is no longer in the workout.
   const { rest } = useWorkoutStore.getState();
-  if (rest !== undefined && removedSets.includes(rest.setId)) {
+  if (applied && shown && rest !== undefined && removedSets.includes(rest.setId)) {
     useWorkoutStore.setState({ rest: undefined });
   }
-  return needsConfirmation;
+  return { applied: applied && shown, setCount: shown ? setCount : undefined };
 }
 
 /**
  * Moves an exercise of the open workout up or down one place. The order is written again as
  * positions 0 to n − 1, and only the rows whose position changed are queued.
  */
-export async function moveExercise(id: string, by: -1 | 1): Promise<void> {
-  await mutate((records) => {
+export async function moveExercise(id: string, by: -1 | 1): Promise<boolean> {
+  let applied = false;
+  const shown = await mutate((records) => {
     const record = records.find((each) => each.table === 'workoutExercises' && each.id === id);
     const workout = record && stillOpen(records, record.workoutId);
     if (workout === undefined) return undefined;
@@ -484,8 +493,11 @@ export async function moveExercise(id: string, by: -1 | 1): Promise<void> {
       const row = { ...each.row, position, clientUpdatedAt: stampAfter(each.row.clientUpdatedAt) };
       return [{ ...kept, state: 'pending', row }];
     });
-    return put.length === 0 ? undefined : { put };
+    if (put.length === 0) return undefined;
+    applied = true;
+    return { put };
   });
+  return applied && shown;
 }
 
 /** Logs a set: on the device first, then on screen, and rest starts from it (S1, S5). */

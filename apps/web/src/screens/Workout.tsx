@@ -169,11 +169,12 @@ export function Workout({
   const add = async (picked: Exercise[]) => {
     const lastTimes = queryClient.getQueryData(lastTimeQuery.queryKey);
     try {
-      await addExercises({
+      const applied = await addExercises({
         workoutId: workout.id,
         exercises: picked,
         lastTimes: lastTimes && new Map(lastTimes.map((last) => [last.exerciseId, last])),
       });
+      if (!applied) throw new Error('workout was not changed');
       setAddFailed(false);
       setAdded(`Added ${picked.map((exercise) => exercise.name).join(', ')}.`);
     } catch {
@@ -1204,11 +1205,16 @@ function ExerciseChanges({
     const next = exercises[index + 1] ?? exercises[index - 1];
     void change(
       async () => {
-        if (await removeExercise(exercise.id, confirmed)) {
+        const result = await removeExercise(
+          exercise.id,
+          confirmed ? setsOf(records, exercise.id).length : 0,
+        );
+        if (result.setCount !== undefined) {
           focusNext.current = idOf('keep', exercise.id);
           setAsking(exercise.id);
           return;
         }
+        if (!result.applied) throw new Error('workout was not changed');
         setAsking(undefined);
         focusNext.current = next === undefined ? '' : idOf('remove', next.id);
       },
@@ -1288,8 +1294,9 @@ function ExerciseChanges({
                 {asking === exercise.id ? (
                   <fieldset className="confirm slot__confirm">
                     <legend className="confirm__question">
-                      Remove {name}? Its {logged} logged {logged === 1 ? 'set goes' : 'sets go'}{' '}
-                      with it.
+                      Remove {name}?
+                      {logged > 0 &&
+                        ` Its ${logged} logged ${logged === 1 ? 'set goes' : 'sets go'} with it.`}
                     </legend>
                     <div className="confirm__actions">
                       <button
@@ -1331,7 +1338,10 @@ function ExerciseChanges({
                         aria-disabled={first || busy}
                         onClick={() => {
                           if (first || busy) return;
-                          void change(() => moveExercise(exercise.id, -1), idOf('up', exercise.id));
+                          void change(async () => {
+                            if (!(await moveExercise(exercise.id, -1)))
+                              throw new Error('workout was not changed');
+                          }, idOf('up', exercise.id));
                         }}
                       >
                         <Chevron direction="up" />
@@ -1344,10 +1354,10 @@ function ExerciseChanges({
                         aria-disabled={last || busy}
                         onClick={() => {
                           if (last || busy) return;
-                          void change(
-                            () => moveExercise(exercise.id, 1),
-                            idOf('down', exercise.id),
-                          );
+                          void change(async () => {
+                            if (!(await moveExercise(exercise.id, 1)))
+                              throw new Error('workout was not changed');
+                          }, idOf('down', exercise.id));
                         }}
                       >
                         <Chevron direction="down" />
