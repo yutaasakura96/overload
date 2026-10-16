@@ -1326,7 +1326,58 @@
                 "reps"
               ]
             },
-            "description": "The working sets as logged, in order: the exercise’s past sets."
+            "description": "The working sets in order: the exercise’s past sets. A bodyweight lift’s are as counted."
+          },
+          "bodyweight": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "basis": {
+                    "type": "string",
+                    "enum": [
+                      "same_day",
+                      "earlier_day",
+                      "later_day"
+                    ],
+                    "description": "`same_day`: the day’s own weight. `earlier_day`: no reading that day, so the latest earlier day’s. `later_day`: the workout is older than the first weigh-in, so the first later one."
+                  },
+                  "weightKg": {
+                    "type": "number",
+                    "example": 82.4
+                  },
+                  "weighedOn": {
+                    "type": "string",
+                    "format": "date",
+                    "description": "The local date of the weigh-in counted."
+                  }
+                },
+                "required": [
+                  "basis",
+                  "weightKg",
+                  "weighedOn"
+                ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "basis": {
+                    "type": "string",
+                    "enum": [
+                      "none"
+                    ],
+                    "description": "No weigh-in at all: sets as logged."
+                  }
+                },
+                "required": [
+                  "basis"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Which weigh-in a bodyweight lift was counted at (issue #69): all of that weight plus the kg logged on the set."
           }
         },
         "required": [
@@ -1337,7 +1388,8 @@
           "topSetKg",
           "topSetReps",
           "volumeKg",
-          "sets"
+          "sets",
+          "bodyweight"
         ]
       },
       "RoutineList": {
@@ -1924,6 +1976,57 @@
               "changePct"
             ],
             "description": "Null without a verdict."
+          },
+          "bodyweight": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "basis": {
+                    "type": "string",
+                    "enum": [
+                      "same_day",
+                      "earlier_day",
+                      "later_day"
+                    ],
+                    "description": "`same_day`: the day’s own weight. `earlier_day`: no reading that day, so the latest earlier day’s. `later_day`: the workout is older than the first weigh-in, so the first later one."
+                  },
+                  "weightKg": {
+                    "type": "number",
+                    "example": 82.4
+                  },
+                  "weighedOn": {
+                    "type": "string",
+                    "format": "date",
+                    "description": "The local date of the weigh-in counted."
+                  }
+                },
+                "required": [
+                  "basis",
+                  "weightKg",
+                  "weighedOn"
+                ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "basis": {
+                    "type": "string",
+                    "enum": [
+                      "none"
+                    ],
+                    "description": "No weigh-in at all: sets as logged."
+                  }
+                },
+                "required": [
+                  "basis"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Which weigh-in a bodyweight lift was counted at (issue #69): all of that weight plus the kg logged on the set."
           }
         },
         "required": [
@@ -1932,7 +2035,8 @@
           "points",
           "workoutCount",
           "status",
-          "trend"
+          "trend",
+          "bodyweight"
         ]
       },
       "Balance": {

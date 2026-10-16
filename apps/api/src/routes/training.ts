@@ -4,9 +4,11 @@ import { getWorkout, lastDone, listWorkouts } from '../db/history.js';
 import { getProfile } from '../db/profile.js';
 import { lastTimes, localDateIn, loggedExercises, loggedLifts } from '../db/training.js';
 import { BALANCE_VIEWS, balanceWindow, weeklySets } from '../domain/balance.js';
+import { listWeighIns } from '../db/weigh-ins.js';
 import { syncWorkouts } from '../db/workouts.js';
 import { spanStart } from '../domain/progress.js';
 import { STRENGTH_SPANS, strengthOverview } from '../domain/strength.js';
+import { dailyWeights } from '../domain/weight.js';
 import { accountHeaders } from '../lib/account.js';
 import { problem, problemResponse, validationErrors } from '../lib/problem.js';
 import { decodeCursor, encodeCursor, pageQuery } from './paging.js';
@@ -239,7 +241,8 @@ export function trainingRoutes({ db }: RouteDeps) {
         if (profile === null) return problem(c, 'setup_incomplete', { missing: ['profile'] });
         const today = localDateIn(profile.timezone)(new Date());
         const lifts = await loggedLifts(db, userId, profile.timezone, spanStart(span, today));
-        return c.json(strengthOverview(span, today, lifts), 200);
+        const weighedDays = dailyWeights(await listWeighIns(db, userId), profile.timezone);
+        return c.json(strengthOverview(span, today, lifts, weighedDays), 200);
       },
     }),
     defineOpenAPIRoute<typeof getBalance, AppEnv>({

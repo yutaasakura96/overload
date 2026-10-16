@@ -187,7 +187,7 @@ export async function loggedWorkouts(
   }));
 }
 
-type LiftRow = LoggedRow & { exercise_id: string; exercise_name: string };
+type LiftRow = LoggedRow & { exercise_id: string; exercise_name: string; equipment: string };
 
 /**
  * Every exercise the user has logged, each with its workouts oldest first and every set of it,
@@ -201,8 +201,8 @@ export async function loggedLifts(
   since?: string,
 ): Promise<LoggedLift[]> {
   const { rows } = await db.execute<LiftRow>(sql`
-    SELECT we.exercise_id, e.name AS exercise_name, w.id AS workout_id, w.name, w.started_at,
-           s.weight_kg::float8 AS weight_kg, s.reps, s.is_warmup
+    SELECT we.exercise_id, e.name AS exercise_name, e.equipment, w.id AS workout_id, w.name,
+           w.started_at, s.weight_kg::float8 AS weight_kg, s.reps, s.is_warmup
     FROM workout w
     JOIN workout_exercise we ON we.workout_id = w.id
     JOIN exercise e ON e.id = we.exercise_id
@@ -216,6 +216,7 @@ export async function loggedLifts(
   return [...groupBy(rows, (row) => row.exercise_id)].map(([exerciseId, logged]) => ({
     exerciseId,
     name: logged[0]?.exercise_name ?? '',
+    bodyweight: logged[0]?.equipment === 'bodyweight',
     workouts: [...groupBy(logged, (row) => row.workout_id).values()].map((sets) => ({
       date: localDate(new Date(sets[0]?.started_at ?? 0)),
       sets: sets.map((set) => ({

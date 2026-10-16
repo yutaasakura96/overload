@@ -240,6 +240,12 @@ Read seated. Four independently toggleable overlays are the reason the whole app
   headline, span selector and overlays have no defined empty treatment.
 - **Data points are r=2.5.** If a point is tappable to reach that workout, it needs a 44px target
   (`docs/05` §3.2).
+- **A bodyweight exercise counts the lifter's weight** (#69, `06` 2026-10-17). Under the
+  headline's e1RM, `Counted at 82 kg · your weigh-in of 10 Sep` in 10px mono (`text/quaternary`)
+  for the latest workout, or the picked one; `that day’s weigh-in` when the workout's own day was
+  weighed, `your first weigh-in, 12 Nov` for a workout older than the first, and `No weigh-in ·
+  counted as logged` with none at all. Each past-sets row says it again under its sets, and the
+  sets, top set and volume are of the counted load.
 
 **As built, 2026-10-10** (slice 5, `06`), with what the artboard does not draw:
 
@@ -1080,7 +1086,12 @@ verdict is the API's (`07` §3); the screen groups the lifts by the status they 
 - **Pounds.** The latest e1RM and the change in weight are in the profile's unit, `LB` and `lb`.
   The percentage is the same in either.
 - **A lift never loaded**, logged at 0 kg throughout, is listed with its workout count and
-  `No weight logged · no trend` in place of a verdict. It is not averaged (`07` §3).
+  `No weight logged · no trend` in place of a verdict. It is not averaged (`07` §3). A bodyweight
+  lift with a weigh-in is not that: it counts the lifter's weight (#69, `06` 2026-10-17) and has an
+  e1RM, a trend and a verdict like any other.
+- **A bodyweight lift names its weigh-in.** Under the e1RM line, `Counted at 82 kg · your weigh-in
+  of 10 Sep` (`that day’s weigh-in`, `your first weigh-in, 12 Nov`, or `No weigh-in · counted as
+  logged`), 10px mono in `text/quaternary`, for the lift's latest workout in the span.
 
 ### Balance (`/progress/balance`, issue #50)
 

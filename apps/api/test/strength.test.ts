@@ -175,6 +175,7 @@ describe('strengthOverview', () => {
         workoutCount: 3,
         status: 'gaining',
         trend: { changeKg: 6, changePct: 6 },
+        bodyweight: null,
       },
     ]);
   });
@@ -206,6 +207,7 @@ describe('strengthOverview', () => {
     expect(strengthOverview('4w', '2026-09-29', logged).lifts[0]).toMatchObject({
       status: 'holding',
       trend: { changePct: 0 },
+      bodyweight: null,
     });
     expect(strengthOverview('12w', '2026-09-29', logged).lifts[0]).toMatchObject({
       status: 'gaining',
@@ -248,6 +250,7 @@ describe('strengthOverview', () => {
         workoutCount: 2,
         status: 'too_few',
         trend: null,
+        bodyweight: null,
       },
       {
         exerciseId: 'pull-up',
@@ -256,6 +259,7 @@ describe('strengthOverview', () => {
         workoutCount: 3,
         status: 'no_weight',
         trend: null,
+        bodyweight: null,
       },
     ]);
   });
@@ -274,6 +278,7 @@ describe('strengthOverview', () => {
       workoutCount: 3,
       status: 'no_trend',
       trend: null,
+      bodyweight: null,
     });
     expect(overview.lifts[0]?.points).toHaveLength(3);
     expect(overview.overall).toEqual({ lifts: 0, changePct: null, status: null });
@@ -285,6 +290,7 @@ describe('strengthOverview', () => {
       workoutCount: 3,
       status: 'no_trend',
       trend: null,
+      bodyweight: null,
     });
     expect(overview.overall).toEqual({ lifts: 0, changePct: null, status: null });
   });
@@ -488,6 +494,7 @@ describe('GET /api/training/strength', () => {
         workoutCount: 3,
         status: 'gaining',
         trend: { changeKg: 6, changePct: 6 },
+        bodyweight: null,
       },
       {
         exerciseId: squat,
@@ -500,6 +507,7 @@ describe('GET /api/training/strength', () => {
         workoutCount: 3,
         status: 'losing',
         trend: { changeKg: -8, changePct: -4 },
+        bodyweight: null,
       },
       {
         exerciseId: curl,
@@ -508,6 +516,7 @@ describe('GET /api/training/strength', () => {
         workoutCount: 1,
         status: 'too_few',
         trend: null,
+        bodyweight: null,
       },
     ]);
     expect(overview.overall).toEqual({ lifts: 2, changePct: 1, status: 'holding' });

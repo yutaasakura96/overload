@@ -635,6 +635,14 @@ GET /api/training/strength?span=12w
   either itself.
 - **The status** reads the unrounded percentage: `gaining` at 2% or more, `losing` at −2% or
   less, `holding` between. A displayed `+2.0%` can therefore be holding.
+- **A bodyweight lift** (`equipment = bodyweight`) counts the caller's weight plus the kg logged on
+  each set (`06`, 2026-10-17; `04` `body_measurement`): its points and trend are of that load, and
+  the lift carries `bodyweight`, the weigh-in its latest workout in the span was counted at:
+  `{ "basis": "earlier_day", "weightKg": 82.4, "weighedOn": "2026-10-10" }`. `basis` is
+  `same_day`, `earlier_day`, `later_day` (a workout older than the first weigh-in) or `none`
+  (no weigh-in at all: the sets stay as logged, so a lift logged at 0 kg is `no_weight`). Null on
+  any other lift. The chart (`GET /api/exercises/{id}/progress`) says the same on every point, and
+  its `topSetKg`, `volumeKg` and `sets` are of the counted load.
 - **`too_few`** with `trend: null`: fewer than three workouts with a working set in the span,
   where at least one has a positive e1RM. A lift with none is `no_weight` instead.
   Its displayed count includes zero-weight workouts.

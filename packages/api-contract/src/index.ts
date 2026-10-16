@@ -23,6 +23,7 @@ export type Routine = components['schemas']['Routine'];
 export type RoutineSlot = components['schemas']['RoutineSlot'];
 export type SetRow = components['schemas']['SetRow'];
 export type Span = components['schemas']['Span'];
+export type BodyweightCount = NonNullable<ProgressPoint['bodyweight']>;
 export type StrengthLift = components['schemas']['StrengthLift'];
 export type StrengthOverview = components['schemas']['StrengthOverview'];
 export type StrengthSpan = StrengthOverview['span'];

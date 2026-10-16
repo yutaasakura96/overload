@@ -10,8 +10,10 @@ import {
   updateExercise,
 } from '../db/exercises.js';
 import { getProfile } from '../db/profile.js';
+import { listWeighIns } from '../db/weigh-ins.js';
 import { localDateIn, loggedWorkouts } from '../db/training.js';
 import { exerciseProgress, spanStart } from '../domain/progress.js';
+import { dailyWeights } from '../domain/weight.js';
 import { accountHeaders } from '../lib/account.js';
 import { problem, problemResponse } from '../lib/problem.js';
 import {
@@ -211,7 +213,8 @@ export function exerciseRoutes({ db }: RouteDeps) {
         const userId = c.get('user').id;
         const { id } = c.req.valid('param');
         const { span } = c.req.valid('query');
-        if ((await getExercise(db, userId, id)) === undefined) return problem(c, 'not_found');
+        const found = await getExercise(db, userId, id);
+        if (found === undefined) return problem(c, 'not_found');
         const profile = await getProfile(db, userId);
         if (profile === null) return problem(c, 'setup_incomplete', { missing: ['profile'] });
         const today = localDateIn(profile.timezone)(new Date());
@@ -222,7 +225,12 @@ export function exerciseRoutes({ db }: RouteDeps) {
           profile.timezone,
           spanStart(span, today),
         );
-        return c.json(exerciseProgress(span, today, workouts), 200);
+        // Only a bodyweight lift reads the weigh-ins, which count in its sets (issue #69).
+        const weighedDays =
+          found.equipment === 'bodyweight'
+            ? dailyWeights(await listWeighIns(db, userId), profile.timezone)
+            : undefined;
+        return c.json(exerciseProgress(span, today, workouts, weighedDays), 200);
       },
     }),
   ] as const;

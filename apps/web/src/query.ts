@@ -505,8 +505,17 @@ export const refreshExercises = () =>
   });
 export const refreshRoutines = () => queryClient.invalidateQueries({ queryKey: ['routines'] });
 export const refreshInvites = () => queryClient.invalidateQueries({ queryKey: ['invites'] });
-/** After a weigh-in is typed or deleted: the daily weights and the trend move with it. */
-export const refreshWeighIns = () => queryClient.invalidateQueries({ queryKey: ['weigh-ins'] });
+/**
+ * After a weigh-in is typed or deleted: the daily weights and the trend move with it, and so does
+ * the weight a bodyweight lift is counted at on a chart or the strength overview (issue #69).
+ */
+export const refreshWeighIns = () =>
+  queryClient.invalidateQueries({
+    predicate: (query) =>
+      query.queryKey[0] === 'weigh-ins' ||
+      query.queryKey[0] === 'progress' ||
+      query.queryKey[0] === 'strength',
+  });
 /**
  * After an acknowledged sync batch: a chart on screen is asked again, the rest when next opened.
  * The strength overview and the balance view read the same sets, so they go with them.

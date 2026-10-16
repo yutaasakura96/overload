@@ -3874,3 +3874,37 @@ tombstones (slice 4).
 M1's MUSTs are complete with this.
 
 **Changed:** `00`, `06`, `09` F2, F3, `10` §1, §8, §8.2.
+
+### 2026-10-17 — Bodyweight on bodyweight lifts, built
+
+Issue `#69`, built to the rules decided on 2026-10-16 (Q9, Q10, Q11), in `domain/bodyweight.ts`.
+Checked on invented weigh-ins.
+
+- **What counts.** An exercise with `equipment = bodyweight` counts, for each workout, the day's
+  weight (`04`) plus the kg logged on the set. The day is the workout's local date. With no
+  reading that day the latest earlier day's counts; with none earlier (a workout older than the
+  first weigh-in) the first later one, and the answer says `later_day`. A logged 0 kg is
+  bodyweight alone; 10 kg is bodyweight plus 10.
+- **Where it counts.** The chart's e1RM, top set, volume load and past sets
+  (`GET /api/exercises/{id}/progress`), and the Strength overview's points, trend and verdict
+  (`GET /api/training/strength`). Both are computed at read time from the stored sets and
+  weigh-ins: nothing is written back, so a weigh-in typed or deleted later moves the figures, and
+  the screens ask again after one.
+- **Which weigh-in is shown.** Every chart point, and the Strength lift, carries `bodyweight`:
+  `basis` of `same_day`, `earlier_day`, `later_day` or `none`, with the weight and its local date
+  when there is one. The chart's headline and each past-sets row say `Counted at 82 kg · your
+  weigh-in of 10 Sep`; a lift in the Strength list says it for its latest workout in the span.
+  `none` (the lifter has no weigh-in at all) keeps the sets as logged, so the lift is as before:
+  `No weigh-in · counted as logged`, and a lift logged only at 0 kg stays `No weight logged · no
+  trend` on Strength. `bodyweight` is null on a lift of any other equipment.
+- **What is not changed.** Last time on the gym screen, the suggestion from it, and History's top
+  sets stay as logged: `Bodyweight × 8` is what was done, and the progression rule reads the load
+  the lifter chose. Only the figures that estimate strength count the lifter's weight. The
+  logged `weightKg` is never rewritten.
+- **A reading that moves a figure.** The day's weight is the one `04` defines (before 10:00,
+  else the day's first), so a second reading the same day does not change a workout's load.
+  *Rejected:* the trend weight, which lags the scale by design and would score a pull-up at a
+  weight the lifter did not weigh that day.
+
+**Changed:** `00`, `06`, `07` §3, `10` §2, §9.
+

@@ -362,6 +362,28 @@ export const Span = z.enum(SPANS).openapi('Span', {
   description: 'How far back the chart reads: 4 or 12 weeks, 6 months, 1 year, or everything.',
 });
 
+export const BodyweightCount = z
+  .discriminatedUnion('basis', [
+    z.object({
+      basis: z.enum(['same_day', 'earlier_day', 'later_day']).openapi({
+        description:
+          '`same_day`: the day’s own weight. `earlier_day`: no reading that day, so the latest ' +
+          'earlier day’s. `later_day`: the workout is older than the first weigh-in, so the first ' +
+          'later one.',
+      }),
+      weightKg: z.number().openapi({ example: 82.4 }),
+      weighedOn: z.iso.date().openapi({ description: 'The local date of the weigh-in counted.' }),
+    }),
+    z.object({
+      basis: z.literal('none').openapi({ description: 'No weigh-in at all: sets as logged.' }),
+    }),
+  ])
+  .openapi({
+    description:
+      'Which weigh-in a bodyweight lift was counted at (issue #69): all of that weight plus ' +
+      'the kg logged on the set.',
+  });
+
 export const ProgressPoint = z
   .object({
     workoutId: Uuid,
@@ -376,9 +398,12 @@ export const ProgressPoint = z
       description: 'Volume load: weight × reps, summed over the working sets.',
       example: 2400,
     }),
-    sets: z
-      .array(z.object({ weightKg: z.number(), reps: z.int() }))
-      .openapi({ description: 'The working sets as logged, in order: the exercise’s past sets.' }),
+    sets: z.array(z.object({ weightKg: z.number(), reps: z.int() })).openapi({
+      description:
+        'The working sets in order: the exercise’s past sets. A bodyweight lift’s are as counted.',
+    }),
+    // Null on a lift of any other equipment.
+    bodyweight: BodyweightCount.nullable(),
   })
   .openapi('ProgressPoint');
 
@@ -458,6 +483,8 @@ export const StrengthLift = z
       })
       .nullable()
       .openapi({ description: 'Null without a verdict.' }),
+    // Null on a lift of any other equipment; else the weigh-in its latest workout was counted at.
+    bodyweight: BodyweightCount.nullable(),
   })
   .openapi('StrengthLift');
 

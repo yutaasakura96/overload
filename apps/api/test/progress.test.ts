@@ -58,6 +58,7 @@ describe('exerciseProgress (S7)', () => {
           { weightKg: 80, reps: 8 },
           { weightKg: 82.5, reps: 6 },
         ],
+        bodyweight: null,
       },
     ]);
   });
@@ -355,6 +356,7 @@ describe('GET /api/exercises/{id}/progress (S7)', () => {
             { weightKg: 80, reps: 10 },
             { weightKg: 80, reps: 9 },
           ],
+          bodyweight: null,
         },
         {
           workoutId: newer,
@@ -365,6 +367,7 @@ describe('GET /api/exercises/{id}/progress (S7)', () => {
           topSetReps: 10,
           volumeKg: 825,
           sets: [{ weightKg: 82.5, reps: 10 }],
+          bodyweight: null,
         },
       ],
       stats: { bestE1rmKg: 110, changeKg: 3.333, topSetKg: 82.5, topSetReps: 10, volumeKg: 2345 },
