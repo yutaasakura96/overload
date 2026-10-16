@@ -1,8 +1,16 @@
 import type { Me, Routine, WeightUnit } from '@overload/api-contract';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
-import { useId, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { api } from '../api';
-import { AccountFooter, AppBar, Chevron, DataState, Notice, ScreenTabs } from '../components';
+import {
+  AccountFooter,
+  AppBar,
+  Chevron,
+  DataState,
+  Notice,
+  ScreenTabs,
+  TextField,
+} from '../components';
 import { agoLabel, dayLabel, minutesBetween } from '../dates';
 import { historyOnDevice, removedOnDevice } from '../history';
 import type { Navigate } from '../navigation';
@@ -20,10 +28,12 @@ import {
 } from '../query';
 import { RefusedSet, setFigures } from '../refused';
 import { SaveNotice, saveProblem, useFocusRefused, type SaveProblem } from '../saving';
+import type { WorkoutRecord } from '../set-store';
 import { ThemeField } from '../theme-field';
 import { TimezoneField } from '../timezone-field';
 import { deviceTimezone } from '../timezones';
 import {
+  EMPTY_WORKOUT_NAME,
   endIdleWorkout,
   exercisesOf,
   finishWorkout,
@@ -34,12 +44,14 @@ import {
   recordsOf,
   refusedSets,
   setsOf,
+  startEmptyWorkout,
   startWorkout,
   useWorkoutStore,
 } from '../workout';
 
 // Today (docs/09 F1, F2, F3): where sign-in lands and a workout starts. A routine starts a workout
-// in one tap (S4); one in progress is resumed instead, since only one is open at a time. The
+// in one tap (S4), and an empty workout starts from no routine; one in progress is resumed instead,
+// since only one is open at a time. The
 // profile's time zone is the day boundary every local date is read against, and its weight unit is
 // how weights are shown (docs/06, 2026-09-23). The last workout is the way into History from here
 // (docs/10 §9). The meal cards arrive with M2.
@@ -140,6 +152,18 @@ export function Today({ me, navigate }: { me: Me; navigate: Navigate }) {
         exercises: new Map(exercises.data.map((exercise) => [exercise.id, exercise])),
         lastTimes: lastTimes && new Map(lastTimes.map((last) => [last.exerciseId, last])),
       });
+      navigate('/workout');
+    } catch {
+      setStartFailed('device');
+      setStarting(false);
+    }
+  };
+
+  const startEmpty = async (name: string) => {
+    setStarting(true);
+    setStartFailed(undefined);
+    try {
+      await startEmptyWorkout({ userId: me.user.id, name });
       navigate('/workout');
     } catch {
       setStartFailed('device');
@@ -260,7 +284,7 @@ export function Today({ me, navigate }: { me: Me; navigate: Navigate }) {
           </h2>
           <p className="empty-state__body">
             A routine is the exercises you do together, in order, like Push A. Make one and starting
-            a workout becomes one tap.
+            a workout becomes one tap. Or start an empty workout and add exercises as you go.
           </p>
           <button
             type="button"
@@ -269,6 +293,13 @@ export function Today({ me, navigate }: { me: Me; navigate: Navigate }) {
           >
             Create a routine
           </button>
+          <EmptyStart
+            variant="button"
+            open={undefined}
+            starting={starting}
+            onStart={(name) => void startEmpty(name)}
+            onResume={() => navigate('/workout')}
+          />
         </section>
       )}
 
@@ -329,6 +360,15 @@ export function Today({ me, navigate }: { me: Me; navigate: Navigate }) {
                 )}
               </li>
             ))}
+            <li>
+              <EmptyStart
+                variant="row"
+                open={open}
+                starting={starting}
+                onStart={(name) => void startEmpty(name)}
+                onResume={() => navigate('/workout')}
+              />
+            </li>
           </ul>
         </section>
       )}
@@ -389,6 +429,178 @@ function LastDone({
   }
   // Said only once the server has answered, or it would be wrong for a while.
   return known ? <span className="routines__preview">Not done yet</span> : null;
+}
+
+/** The longest name a workout takes (docs/07 §3.4). */
+const NAME_MAX = 80;
+
+/**
+ * Starting an empty workout (docs/09 F2 step 3, docs/10 §8.2): it opens a name in place, which
+ * defaults to `Workout` left empty, then the workout with no exercises. With one in progress it asks
+ * first, as a routine does: one workout at a time (docs/09 F3).
+ */
+function EmptyStart({
+  variant,
+  open,
+  starting,
+  onStart,
+  onResume,
+}: {
+  /** A row of the start list, or the no-routines empty state's second button. */
+  variant: 'row' | 'button';
+  open: WorkoutRecord | undefined;
+  starting: boolean;
+  onStart: (name: string) => void;
+  onResume: () => void;
+}) {
+  const [step, setStep] = useState<'closed' | 'asking' | 'naming'>('closed');
+  const [name, setName] = useState('');
+  const [tooLong, setTooLong] = useState(false);
+  const [finishing, setFinishing] = useState(false);
+  const [finishFailed, setFinishFailed] = useState(false);
+  const opener = useRef<HTMLButtonElement>(null);
+  const question = useId();
+  // Cancel gives focus back to what opened the name; set by that tap only.
+  const focusOpener = useRef(false);
+  useEffect(() => {
+    if (step !== 'closed' || !focusOpener.current) return;
+    focusOpener.current = false;
+    opener.current?.focus();
+  }, [step]);
+
+  const tap = () => {
+    if (step !== 'closed') {
+      setStep('closed');
+      return;
+    }
+    setStep(open === undefined ? 'naming' : 'asking');
+  };
+
+  const finishFirst = async () => {
+    setFinishing(true);
+    setFinishFailed(false);
+    try {
+      await finishWorkout();
+      setStep('naming');
+    } catch {
+      setFinishFailed(true);
+    } finally {
+      setFinishing(false);
+    }
+  };
+
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    if (name.trim().length > NAME_MAX) {
+      setTooLong(true);
+      return;
+    }
+    onStart(name);
+  };
+
+  const busy = starting || finishing;
+  return (
+    <>
+      {variant === 'row' ? (
+        <button
+          ref={opener}
+          type="button"
+          className="starts__row"
+          disabled={busy}
+          aria-expanded={step !== 'closed'}
+          onClick={tap}
+        >
+          <span className="routines__text">
+            <span className="routines__name">Empty workout</span>
+            <span className="routines__meta">NO ROUTINE</span>
+            <span className="routines__preview">Add exercises as you go</span>
+          </span>
+          <span className="starts__go" aria-hidden="true">
+            START
+          </span>
+          <span className="visually-hidden">. Start an empty workout</span>
+        </button>
+      ) : (
+        <button
+          ref={opener}
+          type="button"
+          className="button button--secondary"
+          disabled={busy}
+          aria-expanded={step !== 'closed'}
+          onClick={tap}
+        >
+          Start an empty workout
+        </button>
+      )}
+      {step === 'asking' && open !== undefined && (
+        <fieldset className={variant === 'row' ? 'confirm confirm--row' : 'confirm'}>
+          <legend className="confirm__question">Finish {open.row.name} first?</legend>
+          {finishFailed && (
+            <Notice tone="flag" word="Not finished">
+              Couldn’t save that on this device. Try again.
+            </Notice>
+          )}
+          <div className="confirm__actions">
+            <button
+              type="button"
+              className="button button--tertiary"
+              disabled={busy}
+              onClick={onResume}
+            >
+              Resume
+            </button>
+            <button
+              type="button"
+              className="button button--secondary"
+              disabled={busy}
+              onClick={() => void finishFirst()}
+            >
+              Finish
+            </button>
+          </div>
+        </fieldset>
+      )}
+      {step === 'naming' && (
+        <form
+          className={variant === 'row' ? 'confirm confirm--row' : 'confirm'}
+          aria-labelledby={question}
+          noValidate
+          onSubmit={submit}
+        >
+          <p id={question} className="confirm__question">
+            Start an empty workout. Name it, or leave it as {EMPTY_WORKOUT_NAME}.
+          </p>
+          <TextField
+            label="Workout name"
+            value={name}
+            onChange={(value) => {
+              setName(value);
+              setTooLong(false);
+            }}
+            placeholder={EMPTY_WORKOUT_NAME}
+            error={tooLong ? `Shorten it to ${NAME_MAX} characters or fewer` : undefined}
+            focusOnOpen
+          />
+          <div className="confirm__actions">
+            <button
+              type="button"
+              className="button button--tertiary"
+              disabled={busy}
+              onClick={() => {
+                focusOpener.current = true;
+                setStep('closed');
+              }}
+            >
+              Cancel
+            </button>
+            <button type="submit" className="button button--secondary" disabled={busy}>
+              Start workout
+            </button>
+          </div>
+        </form>
+      )}
+    </>
+  );
 }
 
 function setCount(records: Parameters<typeof exercisesOf>[0], workoutId: string) {

@@ -1,4 +1,5 @@
-import type { Me, WeightUnit } from '@overload/api-contract';
+import type { Exercise, Me, WeightUnit } from '@overload/api-contract';
+import { useQuery } from '@tanstack/react-query';
 import {
   Fragment,
   useEffect,
@@ -22,14 +23,18 @@ import {
 import { readFigures, type FigureRefusal } from '../figures';
 import { useFocusGuide } from '../focus-guide';
 import type { Navigate } from '../navigation';
+import { allExercisesQuery, lastTimeQuery, queryClient, useAccount } from '../query';
 import { RefusedSet } from '../refused';
 import { keepAwake, playTone, unlockTone } from '../rest-alert';
 import { SetEditor } from '../set-editor';
 import type { SetRecord, StoreRecord, WorkoutExerciseRecord, WorkoutRecord } from '../set-store';
 import { deviceTimezone } from '../timezones';
 import { formatWeight, unitLabel } from '../units';
+import { ExerciseForm } from './ExerciseForm';
+import { ExercisePicker } from './ExercisePicker';
 import { FocusGuide } from './FocusGuide';
 import {
+  addExercises,
   completeSet,
   discardSet,
   dismissRest,
@@ -38,11 +43,13 @@ import {
   extendRest,
   finishWorkout,
   lastSetOf,
+  moveExercise,
   openWorkout,
   readFailedFor,
   recordsLoadedFor,
   recordsOf,
   refusedSets,
+  removeExercise,
   setsOf,
   useWorkoutStore,
 } from '../workout';
@@ -51,7 +58,9 @@ import {
 // Everything is subordinate to the active set card. It works the same with no signal: a logged set
 // is on the device before it shows here, and the data-state slot counts what has not uploaded yet.
 // Full screen (docs/10 §1) is a second layout of the same screen: what it leaves out is hidden, not
-// unmounted, so entering and leaving it loses nothing that was typed or opened.
+// unmounted, so entering and leaving it loses nothing that was typed or opened. The exercise picker
+// opens over the workout the same way, and what it adds changes this workout only, never the
+// routine (S4).
 
 function useNow() {
   const [now, setNow] = useState(() => Date.now());
@@ -128,6 +137,27 @@ export function Workout({
   };
   // Finish was tapped and has not answered: where it leaves for is its own to say.
   const [finishing, setFinishing] = useState(false);
+  const account = useAccount();
+  const confirmed = account.status === 'confirmed';
+  const library = useQuery({ ...allExercisesQuery, enabled: confirmed });
+  // Kept warm here too, so an exercise added offline opens with last time (docs/09 F3 step 1).
+  useQuery({ ...lastTimeQuery, enabled: confirmed && me.profile !== null });
+  const [adding, setAdding] = useState<'pick' | 'new-exercise'>();
+  const [addFailed, setAddFailed] = useState(false);
+  // Said to a screen reader on the way back, where focus alone would say nothing changed.
+  const [added, setAdded] = useState('');
+  // Back from the picker, focus lands on Add exercises (docs/10 §8.1).
+  const addButton = useRef<HTMLButtonElement>(null);
+  const backFromPicker = useRef(false);
+  useEffect(() => {
+    if (adding !== undefined || !backFromPicker.current) return;
+    backFromPicker.current = false;
+    addButton.current?.focus();
+  }, [adding]);
+  const closePicker = () => {
+    backFromPicker.current = true;
+    setAdding(undefined);
+  };
 
   // With nothing in progress, Today is where the next one starts.
   useEffect(() => {
@@ -135,11 +165,29 @@ export function Workout({
   }, [gone, finishing, navigate]);
 
   if (workout === undefined) return <AppBar title="Workout" slot={<DataState at={0} />} />;
-  // The guide is read with the workout still running under it: the rest still counts and sounds,
-  // and the set half typed is there on the way back.
+
+  const add = async (picked: Exercise[]) => {
+    const lastTimes = queryClient.getQueryData(lastTimeQuery.queryKey);
+    try {
+      await addExercises({
+        workoutId: workout.id,
+        exercises: picked,
+        lastTimes: lastTimes && new Map(lastTimes.map((last) => [last.exerciseId, last])),
+      });
+      setAddFailed(false);
+      setAdded(`Added ${picked.map((exercise) => exercise.name).join(', ')}.`);
+    } catch {
+      setAddFailed(true);
+    }
+    closePicker();
+  };
+  const byId = new Map((library.data ?? []).map((exercise) => [exercise.id, exercise]));
+
+  // The guide and the picker are read with the workout still running under them: the rest still
+  // counts and sounds, and the set half typed is there on the way back.
   return (
     <>
-      <div hidden={guide}>
+      <div hidden={guide || adding !== undefined}>
         <LiveWorkout
           key={workout.id}
           workout={workout}
@@ -147,6 +195,10 @@ export function Workout({
           unit={me.profile?.weightUnit ?? 'kg'}
           timeZone={me.profile?.timezone ?? deviceTimezone()}
           guideOpen={guide}
+          addButton={addButton}
+          addFailed={addFailed}
+          added={added}
+          onAdd={() => setAdding('pick')}
           onGuide={() => {
             openedGuide.current = true;
             navigate(GUIDE_PATH);
@@ -165,6 +217,25 @@ export function Workout({
         />
       </div>
       {guide && <FocusGuide onBack={closeGuide} />}
+      {adding === 'pick' && (
+        <ExercisePicker
+          exercises={library.data?.filter((exercise) => !exercise.hidden)}
+          failed={library.isError}
+          slot={<DataState at={library.dataUpdatedAt} />}
+          backLabel="Back to the workout"
+          onCancel={closePicker}
+          onAdd={(ids) => void add(ids.flatMap((id) => byId.get(id) ?? []))}
+          onCreate={() => setAdding('new-exercise')}
+        />
+      )}
+      {adding === 'new-exercise' && (
+        <ExerciseForm
+          exercise={undefined}
+          slot={<DataState at={library.dataUpdatedAt} />}
+          back={{ label: 'Back to the picker', onClick: () => setAdding('pick') }}
+          onDone={(created) => (created === undefined ? setAdding('pick') : void add([created]))}
+        />
+      )}
     </>
   );
 }
@@ -193,6 +264,10 @@ function LiveWorkout({
   unit,
   timeZone,
   guideOpen,
+  addButton,
+  addFailed,
+  added,
+  onAdd,
   onGuide,
   onFinish,
 }: {
@@ -201,6 +276,13 @@ function LiveWorkout({
   unit: WeightUnit;
   timeZone: string;
   guideOpen: boolean;
+  addButton: RefObject<HTMLButtonElement | null>;
+  /** The last exercises picked could not be written to the device. */
+  addFailed: boolean;
+  /** What the picker last added, in words. */
+  added: string;
+  /** Opens the picker over the workout. */
+  onAdd: () => void;
   onGuide: () => void;
   /** Finish was tapped: whether the workout was kept, once known; `undefined` when it failed. */
   onFinish: (result: Promise<boolean | undefined>) => void;
@@ -217,6 +299,9 @@ function LiveWorkout({
   const [finishing, setFinishing] = useState(false);
   const [finishFailed, setFinishFailed] = useState(false);
   const current = exercises.find((exercise) => exercise.id === currentId) ?? exercises[0];
+  // The first exercise added to an empty workout, or the one in a removed one's place, is held
+  // from then on, so a reorder never changes which is open.
+  if (current !== undefined && current.id !== currentId) setCurrentId(current.id);
   const setCount = exercises.reduce((sum, e) => sum + setsOf(records, e.id).length, 0);
 
   const restState = useWorkoutStore((state) => state.rest);
@@ -299,7 +384,9 @@ function LiveWorkout({
       )}
 
       {current === undefined ? (
-        <p className="empty">This routine has no exercises. Finish, then add some to it.</p>
+        <p className="empty">
+          No exercises yet. Add them as you go: each one opens with last time and today’s target.
+        </p>
       ) : (
         <ExerciseBlock
           key={current.id}
@@ -332,6 +419,17 @@ function LiveWorkout({
           onOpen={(id) => setCurrentId(id)}
         />
       )}
+
+      <ExerciseChanges
+        exercises={exercises}
+        records={records}
+        current={current}
+        addButton={addButton}
+        addFailed={addFailed}
+        added={added}
+        onAdd={onAdd}
+        hidden={full}
+      />
 
       <div className="workout__finish" hidden={full}>
         {finishFailed && (
@@ -1041,6 +1139,222 @@ function Figure({
         onFocus={(event) => event.target.select()}
       />
     </div>
+  );
+}
+
+/**
+ * Changing the workout's exercises (S4, docs/09 F3 step 4): add from the picker, and, in a list
+ * opened in place, move each up or down or remove it. Only this workout changes. Removing one
+ * with logged sets asks first, since the sets go with it.
+ */
+function ExerciseChanges({
+  exercises,
+  records,
+  current,
+  addButton,
+  addFailed,
+  added,
+  onAdd,
+  hidden,
+}: {
+  exercises: WorkoutExerciseRecord[];
+  records: StoreRecord[];
+  current: WorkoutExerciseRecord | undefined;
+  addButton: RefObject<HTMLButtonElement | null>;
+  addFailed: boolean;
+  added: string;
+  onAdd: () => void;
+  hidden: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  // The exercise whose removal is being asked about. One at a time.
+  const [asking, setAsking] = useState<string>();
+  const [failed, setFailed] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const heading = useId();
+  const list = useId();
+  const toggle = useRef<HTMLButtonElement>(null);
+  // Where focus goes once the next render lands: the control that moved, the answer that opened,
+  // or the row now in a removed one's place.
+  const focusNext = useRef<string>(null);
+  useEffect(() => {
+    const next = focusNext.current;
+    if (next === null) return;
+    focusNext.current = null;
+    (document.getElementById(next) ?? toggle.current ?? addButton.current)?.focus();
+  });
+  const idOf = (control: 'remove' | 'keep' | 'up' | 'down', exerciseId: string) =>
+    `${list}-${control}-${exerciseId}`;
+
+  const change = async (made: () => Promise<void>, focus: string | undefined) => {
+    setBusy(true);
+    setFailed(false);
+    try {
+      await made();
+      if (focus !== undefined) focusNext.current = focus;
+    } catch {
+      setFailed(true);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = (exercise: WorkoutExerciseRecord) => {
+    const index = exercises.indexOf(exercise);
+    const next = exercises[index + 1] ?? exercises[index - 1];
+    setAsking(undefined);
+    void change(
+      () => removeExercise(exercise.id),
+      next === undefined ? '' : idOf('remove', next.id),
+    );
+  };
+
+  return (
+    <section className="workout__changes" aria-labelledby={heading} hidden={hidden}>
+      <h2 id={heading} className="section-label">
+        Change exercises
+      </h2>
+      {(addFailed || failed) && (
+        <Notice tone="flag" word="Not changed">
+          Couldn’t save that on this device. Try again.
+        </Notice>
+      )}
+      <output className="visually-hidden">{added}</output>
+      <div className="workout__change-actions">
+        <button
+          ref={addButton}
+          type="button"
+          className={exercises.length === 0 ? 'button button--primary' : 'button button--secondary'}
+          onClick={onAdd}
+        >
+          Add exercises
+        </button>
+        {exercises.length > 0 && (
+          <button
+            ref={toggle}
+            type="button"
+            className="button button--tertiary"
+            aria-expanded={open}
+            aria-controls={open ? list : undefined}
+            onClick={() => {
+              setOpen(!open);
+              setAsking(undefined);
+            }}
+          >
+            Reorder or remove
+          </button>
+        )}
+      </div>
+      {open && exercises.length > 0 && (
+        <ol id={list} className="slots__list">
+          {exercises.map((exercise, index) => {
+            const name = exercise.local.name;
+            const logged = setsOf(records, exercise.id).length;
+            const first = index === 0;
+            const last = index === exercises.length - 1;
+            return (
+              <li key={exercise.id} className="slot">
+                <div className="slot__head">
+                  <span className="slot__index" aria-hidden="true">
+                    {index + 1}
+                  </span>
+                  <span className="slot__name">
+                    {name}
+                    {exercise.id === current?.id && <span className="slot__flag"> · Open</span>}
+                  </span>
+                  {asking !== exercise.id && (
+                    <button
+                      id={idOf('remove', exercise.id)}
+                      type="button"
+                      className="button button--tertiary slot__remove"
+                      disabled={busy}
+                      onClick={() => {
+                        if (logged === 0) return remove(exercise);
+                        focusNext.current = idOf('keep', exercise.id);
+                        return setAsking(exercise.id);
+                      }}
+                    >
+                      Remove<span className="visually-hidden"> {name}</span>
+                    </button>
+                  )}
+                </div>
+                {asking === exercise.id ? (
+                  <fieldset className="confirm slot__confirm">
+                    <legend className="confirm__question">
+                      Remove {name}? Its {logged} logged {logged === 1 ? 'set goes' : 'sets go'}{' '}
+                      with it.
+                    </legend>
+                    <div className="confirm__actions">
+                      <button
+                        id={idOf('keep', exercise.id)}
+                        type="button"
+                        className="button button--tertiary"
+                        disabled={busy}
+                        onClick={() => {
+                          focusNext.current = idOf('remove', exercise.id);
+                          setAsking(undefined);
+                        }}
+                      >
+                        Keep
+                      </button>
+                      <button
+                        type="button"
+                        className="button button--secondary"
+                        disabled={busy}
+                        onClick={() => remove(exercise)}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </fieldset>
+                ) : (
+                  <div className="slot__foot">
+                    <span className="slot__meta">
+                      {logged === 0
+                        ? 'NO SETS YET'
+                        : `${logged} ${logged === 1 ? 'SET' : 'SETS'} LOGGED`}
+                    </span>
+                    <div className="slot__moves">
+                      <button
+                        id={idOf('up', exercise.id)}
+                        type="button"
+                        className="button button--secondary button--icon"
+                        // aria-disabled rather than disabled, so focus stays on the button that
+                        // just moved.
+                        aria-disabled={first || busy}
+                        onClick={() => {
+                          if (first || busy) return;
+                          void change(() => moveExercise(exercise.id, -1), idOf('up', exercise.id));
+                        }}
+                      >
+                        <Chevron direction="up" />
+                        <span className="visually-hidden">Move {name} up</span>
+                      </button>
+                      <button
+                        id={idOf('down', exercise.id)}
+                        type="button"
+                        className="button button--secondary button--icon"
+                        aria-disabled={last || busy}
+                        onClick={() => {
+                          if (last || busy) return;
+                          void change(
+                            () => moveExercise(exercise.id, 1),
+                            idOf('down', exercise.id),
+                          );
+                        }}
+                      >
+                        <Chevron direction="down" />
+                        <span className="visually-hidden">Move {name} down</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ol>
+      )}
+    </section>
   );
 }
 

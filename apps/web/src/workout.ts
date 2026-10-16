@@ -282,12 +282,82 @@ export async function loadWorkouts(userId: string, nowMs = Date.now()): Promise<
   });
 }
 
+/** The name an empty workout takes when none is typed (docs/10 §8.2). */
+export const EMPTY_WORKOUT_NAME = 'Workout';
+
+/** The sets an exercise added during a workout aims at: a new routine slot's default (docs/04). */
+export const ADDED_TARGET_SETS = 3;
+
+function workoutRecord(
+  userId: string,
+  fields: { routineId: string | null; name: string },
+  now: string,
+): WorkoutRecord {
+  const id = newId();
+  return {
+    userId,
+    workoutId: id,
+    state: 'pending',
+    table: 'workouts',
+    id,
+    row: { id, ...fields, startedAt: now, endedAt: null, note: null, clientUpdatedAt: now },
+  };
+}
+
 /**
- * Starts a workout from a routine (docs/09 F3 step 1): the workout and its exercises are made on
- * the device, each exercise with its rep range, increment and target sets resolved and copied
- * (routine slot → user setting → exercise default; `exercises` already holds the last two), and
- * with last time and the suggestion from the offline cache.
+ * One exercise of a workout as the device makes it: its rep range, increment and target sets
+ * resolved and copied (routine slot → user setting → exercise default; `exercise` already holds
+ * the last two), and last time and the suggestion from the offline cache (docs/09 F3 step 1).
  */
+function exerciseRecord(input: {
+  workout: Pick<WorkoutRecord, 'userId' | 'id'>;
+  exercise: Exercise;
+  position: number;
+  slot?: Routine['exercises'][number];
+  lastTimes: Map<string, LastTime> | undefined;
+  now: string;
+}): WorkoutExerciseRecord {
+  const { exercise, slot } = input;
+  // A slot reads its own last time; one never logged, or no slot, falls back to the exercise's.
+  const logged = input.lastTimes?.get(exercise.id);
+  const last = logged?.slots.find((own) => own.routineExerciseId === slot?.id) ?? logged;
+  const id = newId();
+  return {
+    userId: input.workout.userId,
+    workoutId: input.workout.id,
+    state: 'pending',
+    table: 'workoutExercises',
+    id,
+    row: {
+      id,
+      workoutId: input.workout.id,
+      exerciseId: exercise.id,
+      routineExerciseId: slot?.id ?? null,
+      position: input.position,
+      targetSets: slot?.targetSets ?? ADDED_TARGET_SETS,
+      repLow: slot?.repLow ?? exercise.repLow,
+      repHigh: slot?.repHigh ?? exercise.repHigh,
+      incrementKg: exercise.incrementKg,
+      clientUpdatedAt: input.now,
+    },
+    local: {
+      name: exercise.name,
+      bodyweight: exercise.equipment === 'bodyweight',
+      restSeconds: exercise.restSeconds,
+      lastTime: (last?.sets ?? []).map((set) => ({
+        weightKg: set.weightKg,
+        reps: set.reps,
+        rir: set.rir,
+      })),
+      lastTimeOn: last?.performedOn ?? null,
+      lastTimeKnown: input.lastTimes !== undefined,
+      suggestion: last?.suggestion ?? null,
+      equipment: exercise.equipment,
+    },
+  };
+}
+
+/** Starts a workout from a routine (docs/09 F3 step 1): the workout and its exercises, on the device. */
 export async function startWorkout(input: {
   userId: string;
   routine: Routine;
@@ -295,65 +365,117 @@ export async function startWorkout(input: {
   lastTimes?: Map<string, LastTime>;
 }): Promise<void> {
   const now = new Date().toISOString();
-  const workoutId = newId();
-  const base = { userId: input.userId, workoutId, state: 'pending' } as const;
-  const workout: WorkoutRecord = {
-    ...base,
-    table: 'workouts',
-    id: workoutId,
-    row: {
-      id: workoutId,
-      routineId: input.routine.id,
-      name: input.routine.name,
-      startedAt: now,
-      endedAt: null,
-      note: null,
-      clientUpdatedAt: now,
-    },
-  };
-  const exercises = input.routine.exercises.flatMap((slot, position): WorkoutExerciseRecord[] => {
+  const workout = workoutRecord(
+    input.userId,
+    { routineId: input.routine.id, name: input.routine.name },
+    now,
+  );
+  const exercises = input.routine.exercises.flatMap((slot, position) => {
     const exercise = input.exercises.get(slot.exerciseId);
     if (exercise === undefined) return [];
-    // A slot reads its own last time; one never logged falls back to the exercise's.
-    const logged = input.lastTimes?.get(slot.exerciseId);
-    const last = logged?.slots.find((own) => own.routineExerciseId === slot.id) ?? logged;
-    const id = newId();
-    return [
-      {
-        ...base,
-        table: 'workoutExercises',
-        id,
-        row: {
-          id,
-          workoutId,
-          exerciseId: slot.exerciseId,
-          routineExerciseId: slot.id,
-          position,
-          targetSets: slot.targetSets,
-          repLow: slot.repLow ?? exercise.repLow,
-          repHigh: slot.repHigh ?? exercise.repHigh,
-          incrementKg: exercise.incrementKg,
-          clientUpdatedAt: now,
-        },
-        local: {
-          name: exercise.name,
-          bodyweight: exercise.equipment === 'bodyweight',
-          restSeconds: exercise.restSeconds,
-          lastTime: (last?.sets ?? []).map((set) => ({
-            weightKg: set.weightKg,
-            reps: set.reps,
-            rir: set.rir,
-          })),
-          lastTimeOn: last?.performedOn ?? null,
-          lastTimeKnown: input.lastTimes !== undefined,
-          suggestion: last?.suggestion ?? null,
-          equipment: exercise.equipment,
-        },
-      },
-    ];
+    return [exerciseRecord({ workout, exercise, position, slot, lastTimes: input.lastTimes, now })];
   });
   if (!(await mutate(() => ({ put: [workout, ...exercises] }), input.userId))) return;
   useWorkoutStore.setState({ rest: undefined, idleEnded: undefined });
+}
+
+/**
+ * Starts a workout from no routine and with no exercises (docs/09 F2 step 3): they are added from
+ * the picker as it goes. A blank name takes the default.
+ */
+export async function startEmptyWorkout(input: { userId: string; name: string }): Promise<void> {
+  const name = input.name.trim() || EMPTY_WORKOUT_NAME;
+  const workout = workoutRecord(input.userId, { routineId: null, name }, new Date().toISOString());
+  if (!(await mutate(() => ({ put: [workout] }), input.userId))) return;
+  useWorkoutStore.setState({ rest: undefined, idleEnded: undefined });
+}
+
+// Changing the open workout's exercises (S4, docs/09 F3 step 4). None of it touches the routine:
+// only the workout's own rows change, and each goes to the set store before the screen.
+
+/** The open workout, if it is still the one with this id. */
+const stillOpen = (records: StoreRecord[], workoutId: string) => {
+  const workout = openWorkout(records);
+  return workout?.id === workoutId ? workout : undefined;
+};
+
+/**
+ * Adds exercises to the end of the open workout, in the order given, each opening as one from a
+ * routine does: with last time and the suggestion when the offline cache has them.
+ */
+export async function addExercises(input: {
+  workoutId: string;
+  exercises: Exercise[];
+  lastTimes?: Map<string, LastTime>;
+}): Promise<void> {
+  const now = new Date().toISOString();
+  await mutate((records) => {
+    const workout = stillOpen(records, input.workoutId);
+    if (workout === undefined || input.exercises.length === 0) return undefined;
+    const positions = exercisesOf(records, workout.id).map((record) => record.row.position);
+    const after = positions.length === 0 ? 0 : Math.max(...positions) + 1;
+    return {
+      put: input.exercises.map((exercise, index) =>
+        exerciseRecord({
+          workout,
+          exercise,
+          position: after + index,
+          lastTimes: input.lastTimes,
+          now,
+        }),
+      ),
+    };
+  });
+}
+
+/**
+ * Removes an exercise from the open workout, and its logged sets with it. Each goes from the screen
+ * now and from the device once the server has answered its deletion, which buries it (docs/07 §3.4).
+ */
+export async function removeExercise(id: string): Promise<void> {
+  let removedSets: string[] = [];
+  await mutate((records) => {
+    const record = records.find(
+      (each): each is WorkoutExerciseRecord =>
+        each.table === 'workoutExercises' && each.id === id && each.deletedAt === undefined,
+    );
+    if (record === undefined || stillOpen(records, record.workoutId) === undefined)
+      return undefined;
+    const sets = setsOf(records, id);
+    removedSets = sets.map((set) => set.id);
+    return { put: [asDeletion(record), ...sets.map((set) => asDeletion(set))] };
+  });
+  // Rest does not count from a set that is no longer in the workout.
+  const { rest } = useWorkoutStore.getState();
+  if (rest !== undefined && removedSets.includes(rest.setId)) {
+    useWorkoutStore.setState({ rest: undefined });
+  }
+}
+
+/**
+ * Moves an exercise of the open workout up or down one place. The order is written again as
+ * positions 0 to n − 1, and only the rows whose position changed are queued.
+ */
+export async function moveExercise(id: string, by: -1 | 1): Promise<void> {
+  await mutate((records) => {
+    const record = records.find((each) => each.table === 'workoutExercises' && each.id === id);
+    const workout = record && stillOpen(records, record.workoutId);
+    if (workout === undefined) return undefined;
+    const order = exercisesOf(records, workout.id);
+    const from = order.findIndex((each) => each.id === id);
+    const to = from + by;
+    if (from < 0 || to < 0 || to >= order.length) return undefined;
+    const [moved] = order.splice(from, 1);
+    if (moved === undefined) return undefined;
+    order.splice(to, 0, moved);
+    const put = order.flatMap((each, position): WorkoutExerciseRecord[] => {
+      if (each.row.position === position) return [];
+      const { refusal: _refusal, ...kept } = each;
+      const row = { ...each.row, position, clientUpdatedAt: stampAfter(each.row.clientUpdatedAt) };
+      return [{ ...kept, state: 'pending', row }];
+    });
+    return put.length === 0 ? undefined : { put };
+  });
 }
 
 /** Logs a set: on the device first, then on screen, and rest starts from it (S1, S5). */

@@ -2,7 +2,7 @@
 
 **Project:** A weight-training progress tracker combining lift logging, meal planning, Apple Watch/iPhone health data, and bodyweight/diet coaching.
 **Phase:** 7 — Build (M1 first). Phase 6 — Review finished 2026-09-23.
-**Updated:** 2026-10-16
+**Updated:** 2026-10-17
 
 ## Done
 - Phase 1 — Brief + PRD: `docs/01-project-brief.md`, `docs/02-product-requirements.md`, `docs/06-decision-log.md`.
@@ -25,6 +25,10 @@ Progress.
 `body_measurement` (migration `0015`), `GET`, `POST` and `DELETE /api/weigh-ins`, the day's weight
 and the trend in `domain/weight.ts`, the export's `weighIns` section, and Weight as Progress's
 fourth section with `Type a weight` (`06`, 2026-10-16). Checked on generated weigh-ins.
+**M1's MUSTs are complete, 2026-10-17** (`#74`), on `fm/overload-74`, in review against
+`develop`: a live workout's exercises are added from the picker, reordered and removed (with their
+sets, after asking), and Today starts an empty workout, named or `Workout` (`06`, 2026-10-17; `09`
+F2, F3; `10` §1, §8.2). No server change.
 Building comes first: seeded or fake data is fine until the app is built. Owed, and Yuta's: the two
 weight hardware tests (`06`, 2026-09-19) and an Anthropic API key with a small balance for label
 reads. #69 follows the weight slice with its rules decided; #52 is M3, in S23's catalogue; #53 stays

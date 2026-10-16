@@ -3839,3 +3839,38 @@ on generated weigh-ins (owner, 2026-10-16).
   which says `Weigh-in saved.` once.
 
 **Changed:** `00`, `04`, `06`, `07` §1.3, §2, §5, `10` §6, §8.6, §9, `11` §2.
+
+### 2026-10-17 — M1 close-out: changing a live workout's exercises, and an empty workout
+
+Issue `#74`, S4 and the PRD's *Workout start* empty state, built alongside M2 as decided on
+2026-10-16. No artboard draws either; both are built from `05`'s tokens and the parts of `10` §1
+and §8.1, and pass the polish gate. The server needed no change: sync already took a workout with
+no routine, a `workout_exercise` added to a stored workout, a changed `position`, and deletes with
+tombstones (slice 4).
+
+- **An added exercise aims at 3 sets**, a new routine slot's default (`04` `routine_exercise`), with
+  the exercise's own rep range and increment, and no `routineExerciseId`. Its last time and
+  suggestion are the exercise's from the offline cache, as an unlogged routine slot falls back to.
+  *Rejected:* no target (`SET 3` and never `DONE`), which leaves the exercise out of the moves the
+  screen makes at a target.
+- **A reorder writes the order again as positions 0 to n − 1** and queues only the rows whose
+  position changed, each under a new `clientUpdatedAt`, so the newer order wins on the server.
+- **Removing an exercise queues its sets' deletions with its own**, rather than leaving the server's
+  cascade to bury them. The device then stops counting them at once: in the set count, the pending
+  count and Finish's "no set logged" rule. A rest counted from one of them stops.
+- **The exercise on screen is held by its id**, including the first one added to an empty workout,
+  so a reorder never changes which is open.
+- **Changing the exercises sits in its own section under the lists**, `Add exercises` and a
+  `Reorder or remove` list opened in place, not in the rows of `UP NEXT`: the screen is read
+  mid-set, and the controls are wanted a few times a workout. The picker opens over the workout,
+  which stays mounted and hidden, as under the Focus guide.
+- **An empty workout is named in place on Today**, `Workout` when the name is left empty, 80
+  characters at most as the API takes. The name is asked before the start, not edited on screen 1,
+  which has no field for it. With no routines it is a secondary button under `Create a routine`;
+  with routines, the last row of the start list. While a workout is in progress it asks `Finish
+  Push A first?` as a routine does. With no routines and a workout in progress, Today shows only
+  `Resume workout`, as before.
+
+M1's MUSTs are complete with this.
+
+**Changed:** `00`, `06`, `09` F2, F3, `10` §1, §8, §8.2.
