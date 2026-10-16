@@ -18,6 +18,7 @@ import {
   dropCandidate,
   figure,
   manualCandidate,
+  nutrientFigure,
   NUTRIENTS,
   previewPer100g,
   sourceLine,
@@ -489,11 +490,7 @@ function FoodForm({
           error={refused('fiberG')}
         />
         {printedBasis && (
-          <section
-            className="printed printed--inline"
-            aria-labelledby="as-saved"
-            aria-live="polite"
-          >
+          <section className="printed printed--inline" aria-labelledby="as-saved">
             <div className="printed__head">
               <h2 id="as-saved" className="section-label">
                 Per 100 g, as it will be saved
@@ -506,7 +503,9 @@ function FoodForm({
                   <div key={nutrient.key}>
                     <dt>{nutrient.label}</dt>
                     <dd>
-                      {value === null || !Number.isFinite(value) ? '—' : figure(value)}
+                      {value === null || !Number.isFinite(value)
+                        ? '—'
+                        : nutrientFigure(nutrient.key, value)}
                       <span className="values__unit"> {nutrient.unit}</span>
                     </dd>
                   </div>

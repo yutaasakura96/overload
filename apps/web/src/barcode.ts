@@ -21,7 +21,7 @@ function nativeDetector(): NativeDetector | undefined {
 export async function barcodeDetector(): Promise<Detector> {
   const native = nativeDetector();
   if (native !== undefined) {
-    const supported = await native.getSupportedFormats().catch(() => []);
+    const supported = await native.getSupportedFormats().catch((): string[] => []);
     if (FORMATS.some((format) => supported.includes(format))) {
       return new native({ formats: FORMATS.filter((format) => supported.includes(format)) });
     }

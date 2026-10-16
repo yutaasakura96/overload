@@ -3082,8 +3082,12 @@ fieldset.field > legend {
   color: var(--text-tertiary);
   text-decoration: none;
 }
+.foods__row > span {
+  min-width: 0;
+}
 .foods__name {
   display: block;
+  overflow-wrap: anywhere;
   font-size: 15px;
   color: var(--text-primary);
 }
@@ -3167,6 +3171,7 @@ fieldset.field > legend {
   cursor: pointer;
 }
 .pick__name {
+  overflow-wrap: anywhere;
   font-size: 14px;
   color: var(--text-primary);
 }
@@ -3221,7 +3226,10 @@ fieldset.field > legend {
   margin: 16px var(--gutter) 0;
   overflow: hidden;
   border-radius: var(--radius);
-  background: #050607;
+  /* A camera's ground, dark in both themes: the one token that does not change. On the dark
+     ground it is the ground's own colour, so the border bounds it. */
+  border: 1px solid var(--line-border);
+  background: var(--surface-status-bar);
 }
 .viewfinder__video {
   position: absolute;
@@ -3240,15 +3248,14 @@ fieldset.field > legend {
 .viewfinder--label .viewfinder__frame {
   width: 180px;
   height: 180px;
-  margin-bottom: 24px;
 }
 .viewfinder__caption {
-  position: absolute;
-  bottom: 12px;
-  padding: 0 12px;
+  /* Under the box, not over it: on the page's ground its contrast holds whatever the camera sees. */
+  display: block;
+  margin: 8px var(--gutter) 0;
   font-size: 12px;
   text-align: center;
-  color: #a8b4c0;
+  color: var(--text-tertiary);
 }
 .printed {
   margin: 16px var(--gutter) 0;
@@ -3328,6 +3335,10 @@ fieldset.field > legend {
   border-bottom: 1px solid var(--line-row);
   font-size: 14px;
   color: var(--text-primary);
+}
+.group__row > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .group__row--empty {
   font-size: 12px;

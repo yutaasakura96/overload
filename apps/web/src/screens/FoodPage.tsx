@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { api, expectOk } from '../api';
 import { AppBar, DataState, DeleteConfirm, Notice } from '../components';
-import { figure, NUTRIENTS, sourceLine } from '../food';
+import { figure, nutrientFigure, NUTRIENTS, sourceLine } from '../food';
 import { goBack, type Navigate } from '../navigation';
 import { foodsQuery, forAccount, refreshFoods, rotationGroupsQuery, useAccount } from '../query';
 import { saveProblem, SaveNotice, type SaveProblem } from '../saving';
@@ -100,7 +100,7 @@ function FoodDetail({
             <div key={nutrient.key} className="values__row">
               <dt>{nutrient.label}</dt>
               <dd>
-                {figure(food[nutrient.key])}
+                {nutrientFigure(nutrient.key, food[nutrient.key])}
                 <span className="values__unit"> {nutrient.unit}</span>
               </dd>
             </div>

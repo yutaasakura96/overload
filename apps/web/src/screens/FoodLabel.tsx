@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api } from '../api';
 import { AppBar, DataState, Notice } from '../components';
 import { holdCandidate, manualCandidate, useCandidateStore, valuesOf } from '../food';
@@ -51,6 +51,13 @@ const readTime = () =>
 export function FoodLabel({ navigate }: { navigate: Navigate }) {
   const [outcome, setOutcome] = useState<Outcome>({ kind: 'aim' });
   const input = useRef<HTMLInputElement>(null);
+  const shown = useRef<HTMLDivElement>(null);
+  const settled = outcome.kind !== 'aim' && outcome.kind !== 'reading';
+
+  // The button pressed is gone once the outcome shows: focus moves to what it says.
+  useEffect(() => {
+    if (settled) shown.current?.focus();
+  }, [settled]);
   // A barcode scanned before and not found stays the food's key (docs/07 §4's example).
   const [barcode] = useState(() => useCandidateStore.getState().barcode);
   const back = () => goBack(navigate, '/food/new');
@@ -135,12 +142,13 @@ export function FoodLabel({ navigate }: { navigate: Navigate }) {
         <>
           <div className="viewfinder viewfinder--label" aria-hidden="true">
             <span className="viewfinder__frame" />
-            <span className="viewfinder__caption">
-              {outcome.kind === 'reading'
-                ? 'Reading the label…'
-                : 'Fill the frame with the 栄養成分表示'}
-            </span>
           </div>
+          {/* While it reads, the status below says so to a screen reader. */}
+          <p className="viewfinder__caption" aria-hidden={outcome.kind === 'reading'}>
+            {outcome.kind === 'reading'
+              ? 'Reading the label…'
+              : 'Fill the frame with the 栄養成分表示'}
+          </p>
           {outcome.kind === 'reading' ? (
             <output className="food-status">Reading the label. This takes a few seconds.</output>
           ) : (
@@ -157,39 +165,41 @@ export function FoodLabel({ navigate }: { navigate: Navigate }) {
           )}
         </>
       )}
-      {outcome.kind === 'unreadable' && (
-        <section className="empty-state" aria-labelledby="unreadable">
-          <h2 id="unreadable" className="empty-state__title">
-            Couldn’t read the label
-          </h2>
-          <p className="empty-state__body">
-            The photo was blurred or cut off. Try again closer and flatter, or type the numbers.
-          </p>
-          <button type="button" className="button button--primary" onClick={takePhoto}>
-            Retake
-          </button>
-          <button type="button" className="button button--tertiary" onClick={byHand}>
-            Enter it by hand
-          </button>
-        </section>
-      )}
-      {outcome.kind !== 'aim' && outcome.kind !== 'reading' && outcome.kind !== 'unreadable' && (
-        <>
-          <Notice tone="flag" word={WORDS[outcome.kind].word}>
-            {WORDS[outcome.kind].body}
-          </Notice>
-          <div className="section-actions">
-            <button type="button" className="button button--primary" onClick={byHand}>
-              {outcome.kind === 'cap' ? 'Enter it by hand' : 'Continue by hand'}
+      <div ref={shown} tabIndex={-1} hidden={!settled}>
+        {outcome.kind === 'unreadable' && (
+          <section className="empty-state" aria-labelledby="unreadable">
+            <h2 id="unreadable" className="empty-state__title">
+              Couldn’t read the label
+            </h2>
+            <p className="empty-state__body">
+              The photo was blurred or cut off. Try again closer and flatter, or type the numbers.
+            </p>
+            <button type="button" className="button button--primary" onClick={takePhoto}>
+              Retake
             </button>
-            {outcome.kind !== 'cap' && (
-              <button type="button" className="button button--tertiary" onClick={takePhoto}>
-                Try another photo
+            <button type="button" className="button button--tertiary" onClick={byHand}>
+              Enter it by hand
+            </button>
+          </section>
+        )}
+        {outcome.kind !== 'aim' && outcome.kind !== 'reading' && outcome.kind !== 'unreadable' && (
+          <>
+            <Notice tone="flag" word={WORDS[outcome.kind].word}>
+              {WORDS[outcome.kind].body}
+            </Notice>
+            <div className="section-actions">
+              <button type="button" className="button button--primary" onClick={byHand}>
+                {outcome.kind === 'cap' ? 'Enter it by hand' : 'Continue by hand'}
               </button>
-            )}
-          </div>
-        </>
-      )}
+              {outcome.kind !== 'cap' && (
+                <button type="button" className="button button--tertiary" onClick={takePhoto}>
+                  Try another photo
+                </button>
+              )}
+            </div>
+          </>
+        )}
+      </div>
     </main>
   );
 }

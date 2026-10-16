@@ -30,8 +30,15 @@ export function FoodBarcode({ navigate }: { navigate: Navigate }) {
   const [typed, setTyped] = useState('');
   const [typedError, setTypedError] = useState<string>();
   const video = useRef<HTMLVideoElement>(null);
+  const shown = useRef<HTMLDivElement>(null);
   const back = () => goBack(navigate, '/food/new');
   const scanning = outcome.kind === 'scanning';
+  const settled = !scanning && outcome.kind !== 'looking';
+
+  // The button pressed is gone once the outcome shows: focus moves to what it says.
+  useEffect(() => {
+    if (settled) shown.current?.focus();
+  }, [settled]);
 
   const lookUp = async (code: string) => {
     setOutcome({ kind: 'looking', code });
@@ -144,21 +151,16 @@ export function FoodBarcode({ navigate }: { navigate: Navigate }) {
           <div className="viewfinder">
             <video ref={video} className="viewfinder__video" muted playsInline aria-hidden="true" />
             <span className="viewfinder__frame" aria-hidden="true" />
-            <span className="viewfinder__caption">
-              {camera === 'none'
-                ? 'No camera here. Type the number below.'
-                : 'Hold the barcode inside the frame'}
-            </span>
           </div>
+          <p className="viewfinder__caption">
+            {camera === 'none'
+              ? 'No camera, or it wasn’t allowed. Type the number below.'
+              : 'Hold the barcode inside the frame'}
+          </p>
           {outcome.kind === 'looking' && (
             <output className="food-status">
               Looking up {spacedBarcode(outcome.code)} in Open Food Facts…
             </output>
-          )}
-          {camera === 'none' && scanning && (
-            <Notice tone="flag" word="No camera" quiet>
-              The camera isn’t available or wasn’t allowed. Type the number under the bars instead.
-            </Notice>
           )}
           <form
             className="form"
@@ -179,6 +181,7 @@ export function FoodBarcode({ navigate }: { navigate: Navigate }) {
               value={typed}
               onChange={setTyped}
               placeholder="4901234567894"
+              inputMode="numeric"
               error={typedError}
             />
             <div className="section-actions section-actions--flush">
@@ -194,62 +197,16 @@ export function FoodBarcode({ navigate }: { navigate: Navigate }) {
         </>
       )}
 
-      {outcome.kind === 'not-found' && (
-        <section className="empty-state" aria-labelledby="not-found">
-          <h2 id="not-found" className="empty-state__title">
-            Not in Open Food Facts
-          </h2>
-          <p className="empty-state__body">
-            Barcode {spacedBarcode(outcome.code)} isn’t in the database. The label has the numbers.
-          </p>
-          <button
-            type="button"
-            className="button button--primary"
-            onClick={() => photographLabel(outcome.code)}
-          >
-            Photograph the label
-          </button>
-          <button
-            type="button"
-            className="button button--tertiary"
-            onClick={() => byHand(outcome.code)}
-          >
-            Enter it by hand
-          </button>
-        </section>
-      )}
-
-      {outcome.kind === 'existing' && (
-        <section className="empty-state" aria-labelledby="existing">
-          <h2 id="existing" className="empty-state__title">
-            Already on your list
-          </h2>
-          <p className="empty-state__body">
-            {existingName ?? 'A food on your list'} has this barcode. Nothing new was made.
-          </p>
-          <button
-            type="button"
-            className="button button--primary"
-            onClick={() => navigate(`/food/${outcome.foodId}`, { replace: true, returns: true })}
-          >
-            Open {existingName ?? 'it'}
-          </button>
-        </section>
-      )}
-
-      {(outcome.kind === 'down' || outcome.kind === 'offline') && (
-        <>
-          <Notice
-            tone="flag"
-            word={outcome.kind === 'offline' ? 'Not looked up' : 'Open Food Facts isn’t answering'}
-          >
-            {outcome.kind === 'offline'
-              ? 'Couldn’t reach Overload. Try again when you have signal, or carry on without it.'
-              : outcome.limited
-                ? 'It is limiting lookups for a minute. Try again shortly, or carry on without it.'
-                : 'Try again in a minute, or carry on without it.'}
-          </Notice>
-          <div className="section-actions">
+      <div ref={shown} tabIndex={-1} hidden={!settled}>
+        {outcome.kind === 'not-found' && (
+          <section className="empty-state" aria-labelledby="not-found">
+            <h2 id="not-found" className="empty-state__title">
+              Not in Open Food Facts
+            </h2>
+            <p className="empty-state__body">
+              Barcode {spacedBarcode(outcome.code)} isn’t in the database. The label has the
+              numbers.
+            </p>
             <button
               type="button"
               className="button button--primary"
@@ -264,16 +221,67 @@ export function FoodBarcode({ navigate }: { navigate: Navigate }) {
             >
               Enter it by hand
             </button>
+          </section>
+        )}
+
+        {outcome.kind === 'existing' && (
+          <section className="empty-state" aria-labelledby="existing">
+            <h2 id="existing" className="empty-state__title">
+              Already on your list
+            </h2>
+            <p className="empty-state__body">
+              {existingName ?? 'A food on your list'} has this barcode. Nothing new was made.
+            </p>
             <button
               type="button"
-              className="button button--tertiary"
-              onClick={() => setOutcome({ kind: 'scanning' })}
+              className="button button--primary"
+              onClick={() => navigate(`/food/${outcome.foodId}`, { replace: true, returns: true })}
             >
-              Scan again
+              Open {existingName ?? 'it'}
             </button>
-          </div>
-        </>
-      )}
+          </section>
+        )}
+
+        {(outcome.kind === 'down' || outcome.kind === 'offline') && (
+          <>
+            <Notice
+              tone="flag"
+              word={
+                outcome.kind === 'offline' ? 'Not looked up' : 'Open Food Facts isn’t answering'
+              }
+            >
+              {outcome.kind === 'offline'
+                ? 'Couldn’t reach Overload. Try again when you have signal, or carry on without it.'
+                : outcome.limited
+                  ? 'It is limiting lookups for a minute. Try again shortly, or carry on without it.'
+                  : 'Try again in a minute, or carry on without it.'}
+            </Notice>
+            <div className="section-actions">
+              <button
+                type="button"
+                className="button button--primary"
+                onClick={() => photographLabel(outcome.code)}
+              >
+                Photograph the label
+              </button>
+              <button
+                type="button"
+                className="button button--tertiary"
+                onClick={() => byHand(outcome.code)}
+              >
+                Enter it by hand
+              </button>
+              <button
+                type="button"
+                className="button button--tertiary"
+                onClick={() => setOutcome({ kind: 'scanning' })}
+              >
+                Scan again
+              </button>
+            </div>
+          </>
+        )}
+      </div>
     </main>
   );
 }

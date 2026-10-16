@@ -2,7 +2,15 @@ import type { ReferenceFood } from '@overload/api-contract';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { AppBar, Chevron, DataState, Notice, TextField } from '../components';
-import { figure, holdCandidate, manualCandidate, mextName, referenceName, valuesOf } from '../food';
+import {
+  figure,
+  holdCandidate,
+  kcal,
+  manualCandidate,
+  mextName,
+  referenceName,
+  valuesOf,
+} from '../food';
 import { goBack, type Navigate } from '../navigation';
 import { referenceFoodsQuery, useAccount } from '../query';
 
@@ -93,8 +101,8 @@ export function AddFood({ navigate }: { navigate: Navigate }) {
                       </span>
                     )}
                     <span className="pick__meta">
-                      {figure(entry.energyKcal)} kcal · {figure(entry.proteinG)} g protein per 100 g
-                      · MEXT {entry.code}
+                      {kcal(entry.energyKcal)} kcal · {figure(entry.proteinG)} g protein per 100 g ·
+                      MEXT {entry.code}
                       {entry.existingFoodId !== null && ' · on your list'}
                     </span>
                   </button>

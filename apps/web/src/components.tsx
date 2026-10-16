@@ -251,12 +251,15 @@ export function TextField({
   focusOnOpen,
   type = 'text',
   literal = false,
+  inputMode,
 }: FieldProps & {
   /** Focus on mount: only for a form's first field, on a screen opened to fill it in. */
   focusOnOpen?: boolean;
   type?: 'text' | 'search' | 'email';
   /** A word typed exactly, in capitals, such as `DELETE`: no autocorrect. */
   literal?: boolean;
+  /** `numeric` for a code typed in digits, such as a barcode: the number pad, no spellcheck. */
+  inputMode?: 'numeric';
 }) {
   const id = useId();
   const email = type === 'email';
@@ -272,7 +275,8 @@ export function TextField({
         autoComplete="off"
         autoCapitalize={email ? 'none' : literal ? 'characters' : undefined}
         autoCorrect={literal ? 'off' : undefined}
-        spellCheck={email || literal ? false : undefined}
+        spellCheck={email || literal || inputMode !== undefined ? false : undefined}
+        inputMode={inputMode}
         // oxlint-disable-next-line jsx-a11y/no-autofocus -- only a form's first field, opened on purpose
         autoFocus={focusOnOpen}
         aria-invalid={error === undefined ? undefined : true}

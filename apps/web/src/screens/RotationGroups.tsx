@@ -1,6 +1,6 @@
 import type { Food, RotationGroup } from '@overload/api-contract';
 import { useQuery } from '@tanstack/react-query';
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { api, expectOk, unwrap } from '../api';
 import { AppBar, DataState, FieldLabel, Notice, TextField } from '../components';
 import { newId } from '../ids';
@@ -19,6 +19,16 @@ export function RotationGroups({ navigate }: { navigate: Navigate }) {
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<SaveProblem>();
   const [creating, setCreating] = useState(false);
+  // Where focus goes when the control pressed goes away: a form closed or a group deleted.
+  const newGroup = useRef<HTMLButtonElement>(null);
+  const [refocus, setRefocus] = useState(0);
+  useEffect(() => {
+    if (refocus > 0) newGroup.current?.focus();
+  }, [refocus]);
+  const closeNew = () => {
+    setCreating(false);
+    setRefocus((count) => count + 1);
+  };
   const listed = (foods.data ?? []).filter((food) => food.archivedAt === null);
   const names = new Map(listed.map((food) => [food.id, food.name]));
   const back = () => goBack(navigate, '/food');
@@ -84,13 +94,17 @@ export function RotationGroups({ navigate }: { navigate: Navigate }) {
           foods={listed}
           busy={busy}
           onMembers={(foodIds) => setMembers(group, foodIds)}
-          onDelete={() => remove(group)}
+          onDelete={async () => {
+            const done = await remove(group);
+            if (done) setRefocus((count) => count + 1);
+            return done;
+          }}
         />
       ))}
       {creating ? (
         <NewGroup
           busy={busy}
-          onCancel={() => setCreating(false)}
+          onCancel={closeNew}
           onCreate={async (name) => {
             const made = await run(async () =>
               unwrap(
@@ -99,12 +113,13 @@ export function RotationGroups({ navigate }: { navigate: Navigate }) {
                 }),
               ),
             );
-            if (made) setCreating(false);
+            if (made) closeNew();
           }}
         />
       ) : (
         <div className="section-actions">
           <button
+            ref={newGroup}
             type="button"
             className="button button--secondary"
             disabled={busy || groups.data === undefined}
@@ -139,10 +154,17 @@ function GroupSection({
   const headingId = useId();
   const others = foods.filter((food) => !group.foodIds.includes(food.id));
   const lower = group.name.toLowerCase();
+  // A removed food's button and a closed form both take focus with them: it moves to the heading.
+  const heading = useRef<HTMLHeadingElement>(null);
+  const changeMembers = async (foodIds: string[]) => {
+    const done = await onMembers(foodIds);
+    if (done) heading.current?.focus();
+    return done;
+  };
 
   return (
     <section className="today__section" aria-labelledby={headingId}>
-      <h2 id={headingId} className="section-label">
+      <h2 ref={heading} id={headingId} className="section-label" tabIndex={-1}>
         {group.name} · {group.foodIds.length}
       </h2>
       <ul className="group">
@@ -153,7 +175,7 @@ function GroupSection({
               type="button"
               className="button button--tertiary"
               disabled={busy}
-              onClick={() => void onMembers(group.foodIds.filter((each) => each !== foodId))}
+              onClick={() => void changeMembers(group.foodIds.filter((each) => each !== foodId))}
             >
               Remove
               <span className="visually-hidden">
@@ -183,7 +205,7 @@ function GroupSection({
           onSubmit={(event) => {
             event.preventDefault();
             if (choice === '') return;
-            void onMembers([...group.foodIds, choice]).then((done) => {
+            void changeMembers([...group.foodIds, choice]).then((done) => {
               if (done) {
                 setAdding(false);
                 setChoice('');
@@ -218,7 +240,10 @@ function GroupSection({
             <button
               type="button"
               className="button button--tertiary"
-              onClick={() => setAdding(false)}
+              onClick={() => {
+                setAdding(false);
+                heading.current?.focus();
+              }}
             >
               Cancel
             </button>

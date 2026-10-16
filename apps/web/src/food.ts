@@ -19,16 +19,30 @@ export type Given = Record<NutrientKey, number | null>;
 /** A figure as the screens print it: at most one decimal, no trailing zero. */
 export const figure = (value: number) => String(Math.round(value * 10) / 10);
 
+/** Calories in whole kcal, as every other screen prints them; the stored value keeps its hundredths. */
+export const kcal = (value: number) => String(Math.round(value));
+
+/** A nutrient's figure on a screen that only shows it: calories whole, the rest to one decimal. */
+export const nutrientFigure = (key: NutrientKey, value: number) =>
+  key === 'energyKcal' ? kcal(value) : figure(value);
+
 /** `105 kcal · 23.3 g protein · per 100 g raw` (the food list's row). */
 export const macroLine = (food: Pick<Food, 'energyKcal' | 'proteinG' | 'state'>) =>
-  `${figure(food.energyKcal)} kcal · ${figure(food.proteinG)} g protein · per 100 g ${food.state}`;
+  `${kcal(food.energyKcal)} kcal · ${figure(food.proteinG)} g protein · per 100 g ${food.state}`;
+
+/**
+ * MEXT's Japanese name as the screens print it: without the leading food-group label (`＜魚類＞`),
+ * which the English name already says, and with its full-width spaces as one space.
+ */
+export const mextName = (name: string) =>
+  name
+    .replace(/^＜[^＞]*＞/u, '')
+    .replace(/\s+/gu, ' ')
+    .trim();
 
 /** The name a food is known by in the MEXT table: English where MEXT had one, else its own. */
 export const referenceName = (entry: { name: string; nameEn: string | null }) =>
-  entry.nameEn ?? entry.name;
-
-/** MEXT's name with its full-width spaces kept but trimmed, as MEXT prints it. */
-export const mextName = (name: string) => name.trim();
+  entry.nameEn ?? mextName(entry.name);
 
 const SOURCE_WORDS: Record<FoodSource, string> = {
   mext: 'MEXT food table',
