@@ -21,6 +21,10 @@ and starting an empty workout, are one close-out issue (`#74`) built alongside i
 and approved on 2026-10-16 with five tabs, every other question as drawn (`06`; `docs/prototype/m2/`);
 the screen slices are built to it. Today becomes the whole day, with a Food tab and weight in
 Progress.
+**M2 slice 1 is built, 2026-10-16** (`#76`), on `fm/overload-76`, in review against `develop`:
+`body_measurement` (migration `0015`), `GET`, `POST` and `DELETE /api/weigh-ins`, the day's weight
+and the trend in `domain/weight.ts`, the export's `weighIns` section, and Weight as Progress's
+fourth section with `Type a weight` (`06`, 2026-10-16). Checked on generated weigh-ins.
 Building comes first: seeded or fake data is fine until the app is built. Owed, and Yuta's: the two
 weight hardware tests (`06`, 2026-09-19) and an Anthropic API key with a small balance for label
 reads. #69 follows the weight slice with its rules decided; #52 is M3, in S23's catalogue; #53 stays

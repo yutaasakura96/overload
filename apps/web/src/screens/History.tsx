@@ -17,21 +17,22 @@ import { deviceTimezone } from '../timezones';
 import { formatWeight } from '../units';
 import { recordsOf, useWorkoutStore } from '../workout';
 
-// The Progress tab (docs/10 §9): History, Strength and Balance behind one tab, since five do not
-// fit 390px. History is the finished workouts by date, newest first, each opening its own page.
+// The Progress tab (docs/10 §9): History, Strength, Balance and Weight behind one tab, since more
+// tabs do not fit 390px. History is the finished workouts by date, newest first, each opening its own page.
 
 const SECTIONS = [
   { path: '/progress', label: 'History' },
   { path: '/progress/strength', label: 'Strength' },
   { path: '/progress/balance', label: 'Balance' },
+  { path: '/progress/weight', label: 'Weight' },
 ] as const;
 
 type Section = (typeof SECTIONS)[number]['path'];
 
-/** 4.8, the three sections of Progress. Links, like the tabs above them: each has an address. */
+/** 4.8, the four sections of Progress. Links, like the tabs above them: each has an address. */
 export function ProgressSections({ current, navigate }: { current: Section; navigate: Navigate }) {
   return (
-    <nav className="segments segments--three" aria-label="Progress">
+    <nav className="segments segments--sections" aria-label="Progress">
       {SECTIONS.map((section) => (
         <a
           key={section.path}

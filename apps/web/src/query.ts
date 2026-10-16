@@ -414,6 +414,17 @@ export const balanceQuery = (view: BalanceView) =>
   });
 
 /**
+ * Every weigh-in, with the daily weights and the trend (S11, docs/07 §5). Enable it only once the
+ * profile exists: without one the API answers `setup_incomplete`.
+ */
+export const weighInsQuery = queryOptions({
+  queryKey: ['weigh-ins'],
+  refetchOnWindowFocus: false,
+  refetchOnReconnect: false,
+  queryFn: async ({ signal }) => confirmedAccountData(() => api.GET('/api/weigh-ins', { signal })),
+});
+
+/**
  * History (docs/07 §3): the finished workouts, newest first, a page at a time. A workout the
  * device still holds rows of is read from the set store over this (history.ts).
  */
@@ -494,6 +505,8 @@ export const refreshExercises = () =>
   });
 export const refreshRoutines = () => queryClient.invalidateQueries({ queryKey: ['routines'] });
 export const refreshInvites = () => queryClient.invalidateQueries({ queryKey: ['invites'] });
+/** After a weigh-in is typed or deleted: the daily weights and the trend move with it. */
+export const refreshWeighIns = () => queryClient.invalidateQueries({ queryKey: ['weigh-ins'] });
 /**
  * After an acknowledged sync batch: a chart on screen is asked again, the rest when next opened.
  * The strength overview and the balance view read the same sets, so they go with them.
