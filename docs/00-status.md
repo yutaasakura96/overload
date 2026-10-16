@@ -2,7 +2,7 @@
 
 **Project:** A weight-training progress tracker combining lift logging, meal planning, Apple Watch/iPhone health data, and bodyweight/diet coaching.
 **Phase:** 7 — Build (M1 first). Phase 6 — Review finished 2026-09-23.
-**Updated:** 2026-10-15
+**Updated:** 2026-10-16
 
 ## Done
 - Phase 1 — Brief + PRD: `docs/01-project-brief.md`, `docs/02-product-requirements.md`, `docs/06-decision-log.md`.
@@ -13,6 +13,17 @@
 - 2026-09-16: Phase 3 — `docs/05-design-system.md` and `docs/10-screen-specifications.md` written from the six `.dc.html` files. Every hex code, size, tracking value and grid measurement lifted from source; contrast ratios computed, not estimated. The canvas's "THE SYSTEM" sticky note was found inaccurate and is superseded by `docs/05`.
 
 ## Next
+**Planned 2026-10-16: M2 next, built now** (`06`, 2026-10-16). The owner answered thirteen planning
+questions. M2, meal plan + weight, is built in seven slices on milestone `M2` (`#76`–`#82`), weight
+first, during M1's 4 weeks of logging. M1's two unbuilt pieces, changing a live workout's exercises
+and starting an empty workout, are one close-out issue (`#74`) built alongside it, an exception to
+`02`'s milestone rule. A clickable prototype of every M2 screen (`#75`), reviewed in one sitting,
+comes before the screen slices; Today becomes the whole day, with a Food tab and weight in Progress.
+Building comes first: seeded or fake data is fine until the app is built. Owed, and Yuta's: the two
+weight hardware tests (`06`, 2026-09-19) and an Anthropic API key with a small balance for label
+reads. #69 follows the weight slice with its rules decided; #52 is M3, in S23's catalogue; #53 stays
+last.
+
 **Phase 7 — Build, after slice 7.** Slice 7, export and delete (S10), is built on `fm/overload-7`,
 in review against `develop`; it is the last of M1's slices. The slice boundaries and deferred work
 are recorded in `06` (2026-10-03, 2026-10-15). **M3 carries from slice 6:** revoking ingest tokens on
@@ -350,8 +361,8 @@ Written: `03`, `04`, `CONTEXT.md`, `07`, `08`, `09`, `11`, `12`, `13`, and
 - no custom domain (the AWS move will cost every user a Health Auto Export reconfiguration)
 - **compliance deferred to "before the first invitee"** (`13` §9 holds the checklist and findings)
 
-- **Parked for M2 (decide before M2 starts):** morning weight source. Two hardware tests are defined
-  in `06` (2026-09-19 entry); run them, then apply the decision rule there.
+- **Morning weight source, owed this week (`06`, 2026-10-16):** run the two hardware tests in `06`
+  (2026-09-19 entry), then apply the decision rule there. Typed weight is built first either way.
 
 ## Blocked
 _(nothing)_
@@ -411,10 +422,9 @@ written (the short food list: S12, S16, S18; batch prep: S13, S17). Three gaps, 
 - ~~**Nothing announces that rest has ended.**~~ **Decided 2026-10-03** (`06`): a sound, not a push,
   with the rest bar counting over and a wake lock while resting where the browser grants one. Built
   in slice 3. A locked phone stays silent; that is the accepted limit.
-- **No shelf life, and a batch never runs out.** `04` `batch` is the newest row for a food, with no
-  depleting portion count and no keeps-for-N-days, so the prep plan cannot say "cook the fish again
-  on Wednesday" — the very reason those foods were chosen. Candidate: `keeps_days` on `food` plus a
-  second cook day in S17. **S13/S17 grill, M2.**
+- ~~**No shelf life, and a batch never runs out.**~~ **Decided 2026-10-16** (`06`): `keeps_days`
+  on `food`; S16 plans food only on days covered by at most two cook days, and S17 names the second
+  cook day when used. Built in M2's prep slice.
 
 ### Standing
 - Design risk on record: if the real failure mode turns out to be not logging at all because the app reads as a spreadsheet, Quiet was the better bet. Revisit after M1 is in daily use. Phase 3 did not soften Instrument — the contrast cost is recorded as a measured deviation and left for Yuta.

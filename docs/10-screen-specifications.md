@@ -555,7 +555,7 @@ screens and states the PRD requires that Phase 2 did not draw.
 - **Workout start** (S4) from a routine. Routine selection and the no-routines empty state are
   specified in §8.1, from slice 2; Today and the start itself in §8.2, from slice 3. The finish
   summary is the workout's page in History (§9, 2026-10-11). Start empty and changing a live
-  workout's exercises are not designed yet.
+  workout's exercises are not designed yet; they are built alongside M2 (`06`, 2026-10-16).
 - **Food list management** (S12) and manual label entry.
 - **Goal phase and macro target setup** (S14), routine and meal count (S15).
 - **The grocery list proper** (S17) — only a preview card exists.
@@ -660,8 +660,10 @@ filter, or use `New exercise`.
 ### 8.2 Today and the start of a workout (slice 3)
 
 No artboard exists, so these were designed in the build (issue #3) from `05`'s tokens and
-components, and pass the polish gate (`AGENTS.md`). Nothing here adds a token or an icon. The meal
-cards join Today in M2.
+components, and pass the polish gate (`AGENTS.md`). Nothing here adds a token or an icon. In M2,
+Today becomes the whole day (`06`, 2026-10-16): the meal timeline with the workout marked in it, as
+screen 3 draws, and starting a workout. Prep, grocery, the food list and batches go in a new Food
+tab, and weight joins Progress as a section. The M2 prototype draws it before it is built.
 
 **Today** (`/`). The app bar's title is `Today` over the date in the profile's time zone, with the
 data-state slot. Under the tabs, in order:

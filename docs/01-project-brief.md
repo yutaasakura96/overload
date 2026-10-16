@@ -1,6 +1,6 @@
 # 01 — Project Brief
 
-_Working name: `overload`. Updated 2026-09-22._
+_Working name: `overload`. Updated 2026-10-16._
 
 ## What it is
 
@@ -38,7 +38,6 @@ Serious side project with no deadline. Personal-first, with invite-only access. 
 - Importing history from Hevy, MacroFactor or other apps (LATER, for future users).
 - Automatic stall explainer. M3 shows overlays and the user reads the correlation.
 - Recipe generation and cooking instructions. The plan works in foods and grams.
-- Pound units. Everything is in kg.
 - Public sign-up.
 
 ## Riskiest assumption

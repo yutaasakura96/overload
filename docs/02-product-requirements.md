@@ -1,6 +1,6 @@
 # 02 — Product Requirements
 
-_Updated 2026-09-22. No technology decisions here; those are in `03`._
+_Updated 2026-10-16. No technology decisions here; those are in `03`._
 
 ## User types
 
@@ -13,6 +13,8 @@ _Updated 2026-09-22. No technology decisions here; those are in `03`._
 ## Milestones
 
 M1 Training log → M2 Meal plan + weight → M3 Health + coaching. Each milestone's MUSTs ship before the next milestone starts.
+
+One exception, decided 2026-10-16 (`06`): M1's two unbuilt pieces, changing a live workout's exercises (S4) and starting an empty workout (*Workout start* under Empty states), are built alongside M2.
 
 ## User stories
 
@@ -80,9 +82,10 @@ As a user, I want to download all my data and be able to delete my account, so t
 
 **S11. Weight trend — MUST**
 As a user, I want my morning weight to arrive by itself and show as a smoothed trend, so that daily fluctuation does not mislead me.
-- The morning weight arrives from the Eufy scale without manual entry. The route is decided by the two hardware tests in `06` (2026-09-19) before M2 starts.
+- The morning weight arrives from the Eufy scale without manual entry. The route is decided by the two hardware tests in `06` (2026-09-19).
 - The daily weight is the first reading before 10:00 local time. If there is none, the day's first reading is used and marked as not a morning weigh-in.
-- A smoothed trend line is drawn over the raw daily points. Weight can also be entered by hand.
+- A smoothed trend line is drawn over the raw daily points.
+- Typing a weight is a permanent option next to the automatic route, not only a fallback (`06`, 2026-10-16).
 
 **S12. Food list — MUST**
 As a user who eats from a short list of foods, I want to add each food once and never type its macros again, so that planning and logging use exact data.
@@ -95,6 +98,7 @@ As a user who cooks in batches and weighs cooked portions, I want to record a ba
 - A batch records the food, raw weight and cooked weight (e.g. chicken breast, 1,400 g raw → 1,050 g cooked).
 - A cooked portion's macros are calculated from the raw nutrition using that batch's yield.
 - The current batch is used by default until a new one is recorded.
+- Each batch-cooked food records how many days a cooked batch keeps ("keeps for N days").
 
 **S14. Goal phase and macro targets — MUST**
 As a user, I want a cut, bulk or maintenance phase to set my daily targets, so that dieting is planned rather than guessed.
@@ -117,10 +121,12 @@ As a user, I want each day's targets split into meals with grams of each food fr
 - Gram amounts round to 5 g. Foods counted in units (e.g. eggs) stay whole.
 - On training days, more of the day's carbohydrate is placed in the meals before and after training. This recommendation carries an evidence tag.
 - Days rotate between the marked alternatives so the week isn't identical. The plan for a day type stays stable otherwise.
+- The week has at most two cook days. A batch-cooked food appears only on days covered by a batch cooked on one of those days; each batch covers `keeps_days` calendar days starting on its cook day. Other days use other foods. If the resulting plan misses a target, show the closest plan and name the shortfall (`03` §8.2).
 
 **S17. Prep plan and grocery list — MUST**
 As a user who batch-cooks, I want a weekly prep list and shopping list worked out from the plan, so that the plan actually gets cooked.
 - The prep plan lists raw amounts to cook per food for the coming week, using the last recorded yield.
+- The prep plan assigns those amounts to the planned cook days and names the second day when used.
 - The grocery list sums the week's raw quantities per food.
 
 **S18. The plan is the log — MUST**
@@ -166,6 +172,7 @@ As a user having an off-plan meal, I want to log it from a photo or a short desc
 As a user whose weight trend has stalled, I want suggestions ranked by how well supported they are, so that I don't follow folklore.
 - When the trend misses the phase's target rate for a set number of weeks, the app offers protocols such as a diet break or a refeed.
 - Each recommendation carries an evidence tag (strong / moderate / contested) and its sources.
+- The catalogue also holds phase advice, such as ending a cut, taking a maintenance break or starting a bulk (#52). Each is a suggestion the user accepts or dismisses; the phase never changes without the user.
 
 **S24. Health dashboard — SHOULD**
 As a user, I want one screen showing recent trends for the ingested metrics, so that I actually look at my watch data.
@@ -175,7 +182,6 @@ As a user, I want one screen showing recent trends for the ingested metrics, so 
 
 - Import from Hevy, MacroFactor and other apps.
 - Automatic stall explainer.
-- Pound units and a per-user unit setting.
 - Recipe generation.
 - watchOS app, native iOS app, social features.
 
