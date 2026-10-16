@@ -387,7 +387,9 @@ values, marked approximate (PRD empty state).
      COMPLETE`, `10` §6). Fewer than 5 complete days in the newest 7 adds a "too little recent
      logging" label.
 2. **Apply to targets** (`ready` only) → `PATCH /api/goal-phases/{id}` with `calorieBasis: "measured"` → the client
-   regenerates the unconfirmed plan days. Never automatic.
+   regenerates the unconfirmed plan days. Never automatic. It asks once first, showing the current and
+   the new calorie target (`10` §6). On a cut the new target is the maintenance estimate less the
+   deficit for the phase's rate, rate × bodyweight × 7,700 ÷ 7 (`06`, 2026-10-16, Q17).
 
 **A target set by hand wins until next Monday** (decided 2026-09-21, and applies equally to plain
 manual edits in F10): `plan_day` takes the newer of the newest applied `expenditure_estimate` and
