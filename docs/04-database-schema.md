@@ -71,7 +71,7 @@ ahead of the current slice, not a description of the database.**
 | **2** | `routine` · `routine_exercise` |
 | **3** | `workout` · `workout_exercise` · `set` |
 | **4** | `sync_tombstone` |
-| **M2** | Everything under *M2 — meal plan + weight* |
+| **M2** | Everything under *M2 — meal plan + weight*, slice by slice. M2 slice 1 (`#76`): `body_measurement`, without M3's `lean_mass_kg` (`06`, 2026-10-16) |
 | **M3** | Everything under *M3 — health + coaching*, and `ingest_token`. Its revoke on an invite's revoke and the two tests that go with it come with the table (`06`, 2026-10-15) |
 
 Each slice's GitHub issue names the tables it creates, so the gap between this document and the
@@ -416,6 +416,8 @@ One reading from the scale, or one typed by hand (S11).
 - `body_fat_pct` and `lean_mass_kg` are filled by hand entry (and later a native client). Health
   Auto Export sends both as daily `health_sample` metrics instead (`docs/03` §9).
 - `INDEX (user_id, measured_at DESC)`.
+- *Created 2026-10-16* (M2 slice 1, migration `0015`), as above. Typed rows carry the device's
+  UUIDv7 and `source = 'manual'`; only those can be deleted (`07` §5).
 - **The day's weight is derived, not stored:** the first reading before 10:00 in the user's
   timezone; failing that, the day's first reading, flagged as not a morning weigh-in (S11, and the
   "several weigh-ins in one day" edge case). The smoothed trend line is computed in `domain/`, never

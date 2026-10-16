@@ -2,10 +2,10 @@ import { randomUUID } from 'node:crypto';
 import { expect } from 'vitest';
 import { WEB_ORIGIN, type useTestApp } from './harness';
 
-// An account with a row in every table a member writes in M1, for the export and the deletion
-// (S10): a profile, a custom exercise with its setting, a hidden seeded exercise, a routine using
-// the custom exercise, a finished workout that logged it, one still in progress, and a set deleted
-// through the sync batch so its tombstone exists.
+// An account with a row in every table a member writes, for the export and the deletion (S10): a
+// profile, a custom exercise with its setting, a hidden seeded exercise, a routine using the custom
+// exercise, a finished workout that logged it, one still in progress, a set deleted through the
+// sync batch so its tombstone exists, and a typed weigh-in (M2).
 
 type TestApp = ReturnType<typeof useTestApp>;
 
@@ -135,5 +135,13 @@ export async function fillAccount(t: TestApp, cookie: string) {
   );
   expect(deleted.results.every((each) => each.status !== 'refused')).toBe(true);
 
-  return { customId, hiddenId, routineId, finished, open, removedSetId: removed.id };
+  const weighIn = {
+    id: randomUUID(),
+    measuredAt: new Date(Date.now() - 24 * 60 * MINUTE_MS).toISOString(),
+    weightKg: 82.4,
+    bodyFatPct: 18.5,
+  };
+  await ok(send('POST', '/api/weigh-ins', weighIn), 201);
+
+  return { customId, hiddenId, routineId, finished, open, removedSetId: removed.id, weighIn };
 }

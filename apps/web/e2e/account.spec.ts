@@ -18,28 +18,44 @@ const signIn = async (context: import('@playwright/test').BrowserContext, userId
   await context.addCookies(cookies);
 };
 
-test('a member exports their data as one file', async ({ context, page }) => {
-  await signIn(context, memberId);
-  await page.goto('/');
-  await page.getByRole('link', { name: 'Your data' }).click();
-  await expect(page.getByRole('heading', { name: 'Your data', level: 1 })).toBeVisible();
+test('a member exports their data as one file', async ({ context, page }, testInfo) => {
+  const email = `export-${testInfo.project.name}-${Date.now()}@example.test`;
+  const { userId }: { userId: string } = JSON.parse(apiFixture('user', email));
+  try {
+    await signIn(context, userId);
+    const weighInId = crypto.randomUUID();
+    const measuredAt = new Date().toISOString();
+    const created = await page.request.post('/api/weigh-ins', {
+      data: { id: weighInId, measuredAt, weightKg: 82.4 },
+    });
+    expect(created.status()).toBe(201);
+    await page.goto('/');
+    await page.getByRole('link', { name: 'Your data' }).click();
+    await expect(page.getByRole('heading', { name: 'Your data', level: 1 })).toBeVisible();
 
-  const download = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Export your data' }).click();
-  const file = await download;
-  expect(file.suggestedFilename()).toMatch(/^overload-export-\d{4}-\d{2}-\d{2}\.json$/);
-  const saved: Record<string, unknown> = JSON.parse(await readFile(await file.path(), 'utf8'));
-  expect(Object.keys(saved)).toEqual([
-    'exportedAt',
-    'profile',
-    'exercises',
-    'routines',
-    'workouts',
-  ]);
-  expect(saved['profile']).toEqual([
-    expect.objectContaining({ user: expect.objectContaining({ id: memberId }) }),
-  ]);
-  await expect(page.getByText(`Saved ${file.suggestedFilename()}.`)).toBeVisible();
+    const download = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Export your data' }).click();
+    const file = await download;
+    expect(file.suggestedFilename()).toMatch(/^overload-export-\d{4}-\d{2}-\d{2}\.json$/);
+    const saved: Record<string, unknown> = JSON.parse(await readFile(await file.path(), 'utf8'));
+    expect(Object.keys(saved)).toEqual([
+      'exportedAt',
+      'profile',
+      'exercises',
+      'routines',
+      'workouts',
+      'weighIns',
+    ]);
+    expect(saved['profile']).toEqual([
+      expect.objectContaining({ user: expect.objectContaining({ id: userId }) }),
+    ]);
+    expect(saved['weighIns']).toEqual([
+      expect.objectContaining({ id: weighInId, measuredAt, weightKg: 82.4, source: 'manual' }),
+    ]);
+    await expect(page.getByText(`Saved ${file.suggestedFilename()}.`)).toBeVisible();
+  } finally {
+    apiFixture('delete', email);
+  }
 });
 
 test('leaving the screen during export does not save a file', async ({ context, page }) => {

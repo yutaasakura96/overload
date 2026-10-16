@@ -94,6 +94,7 @@ that shape. Its rate limiter's 429 and our `beforeDelete` refusal arrive in that
 | 409 | `admin_account` | Revoking the invite of `ADMIN_EMAIL`. On account deletion the same refusal is a Better Auth `APIError` thrown in `beforeDelete`, in Better Auth's format |
 | 409 | `invite_exists` | Inviting an email that already has a row. Restore it instead |
 | 409 | `managed_by_apple_health` | Deleting a weigh-in that came from Apple Health |
+| 409 | `weigh_in_exists` | Typing a weigh-in at the same instant as another typed one (`UNIQUE (user_id, source, measured_at)`) |
 | 409 | `day_locked` | Confirming a plan meal or day more than 7 days after its date (§4) |
 | 409 | `already_answered` | Answering a protocol suggestion that already has a different response |
 | 413 | `payload_too_large` | Over our own photo limit (§1.5). Vercel's own 4.5 MB cap answers with its own 413 before our code runs |
@@ -205,7 +206,8 @@ the file in the browser as `overload-export-2026-11-04.json`.
 - Paged as in §1.4. Each item is the row as the API's normal read returns it, with its children
   nested (a workout carries its exercises and sets).
 - **As built in slice 7** (`06`, 2026-10-15): M1's four sections, `profile`, `exercises`,
-  `routines` and `workouts`. `profile` is one item, `{ user, profile }`, as `/api/me` without
+  `routines` and `workouts`. M2 slice 1 adds `weighIns`, newest `measuredAt` then id first, each as
+  `GET /api/weigh-ins` lists it. `profile` is one item, `{ user, profile }`, as `/api/me` without
   `isAdmin`. `exercises` pages by name then id; `routines` pages by position then id; `workouts`
   pages newest `startedAt` then id first, a workout in progress included, each as
   `GET /api/workouts/{id}` returns it.
@@ -862,8 +864,8 @@ confirm endpoints return 409 `day_locked` (`docs/09` F11). A `PATCH /api/goal-ph
 
 | Method | Path | Auth | Purpose | Success | Failures |
 | --- | --- | --- | --- | --- | --- |
-| GET | `/api/weigh-ins?from=&to=` | M | Weigh-ins in a range, plus the derived daily weights and trend (S11) | 200 | 401, 422 |
-| POST | `/api/weigh-ins` | M | Weigh-in by hand `{ id, measuredAt, weightKg, bodyFatPct, leanMassKg }` | 201 / 200 | 401, 409, 422 |
+| GET | `/api/weigh-ins?from=&to=` | M | Weigh-ins in a range, plus the derived daily weights and trend (S11) | 200 | 400, 401, 422 `setup_incomplete` |
+| POST | `/api/weigh-ins` | M | Weigh-in by hand `{ id, measuredAt, weightKg, bodyFatPct }` (`leanMassKg` joins with its M3 column) | 201 / 200 | 401, 409 `id_conflict`, 409 `weigh_in_exists`, 422 |
 | DELETE | `/api/weigh-ins/{id}` | M | Delete a hand-typed weigh-in | 204 | 401, 409 `managed_by_apple_health` |
 | GET | `/api/maintenance-check` | M | S18a over the trailing 14 calendar days, complete days only (`03` §8.3) | 200 | 401 |
 | GET | `/api/expenditure-estimates` | M | Weekly estimates, newest `weekStart` first, paged (S21) | 200 | 401 |
@@ -881,15 +883,30 @@ confirm endpoints return 409 `day_locked` (`docs/09` F11). A `PATCH /api/goal-ph
 ```json
 GET /api/weigh-ins?from=2026-11-01&to=2026-11-05  →  200
 { "weighIns": [
-    { "id": "0192h101-…", "measuredAt": "2026-11-04T22:41:00.000Z", "weightKg": 71.6, "bodyFatPct": null, "leanMassKg": null, "source": "apple_health" } ],
+    { "id": "0192h101-…", "measuredAt": "2026-11-04T22:41:00.000Z", "weightKg": 71.6, "bodyFatPct": null, "source": "apple_health" } ],
   "days": [
-    { "date": "2026-11-05", "weightKg": 71.6, "morning": true, "trendKg": 71.84 },
-    { "date": "2026-11-03", "weightKg": 72.2, "morning": false, "trendKg": 71.90 } ],
-  "trendAvailable": true }
+    { "date": "2026-11-05", "weighInId": "0192h101-…", "weightKg": 71.6, "morning": true, "trendKg": 71.84 },
+    { "date": "2026-11-03", "weighInId": "0192h0f7-…", "weightKg": 72.2, "morning": false, "trendKg": 71.90 } ],
+  "trendAvailable": true,
+  "weekChangeKg": -0.29 }
 ```
 
-`days` holds only weighed days, newest first. `trendAvailable` is false with fewer than 3 weighed
-days, and every `trendKg` is then `null` (PRD empty state).
+*As built in M2 slice 1* (`06`, 2026-10-16):
+
+- `from` and `to` are optional local dates, both included: `from` defaults to the first weigh-in
+  and `to` to today, in the profile's time zone. A malformed date, or `from` after `to`, is 400.
+  Without a profile it is 422 `setup_incomplete` with `missing: ["profile"]`. The read is not paged:
+  a range bounds it, and the export's `weighIns` section pages them all.
+- `weighIns` is every reading in the range, newest first. `days` holds only weighed days, newest
+  first; each names the reading that stands for it (`weighInId`), so the day's other readings are
+  stored but not in the trend. The trend is computed over every day up to `to`, from the first
+  reading ever, so a short range starts from where the weight was.
+- `trendAvailable` is false with fewer than 3 weighed days up to `to`, and every `trendKg` is then
+  `null` (PRD empty state). `weekChangeKg` is the latest trend less the trend at the latest weighed
+  day on or before a week before today, to the hundredth; null without a trend or such a day.
+- A typed weight is 20 to 300 kg to the hundredth, body fat 1 to 75% to the tenth. A repeat of the
+  same create returns the stored row (200); the same id with other content, or another user's id,
+  is 409 `id_conflict`.
 
 ```json
 GET /api/maintenance-check  →  200

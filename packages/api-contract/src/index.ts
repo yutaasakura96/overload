@@ -30,6 +30,9 @@ export type Suggestion = components['schemas']['Suggestion'];
 export type SyncBatch = components['schemas']['SyncBatch'];
 export type SyncDeletion = components['schemas']['SyncDeletion'];
 export type SyncResult = components['schemas']['SyncResult'];
+export type WeighIn = components['schemas']['WeighIn'];
+export type WeighIns = components['schemas']['WeighIns'];
+export type WeightDay = components['schemas']['WeightDay'];
 export type WeightUnit = components['schemas']['WeightUnit'];
 export type WorkoutDetail = components['schemas']['WorkoutDetail'];
 export type WorkoutExerciseRow = components['schemas']['WorkoutExerciseRow'];
@@ -53,4 +56,4 @@ type DeclaredHeaders<Path extends keyof paths> = paths[Path] extends {
  * declares on each member route's success response.
  */
 export const ACCOUNT_HEADER =
-  'Overload-User' satisfies DeclaredHeaders<'/api/me'> satisfies DeclaredHeaders<'/api/exercises'> satisfies DeclaredHeaders<'/api/routines'> satisfies DeclaredHeaders<'/api/exercises/{id}/progress'> satisfies DeclaredHeaders<'/api/workouts'> satisfies DeclaredHeaders<'/api/workouts/{id}'> satisfies DeclaredHeaders<'/api/training/balance'>;
+  'Overload-User' satisfies DeclaredHeaders<'/api/me'> satisfies DeclaredHeaders<'/api/exercises'> satisfies DeclaredHeaders<'/api/routines'> satisfies DeclaredHeaders<'/api/exercises/{id}/progress'> satisfies DeclaredHeaders<'/api/workouts'> satisfies DeclaredHeaders<'/api/workouts/{id}'> satisfies DeclaredHeaders<'/api/training/balance'> satisfies DeclaredHeaders<'/api/weigh-ins'>;

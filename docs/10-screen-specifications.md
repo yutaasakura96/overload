@@ -476,6 +476,16 @@ and the rest of the week are planned again; `Now 2,350 provisional → New 2,250
 - **Several weigh-ins on one day** (PRD edge case): the first before 10:00 is the day's chart and
   trend point. Later readings remain in Recent weigh-ins, marked as stored but not in the trend.
   Reachable in the prototype's Weight screen map.
+- **As built in M2 slice 1** (`#76`, `06` 2026-10-16), at `/progress/weight`: the headline, chart,
+  legend, `Type a weight`, Recent weigh-ins and the footnote, every weight in the profile's unit
+  (kg or lb) to the tenth and the week's change to the hundredth. The week's change is uncoloured
+  until a phase gives it a direction. Not yet drawn, each with its slice: `Scale: set up` (`#77`),
+  the maintenance check card (`#82`), the phase row and the `Since` span (`#79`); with one span the
+  span segments are left out and the chart is the last 30 days, with `No weigh-ins in the last 30
+  days.` when it is empty. The empty state offers `Type a weight` alone, and says to type the
+  morning weight before 10:00. A typed weigh-in's `Delete` acts at once and the screen says
+  `Weigh-in deleted.`; without a profile the section asks for one first. The chart is hidden from
+  screen readers and read out as one sentence instead; the list carries every value.
 
 ---
 
@@ -838,8 +848,8 @@ of each top-level screen, before `Invites` for the admin. The footer's links kee
 data-state slot. In order:
 
 - **Export:** one sentence, `Everything you have logged, in one JSON file: your profile, exercises
-  and their settings, routines, and every workout with its sets.`, then a secondary `Export your
-  data`. While it reads it says `Exporting… 2 of 4`; when the file is handed to the browser,
+  and their settings, routines, every workout with its sets, and weigh-ins.`, then a secondary
+  `Export your data`. While it reads it says `Exporting… 2 of 5`, one step per section; when the file is handed to the browser,
   `Saved overload-export-2026-10-15.json.` under it, dated in the profile's time zone. A failure
   is a flag notice, `Not exported`, `Couldn’t reach Overload. Try again when you have signal.`, and
   the button stays for the retry (`09` F7).
@@ -955,7 +965,12 @@ which start at now and can be changed (Q15). One line under them says how the ti
 10:00 it is the morning's weigh-in unless the scale sent an earlier one; after, it counts only on a
 day with no reading before 10:00 and is marked as not a morning weigh-in. `Body fat`, optional.
 `Save weigh-in`. Out of range is refused under the field (`A weight between 20 and 300 kg.`). One
-line says a typed weigh-in can be deleted and one from the scale cannot.
+line says a typed weigh-in can be deleted and one from the scale cannot. *Built in M2 slice 1* at
+`/progress/weight/new`: the weight is typed in the profile's unit (`A weight between 44.1 and 661.3
+lb.` in pounds), body fat is 1 to 75%, a time not yet come is refused under the time, and a second
+typed weigh-in at the same time is refused (`weigh_in_exists`), with a link to the weight list to
+delete the saved reading before typing a correction. Saved, it returns to Weight, which says
+`Weigh-in saved.` once.
 
 **Weight from the scale** (#77). A status box: `Weight from the scale` over `Never arrived` and
 `Finish the steps below, then weigh in`, or on `surface/done` `Arrived today 07:01` with the reading.
@@ -976,7 +991,8 @@ owner on 2026-10-10 (`docs/prototype/`, `06` 2026-10-11), and built to match it 
 **The Progress tab** (`/progress`). The fourth tab of §8.1, second in the row (third from M2, after
 `Food`). Under the tabs, 14px down, three sections as `05` §4.8's segments, links with
 `aria-current`: `History` (`/progress`), `Strength` (`/progress/strength`) and `Balance`
-(`/progress/balance`). M2 adds a fourth, `Weight` (§6).
+(`/progress/balance`). M2 adds a fourth, `Weight` (`/progress/weight`, §6), built in M2 slice 1;
+the four share the row at 10px.
 
 ### History (`/progress`)
 

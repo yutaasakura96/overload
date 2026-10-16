@@ -15,6 +15,8 @@ export const problemCodes = {
   exercise_has_history: { status: 409, title: 'Exercise has logged workouts' },
   invite_exists: { status: 409, title: 'Email already invited' },
   admin_account: { status: 409, title: 'The admin account cannot be revoked' },
+  managed_by_apple_health: { status: 409, title: 'The weigh-in came from Apple Health' },
+  weigh_in_exists: { status: 409, title: 'A typed weigh-in at that time exists' },
   payload_too_large: { status: 413, title: 'Too many rows in one request' },
   validation_failed: { status: 422, title: 'Request body failed validation' },
   setup_incomplete: { status: 422, title: 'A prerequisite is missing' },

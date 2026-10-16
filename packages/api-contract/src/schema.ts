@@ -1377,6 +1377,205 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/weigh-ins': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Weigh-ins in a range of local dates, with the daily weights and the trend */
+    get: {
+      parameters: {
+        query?: {
+          /** @description The first local date, included. Default: the first weigh-in. */
+          from?: string;
+          /** @description The last local date, included. Default: today. */
+          to?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description The range’s readings and weighed days, newest first, trended from all history */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['WeighIns'];
+          };
+        };
+        /** @description A date that is not `YYYY-MM-DD`, or `from` after `to` */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `setup_incomplete` with `missing: ["profile"]`: local dates need the time zone */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    put?: never;
+    /** Save a weigh-in typed by hand */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['WeighInCreate'];
+        };
+      };
+      responses: {
+        /** @description A repeat of the same create: the stored weigh-in */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['WeighIn'];
+          };
+        };
+        /** @description Created */
+        201: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['WeighIn'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `id_conflict`: the id is in use with other content; `weigh_in_exists`: a typed weigh-in at that instant exists */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `validation_failed`, including a weight outside 20 to 300 kg */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/weigh-ins/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Delete a typed weigh-in. 204 whenever the caller has no such weigh-in afterwards */
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description The caller has no typed weigh-in with that id */
+        204: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description A malformed id */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `managed_by_apple_health`: it came from Apple Health, which would send it again; delete it there */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/admin/invites': {
     parameters: {
       query?: never;
@@ -1727,7 +1926,7 @@ export interface components {
       trainingWeekdays?: number[];
       weightUnit?: components['schemas']['WeightUnit'];
     };
-    /** @description One page of one section. `profile` has one item; `exercises`, `routines` and `workouts` are cursor-paged. Workouts include ones in progress. */
+    /** @description One page of one section. `profile` has one item; `exercises`, `routines`, `workouts` and `weighIns` are cursor-paged. Workouts include ones in progress. */
     ExportPage:
       | {
           /** @enum {string} */
@@ -1754,6 +1953,13 @@ export interface components {
           /** @enum {string} */
           section: 'workouts';
           items: components['schemas']['WorkoutDetail'][];
+          /** @description Opaque. Send it back as `cursor` for the next page. */
+          nextCursor: string | null;
+        }
+      | {
+          /** @enum {string} */
+          section: 'weighIns';
+          items: components['schemas']['WeighIn'][];
           /** @description Opaque. Send it back as `cursor` for the next page. */
           nextCursor: string | null;
         };
@@ -1989,11 +2195,33 @@ export interface components {
         }[];
       }[];
     };
+    WeighIn: {
+      /**
+       * Format: uuid
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      id: string;
+      /**
+       * Format: date-time
+       * @description When the reading was taken, not when it arrived.
+       * @example 2026-11-11T09:01:40.000Z
+       */
+      measuredAt: string;
+      /** @example 82.4 */
+      weightKg: number;
+      /** @example 18.5 */
+      bodyFatPct: number | null;
+      /**
+       * @description `manual` was typed by hand and can be deleted; `apple_health` cannot be.
+       * @enum {string}
+       */
+      source: 'apple_health' | 'manual';
+    };
     /**
      * @description The sections built so far. Later milestones add theirs (docs/07 §2).
      * @enum {string}
      */
-    ExportSection: 'profile' | 'exercises' | 'routines' | 'workouts';
+    ExportSection: 'profile' | 'exercises' | 'routines' | 'workouts' | 'weighIns';
     ExerciseList: {
       items: components['schemas']['Exercise'][];
     };
@@ -2680,6 +2908,55 @@ export interface components {
       id: string;
     } & {
       [key: string]: unknown;
+    };
+    WeighIns: {
+      /** @description Every reading in the range, newest first. */
+      weighIns: components['schemas']['WeighIn'][];
+      /** @description The weighed days in the range, newest first. */
+      days: components['schemas']['WeightDay'][];
+      /** @description False with fewer than 3 weighed days up to `to`. */
+      trendAvailable: boolean;
+      /** @description The latest trend less the trend a week before today, to the hundredth. Null without a trend, or with no weighed day a week or more before today. */
+      weekChangeKg: number | null;
+    };
+    WeightDay: {
+      /**
+       * Format: date
+       * @description A local date in the profile’s time zone.
+       */
+      date: string;
+      /**
+       * Format: uuid
+       * @description The reading that stands for the day.
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      weighInId: string;
+      /** @example 82.4 */
+      weightKg: number;
+      /** @description False when the day had no reading before 10:00 local and its first reading stands in. */
+      morning: boolean;
+      /** @description The trend on this day, to the hundredth. Null while fewer than 3 days are weighed. */
+      trendKg: number | null;
+    };
+    WeighInCreate: {
+      /**
+       * Format: uuid
+       * @description Made on the device (UUIDv7). A repeat returns the row.
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      id: string;
+      /**
+       * Format: date-time
+       * @example 2026-11-11T09:01:40.000Z
+       */
+      measuredAt: string;
+      /** @example 82.4 */
+      weightKg: number;
+      /**
+       * @description Default: none.
+       * @example 18.5
+       */
+      bodyFatPct?: number | null;
     };
     InviteList: {
       items: components['schemas']['Invite'][];

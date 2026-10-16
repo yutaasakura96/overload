@@ -3797,3 +3797,45 @@ screens' new type sizes and components enter `05` as each slice builds them, as 
 
 **Changed:** `00`, `06`, `09` F13, `10` §3 to §6, §7.3, §8, §8.1, §8.2, §8.6 (new), §9,
 `docs/prototype/m2/`.
+
+### 2026-10-16 — M2 slice 1: typed weight, the day's weight, the trend and the weight section
+
+Issue `#76`, S11, built as `03` §8.3, `04` `body_measurement`, `07` §5 and `10` §6 describe, with
+the section and the form from the approved M2 prototype (screens 27, 31, 32, 33). Built and checked
+on generated weigh-ins (owner, 2026-10-16).
+
+- **`body_measurement` is created now without `lean_mass_kg`**, which `04` lists as an M3 column.
+  `POST /api/weigh-ins` therefore takes `{ id, measuredAt, weightKg, bodyFatPct }`, and a weigh-in
+  is returned without `leanMassKg` until the column exists. Adding it then is additive.
+- **The read takes `from` and `to` as optional local dates**, `from` defaulting to the first
+  weigh-in and `to` to today, and is not paged: one person's readings are a few a day at most, and
+  the trend has to run from the first one anyway. The trend is computed over every day up to `to`,
+  so a short range still starts from where the weight was. A date that is not `YYYY-MM-DD`, or
+  `from` after `to`, is 400 `bad_request`; without a profile the read is 422 `setup_incomplete`,
+  like the training reads. The export's `weighIns` section is the paged way to read them all.
+- **Each day names the reading that stands for it** (`weighInId`), so the screen marks a day's
+  other readings `stored, not in trend` without deriving the rule itself, and the response carries
+  **`weekChangeKg`**: the latest trend less the trend at the latest weighed day on or before a week
+  ago, null without a trend or without such a day. Both are computed in `domain/weight.ts`.
+- **A second typed weigh-in at the same instant is 409 `weigh_in_exists`**, from
+  `UNIQUE (user_id, source, measured_at)`; a repeat under the same id is the stored row, as every
+  create is. The form sends the instant it opened at, to the millisecond, unless the date or time
+  was changed, so two quick weigh-ins do not collide on a minute. After a save whose outcome is
+  unknown (no answer, or a 5xx), an unchanged retry reuses its id; a changed field gets a fresh id
+  (owner). If the first landed at the same instant, that is `weigh_in_exists`, and the form links to
+  the weight list to delete it. *Rejected:* overwriting or merging the saved reading, and a schema
+  change to the uniqueness rule.
+- **Bounds:** a weight of 20 to 300 kg to the hundredth, body fat 1 to 75% to the tenth. A pounds
+  user types pounds; the form converts to kg before sending and says the bounds in pounds.
+- **What the section leaves out until its slice:** `Scale: set up` and the scale route (`#77`), the
+  maintenance check card (`#82`), the goal phase row, and the `Since 4 Sep` span (the phase's start,
+  `#79`). With one span left, the span segments are not drawn: the chart is the last 30 days. The
+  week's change is printed uncoloured, because without a phase there is no direction that counts as
+  progress; the prototype's green was a cut's.
+- **A typed weigh-in is deleted with one tap**, as the prototype draws it, and the screen says
+  `Weigh-in deleted.` *Rejected:*
+  `DeleteConfirm`'s two steps, which do not fit the row.
+- **The form is `/progress/weight/new`**, opened from the section; saving returns to the section,
+  which says `Weigh-in saved.` once.
+
+**Changed:** `00`, `04`, `06`, `07` §1.3, §2, §5, `10` §6, §8.6, §9, `11` §2.

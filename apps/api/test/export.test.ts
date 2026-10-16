@@ -75,6 +75,8 @@ describe('GET /api/me/export', () => {
     `section=exercises&cursor=${Buffer.from(JSON.stringify({ section: 'exercises', name: 1, id: randomUUID() })).toString('base64url')}`,
     `section=routines&cursor=${Buffer.from(JSON.stringify({ section: 'routines', position: '0', id: randomUUID() })).toString('base64url')}`,
     `section=workouts&cursor=${Buffer.from(JSON.stringify({ section: 'workouts', startedAt: new Date().toISOString(), id: 'bad' })).toString('base64url')}`,
+    'section=weighIns&cursor=nope',
+    `section=weighIns&cursor=${Buffer.from(JSON.stringify({ section: 'workouts', startedAt: new Date().toISOString(), id: randomUUID() })).toString('base64url')}`,
   ])('refuses %j as a bad request', async (query) => {
     const { cookie } = await t.createSignedInUser('bad@example.test');
     const res = await t.app.request(`/api/me/export?${query}`, { headers: { cookie } });
@@ -132,6 +134,42 @@ describe('GET /api/me/export', () => {
         ],
       }),
     );
+
+    const weighIns = await exportOf(cookie, 'section=weighIns');
+    expect(weighIns).toEqual({
+      section: 'weighIns',
+      items: [{ ...made.weighIn, source: 'manual' }],
+      nextCursor: null,
+    });
+  });
+
+  it('pages weigh-ins newest first with the cursor, each once', async () => {
+    const { cookie } = await t.createSignedInUser('weights@example.test');
+    const send = sender(t, cookie);
+    const start = Date.parse('2026-10-01T22:00:00Z');
+    const ids: string[] = [];
+    for (let day = 0; day < 5; day += 1) {
+      const id = randomUUID();
+      ids.push(id);
+      const res = await send('POST', '/api/weigh-ins', {
+        id,
+        measuredAt: new Date(start + day * 24 * 60 * 60 * 1000).toISOString(),
+        weightKg: 82 - day / 10,
+      });
+      expect(res.status).toBe(201);
+    }
+    const seen: unknown[] = [];
+    let cursor: string | null = null;
+    do {
+      const page = await exportOf(
+        cookie,
+        `section=weighIns&limit=2${cursor === null ? '' : `&cursor=${cursor}`}`,
+      );
+      expect(page.items.length).toBeLessThanOrEqual(2);
+      seen.push(...page.items.map((item) => item['id']));
+      cursor = page.nextCursor;
+    } while (cursor !== null);
+    expect(seen).toEqual(ids.toReversed());
   });
 
   it('pages workouts with the cursor, each once', async () => {
@@ -230,5 +268,6 @@ describe('GET /api/me/export', () => {
     expect(exercises.some((item) => item['hidden'] === true)).toBe(false);
     expect((await exportOf(other.cookie, 'section=routines')).items).toEqual([]);
     expect((await exportOf(other.cookie, 'section=workouts')).items).toEqual([]);
+    expect((await exportOf(other.cookie, 'section=weighIns')).items).toEqual([]);
   });
 });

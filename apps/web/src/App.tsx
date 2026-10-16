@@ -16,6 +16,8 @@ import { RoutineList } from './screens/RoutineList';
 import { SignIn } from './screens/SignIn';
 import { Strength } from './screens/Strength';
 import { Today } from './screens/Today';
+import { WeighIn } from './screens/WeighIn';
+import { Weight } from './screens/Weight';
 import { Workout } from './screens/Workout';
 import { YourData } from './screens/YourData';
 import { endIdleWorkout, loadWorkouts } from './workout';
@@ -92,6 +94,8 @@ export function App() {
       return <Strength me={me.data} searchParams={searchParams} navigate={navigate} />;
     if (route.screen === 'balance')
       return <Balance me={me.data} searchParams={searchParams} navigate={navigate} />;
+    if (route.screen === 'weight') return <Weight me={me.data} navigate={navigate} />;
+    if (route.screen === 'weigh-in') return <WeighIn me={me.data} navigate={navigate} />;
     if (route.screen === 'invites') {
       // A member gets the not-found screen, not a forbidden one (docs/08 §5).
       if (!me.data.isAdmin) return <NotFound navigate={navigate} />;
