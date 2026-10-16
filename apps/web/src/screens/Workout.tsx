@@ -308,7 +308,11 @@ function LiveWorkout({
   const restState = useWorkoutStore((state) => state.rest);
   const restSet = records.find(
     (record): record is SetRecord =>
-      record.table === 'sets' && record.id === restState?.setId && record.workoutId === workout.id,
+      record.table === 'sets' &&
+      record.id === restState?.setId &&
+      record.workoutId === workout.id &&
+      record.deletedAt === undefined &&
+      exercises.some((exercise) => exercise.id === record.row.workoutExerciseId),
   );
   const rest: CountedRest | undefined =
     restState === undefined || restSet === undefined || restState.dismissed

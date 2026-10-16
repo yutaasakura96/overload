@@ -154,6 +154,28 @@ test('stale exercise removal asks about new sets and rejects later logging', asy
   await expect(other.getByText('Couldn’t save the set on this device. Try again')).toBeVisible();
 });
 
+test('removing an exercise in another tab stops its rest timer', async ({ page, context }) => {
+  await saveProfile(page);
+  await page.getByRole('button', { name: 'Start an empty workout' }).click();
+  await page.getByRole('button', { name: 'Start workout' }).click();
+  await addExercises(page, ['Barbell Bench Press']);
+  const other = await context.newPage();
+  await other.goto('/workout');
+  await expect(other.getByRole('heading', { name: 'Barbell Bench Press', level: 2 })).toBeVisible();
+
+  await completeSet(page, '80', '10');
+  await expect(page.getByRole('timer')).toBeVisible();
+  await expect(changes(other)).toContainText('Add exercises');
+  await changes(other).getByRole('button', { name: 'Reorder or remove' }).click();
+  await other.getByRole('button', { name: 'Remove Barbell Bench Press' }).click();
+  await other.getByRole('button', { name: 'Remove', exact: true }).click();
+
+  await expect(page.getByRole('timer')).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'Rest timer' })).toContainText(
+    'Starts by itself after each set.',
+  );
+});
+
 test('starts an empty workout, adds two exercises, logs a set and finishes', async ({ page }) => {
   await saveProfile(page);
   const empty = page.getByRole('region', { name: 'No routines yet' });
