@@ -71,7 +71,7 @@ ahead of the current slice, not a description of the database.**
 | **2** | `routine` · `routine_exercise` |
 | **3** | `workout` · `workout_exercise` · `set` |
 | **4** | `sync_tombstone` |
-| **M2** | Everything under *M2 — meal plan + weight*, slice by slice. M2 slice 1 (`#76`): `body_measurement`, without M3's `lean_mass_kg` (`06`, 2026-10-16) |
+| **M2** | Everything under *M2 — meal plan + weight*, slice by slice. M2 slice 1 (`#76`): `body_measurement`, without M3's `lean_mass_kg` (`06`, 2026-10-16). M2 slice 3 (`#78`): `food`, `reference_food` with its seed, `rotation_group` and `model_call_count` (`06`, 2026-10-17) |
 | **M3** | Everything under *M3 — health + coaching*, and `ingest_token`. Its revoke on an invite's revoke and the two tests that go with it come with the table (`06`, 2026-10-15) |
 
 Each slice's GitHub issue names the tables it creates, so the gap between this document and the
@@ -445,8 +445,8 @@ everything downstream does one kind of arithmetic.
 | `carb_g` | numeric(6,2) | no | — | Per 100 g |
 | `fat_g` | numeric(6,2) | no | — | Per 100 g |
 | `fiber_g` | numeric(6,2) | no | `0` | Per 100 g |
-| `piece_weight_g` | numeric(6,2) | yes | — | Set for foods counted in units. One egg = 55 g. `NULL` means grams only |
-| `keeps_days` | smallint | yes | — | How many days a cooked batch of this food keeps (S13); S16 limits planned servings to days covered by the week's at most two cook days. `NULL` for a food not batch-cooked. *Added 2026-10-16* (`06`) |
+| `piece_weight_g` | numeric(6,2) | yes | — | Set for foods counted in units. One egg = 55 g. `NULL` means grams only. `CHECK > 0` |
+| `keeps_days` | smallint | yes | — | How many days a cooked batch of this food keeps (S13); S16 limits planned servings to days covered by the week's at most two cook days. `NULL` for a food not batch-cooked. `CHECK` 1–30. *Added 2026-10-16* (`06`) |
 | `source` | text | no | — | `mext` \| `open_food_facts` \| `label_photo` \| `manual`, `CHECK` |
 | `source_ref` | text | yes | — | MEXT food code, or the barcode |
 | `rotation_group_id` | uuid | yes | — | → `rotation_group.id`, `ON DELETE SET NULL` |
@@ -455,6 +455,13 @@ everything downstream does one kind of arithmetic.
 
 - `INDEX (user_id) WHERE archived_at IS NULL`.
 - `INDEX (user_id, source_ref)` — barcode lookup checks "do I already have this?" first.
+- `INDEX (rotation_group_id)`, for the group's members and its `ON DELETE SET NULL`.
+- **Two keys refuse a duplicate on the list**, both partial unique indexes over unarchived foods, in
+  the custom migration `0017` (built 2026-10-17, `06`): `(user_id, (source = 'mext'), source_ref)`
+  where `source_ref` is set, so one food per barcode and one per MEXT code; and
+  `(user_id, lower(name), lower(coalesce(brand, '')), state)`. An archived food counts for neither,
+  so archiving and adding again makes a new row. The API inserts with `ON CONFLICT DO NOTHING` and
+  answers `409 food_exists` with `existingFoodId` (`docs/07` §4).
 - Whatever basis the label or database gave (per piece, per serving), the API converts to per 100 g
   before saving. The confirmation screen shows the original basis; the table only ever holds one.
 
@@ -476,8 +483,9 @@ it, and the schema had nowhere to keep it.
 | --- | --- | --- | --- | --- |
 | `code` | text | no | — | PK. MEXT 食品番号, e.g. `11220` |
 | `name` | text | no | — | As MEXT prints it |
-| `food_group` | smallint | no | — | MEXT 食品群, 1–18 |
-| `state` | text | no | — | `raw` \| `cooked`, `CHECK`. Derived from the MEXT name at import |
+| `name_en` | text | yes | — | The 2015 English table's name for the same 食品番号. `NULL` for the 353 foods added since 2015. *Added 2026-10-17* (`06`) |
+| `food_group` | smallint | no | — | MEXT 食品群, 1–18, `CHECK` |
+| `state` | text | no | — | `raw` \| `cooked`, `CHECK`. Derived from the MEXT name's cooking words (ゆで, 焼き, 炊き…) at import |
 | `energy_kcal` / `protein_g` / `carb_g` / `fat_g` / `fiber_g` | numeric | no | — | Per 100 g, same types as `food` |
 | `created_at` / `updated_at` | timestamptz | no | `now()` | |
 
@@ -485,10 +493,15 @@ it, and the schema had nowhere to keep it.
   nothing references it.
 - No `user_id` and no foreign keys in or out. A `food` copied from it keeps working if the seed is
   re-imported, because the values were copied, not referenced.
-- `INDEX` on `name` with `pg_trgm` (`gin_trgm_ops`) for search. **Unverified:** that `pg_trgm` is
-  available on Neon Free. Check it when M2 starts; `ILIKE` over ~2,500 rows is the fallback.
-- Which MEXT column supplies `carb_g` (差引き法 or 利用可能炭水化物) is decided at import and recorded
-  in `seed/`.
+- `INDEX` on `name` and on `name_en` with `pg_trgm` (`gin_trgm_ops`) for search. **Verified
+  2026-10-16:** Neon lists `pg_trgm` 1.6 on Postgres 18, and it is a trusted extension, so the owner
+  role creates it. Search is `ILIKE` per word, which the trigram index serves.
+- `overload_app` has `SELECT` only: `INSERT`, `UPDATE` and `DELETE` are revoked, and only a migration
+  changes it.
+- Seeded by migration `0018`, generated by `apps/api/seed/mext.ts` from the 増補2023 file with its
+  errata (2,537 foods). `carb_g` is 利用可能炭水化物（質量計）, falling back to 差引き法 where MEXT
+  gives no mass figure; `Tr` reads as 0, fibre MEXT did not measure as 0, and estimates in
+  parentheses as they stand (`06`, 2026-10-17).
 
 ---
 
@@ -505,6 +518,28 @@ A set of foods that stand in for each other (S12: okra ↔ broccoli, rice ↔ po
 
 - A group rather than pairs: "okra ↔ broccoli ↔ green beans" is one row plus three memberships, and
   the planner picks from a set instead of walking a chain of pairs.
+- The membership is `food.rotation_group_id`, so a food is in one group at most. Deleting a group
+  leaves its foods ungrouped. `INDEX (user_id)`.
+
+---
+
+## model_call_count
+
+The model calls a user made on one local day, counted against the one daily cap (`docs/13` §9):
+label reads in M2, meal estimates in M3. *Added 2026-10-17* (`06`): a label read leaves no other row
+to count.
+
+| Column | Type | Null | Default | Notes |
+| --- | --- | --- | --- | --- |
+| `user_id` | uuid | no | — | → `user.id`, `ON DELETE CASCADE` |
+| `day` | date | no | — | The local day in the profile's time zone, `Asia/Tokyo` without one |
+| `calls` | smallint | no | `0` | |
+| `created_at` / `updated_at` | timestamptz | no | `now()` | |
+
+- PK `(user_id, day)`. One upsert takes a call only while `calls` is under the cap (20), so two
+  reads at once cannot pass it. The call is counted before the model is asked, and a failed read
+  still counts.
+- Bookkeeping, not the user's data: not in the export.
 
 ---
 

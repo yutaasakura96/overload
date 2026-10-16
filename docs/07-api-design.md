@@ -94,16 +94,17 @@ that shape. Its rate limiter's 429 and our `beforeDelete` refusal arrive in that
 | 409 | `admin_account` | Revoking the invite of `ADMIN_EMAIL`. On account deletion the same refusal is a Better Auth `APIError` thrown in `beforeDelete`, in Better Auth's format |
 | 409 | `invite_exists` | Inviting an email that already has a row. Restore it instead |
 | 409 | `managed_by_apple_health` | Deleting a weigh-in that came from Apple Health |
+| 409 | `food_exists` | Adding a food, or renaming one, that the list already has: the same barcode or MEXT code, or the same name, brand and state, archived foods not counted. The body carries `existingFoodId`, so the screen opens that food. *Added 2026-10-17* (`06`) |
 | 409 | `weigh_in_exists` | Typing a weigh-in at the same instant as another typed one (`UNIQUE (user_id, source, measured_at)`) |
 | 409 | `day_locked` | Confirming a plan meal or day more than 7 days after its date (§4) |
 | 409 | `already_answered` | Answering a protocol suggestion that already has a different response |
-| 413 | `payload_too_large` | Over our own photo limit (§1.5). Vercel's own 4.5 MB cap answers with its own 413 before our code runs |
+| 413 | `payload_too_large` | Over our own photo limit (§1.5), titled `Request too large`. Vercel's own 4.5 MB cap answers with its own 413 before our code runs |
 | 422 | `validation_failed` | The Zod schema refused the body |
 | 422 | `setup_incomplete` | A prerequisite is missing. The body lists `missing: ["profile" \| "foods" \| "day_routine" \| "goal_phase"]`, so the screen links to that step |
 | 422 | `unreadable_label` | The label photo had no nutrition table the model could read |
 | 429 | `rate_limited` | Open Food Facts' 15 reads a minute passed through. Better Auth's limiter answers `/api/auth/*` in its own format |
 | 429 | `model_cap_reached` | The per-user daily cap on model calls, label reads and meal estimates counted together (`03` §10; set before the first invitee). *Renamed 2026-09-22* from `label_cap_reached` |
-| 502 | `upstream_failed` | Open Food Facts or Anthropic returned an error |
+| 502 | `upstream_failed` | Open Food Facts or Anthropic returned an error, or no label reader is set up (no `ANTHROPIC_API_KEY`) |
 | 503 | `database_unavailable` | Neon still unreachable after the one retry (`03` §4) |
 | 500 | `internal` | Anything else. Logged with a stack trace and sent to Sentry |
 
@@ -130,12 +131,15 @@ not the caller's.
 
 ### 1.5 Photos
 
-- `multipart/form-data` with one `image` part. `image/jpeg`, `image/png`, `image/webp` and
-  `image/heic` are accepted.
+- `multipart/form-data` with one `image` part. `image/jpeg`, `image/png` and `image/webp` are
+  accepted; anything else, HEIC included, is 422 `validation_failed` on `image`. *Changed
+  2026-10-17* (`06`): Anthropic's vision input takes no HEIC, and the client's resize already
+  re-encodes every photo as JPEG.
 - **The client resizes before upload**, to at most 1568 px on the long edge as JPEG. The API refuses
   anything over 4 MB with `payload_too_large`. That keeps well under Vercel's 4.5 MB request cap
   (Vercel functions limits, checked 2026-09-21).
-- The image goes to Anthropic in memory and is never written anywhere (`03` §10).
+- The image goes to Anthropic in memory and is never written anywhere (`03` §10). The limit is
+  Hono's `bodyLimit` on `/api/label-reads`, so an oversized body is refused before it is parsed.
 
 ### 1.6 Compatibility
 
@@ -207,7 +211,9 @@ the file in the browser as `overload-export-2026-11-04.json`.
   nested (a workout carries its exercises and sets).
 - **As built in slice 7** (`06`, 2026-10-15): M1's four sections, `profile`, `exercises`,
   `routines` and `workouts`. M2 slice 1 adds `weighIns`, newest `measuredAt` then id first, each as
-  `GET /api/weigh-ins` lists it. `profile` is one item, `{ user, profile }`, as `/api/me` without
+  `GET /api/weigh-ins` lists it. M2 slice 3 adds `foods`, archived ones included, and
+  `rotationGroups` with their `foodIds`, each paged by id and shaped as its list returns it;
+  `model_call_count` is bookkeeping and in neither (`06`, 2026-10-17). `profile` is one item, `{ user, profile }`, as `/api/me` without
   `isAdmin`. `exercises` pages by name then id; `routines` pages by position then id; `workouts`
   pages newest `startedAt` then id first, a workout in progress included, each as
   `GET /api/workouts/{id}` returns it.
@@ -716,13 +722,21 @@ GET /api/training/balance?view=4w
 
 | Method | Path | Auth | Purpose | Success | Failures |
 | --- | --- | --- | --- | --- | --- |
-| GET | `/api/foods` | M | The food list, by name. Archived ones only with `?includeArchived=true` | 200 | 401 |
-| POST | `/api/foods` | M | Add a confirmed food. The body carries the values **and the basis they were read in**; the API converts to per 100 g | 201 / 200 | 401, 409, 422 |
-| PATCH | `/api/foods/{id}` | M | Edit values, piece weight or rotation group. Past plan days keep their snapshot | 200 | 401, 404, 422 |
-| DELETE | `/api/foods/{id}` | M | Archive (`archivedAt` set). Unconfirmed future plan days are regenerated without it | 204 | 401 |
-| GET | `/api/reference-foods?q=` | M | Search the MEXT table (八訂 増補2023). At least 1 character, 20 results, best match first | 200 | 401, 422 |
-| GET | `/api/barcodes/{code}` | M | Look up Open Food Facts. Returns a **candidate**, not a saved food, plus `existingFoodId` if the list already has that barcode | 200, 404 `not_found` | 401, 429, 502 |
-| POST | `/api/label-reads` | M | Photo of a 栄養成分表示 → candidate values and their basis (multipart) | 200 | 401, 413, 422 `unreadable_label`, 429 `model_cap_reached`, 502 |
+| GET | `/api/foods` | M | The food list, by name (case-folded) then id. Archived ones only with `?includeArchived=true` | 200 | 401 |
+| POST | `/api/foods` | M | Add a confirmed food. The body carries the values **and the basis they were read in**; the API converts to per 100 g | 201 / 200 | 401, 409 `id_conflict` \| `food_exists`, 422 |
+| PATCH | `/api/foods/{id}` | M | Edit name, brand, state, values per 100 g, piece weight, keeping days or rotation group. Past plan days keep their snapshot | 200 | 400, 401, 404, 409 `food_exists`, 422 |
+| DELETE | `/api/foods/{id}` | M | Archive (`archivedAt` set, once). Unconfirmed future plan days are regenerated without it, once plans exist (`#79`) | 204 | 400, 401 |
+| GET | `/api/reference-foods?q=` | M | Search the MEXT table (八訂 増補2023). 1 to 80 characters; every word must appear in the English or the Japanese name. 20 results: a name starting with the words first, then raw, then the shorter name. Each carries `existingFoodId` if that code is on the list | 200 | 400, 401 |
+| GET | `/api/barcodes/{code}` | M | Look up Open Food Facts (8 to 14 digits). Returns a **candidate**, not a saved food. A barcode already on the list returns `{ candidate: null, per100g: null, existingFoodId }` and looks nothing up | 200, 404 `not_found` | 400, 401, 429, 502 |
+| POST | `/api/label-reads` | M | Photo of a 栄養成分表示 → candidate values and their basis (multipart) | 200 | 401, 413, 422 `validation_failed` \| `unreadable_label`, 429 `model_cap_reached`, 502 |
+
+**As built, 2026-10-17** (`06`): the values a create takes are at most 100,000 on their basis, and
+at most 900 kcal and 100 g of each nutrient once converted to 100 g; above that, or a basis other
+than per 100 g without its grams, is 422. `fiberG: null` is saved as 0. A food with an id the caller
+already has, with the same content, is the stored food (200). Open Food Facts is asked with
+`User-Agent: Overload/1 (<web origin>)`, an 8 s timeout, and its values per serving when it gives
+them per serving with the serving's weight. A label read takes one of the day's model calls before
+the model is asked (`04` `model_call_count`) and is read by `claude-haiku-4-5`.
 
 The three lookups never save. The user confirms the candidate on the confirmation screen and the
 client then calls `POST /api/foods`. That is S12's "shown for confirmation before saving".
@@ -737,9 +751,9 @@ Content-Type: multipart/form-data; boundary=…
 { "candidate": {
     "name": "サラダチキン プレーン", "brand": null, "state": "cooked",
     "basis": { "kind": "per_package", "grams": 110 },
-    "energyKcal": 121, "proteinG": 26.4, "carbG": 0.3, "fatG": 1.5, "fiberG": null, "sodiumMg": null },
-  "per100g": { "energyKcal": 110.0, "proteinG": 24.0, "carbG": 0.27, "fatG": 1.36, "fiberG": 0 },
-  "model": "claude-haiku-4-5-20251001" }
+    "energyKcal": 121, "proteinG": 26.4, "carbG": 0.3, "fatG": 1.5, "fiberG": null },
+  "per100g": { "energyKcal": 110, "proteinG": 24, "carbG": 0.27, "fatG": 1.36, "fiberG": null },
+  "model": "claude-haiku-4-5" }
 ```
 
 `basis.kind` is `per_100g`, `per_piece`, `per_serving` or `per_package`, with its grams when
@@ -756,8 +770,8 @@ POST /api/foods
 ```json
 201
 { "id": "0192f010-…", "name": "サラダチキン プレーン", "brand": null, "state": "cooked",
-  "energyKcal": 110.0, "proteinG": 24.0, "carbG": 0.27, "fatG": 1.36, "fiberG": 0,
-  "pieceWeightG": null, "source": "label_photo", "sourceRef": "4901234567894",
+  "energyKcal": 110, "proteinG": 24, "carbG": 0.27, "fatG": 1.36, "fiberG": 0,
+  "pieceWeightG": null, "keepsDays": null, "source": "label_photo", "sourceRef": "4901234567894",
   "rotationGroupId": null, "archivedAt": null }
 ```
 
@@ -767,10 +781,10 @@ A stored food is always per 100 g. The response has no `basis`.
 
 | Method | Path | Auth | Purpose | Success | Failures |
 | --- | --- | --- | --- | --- | --- |
-| GET | `/api/rotation-groups` | M | Groups with their member food ids | 200 | 401 |
-| POST | `/api/rotation-groups` | M | Create `{ id, name, foodIds[] }` | 201 / 200 | 401, 409, 422 |
-| PATCH | `/api/rotation-groups/{id}` | M | Rename, or replace `foodIds` | 200 | 401, 404, 422 |
-| DELETE | `/api/rotation-groups/{id}` | M | Delete. Its foods stay, ungrouped | 204 | 401 |
+| GET | `/api/rotation-groups` | M | Groups by name, each with its unarchived foods' ids by name | 200 | 401 |
+| POST | `/api/rotation-groups` | M | Create `{ id, name, foodIds[] }`. A food in another group moves to this one | 201 / 200 | 401, 409, 422 |
+| PATCH | `/api/rotation-groups/{id}` | M | Rename, or replace `foodIds`. A food not on the caller's list is 422 on `foodIds.N` | 200 | 400, 401, 404, 422 |
+| DELETE | `/api/rotation-groups/{id}` | M | Delete. Its foods stay, ungrouped | 204 | 400, 401 |
 | GET | `/api/foods/{id}/batches` | M | Batches of one food, newest `cookedOn` first, each with its derived `yield` | 200 | 401, 404 |
 | POST | `/api/batches` | M | Record a batch `{ id, foodId, rawWeightG, cookedWeightG, cookedOn, note }` | 201 / 200 | 401, 409, 422 |
 | DELETE | `/api/batches/{id}` | M | Delete. Plan items that used it keep their macro snapshot | 204 | 401 |
@@ -1024,10 +1038,10 @@ payload sizes.
 
 ## Unverified, to check when built
 
-- How `@hono/zod-openapi` describes a `multipart/form-data` body with a file part, for
-  `label-reads` and `meal-estimates`. `06` names this as its revisit condition.
-- Whether iOS Safari's camera capture hands the page HEIC, and whether the client-side resize
-  converts it. The API accepts HEIC as a fallback either way.
+- ~~How `@hono/zod-openapi` describes a `multipart/form-data` body with a file part.~~ Settled
+  2026-10-17: `z.instanceof(File)` under `multipart/form-data`, a binary string in the OpenAPI.
+- Whether iOS Safari's camera capture hands the page HEIC that the canvas resize can decode. The
+  resize re-encodes as JPEG, and the API no longer takes HEIC (§1.5). Check on the phone.
 - Which OpenAPI breaking-change checker to run in CI. Picked in `docs/11`.
 - That an `APIError` thrown in `beforeDelete` carries our own `code` (`admin_account`) to the
   client. Better Auth's source builds errors as `APIError.from(status, { message, code })`, so it
