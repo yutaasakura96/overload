@@ -19,6 +19,7 @@ import { healthRoutes } from './routes/health.js';
 import { meRoutes } from './routes/me.js';
 import { routineRoutes } from './routes/routines.js';
 import { trainingRoutes } from './routes/training.js';
+import { weighInRoutes } from './routes/weigh-ins.js';
 
 export type AppDeps = RouteDeps & {
   auth: Auth;
@@ -108,6 +109,7 @@ export function createApp({ auth, config, db, log = console.log, reportError }: 
   app.openapiRoutes(exerciseRoutes({ config, db }));
   app.openapiRoutes(routineRoutes({ config, db }));
   app.openapiRoutes(trainingRoutes({ config, db }));
+  app.openapiRoutes(weighInRoutes({ config, db }));
   app.openapiRoutes(adminRoutes({ config, db }));
 
   app.openAPIRegistry.registerComponent('securitySchemes', 'session', {

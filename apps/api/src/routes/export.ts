@@ -4,10 +4,12 @@ import { exportExercises } from '../db/exercises.js';
 import { exportWorkouts } from '../db/history.js';
 import { getProfile } from '../db/profile.js';
 import { exportRoutines } from '../db/routines.js';
+import { exportWeighIns } from '../db/weigh-ins.js';
 import { accountHeaders } from '../lib/account.js';
 import { problem, problemResponse } from '../lib/problem.js';
 import { pageQuery } from './paging.js';
 import { ExportPage, ExportSection, Uuid } from './schemas.js';
+import { weighInJson } from './weigh-ins.js';
 
 // S10's export (docs/07 §2). Sectioned and paged because Vercel caps a response body at 4.5 MB; the
 // client fetches every section page by page and builds the file in the browser.
@@ -22,6 +24,7 @@ export const EXPORTED_TABLES = {
   exercises: ['exercise', 'exercise_setting'],
   routines: ['routine', 'routine_exercise'],
   workouts: ['workout', 'workout_exercise', 'set'],
+  weighIns: ['body_measurement'],
 } as const satisfies Record<ExportSection, readonly string[]>;
 
 type ExportSection = z.infer<typeof ExportSection>;
@@ -32,6 +35,11 @@ const ExportCursor = z.discriminatedUnion('section', [
   z.object({
     section: z.literal('workouts'),
     startedAt: z.iso.datetime({ offset: true }),
+    id: Uuid,
+  }),
+  z.object({
+    section: z.literal('weighIns'),
+    measuredAt: z.iso.datetime({ offset: true }),
     id: Uuid,
   }),
 ]);
@@ -126,6 +134,20 @@ export function exportRoutes({ db }: RouteDeps) {
             {
               section,
               items: page.items,
+              nextCursor: page.next === null ? null : encodeExportCursor({ section, ...page.next }),
+            },
+            200,
+          );
+        }
+        if (section === 'weighIns') {
+          const page = await exportWeighIns(db, user.id, {
+            limit,
+            after: after?.section === 'weighIns' ? after : undefined,
+          });
+          return c.json(
+            {
+              section,
+              items: page.items.map(weighInJson),
               nextCursor: page.next === null ? null : encodeExportCursor({ section, ...page.next }),
             },
             200,

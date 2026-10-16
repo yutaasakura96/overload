@@ -776,9 +776,82 @@ export const InviteCreate = z
   })
   .openapi('InviteCreate');
 
+// Weight (S11, docs/07 §5). Every weight is kilograms; the profile's unit is for the screen only.
+
+/** A bodyweight a person can weigh, to the hundredth (numeric(5,2), docs/04 `body_measurement`). */
+const BodyweightKg = z.number().min(20).max(300).multipleOf(0.01).openapi({ example: 82.4 });
+const BodyFatPct = z.number().min(1).max(75).multipleOf(0.1).openapi({ example: 18.5 });
+
+export const WeighIn = z
+  .object({
+    id: Uuid,
+    measuredAt: Instant.openapi({
+      description: 'When the reading was taken, not when it arrived.',
+    }),
+    weightKg: BodyweightKg,
+    bodyFatPct: BodyFatPct.nullable(),
+    source: z.enum(['apple_health', 'manual']).openapi({
+      description: '`manual` was typed by hand and can be deleted; `apple_health` cannot be.',
+    }),
+  })
+  .openapi('WeighIn');
+
+export const WeighInCreate = z
+  .object({
+    id: Uuid.openapi({ description: 'Made on the device (UUIDv7). A repeat returns the row.' }),
+    measuredAt: Instant,
+    weightKg: BodyweightKg,
+    bodyFatPct: BodyFatPct.nullable().optional().openapi({ description: 'Default: none.' }),
+  })
+  .openapi('WeighInCreate');
+
+export const WeightDay = z
+  .object({
+    date: z.iso.date().openapi({ description: 'A local date in the profile’s time zone.' }),
+    weighInId: Uuid.openapi({ description: 'The reading that stands for the day.' }),
+    weightKg: BodyweightKg,
+    morning: z.boolean().openapi({
+      description:
+        'False when the day had no reading before 10:00 local and its first reading stands in.',
+    }),
+    trendKg: z.number().nullable().openapi({
+      description:
+        'The trend on this day, to the hundredth. Null while fewer than 3 days are weighed.',
+    }),
+  })
+  .openapi('WeightDay');
+
+export const WeighIns = z
+  .object({
+    weighIns: z
+      .array(WeighIn)
+      .openapi({ description: 'Every reading in the range, newest first.' }),
+    days: z
+      .array(WeightDay)
+      .openapi({ description: 'The weighed days in the range, newest first.' }),
+    trendAvailable: z
+      .boolean()
+      .openapi({ description: 'False with fewer than 3 weighed days up to `to`.' }),
+    weekChangeKg: z
+      .number()
+      .nullable()
+      .openapi({
+        description:
+          'The latest trend less the trend a week before today, to the hundredth. Null without a ' +
+          'trend, or with no weighed day a week or more before today.',
+      }),
+  })
+  .openapi('WeighIns');
+
 // The export (S10, docs/07 §2): one section a call, each item as the API's normal read returns it.
 
-export const EXPORT_SECTIONS = ['profile', 'exercises', 'routines', 'workouts'] as const;
+export const EXPORT_SECTIONS = [
+  'profile',
+  'exercises',
+  'routines',
+  'workouts',
+  'weighIns',
+] as const;
 
 export const ExportSection = z.enum(EXPORT_SECTIONS).openapi('ExportSection', {
   description: 'The sections built so far. Later milestones add theirs (docs/07 §2).',
@@ -806,9 +879,10 @@ export const ExportPage = z
     exportPage('exercises', Exercise),
     exportPage('routines', Routine),
     exportPage('workouts', WorkoutDetail),
+    exportPage('weighIns', WeighIn),
   ])
   .openapi('ExportPage', {
     description:
-      'One page of one section. `profile` has one item; `exercises`, `routines` and ' +
-      '`workouts` are cursor-paged. Workouts include ones in progress.',
+      'One page of one section. `profile` has one item; `exercises`, `routines`, `workouts` and ' +
+      '`weighIns` are cursor-paged. Workouts include ones in progress.',
   });

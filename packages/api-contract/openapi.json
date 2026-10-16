@@ -403,9 +403,38 @@
               "items",
               "nextCursor"
             ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "section": {
+                "type": "string",
+                "enum": [
+                  "weighIns"
+                ]
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/WeighIn"
+                }
+              },
+              "nextCursor": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Opaque. Send it back as `cursor` for the next page."
+              }
+            },
+            "required": [
+              "section",
+              "items",
+              "nextCursor"
+            ]
           }
         ],
-        "description": "One page of one section. `profile` has one item; `exercises`, `routines` and `workouts` are cursor-paged. Workouts include ones in progress."
+        "description": "One page of one section. `profile` has one item; `exercises`, `routines`, `workouts` and `weighIns` are cursor-paged. Workouts include ones in progress."
       },
       "ExportProfile": {
         "type": "object",
@@ -894,13 +923,60 @@
         ],
         "description": "One workout whole. Every row is as the sync batch holds it, so a set can be sent back edited, or deleted, through `/api/workouts/sync`."
       },
+      "WeighIn": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+          },
+          "measuredAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-11-11T09:01:40.000Z",
+            "description": "When the reading was taken, not when it arrived."
+          },
+          "weightKg": {
+            "type": "number",
+            "minimum": 20,
+            "maximum": 300,
+            "example": 82.4
+          },
+          "bodyFatPct": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 1,
+            "maximum": 75,
+            "example": 18.5
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "apple_health",
+              "manual"
+            ],
+            "description": "`manual` was typed by hand and can be deleted; `apple_health` cannot be."
+          }
+        },
+        "required": [
+          "id",
+          "measuredAt",
+          "weightKg",
+          "bodyFatPct",
+          "source"
+        ]
+      },
       "ExportSection": {
         "type": "string",
         "enum": [
           "profile",
           "exercises",
           "routines",
-          "workouts"
+          "workouts",
+          "weighIns"
         ],
         "description": "The sections built so far. Later milestones add theirs (docs/07 §2)."
       },
@@ -2465,6 +2541,119 @@
         ],
         "additionalProperties": {},
         "description": "Any other row with an id. It is not applied: its result is `refused` with `validation_failed`, and the rest of the batch is applied as usual."
+      },
+      "WeighIns": {
+        "type": "object",
+        "properties": {
+          "weighIns": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WeighIn"
+            },
+            "description": "Every reading in the range, newest first."
+          },
+          "days": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WeightDay"
+            },
+            "description": "The weighed days in the range, newest first."
+          },
+          "trendAvailable": {
+            "type": "boolean",
+            "description": "False with fewer than 3 weighed days up to `to`."
+          },
+          "weekChangeKg": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "The latest trend less the trend a week before today, to the hundredth. Null without a trend, or with no weighed day a week or more before today."
+          }
+        },
+        "required": [
+          "weighIns",
+          "days",
+          "trendAvailable",
+          "weekChangeKg"
+        ]
+      },
+      "WeightDay": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "description": "A local date in the profile’s time zone."
+          },
+          "weighInId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11",
+            "description": "The reading that stands for the day."
+          },
+          "weightKg": {
+            "type": "number",
+            "minimum": 20,
+            "maximum": 300,
+            "example": 82.4
+          },
+          "morning": {
+            "type": "boolean",
+            "description": "False when the day had no reading before 10:00 local and its first reading stands in."
+          },
+          "trendKg": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "The trend on this day, to the hundredth. Null while fewer than 3 days are weighed."
+          }
+        },
+        "required": [
+          "date",
+          "weighInId",
+          "weightKg",
+          "morning",
+          "trendKg"
+        ]
+      },
+      "WeighInCreate": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11",
+            "description": "Made on the device (UUIDv7). A repeat returns the row."
+          },
+          "measuredAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-11-11T09:01:40.000Z"
+          },
+          "weightKg": {
+            "type": "number",
+            "minimum": 20,
+            "maximum": 300,
+            "example": 82.4
+          },
+          "bodyFatPct": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 1,
+            "maximum": 75,
+            "example": 18.5,
+            "description": "Default: none."
+          }
+        },
+        "required": [
+          "id",
+          "measuredAt",
+          "weightKg"
+        ]
       },
       "InviteList": {
         "type": "object",
@@ -4044,6 +4233,238 @@
           },
           "422": {
             "description": "`validation_failed`: the batch is not three arrays of rows that each carry an id",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/weigh-ins": {
+      "get": {
+        "summary": "Weigh-ins in a range of local dates, with the daily weights and the trend",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "description": "The first local date, included. Default: the first weigh-in."
+            },
+            "required": false,
+            "description": "The first local date, included. Default: the first weigh-in.",
+            "name": "from",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "description": "The last local date, included. Default: today."
+            },
+            "required": false,
+            "description": "The last local date, included. Default: today.",
+            "name": "to",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The range’s readings and weighed days, newest first, trended from all history",
+            "headers": {
+              "Overload-User": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "The id of the user whose session answered. Keep the body for that account only."
+                },
+                "required": true,
+                "description": "The id of the user whose session answered. Keep the body for that account only."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WeighIns"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A date that is not `YYYY-MM-DD`, or `from` after `to`",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`setup_incomplete` with `missing: [\"profile\"]`: local dates need the time zone",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Save a weigh-in typed by hand",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WeighInCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "A repeat of the same create: the stored weigh-in",
+            "headers": {
+              "Overload-User": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "The id of the user whose session answered. Keep the body for that account only."
+                },
+                "required": true,
+                "description": "The id of the user whose session answered. Keep the body for that account only."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WeighIn"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Created",
+            "headers": {
+              "Overload-User": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "The id of the user whose session answered. Keep the body for that account only."
+                },
+                "required": true,
+                "description": "The id of the user whose session answered. Keep the body for that account only."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WeighIn"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`id_conflict`: the id is in use with other content; `weigh_in_exists`: a typed weigh-in at that instant exists",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`validation_failed`, including a weight outside 20 to 300 kg",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/weigh-ins/{id}": {
+      "delete": {
+        "summary": "Delete a typed weigh-in. 204 whenever the caller has no such weigh-in afterwards",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "The caller has no typed weigh-in with that id",
+            "headers": {
+              "Overload-User": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "The id of the user whose session answered. Keep the body for that account only."
+                },
+                "required": true,
+                "description": "The id of the user whose session answered. Keep the body for that account only."
+              }
+            }
+          },
+          "400": {
+            "description": "A malformed id",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`managed_by_apple_health`: it came from Apple Health, which would send it again; delete it there",
             "content": {
               "application/problem+json": {
                 "schema": {

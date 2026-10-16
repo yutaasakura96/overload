@@ -372,3 +372,29 @@ export const syncTombstone = pgTable(
     ),
   ],
 );
+
+/**
+ * One reading from the scale, or one typed by hand (S11; docs/04 `body_measurement`). Typed rows
+ * carry the device's UUIDv7. The day's weight and the trend are derived in `domain/weight.ts`,
+ * never stored. A reading from Apple Health is deleted there, not here, so the API refuses it.
+ */
+export const bodyMeasurement = pgTable(
+  'body_measurement',
+  {
+    id: id(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    measuredAt: instant('measured_at').notNull(),
+    weightKg: numeric('weight_kg', { precision: 5, scale: 2, mode: 'number' }).notNull(),
+    bodyFatPct: numeric('body_fat_pct', { precision: 4, scale: 1, mode: 'number' }),
+    source: text('source', { enum: ['apple_health', 'manual'] }).notNull(),
+    externalId: text('external_id'),
+    ...timestamps,
+  },
+  (t) => [
+    unique('body_measurement_user_id_source_measured_at_key').on(t.userId, t.source, t.measuredAt),
+    index('body_measurement_user_id_measured_at_idx').on(t.userId, t.measuredAt.desc()),
+    check('body_measurement_source_check', sql`${t.source} IN ('apple_health', 'manual')`),
+  ],
+);
