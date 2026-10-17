@@ -180,7 +180,7 @@ export function Workout({
   if (workout === undefined) return <AppBar title="Workout" slot={<DataState at={0} />} />;
 
   const add = async (picked: Exercise[]) => {
-    const cached = queryClient.getQueryData(lastTimeQuery.queryKey);
+    const cached = lastTimes.data ?? queryClient.getQueryData(lastTimeQuery.queryKey);
     try {
       const applied = await addExercises({
         workoutId: workout.id,
