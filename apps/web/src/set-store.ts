@@ -47,7 +47,16 @@ type RecordBase = {
   deletedAt?: string;
 };
 
-export type WorkoutRecord = RecordBase & { table: 'workouts'; row: WorkoutRow };
+export type WorkoutRecord = RecordBase & {
+  table: 'workouts';
+  row: WorkoutRow;
+  /**
+   * Device-only. The profile's time zone when the workout started, which the workout keeps: a
+   * profile change while it is open does not move last time's date or its age. Absent from a copy
+   * kept before it was carried, and from one rebuilt from the server.
+   */
+  local?: { timeZone: string };
+};
 
 /**
  * One working set as last time logged it, copied when the workout starts. `rir` is absent from a

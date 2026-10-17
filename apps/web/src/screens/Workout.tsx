@@ -149,8 +149,10 @@ export function Workout({
   const library = useQuery({ ...allExercisesQuery, enabled: confirmed });
   // Kept warm here too, so an exercise added offline opens with last time (docs/09 F3 step 1).
   useQuery({ ...lastTimeQuery, enabled: confirmed && me.profile !== null });
+  // The zone the workout started in; a copy kept before it was carried reads the profile's.
+  const workoutZone = workout?.local?.timeZone ?? me.profile?.timezone ?? deviceTimezone();
   const lastTimes = useQuery({
-    ...openLastTimeQuery(workout?.id ?? ''),
+    ...openLastTimeQuery(workout?.id ?? '', workoutZone),
     enabled: confirmed && me.profile !== null && workout !== undefined,
   });
   const [adding, setAdding] = useState<'pick' | 'new-exercise'>();
@@ -178,7 +180,7 @@ export function Workout({
   if (workout === undefined) return <AppBar title="Workout" slot={<DataState at={0} />} />;
 
   const add = async (picked: Exercise[]) => {
-    const cached = queryClient.getQueryData(lastTimeQuery.queryKey);
+    const cached = lastTimes.data ?? queryClient.getQueryData(lastTimeQuery.queryKey);
     try {
       const applied = await addExercises({
         workoutId: workout.id,
@@ -208,7 +210,7 @@ export function Workout({
             lastTimes.data && { exercises: lastTimes.data, updatedAt: lastTimes.dataUpdatedAt }
           }
           unit={me.profile?.weightUnit ?? 'kg'}
-          timeZone={me.profile?.timezone ?? deviceTimezone()}
+          timeZone={workoutZone}
           guideOpen={guide}
           addButton={addButton}
           addFailed={addFailed}

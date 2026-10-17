@@ -822,6 +822,28 @@ describe('GET /api/training/last-time (S2, S3)', () => {
     ]);
   });
 
+  it('reads local dates in the zone asked for instead of the profile’s, and refuses an unknown one', async () => {
+    const { cookie } = await t.createSignedInUser('zone-asked@example.test');
+    await setUpProfile(cookie);
+    await logBench(cookie, { startedAt: at('2026-11-04T16:30:00Z'), kg: 80, reps: [10] });
+
+    const performedOn = async (zone: string) => {
+      const res = await t.app.request(`/api/training/last-time?timezone=${zone}`, {
+        headers: { cookie },
+      });
+      const body: { exercises: { performedOn: string }[] } = await res.json();
+      return body.exercises[0]?.performedOn;
+    };
+    // 16:30 UTC is the 5th in Tokyo, the profile's zone, and still the 4th in London.
+    expect(await performedOn('Asia/Tokyo')).toBe('2026-11-05');
+    expect(await performedOn('Europe/London')).toBe('2026-11-04');
+
+    const bad = await t.app.request('/api/training/last-time?timezone=Mars/Olympus', {
+      headers: { cookie },
+    });
+    expect(bad.status).toBe(400);
+  });
+
   it('answers each working set’s RIR, null where the set recorded none', async () => {
     const { cookie } = await t.createSignedInUser('rir@example.test');
     await setUpProfile(cookie);

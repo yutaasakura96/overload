@@ -291,6 +291,7 @@ export const ADDED_TARGET_SETS = 3;
 function workoutRecord(
   userId: string,
   fields: { routineId: string | null; name: string },
+  timeZone: string,
   now: string,
 ): WorkoutRecord {
   const id = newId();
@@ -301,6 +302,7 @@ function workoutRecord(
     table: 'workouts',
     id,
     row: { id, ...fields, startedAt: now, endedAt: null, note: null, clientUpdatedAt: now },
+    local: { timeZone },
   };
 }
 
@@ -368,11 +370,14 @@ export async function startWorkout(input: {
   routine: Routine;
   exercises: Map<string, Exercise>;
   lastTimes?: Map<string, LastTime>;
+  /** The profile's time zone, which the workout keeps. */
+  timeZone: string;
 }): Promise<void> {
   const now = new Date().toISOString();
   const workout = workoutRecord(
     input.userId,
     { routineId: input.routine.id, name: input.routine.name },
+    input.timeZone,
     now,
   );
   const exercises = input.routine.exercises.flatMap((slot, position) => {
@@ -389,9 +394,18 @@ export async function startWorkout(input: {
  * Starts a workout from no routine and with no exercises (docs/09 F2 step 3): they are added from
  * the picker as it goes. A blank name takes the default.
  */
-export async function startEmptyWorkout(input: { userId: string; name: string }): Promise<void> {
+export async function startEmptyWorkout(input: {
+  userId: string;
+  name: string;
+  timeZone: string;
+}): Promise<void> {
   const name = input.name.trim() || EMPTY_WORKOUT_NAME;
-  const workout = workoutRecord(input.userId, { routineId: null, name }, new Date().toISOString());
+  const workout = workoutRecord(
+    input.userId,
+    { routineId: null, name },
+    input.timeZone,
+    new Date().toISOString(),
+  );
   if (!(await mutate((records) => startIfNone(records, [workout]), input.userId))) return;
   useWorkoutStore.setState({ rest: undefined, idleEnded: undefined });
 }

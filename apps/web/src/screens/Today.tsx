@@ -151,6 +151,7 @@ export function Today({ me, navigate }: { me: Me; navigate: Navigate }) {
         routine,
         exercises: new Map(exercises.data.map((exercise) => [exercise.id, exercise])),
         lastTimes: lastTimes && new Map(lastTimes.map((last) => [last.exerciseId, last])),
+        timeZone,
       });
       navigate('/workout');
     } catch {
@@ -163,7 +164,7 @@ export function Today({ me, navigate }: { me: Me; navigate: Navigate }) {
     setStarting(true);
     setStartFailed(undefined);
     try {
-      await startEmptyWorkout({ userId: me.user.id, name });
+      await startEmptyWorkout({ userId: me.user.id, name, timeZone });
       navigate('/workout');
     } catch {
       setStartFailed('device');
