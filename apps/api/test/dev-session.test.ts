@@ -13,7 +13,7 @@ import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { createDevSession } from '../scripts/dev-session-core';
 import { localOnlyRefusals } from '../scripts/dev-session-guard';
-import { testDatabaseUrl } from './database-urls';
+import { testDatabasePort, testDatabaseUrl } from './database-urls';
 import { testConfig } from './harness-config';
 
 vi.mock('node:fs', async (importOriginal) => {
@@ -36,6 +36,15 @@ describe('the dev:session guard', () => {
     expect(
       localOnlyRefusals({ ...local, DATABASE_URL: 'postgres://u:p@127.0.0.1:5434/overload' }, {}),
     ).toEqual([]);
+  });
+
+  it('holds a configured port as strictly as the default one', () => {
+    const elsewhere = { ...local, DATABASE_URL: 'postgres://u:p@localhost:55001/overload' };
+    expect(localOnlyRefusals(elsewhere, {}, 'overload', '55001')).toEqual([]);
+    expect(localOnlyRefusals(local, {}, 'overload', '55001')).toEqual([
+      'DATABASE_URL must target local Postgres on port 55001, database overload, without query overrides.',
+    ]);
+    expect(localOnlyRefusals(elsewhere, {})).toHaveLength(1);
   });
 
   it.each([
@@ -116,6 +125,7 @@ describe('the dev:session handoff files', () => {
         exportedEnv: {},
         stateDirectory,
         databaseName: 'overload_test',
+        databasePort: testDatabasePort,
       });
 
       expect(statSync(stateDirectory).mode & 0o777).toBe(0o700);

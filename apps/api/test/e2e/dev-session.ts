@@ -1,5 +1,5 @@
 import { createDevSession } from '../../scripts/dev-session-core';
-import { testDatabaseUrl } from '../database-urls';
+import { testDatabasePort, testDatabaseUrl } from '../database-urls';
 import { testConfig } from '../harness-config';
 
 const stateDirectory = process.argv[2];
@@ -17,5 +17,6 @@ const result = await createDevSession({
   exportedEnv: {},
   stateDirectory,
   databaseName: 'overload_test',
+  databasePort: testDatabasePort,
 });
 console.log(JSON.stringify(result));

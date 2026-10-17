@@ -25,8 +25,11 @@ manager's `pnpm` shim refuses). Each is a CI job (`.github/workflows/ci.yml`):
   asks the function for `/api/health` (`docs/12` §3). Hence `src/index.ts` is the only entry candidate
   and relative imports under `apps/api/src` end in `.js`.
 - `pnpm contract`: regenerates `packages/api-contract` from the route schemas. CI fails on a diff.
-- Local Postgres 18: `docker compose up -d`. Local never touches Neon. The tests migrate and use
-  its `overload_test` database themselves. A volume made before 2026-09-25 lacks `bootstrap.sql`'s
+- Local Postgres 18: `docker compose up -d`. Local never touches Neon. `pnpm e2e` migrates and uses
+  its `overload_test` database itself. `pnpm test` starts and removes a throwaway Postgres on a free
+  port (`apps/api/scripts/with-test-database.sh`) unless both `TEST_DATABASE_URL` and
+  `TEST_DATABASE_URL_DIRECT` are set; wrap `pnpm e2e`
+  in it to do the same. A volume made before 2026-09-25 lacks `bootstrap.sql`'s
   database grant: `docker compose down -v` to start over.
 - Schema: Drizzle tables in `apps/api/src/db/schema.ts` (Better Auth's in `auth-schema.ts`).
   `pnpm --filter @overload/api db:generate` writes the SQL migration; grants, functions and seeds are
