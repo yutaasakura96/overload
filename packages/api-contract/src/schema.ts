@@ -1129,6 +1129,8 @@ export interface paths {
         query?: {
           /** @description A workout to leave out: the open workout reads the workout before it, not its own sets. */
           exclude?: string;
+          /** @description The zone to read local dates in, instead of the profile’s: an open workout keeps the zone it started in. */
+          timezone?: string;
         };
         header?: never;
         path?: never;

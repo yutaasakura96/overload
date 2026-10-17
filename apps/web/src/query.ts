@@ -367,9 +367,10 @@ export const lastTimeQuery = queryOptions({
 
 /**
  * Last time as the open workout reads it: from the workout before it, never its own synced sets.
- * Asked again after a weigh-in, which moves the bodyweight counted on it (issue #69).
+ * Asked again after a weigh-in, which moves the bodyweight counted on it (issue #69). Read in the
+ * zone the workout started in, so a profile change while it is open moves nothing (issue #60).
  */
-export const openLastTimeQuery = (workoutId: string) =>
+export const openLastTimeQuery = (workoutId: string, timeZone: string) =>
   queryOptions({
     queryKey: ['last-time', workoutId],
     refetchOnWindowFocus: false,
@@ -377,7 +378,10 @@ export const openLastTimeQuery = (workoutId: string) =>
     queryFn: async ({ signal }) =>
       (
         await confirmedAccountData(() =>
-          api.GET('/api/training/last-time', { params: { query: { exclude: workoutId } }, signal }),
+          api.GET('/api/training/last-time', {
+            params: { query: { exclude: workoutId, timezone: timeZone } },
+            signal,
+          }),
         )
       ).exercises,
   });

@@ -256,7 +256,7 @@ export const Profile = z
   .openapi('Profile');
 
 /** An IANA time zone this runtime knows, e.g. `Asia/Tokyo`. */
-const Timezone = z
+export const Timezone = z
   .string()
   .min(1)
   .max(64)
