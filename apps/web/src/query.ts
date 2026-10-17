@@ -372,7 +372,7 @@ export const lastTimeQuery = queryOptions({
  */
 export const openLastTimeQuery = (workoutId: string, timeZone: string) =>
   queryOptions({
-    queryKey: ['last-time', workoutId],
+    queryKey: ['last-time', workoutId, timeZone],
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
     queryFn: async ({ signal }) =>
