@@ -1126,7 +1126,10 @@ export interface paths {
     /** Last time and today’s suggestion for every exercise the caller has logged */
     get: {
       parameters: {
-        query?: never;
+        query?: {
+          /** @description A workout to leave out: the open workout reads the workout before it, not its own sets. */
+          exclude?: string;
+        };
         header?: never;
         path?: never;
         cookie?: never;

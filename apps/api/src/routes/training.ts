@@ -53,6 +53,14 @@ const getLastTime = createRoute({
   method: 'get',
   path: '/api/training/last-time',
   summary: 'Last time and today’s suggestion for every exercise the caller has logged',
+  request: {
+    query: z.object({
+      exclude: z.uuid().optional().openapi({
+        description:
+          'A workout to leave out: the open workout reads the workout before it, not its own sets.',
+      }),
+    }),
+  },
   responses: {
     200: {
       description: 'One entry per logged exercise',
@@ -231,6 +239,7 @@ export function trainingRoutes({ db }: RouteDeps) {
               userId,
               profile.timezone,
               dailyWeights(await listWeighIns(db, userId), profile.timezone),
+              c.req.valid('query').exclude,
             ),
           },
           200,

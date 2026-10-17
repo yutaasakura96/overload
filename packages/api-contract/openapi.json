@@ -4198,6 +4198,19 @@
     "/api/training/last-time": {
       "get": {
         "summary": "Last time and today’s suggestion for every exercise the caller has logged",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "A workout to leave out: the open workout reads the workout before it, not its own sets."
+            },
+            "required": false,
+            "description": "A workout to leave out: the open workout reads the workout before it, not its own sets.",
+            "name": "exclude",
+            "in": "query"
+          }
+        ],
         "responses": {
           "200": {
             "description": "One entry per logged exercise",

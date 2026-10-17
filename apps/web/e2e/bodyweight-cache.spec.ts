@@ -47,7 +47,6 @@ const answer = (
   slots: [],
   ...changes,
 });
-const workout = { id: 'workout', startedAt };
 const after = Date.parse(startedAt) + 1;
 
 test('an open workout takes last time’s counts only from an answer newer than the workout', () => {
@@ -57,7 +56,7 @@ test('an open workout takes last time’s counts only from an answer newer than 
       exercises: [answer(90, { basis: 'same_day', weightKg: 80, weighedOn: '2026-10-10' })],
       updatedAt: Date.parse(startedAt) - 1,
     },
-    workout,
+    startedAt,
   );
   expect(older).toBe(lastTime);
 
@@ -67,7 +66,7 @@ test('an open workout takes last time’s counts only from an answer newer than 
       exercises: [answer(100, { basis: 'same_day', weightKg: 90, weighedOn: '2026-10-10' })],
       updatedAt: after,
     },
-    workout,
+    startedAt,
   );
   expect(weighed.local.lastTime[0]).toMatchObject({ weightKg: 10, countedWeightKg: 100 });
   expect(weighed.local.lastTimeBodyweight).toMatchObject({ weightKg: 90 });
@@ -76,7 +75,7 @@ test('an open workout takes last time’s counts only from an answer newer than 
   const deleted = recountedLastTime(
     lastTime,
     { exercises: [answer(10, { basis: 'none' })], updatedAt: after },
-    workout,
+    startedAt,
   );
   expect(deleted.local.lastTime[0]?.countedWeightKg).toBe(10);
   expect(deleted.local.lastTimeBodyweight).toEqual({ basis: 'none' });
@@ -90,12 +89,12 @@ test('an answer about another workout leaves the open workout’s copy as it is'
         answer(
           100,
           { basis: 'same_day', weightKg: 90, weighedOn: '2026-10-11' },
-          { workoutId: 'workout', performedOn: '2026-10-11' },
+          { workoutId: 'newer-workout', performedOn: '2026-10-11' },
         ),
       ],
       updatedAt: after,
     },
-    workout,
+    startedAt,
   );
   expect(synced).toBe(lastTime);
 });

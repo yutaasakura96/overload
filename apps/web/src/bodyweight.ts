@@ -26,23 +26,22 @@ export function countedAt(count: BodyweightCount, unit: WeightUnit): string {
 
 /**
  * An open workout's copy of last time, with the counts the API gives in an answer newer than the
- * workout: a weigh-in typed since then moves them. The copy is kept when that answer names another
- * workout, as it does once this one is synced.
+ * workout: a weigh-in typed since then moves them. The copy is kept when that answer is about
+ * another workout than the one it copied.
  */
 export function recountedLastTime(
   exercise: WorkoutExerciseRecord,
   lastTimes: { exercises: LastTime[]; updatedAt: number } | undefined,
-  workout: { id: string; startedAt: string },
+  startedAt: string,
 ): WorkoutExerciseRecord {
   const { bodyweight, lastTime, lastTimeOn } = exercise.local;
   if (!bodyweight || lastTimeOn == null || lastTimes === undefined) return exercise;
-  if (lastTimes.updatedAt <= new Date(workout.startedAt).getTime()) return exercise;
+  if (lastTimes.updatedAt <= new Date(startedAt).getTime()) return exercise;
   const logged = lastTimes.exercises.find((last) => last.exerciseId === exercise.row.exerciseId);
   const last =
     logged?.slots.find((own) => own.routineExerciseId === exercise.row.routineExerciseId) ?? logged;
   if (
     last === undefined ||
-    last.workoutId === workout.id ||
     last.performedOn !== lastTimeOn ||
     last.sets.length !== lastTime.length ||
     last.sets.some((set, index) => set.weightKg !== lastTime[index]?.weightKg)

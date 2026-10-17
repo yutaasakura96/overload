@@ -139,7 +139,7 @@ export function Today({ me, navigate }: { me: Me; navigate: Navigate }) {
     try {
       if (finishFirst) await finishWorkout();
       // An answer already on its way is worth a moment: it may carry the workout just finished.
-      if (queryClient.isFetching({ queryKey: lastTimeQuery.queryKey }) > 0) {
+      if (queryClient.isFetching({ queryKey: lastTimeQuery.queryKey, exact: true }) > 0) {
         await Promise.race([
           queryClient.fetchQuery({ ...lastTimeQuery, staleTime: 0 }).catch(() => undefined),
           new Promise((resolve) => setTimeout(resolve, 1500)),

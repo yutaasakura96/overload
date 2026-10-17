@@ -366,6 +366,23 @@ export const lastTimeQuery = queryOptions({
 });
 
 /**
+ * Last time as the open workout reads it: from the workout before it, never its own synced sets.
+ * Asked again after a weigh-in, which moves the bodyweight counted on it (issue #69).
+ */
+export const openLastTimeQuery = (workoutId: string) =>
+  queryOptions({
+    queryKey: ['last-time', workoutId],
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    queryFn: async ({ signal }) =>
+      (
+        await confirmedAccountData(() =>
+          api.GET('/api/training/last-time', { params: { query: { exclude: workoutId } }, signal }),
+        )
+      ).exercises,
+  });
+
+/**
  * One exercise's chart over a span (S7, docs/07 §3). Enable it only once the profile exists:
  * without one the API answers `setup_incomplete`.
  */
@@ -539,7 +556,7 @@ export const refreshHistory = () => queryClient.invalidateQueries({ queryKey: ['
  */
 export async function refreshLastTime(): Promise<void> {
   if (queryClient.getQueryData<Me>(ME_KEY)?.profile == null) return;
-  await queryClient.cancelQueries({ queryKey: lastTimeQuery.queryKey });
+  await queryClient.cancelQueries({ queryKey: lastTimeQuery.queryKey, exact: true });
   await queryClient.fetchQuery({ ...lastTimeQuery, staleTime: 0 }).catch(() => undefined);
 }
 

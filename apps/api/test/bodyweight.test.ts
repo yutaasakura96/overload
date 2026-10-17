@@ -267,6 +267,7 @@ async function log(send: Send, exercise: string, startedAt: Date, sets: [number,
     })),
   });
   expect(res.status).toBe(200);
+  return workoutId;
 }
 
 type Bodyweight = { basis: string; weightKg?: number; weighedOn?: string } | null;
@@ -291,12 +292,18 @@ const strengthOf = async (send: Send) => {
   return body;
 };
 
-const lastTimeOf = async (send: Send, exercise: string) => {
-  const res = await send('GET', '/api/training/last-time');
+const lastTimeOf = async (send: Send, exercise: string, exclude?: string) => {
+  const res = await send(
+    'GET',
+    exclude === undefined
+      ? '/api/training/last-time'
+      : `/api/training/last-time?exclude=${exclude}`,
+  );
   expect(res.status).toBe(200);
   const body: {
     exercises: {
       exerciseId: string;
+      workoutId: string;
       sets: { weightKg: number; countedWeightKg: number }[];
       bodyweight: Bodyweight;
     }[];
@@ -380,6 +387,22 @@ describe('the routes that count bodyweight', () => {
     expect(await lastTimeOf(send, pullUp)).toMatchObject({
       sets: [{ weightKg: 0, countedWeightKg: 0 }],
       bodyweight: { basis: 'none' },
+    });
+  });
+
+  it('counts a weigh-in typed mid-workout on last time from the workout before the open one', async () => {
+    const { send } = await member('midworkout@example.test');
+    const pullUp = await exerciseId(send, 'Pull-Up');
+    const previous = await log(send, pullUp, daysAgo(3), [[0, 8]]);
+    // Started with no weigh-in; one pull-up set synced before the weigh-in.
+    const open = await log(send, pullUp, new Date(), [[0, 9]]);
+    await weigh(send, new Date(), 82);
+
+    expect(await lastTimeOf(send, pullUp)).toMatchObject({ workoutId: open });
+    expect(await lastTimeOf(send, pullUp, open)).toMatchObject({
+      workoutId: previous,
+      sets: [{ weightKg: 0, countedWeightKg: 82 }],
+      bodyweight: { basis: 'later_day', weightKg: 82 },
     });
   });
 

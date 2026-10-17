@@ -55,20 +55,23 @@ function groupBy<T>(rows: T[], key: (row: T) => string): Map<string, T[]> {
  * For every exercise the user has logged a working set of: the most recent such workout's working
  * sets, numbered 1…n in `position` order with warm-ups left out (docs/04 `set`), and the suggestion.
  * The rule reads the rep range that workout ran with and the increment the user has today. Each
- * routine slot that still exists also answers from the last workout that ran that slot.
+ * routine slot that still exists also answers from the last workout that ran that slot. An
+ * `exclude`d workout is left out: the open workout's own sets are not its last time.
  */
 export async function lastTimes(
   db: Database,
   userId: string,
   timezone: string,
   weighedDays: DailyWeight[],
+  exclude?: string,
 ): Promise<LastTime[]> {
+  const excluded = exclude === undefined ? sql`` : sql`AND w.id <> ${exclude}`;
   const { rows } = await db.execute<Row>(sql`
     WITH latest AS (
       SELECT DISTINCT ON (we.exercise_id) we.exercise_id, w.id AS workout_id, w.started_at
       FROM workout w
       JOIN workout_exercise we ON we.workout_id = w.id
-      WHERE w.user_id = ${userId}
+      WHERE w.user_id = ${userId} ${excluded}
         AND EXISTS (
           SELECT 1 FROM "set" s WHERE s.workout_exercise_id = we.id AND NOT s.is_warmup
         )
@@ -92,7 +95,7 @@ export async function lastTimes(
       JOIN routine_exercise re
         ON re.id = we.routine_exercise_id AND re.exercise_id = we.exercise_id
       JOIN routine r ON r.id = re.routine_id AND r.user_id = ${userId}
-      WHERE w.user_id = ${userId}
+      WHERE w.user_id = ${userId} ${excluded}
         AND EXISTS (
           SELECT 1 FROM "set" s WHERE s.workout_exercise_id = we.id AND NOT s.is_warmup
         )

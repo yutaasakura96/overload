@@ -24,7 +24,13 @@ import {
 import { readFigures, type FigureRefusal } from '../figures';
 import { useFocusGuide } from '../focus-guide';
 import type { Navigate } from '../navigation';
-import { allExercisesQuery, lastTimeQuery, queryClient, useAccount } from '../query';
+import {
+  allExercisesQuery,
+  lastTimeQuery,
+  openLastTimeQuery,
+  queryClient,
+  useAccount,
+} from '../query';
 import { RefusedSet } from '../refused';
 import { keepAwake, playTone, unlockTone } from '../rest-alert';
 import { SetEditor } from '../set-editor';
@@ -142,7 +148,11 @@ export function Workout({
   const confirmed = account.status === 'confirmed';
   const library = useQuery({ ...allExercisesQuery, enabled: confirmed });
   // Kept warm here too, so an exercise added offline opens with last time (docs/09 F3 step 1).
-  const lastTimes = useQuery({ ...lastTimeQuery, enabled: confirmed && me.profile !== null });
+  useQuery({ ...lastTimeQuery, enabled: confirmed && me.profile !== null });
+  const lastTimes = useQuery({
+    ...openLastTimeQuery(workout?.id ?? ''),
+    enabled: confirmed && me.profile !== null && workout !== undefined,
+  });
   const [adding, setAdding] = useState<'pick' | 'new-exercise'>();
   const [addFailed, setAddFailed] = useState(false);
   // Said to a screen reader on the way back, where focus alone would say nothing changed.
@@ -295,7 +305,7 @@ function LiveWorkout({
   onFinish: (result: Promise<boolean | undefined>) => void;
 }) {
   const exercises = exercisesOf(records, workout.id).map((exercise) =>
-    recountedLastTime(exercise, lastTimes, { id: workout.id, startedAt: workout.row.startedAt }),
+    recountedLastTime(exercise, lastTimes, workout.row.startedAt),
   );
   // Turned on by hand each workout and not remembered (docs/06, 2026-10-12): it lives here, in a
   // component keyed by the workout.

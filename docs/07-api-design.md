@@ -349,6 +349,8 @@ GET /api/training/last-time  →  200
 
 - **Which workout is last time:** the caller's most recent workout, by `started_at`, with at least
   one working set of the exercise. A workout where it only had warm-ups is passed over.
+  `?exclude=<workout id>` leaves that workout out: the open workout asks with its own id, so a
+  weigh-in typed mid-workout recounts the workout before it, not its own synced sets.
 - **The suggestion** takes that workout's heaviest working weight, the `rep_high` copied into its
   `workout_exercise`, and the exercise's increment and equipment as they are today, so a changed
   increment applies at once. The weight is rounded up to one the equipment can make (S3).
