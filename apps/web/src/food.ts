@@ -98,7 +98,7 @@ export type Candidate = {
   state: FoodState;
   /** The source's own values on its basis, for the `As printed` box. Null for MEXT and by hand. */
   printed: { basis: Basis; values: Given } | null;
-  /** The values per 100 g the fields start from. Null by hand: the fields start empty. */
+  /** Converted values for the fields. Null by hand or when the source lacks a basis weight. */
   per100g: Given | null;
   /** The food on the list this would duplicate, said on the check screen. */
   existingFoodId: string | null;

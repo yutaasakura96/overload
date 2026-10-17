@@ -976,6 +976,11 @@ the first, `That amount weighs`. For those other bases, the fields hold the pack
 the converted per-100 g values appear below them before saving. A duplicate shows `Already on
 your list` with a link to it.
 
+When a label or barcode gives values per piece, serving or package without its weight, `That amount
+weighs` appears under `AS PRINTED`. The editable fields start with the source's figures on that
+basis, and the converted per-100 g preview appears below them. Saving requires the weight and
+sends those figures on the printed basis for conversion by the API.
+
 **Rotation groups.** A lede (the planner varies the week within a group; Adjust offers the others as
 swaps), then a section per group, `STARCH · 2`, with its foods as 48px rows and a tertiary `Remove`,
 and `+ Add a food to starch`. A secondary `New group`.

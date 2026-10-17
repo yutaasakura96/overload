@@ -46,9 +46,8 @@ import {
 
 type Fields = Record<NutrientKey, string>;
 
-/** A value as a field holds it: to the hundredth at most, and empty for none. */
-const fieldText = (value: number | null) =>
-  value === null ? '' : String(Math.round(value * 100) / 100);
+/** A value as a field holds it, and empty for none. */
+const fieldText = (value: number | null) => (value === null ? '' : String(value));
 
 const fieldsOf = (values: Given | null): Fields => ({
   energyKcal: fieldText(values?.energyKcal ?? null),
@@ -169,12 +168,19 @@ function FoodForm({
   const candidate = mode.kind === 'add' ? mode.candidate : undefined;
   const food = mode.kind === 'edit' ? mode.food : undefined;
   const manual = candidate?.source === 'manual';
+  const needsWeight =
+    candidate?.printed !== null &&
+    candidate?.printed !== undefined &&
+    candidate.per100g === null &&
+    candidate.printed.basis.kind !== 'per_100g';
 
   const [name, setName] = useState(food?.name ?? candidate?.name ?? '');
   const [brand, setBrand] = useState(food?.brand ?? candidate?.brand ?? '');
   const [basisKind, setBasisKind] = useState<Basis['kind']>('per_100g');
   const [basisGrams, setBasisGrams] = useState('');
-  const [fields, setFields] = useState<Fields>(() => fieldsOf(food ?? candidate?.per100g ?? null));
+  const [fields, setFields] = useState<Fields>(() =>
+    fieldsOf(food ?? (needsWeight ? candidate?.printed?.values : candidate?.per100g) ?? null),
+  );
   const [state, setState] = useState<FoodState>(food?.state ?? candidate?.state ?? 'raw');
   const [piece, setPiece] = useState(fieldText(food?.pieceWeightG ?? null));
   const [keeps, setKeeps] = useState(
@@ -194,10 +200,12 @@ function FoodForm({
 
   const refused = (path: string) =>
     problem?.kind === 'refused' ? problem.fields.get(path) : undefined;
-  const printedBasis = manual && basisKind !== 'per_100g';
+  const printedBasis = (manual && basisKind !== 'per_100g') || needsWeight;
   const basis: Basis = manual
     ? { kind: basisKind, grams: basisKind === 'per_100g' ? null : parseFigure(basisGrams) }
-    : { kind: 'per_100g', grams: null };
+    : needsWeight && candidate?.printed !== null && candidate?.printed !== undefined
+      ? { ...candidate.printed.basis, grams: parseFigure(basisGrams) }
+      : { kind: 'per_100g', grams: null };
   const typed: Given = {
     energyKcal: parseFigure(fields.energyKcal),
     proteinG: parseFigure(fields.proteinG),
@@ -242,10 +250,10 @@ function FoodForm({
       return;
     }
     const values = {
-      energyKcal: round(typed.energyKcal) ?? 0,
-      proteinG: round(typed.proteinG) ?? 0,
-      carbG: round(typed.carbG) ?? 0,
-      fatG: round(typed.fatG) ?? 0,
+      energyKcal: typed.energyKcal ?? 0,
+      proteinG: typed.proteinG ?? 0,
+      carbG: typed.carbG ?? 0,
+      fatG: typed.fatG ?? 0,
     };
     const shared = {
       name: name.trim(),
@@ -274,7 +282,7 @@ function FoodForm({
                 id: saveId,
                 ...shared,
                 ...values,
-                fiberG: round(typed.fiberG),
+                fiberG: typed.fiberG,
                 basis,
                 source: mode.candidate.source,
                 sourceRef: mode.candidate.sourceRef,
@@ -287,7 +295,14 @@ function FoodForm({
           unwrap(
             await api.PATCH('/api/foods/{id}', {
               params: { path: { id: mode.food.id } },
-              body: { ...shared, ...values, fiberG: round(typed.fiberG) ?? 0 },
+              body: {
+                ...shared,
+                energyKcal: round(values.energyKcal) ?? 0,
+                proteinG: round(values.proteinG) ?? 0,
+                carbG: round(values.carbG) ?? 0,
+                fatG: round(values.fatG) ?? 0,
+                fiberG: round(typed.fiberG) ?? 0,
+              },
             }),
           ),
         );
@@ -317,8 +332,9 @@ function FoodForm({
   };
 
   const missingNote = (key: NutrientKey) => {
-    if (candidate === undefined || candidate.per100g === null) return undefined;
-    return candidate.per100g[key] === null ? MISSING_NOTES[candidate.source] : undefined;
+    if (candidate === undefined) return undefined;
+    const given = needsWeight ? candidate.printed?.values : candidate.per100g;
+    return given?.[key] === null ? MISSING_NOTES[candidate.source] : undefined;
   };
   const openExisting = (foodId: string) => navigate(`/food/${foodId}`);
 
@@ -352,36 +368,6 @@ function FoodForm({
             ? 'Type what the packet says. It is saved per 100 g.'
             : 'Nothing is saved until you press Save. Fix anything that was read wrong.'}
       </p>
-      {candidate?.printed !== null && candidate?.printed !== undefined && (
-        <section className="printed" aria-labelledby="as-printed">
-          <div className="printed__head">
-            <h2 id="as-printed" className="section-label">
-              As printed
-            </h2>
-            <span className="printed__basis">{basisLabel(candidate.printed.basis)}</span>
-          </div>
-          <dl className="printed__grid">
-            {NUTRIENTS.map((nutrient) => {
-              const value = candidate.printed?.values[nutrient.key] ?? null;
-              return (
-                <div key={nutrient.key}>
-                  <dt>{nutrient.printed}</dt>
-                  <dd>
-                    {value === null ? (
-                      <span className="printed__none">{PRINTED_NONE[candidate.source]}</span>
-                    ) : (
-                      <>
-                        {figure(value)}
-                        <span className="values__unit"> {nutrient.unit}</span>
-                      </>
-                    )}
-                  </dd>
-                </div>
-              );
-            })}
-          </dl>
-        </section>
-      )}
       <form
         ref={form}
         className="form"
@@ -391,6 +377,47 @@ function FoodForm({
           if (!busy) void save();
         }}
       >
+        {candidate?.printed !== null && candidate?.printed !== undefined && (
+          <section className="printed" aria-labelledby="as-printed">
+            <div className="printed__head">
+              <h2 id="as-printed" className="section-label">
+                As printed
+              </h2>
+              <span className="printed__basis">{basisLabel(candidate.printed.basis)}</span>
+            </div>
+            <dl className="printed__grid">
+              {NUTRIENTS.map((nutrient) => {
+                const value = candidate.printed?.values[nutrient.key] ?? null;
+                return (
+                  <div key={nutrient.key}>
+                    <dt>{nutrient.printed}</dt>
+                    <dd>
+                      {value === null ? (
+                        <span className="printed__none">{PRINTED_NONE[candidate.source]}</span>
+                      ) : (
+                        <>
+                          {value}
+                          <span className="values__unit"> {nutrient.unit}</span>
+                        </>
+                      )}
+                    </dd>
+                  </div>
+                );
+              })}
+            </dl>
+            {needsWeight && (
+              <NumberField
+                label="That amount weighs"
+                value={basisGrams}
+                onChange={setBasisGrams}
+                decimal
+                unit="g"
+                placeholder="0"
+                error={refused('basis.grams')}
+              />
+            )}
+          </section>
+        )}
         <TextField
           label="Name"
           value={name}
@@ -439,9 +466,14 @@ function FoodForm({
         )}
         <div className="food-subhead">
           <h2 className="section-label">
-            {printedBasis ? 'As printed' : 'Per 100 g, as it will be saved'}
+            {needsWeight
+              ? 'Values on this basis'
+              : printedBasis
+                ? 'As printed'
+                : 'Per 100 g, as it will be saved'}
           </h2>
-          {candidate?.printed !== null &&
+          {!needsWeight &&
+            candidate?.printed !== null &&
             candidate?.printed !== undefined &&
             candidate.printed.basis.kind !== 'per_100g' && (
               <span className="food-subhead__note">

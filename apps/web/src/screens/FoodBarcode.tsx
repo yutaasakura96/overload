@@ -61,10 +61,7 @@ export function FoodBarcode({ navigate }: { navigate: Navigate }) {
           brand: found.brand,
           state: found.state ?? 'raw',
           printed: { basis: found.basis, values: valuesOf(found) },
-          per100g:
-            data.per100g === null
-              ? { energyKcal: null, proteinG: null, carbG: null, fatG: null, fiberG: null }
-              : valuesOf(data.per100g),
+          per100g: data.per100g === null ? null : valuesOf(data.per100g),
           existingFoodId: null,
         });
         navigate('/food/new/check', { replace: true, returns: true });

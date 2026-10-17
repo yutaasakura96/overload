@@ -3263,6 +3263,9 @@ fieldset.field > legend {
   border: 1px solid var(--line-hairline);
   border-radius: var(--radius);
 }
+.form > .printed {
+  margin: 0;
+}
 .printed--inline {
   margin: 0;
 }

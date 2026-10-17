@@ -168,6 +168,20 @@ describe('POST /api/foods', () => {
     expect(created).toMatchObject({ energyKcal: 142, proteinG: 12.2, pieceWeightG: 55 });
   });
 
+  it('rounds a typed piece only after converting to per 100 g', async () => {
+    const { send } = await member('precise-piece@example.test');
+    const created = await add(send, {
+      ...per100({ name: 'Small protein piece', source: 'manual', sourceRef: null }),
+      basis: { kind: 'per_piece', grams: 15 },
+      energyKcal: 15,
+      proteinG: 0.015,
+      carbG: 0,
+      fatG: 0,
+      fiberG: null,
+    });
+    expect(created.proteinG).toBe(0.1);
+  });
+
   it('refuses a basis without its weight, and values 100 g cannot hold', async () => {
     const { send } = await member('refused@example.test');
     const noWeight = await send(
