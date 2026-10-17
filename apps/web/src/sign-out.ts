@@ -16,13 +16,25 @@ export type SignOutResult =
   | 'workout-unsynced'
   | 'rows-waiting';
 
-/** End the server session before closing the account; wipe failures are handled as in docs/08 §7. */
-export async function signOut(
-  navigate: (path: string) => void,
-  options: { discard?: boolean } = {},
-): Promise<SignOutResult> {
+/** Account deletion stops for the same reasons, and for two of the server's own (docs/08 §6). */
+export type DeleteAccountResult =
+  | Exclude<SignOutResult, 'signed-out'>
+  | 'deleted'
+  | 'stale-session'
+  | 'admin-account'
+  | 'account-changed'
+  | 'refused'
+  | 'unknown-outcome';
+
+/** Why the device cannot let go of the account yet, if it cannot. */
+function heldBack(
+  userId: string | undefined,
+  options: {
+    discard?: boolean;
+  },
+): Exclude<SignOutResult, 'signed-out'> | undefined {
   const state = useWorkoutStore.getState();
-  if (!recordsLoadedFor(state, currentAccount().userId)) return 'failed';
+  if (!recordsLoadedFor(state, userId)) return 'failed';
   const { records } = state;
   if (openWorkout(records) !== undefined) return 'workout-open';
   if (records.some((record) => record.table === 'workouts' && record.state !== 'acknowledged')) {
@@ -31,13 +43,68 @@ export async function signOut(
   if (options.discard !== true && records.some((record) => record.state !== 'acknowledged')) {
     return 'rows-waiting';
   }
+  return undefined;
+}
+
+/** End the server session before closing the account; wipe failures are handled as in docs/08 §7. */
+export async function signOut(
+  navigate: (path: string) => void,
+  options: { discard?: boolean } = {},
+): Promise<SignOutResult> {
+  const held = heldBack(currentAccount().userId, options);
+  if (held !== undefined) return held;
   try {
     const result = await authClient.signOut();
     if (result.error) return 'failed';
   } catch {
     return 'failed';
   }
-  // Nothing of the user's stays readable on the device: the set store's records go with the cache.
+  await wipeDevice(navigate);
+  return 'signed-out';
+}
+
+/**
+ * Delete the account (S10, docs/09 F7), then run the sign-out wipe. The device's rows not uploaded
+ * yet are uploaded or discarded first, by the user's choice, as on sign-out: deletion never uploads
+ * them itself.
+ */
+export async function deleteAccount(
+  navigate: (path: string) => void,
+  expectedUserId: string,
+  options: { discard?: boolean } = {},
+): Promise<DeleteAccountResult> {
+  let confirmedUserId: string | undefined;
+  try {
+    const session = await authClient.getSession({ query: { disableCookieCache: true } });
+    if (session.error) return 'failed';
+    confirmedUserId = session.data?.user.id;
+  } catch {
+    return 'failed';
+  }
+  if (confirmedUserId === undefined || confirmedUserId !== expectedUserId) {
+    return 'account-changed';
+  }
+  const held = heldBack(confirmedUserId, options);
+  if (held !== undefined) return held;
+  try {
+    const result = await authClient.deleteUser();
+    if (result.error) {
+      // Better Auth's own refusals, in its `{ code, message }` format (docs/07 §1.3).
+      if (result.error.code === 'SESSION_EXPIRED') return 'stale-session';
+      if (result.error.code === 'admin_account') return 'admin-account';
+      return result.error.status >= 400 && result.error.status < 500
+        ? 'refused'
+        : 'unknown-outcome';
+    }
+  } catch {
+    return 'unknown-outcome';
+  }
+  await wipeDevice(navigate, 'deleted=1');
+  return 'deleted';
+}
+
+/** Nothing of the user's stays readable on the device: the set store's records go with the cache. */
+async function wipeDevice(navigate: (path: string) => void, note?: string) {
   const setsWiped = await discardWorkouts().then(
     () => true,
     () => false,
@@ -54,6 +121,6 @@ export async function signOut(
       ),
   );
   announceSignOut();
-  navigate(wiped && setsWiped ? '/sign-in' : '/sign-in?wipe=failed');
-  return 'signed-out';
+  const query = [note, wiped && setsWiped ? undefined : 'wipe=failed'].filter(Boolean).join('&');
+  navigate(query === '' ? '/sign-in' : `/sign-in?${query}`);
 }

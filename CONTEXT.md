@@ -50,6 +50,11 @@ _Avoid_: launch, go-live, production (production exists from M1)
 One visit to the gym, logged in the app (`workout`). The UI may say "session"; nothing else does.
 _Avoid_: session, training session, gym session
 
+**History**:
+The user's finished workouts, newest first. A workout in progress is not history yet. A set in
+it can be corrected or deleted; nothing else about a past workout changes.
+_Avoid_: log, journal, past sessions, archive
+
 **Apple workout**:
 An exercise session recorded by the watch and imported from Apple Health (`health_workout`). May be
 linked to a workout, or not.
@@ -65,11 +70,42 @@ A saved, ordered list of exercises with target sets and rep ranges, like "Push A
 _Avoid_: template, program, plan (plan belongs to meals); using "routine" for the weekday shape
 
 **Exercise**:
-A movement in the library, either **seeded** (shared, about 50) or **custom** (one user's own).
+A movement in the library, either **seeded** (shared, about 180) or **custom** (one user's own).
 A **hidden** exercise is off the user's pickers but still named in history.
 Named **specification → equipment → exercise**: "Barbell Bench Press", "1 Arm Dumbbell Row". One
-name per movement, so "DB Row" and "Dumbbell Row" never become two rows.
+name per movement, so "DB Row" and "Dumbbell Row" never become two rows. A Smith machine is named
+as equipment ("Smith Machine Squat"); a bodyweight movement carries no equipment word.
 _Avoid_: lift, movement (in code); abbreviating the equipment in a name
+
+**Muscle group**:
+The one group an exercise is filed under in the library and the picker: chest, back, shoulders,
+biceps, triceps, forearms, quads, hamstrings, glutes, calves or core. Every seeded exercise has one;
+a custom one may have none. An exercise also has **secondary muscle groups**, the others it trains
+(`secondaryMuscleGroups`), which count in the balance view but never file it anywhere.
+_Avoid_: body part, category, target muscle; filing an exercise under several groups
+
+**Secondary muscle group**:
+A group an exercise trains besides the one it is filed under: the triceps in a bench press, the
+biceps in a row. Its working set counts half there in the weekly sets. Every seeded exercise has a
+reviewed list, empty for one that trains a single group; a custom one has none until given some.
+_Avoid_: synergist, assisting muscle, indirect group (indirect is how its sets count, not the group)
+
+**Weekly sets**:
+Working sets a week for a muscle group: whole for exercises filed under it, half for exercises that
+train it as a secondary group. Read against one range, 10 to 20, for every group: under it is low,
+0 is not trained. The balance view shows them as the average of the last four weeks first, and
+this week, Monday to today, second.
+_Avoid_: volume (the weight × reps total in History), frequency
+
+**Split**:
+A broader way to narrow the exercise list: push, pull, legs or core. Derived from the muscle group,
+never stored; a custom exercise with no group is in none.
+_Avoid_: day, program, routine
+
+**Alias**:
+Another name a lifter would type for a seeded exercise ("RDL", "Skullcrusher", "Pec Deck"). Search
+matches it; it is never the exercise's name.
+_Avoid_: synonym, nickname, tag
 
 **Set**:
 One logged effort of an exercise within a workout, with weight, reps and optional RIR or RPE (`set`).
@@ -78,6 +114,11 @@ Its id is made on the phone.
 **Working set**:
 A set that is not a warm-up. Only working sets count towards e1RM, volume and the suggestion.
 _Avoid_: work set, top set (top set is the heaviest working set, a narrower thing)
+
+**Top set**:
+An exercise's heaviest working set in a workout, with the most reps done at that weight. History
+prints it for each exercise, and the chart's stats use it.
+_Avoid_: best set (the best set is the one with the highest e1RM, which can be a lighter one)
 
 **Warm-up set**:
 A set flagged `is_warmup`. Stored and shown, excluded from every calculation.
@@ -90,7 +131,8 @@ _Avoid_: previous, history
 **Suggestion**:
 Today's proposed weight for an exercise: last weight plus the increment if every working set last
 time reached the top of the rep range, otherwise the same weight, rounded up to a weight the equipment can make. Never overwrites a typed
-value.
+value. On screen the workout labels it "Today's target" (`docs/06`, 2026-10-10): that is wording
+for the line that shows it, not a second term. Code, the API, tickets and these docs say suggestion.
 _Avoid_: recommendation, target weight, prescription
 
 **Increment**:
@@ -103,12 +145,29 @@ _Avoid_: jump, step size
 Estimated one-rep max of the best working set in a workout, by Epley: `weight × (1 + reps / 30)`.
 _Avoid_: 1RM, max (it is an estimate)
 
+**Strength trend**:
+Whether a lift is gaining, holding or losing over a span: the straight line through its e1RM by
+date, its end against its start. Up 2% or more is gaining, down 2% or more is losing, and a lift
+needs three workouts with working sets and a calculable line in the span to have one. Status uses the unrounded percentage;
+the strength overview averages those unrounded percentages plainly. A lift logged only at zero
+weight stays listed with its workout count and no trend. Three or more workouts without a
+calculable percentage stay listed with their count and no verdict. Not
+the weight **Trend** below, which is a smoothed bodyweight.
+_Avoid_: progress (the chart of one exercise), plateau (a weight term), stall
+
+**Full screen**:
+The workout screen's second layout: one exercise and one set, with the screen kept awake. Turned on
+by hand in each workout and not remembered (`docs/06`, 2026-10-12).
+_Avoid_: focus mode, focus (Focus is Apple's: the iPhone setting that silences notifications, which
+the app can describe and cannot turn on), distraction-free mode, the browser's fullscreen
+
 ## Offline
 
 **Set store**:
 The device's own IndexedDB store holding one record per set, and per `workout` and `workout_exercise`
 row, until the server acknowledges it. The open workout's rows stay until the workout ends, so the
-workout can be rebuilt after iOS closes the app.
+workout can be rebuilt after iOS closes the app. A past workout's rows come back while a change
+to one of its sets waits to upload.
 _Avoid_: queue (in code), cache, outbox
 
 **Tombstone**:
@@ -202,7 +261,7 @@ _Avoid_: daily review, close-out
 
 **Prep plan**:
 The raw grams to cook per food for the coming week, worked out from the plan and the current batch
-yield. Derived.
+yield, assigned to the plan's at most two cook days (S16–S17). Derived.
 _Avoid_: prep list (the screen title may use it), cooking plan
 
 **Grocery list**:

@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import type { Navigate } from './navigation';
 import { useAccount } from './query';
 import { signOut, type SignOutResult } from './sign-out';
 import { requestUpload } from './uploader';
@@ -92,11 +93,13 @@ export function ScreenTabs({
   current,
   navigate,
 }: {
-  current: '/' | '/routines' | '/exercises';
+  current: '/' | '/food' | '/progress' | '/routines' | '/exercises';
   navigate: (path: string) => void;
 }) {
   const tabs = [
     { path: '/', label: 'Today' },
+    { path: '/food', label: 'Food' },
+    { path: '/progress', label: 'Progress' },
     { path: '/routines', label: 'Routines' },
     { path: '/exercises', label: 'Exercises' },
   ] as const;
@@ -192,13 +195,17 @@ export function Notice({
   tone,
   word,
   children,
+  quiet = false,
 }: {
   tone: 'flag' | 'error';
   word: string;
   children: ReactNode;
+  /** Part of the screen as it opens, not news about something just done: it is not announced. */
+  quiet?: boolean;
 }) {
+  const role = tone === 'error' ? 'alert' : 'status';
   return (
-    <div className={`notice notice--${tone}`} role={tone === 'error' ? 'alert' : 'status'}>
+    <div className={`notice notice--${tone}`} role={quiet ? undefined : role}>
       <InfoIcon color={tone === 'error' ? 'var(--error)' : 'var(--flag)'} />
       <div>
         <div className="notice__word">{word}</div>
@@ -243,15 +250,19 @@ export function TextField({
   className,
   focusOnOpen,
   type = 'text',
-  identifier = false,
+  literal = false,
+  inputMode,
 }: FieldProps & {
   /** Focus on mount: only for a form's first field, on a screen opened to fill it in. */
   focusOnOpen?: boolean;
-  type?: 'text' | 'search';
-  /** An identifier such as `Asia/Tokyo`, not prose: the keyboard leaves it as typed. */
-  identifier?: boolean;
+  type?: 'text' | 'search' | 'email';
+  /** A word typed exactly, in capitals, such as `DELETE`: no autocorrect. */
+  literal?: boolean;
+  /** `numeric` for a code typed in digits, such as a barcode: the number pad, no spellcheck. */
+  inputMode?: 'numeric';
 }) {
   const id = useId();
+  const email = type === 'email';
   return (
     <div className={['field', className].filter(Boolean).join(' ')}>
       <FieldLabel htmlFor={id} label={label} note={note} />
@@ -262,9 +273,10 @@ export function TextField({
         value={value}
         placeholder={placeholder}
         autoComplete="off"
-        spellCheck={identifier ? false : undefined}
-        autoCapitalize={identifier ? 'none' : undefined}
-        autoCorrect={identifier ? 'off' : undefined}
+        autoCapitalize={email ? 'none' : literal ? 'characters' : undefined}
+        autoCorrect={literal ? 'off' : undefined}
+        spellCheck={email || literal || inputMode !== undefined ? false : undefined}
+        inputMode={inputMode}
         // oxlint-disable-next-line jsx-a11y/no-autofocus -- only a form's first field, opened on purpose
         autoFocus={focusOnOpen}
         aria-invalid={error === undefined ? undefined : true}
@@ -306,7 +318,7 @@ export function NumberField({
         htmlFor={id}
         label={label}
         note={note}
-        context={[labelContext, unit === undefined ? undefined : `in ${unitNames[unit]}`]
+        context={[labelContext, unit === undefined ? undefined : `in ${unitNames[unit] ?? unit}`]
           .filter(Boolean)
           .join(' ')}
       />
@@ -337,9 +349,17 @@ export function NumberField({
 }
 
 /** The spoken form of a unit printed beside a figure, which is hidden from screen readers. */
-const unitNames: Record<string, string> = { kg: 'kilograms', lb: 'pounds', s: 'seconds' };
+const unitNames: Record<string, string> = {
+  kg: 'kilograms',
+  lb: 'pounds',
+  s: 'seconds',
+  '%': 'percent',
+  g: 'grams',
+  kcal: 'kilocalories',
+  days: 'days',
+};
 
-function FieldLabel({
+export function FieldLabel({
   htmlFor,
   label,
   note,
@@ -381,7 +401,8 @@ export function DeleteConfirm({
   keepLabel = 'Keep',
   confirmLabel = 'Delete',
 }: {
-  label: string;
+  /** Text, with any context said but not shown, e.g. which row it acts on. */
+  label: ReactNode;
   question: ReactNode;
   busy: boolean;
   onDelete: () => void;
@@ -449,10 +470,13 @@ export function DeleteConfirm({
  */
 export function AccountFooter({
   email,
+  admin = false,
   navigate,
 }: {
   email: string;
-  navigate: (path: string) => void;
+  /** The admin also gets the way to the invite list (S9), which is not one of the tabs. */
+  admin?: boolean;
+  navigate: Navigate;
 }) {
   const [busy, setBusy] = useState(false);
   const [stopped, setStopped] = useState<Exclude<SignOutResult, 'signed-out'>>();
@@ -475,6 +499,8 @@ export function AccountFooter({
     setStopped(undefined);
     void (options.uploadFirst === true ? requestUpload() : Promise.resolve())
       .then(() => signOut(navigate, options))
+      // An upload whose answer the set store could not take: nothing is signed out or discarded.
+      .catch((): SignOutResult => 'failed')
       .then((result) => {
         if (result === 'signed-out') return;
         setBusy(false);
@@ -540,6 +566,28 @@ export function AccountFooter({
       )}
       <footer className="footer">
         <span className="footer__account">{email}</span>
+        <a
+          href="/account"
+          className="button button--tertiary footer__link"
+          onClick={(event) => {
+            event.preventDefault();
+            navigate('/account', { returns: true });
+          }}
+        >
+          Your data
+        </a>
+        {admin && (
+          <a
+            href="/admin/invites"
+            className="button button--tertiary footer__link"
+            onClick={(event) => {
+              event.preventDefault();
+              navigate('/admin/invites', { returns: true });
+            }}
+          >
+            Invites
+          </a>
+        )}
         <button
           type="button"
           className="button button--tertiary"

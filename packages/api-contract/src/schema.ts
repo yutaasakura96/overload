@@ -147,6 +147,69 @@ export interface paths {
     };
     trace?: never;
   };
+  '/api/me/export': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** One section of the caller’s export, a page at a time */
+    get: {
+      parameters: {
+        query: {
+          /** @description The sections built so far. Later milestones add theirs (docs/07 §2). */
+          section: components['schemas']['ExportSection'];
+          /** @description Default 30, at most 100. */
+          limit?: number;
+          /** @description The previous page’s `nextCursor`. */
+          cursor?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description One page of the section, and the cursor of the next */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ExportPage'];
+          };
+        };
+        /** @description An unknown section, a limit outside 1 to 100, or a cursor that does not decode to this section’s sort key and id */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/exercises': {
     parameters: {
       query?: never;
@@ -479,6 +542,85 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/exercises/{id}/progress': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** One exercise’s e1RM per workout over a span, with the span’s top set and volume load */
+    get: {
+      parameters: {
+        query?: {
+          /** @description Default `12w`. */
+          span?: components['schemas']['Span'] & unknown;
+        };
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description The chart. Fewer than 2 points is not enough to draw one */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['Progress'];
+          };
+        };
+        /** @description A malformed id, or a span that is not one of the five */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No exercise with that id is visible to the caller */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `setup_incomplete` with `missing: ["profile"]`: local dates need the time zone */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/routines': {
     parameters: {
       query?: never;
@@ -799,6 +941,181 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/workouts': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** History: the caller’s finished workouts, newest first, a page at a time */
+    get: {
+      parameters: {
+        query?: {
+          /** @description Default 30, at most 100. */
+          limit?: number;
+          /** @description The previous page’s `nextCursor`. */
+          cursor?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description One page, and the cursor of the next */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['WorkoutList'];
+          };
+        };
+        /** @description A limit outside 1 to 100, or a cursor this route did not make */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/workouts/last-done': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** When each of the caller’s routines was last done: its newest finished workout */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description One entry per routine done at least once */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['LastDone'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/workouts/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** One workout with its exercises and every set */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description The workout */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['WorkoutDetail'];
+          };
+        };
+        /** @description A malformed id */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No workout with that id is the caller’s */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/training/last-time': {
     parameters: {
       query?: never;
@@ -809,7 +1126,10 @@ export interface paths {
     /** Last time and today’s suggestion for every exercise the caller has logged */
     get: {
       parameters: {
-        query?: never;
+        query?: {
+          /** @description A workout to leave out: the open workout reads the workout before it, not its own sets. */
+          exclude?: string;
+        };
         header?: never;
         path?: never;
         cookie?: never;
@@ -825,6 +1145,142 @@ export interface paths {
           };
           content: {
             'application/json': components['schemas']['LastTimes'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `setup_incomplete` with `missing: ["profile"]`: local dates need the time zone */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/training/strength': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Whether each lift, and all of them together, is gaining, holding or losing over a span */
+    get: {
+      parameters: {
+        query?: {
+          /** @description Default `12w`. */
+          span?: '4w' | '12w' | '1y';
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description One entry per exercise logged in the span, with its points, trend and status */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['StrengthOverview'];
+          };
+        };
+        /** @description A span that is not `4w`, `12w` or `1y` */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `setup_incomplete` with `missing: ["profile"]`: local dates need the time zone */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/training/balance': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Working sets a week for each muscle group, over four weeks or this week */
+    get: {
+      parameters: {
+        query?: {
+          /** @description Default `4w`, the average of the last four weeks; `week` is this week so far. */
+          view?: '4w' | 'week';
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Every muscle group, its sets a week, its status and where the sets came from */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['Balance'];
+          };
+        };
+        /** @description A view that is not `4w` or `week` */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
           };
         };
         /** @description No session */
@@ -878,7 +1334,7 @@ export interface paths {
         };
       };
       responses: {
-        /** @description A result per row sent. Refusals do not fail the request; each is reported on its row */
+        /** @description A result per row sent. Refusals do not fail the request; each is reported on its row, a row that does not match its schema included */
         200: {
           headers: {
             /** @description The id of the user whose session answered. Keep the body for that account only. */
@@ -907,8 +1363,1199 @@ export interface paths {
             'application/problem+json': components['schemas']['Problem'];
           };
         };
-        /** @description `validation_failed`: the batch did not match its schema */
+        /** @description `validation_failed`: the batch is not three arrays of rows that each carry an id */
         422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/weigh-ins': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Weigh-ins in a range of local dates, with the daily weights and the trend */
+    get: {
+      parameters: {
+        query?: {
+          /** @description The first local date, included. Default: the first weigh-in. */
+          from?: string;
+          /** @description The last local date, included. Default: today. */
+          to?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description The range’s readings and weighed days, newest first, trended from all history */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['WeighIns'];
+          };
+        };
+        /** @description A date that is not `YYYY-MM-DD`, or `from` after `to` */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `setup_incomplete` with `missing: ["profile"]`: local dates need the time zone */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    put?: never;
+    /** Save a weigh-in typed by hand */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['WeighInCreate'];
+        };
+      };
+      responses: {
+        /** @description A repeat of the same create: the stored weigh-in */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['WeighIn'];
+          };
+        };
+        /** @description Created */
+        201: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['WeighIn'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `id_conflict`: the id is in use with other content; `weigh_in_exists`: a typed weigh-in at that instant exists */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `validation_failed`, including a weight outside 20 to 300 kg */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/weigh-ins/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Delete a typed weigh-in. 204 whenever the caller has no such weigh-in afterwards */
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description The caller has no typed weigh-in with that id */
+        204: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description A malformed id */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `managed_by_apple_health`: it came from Apple Health, which would send it again; delete it there */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/foods': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** The food list, by name */
+    get: {
+      parameters: {
+        query?: {
+          /** @description Include archived foods. Default `false`. */
+          includeArchived?: 'true' | 'false';
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Every food on the list, by name */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['FoodList'];
+          };
+        };
+        /** @description A parameter of the wrong type */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    put?: never;
+    /** Add a confirmed food, converted to per 100 g */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['FoodCreate'];
+        };
+      };
+      responses: {
+        /** @description A repeat of the same create: the stored food */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['Food'];
+          };
+        };
+        /** @description Created */
+        201: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['Food'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `id_conflict`: the id is in use with other content; `food_exists`: the same barcode, MEXT code, or name, brand and state is on the list, named by `existingFoodId` */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `validation_failed`, including a basis without its weight, a value above what 100 g can hold, and a rotation group that is not the caller’s */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/foods/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Archive a food. Past plans keep it. 204 whenever the caller has no listed food with that id afterwards */
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Archived, or never on the caller’s list */
+        204: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description A malformed id */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    /** Edit a food’s values per 100 g, piece weight, keeping days or rotation group */
+    patch: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['FoodPatch'];
+        };
+      };
+      responses: {
+        /** @description The food as it now stands */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['Food'];
+          };
+        };
+        /** @description A malformed id */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description The caller has no food with that id */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `food_exists`: another food on the list has that name, brand and state */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `validation_failed` */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    trace?: never;
+  };
+  '/api/reference-foods': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Search the MEXT table (八訂 増補2023), 20 results, best match first */
+    get: {
+      parameters: {
+        query: {
+          /** @description Words in the English name or the name as MEXT prints it. Every word must match. */
+          q: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description The matches, best first */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ReferenceFoodList'];
+          };
+        };
+        /** @description `q` empty or over 80 characters */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/barcodes/{code}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Look a barcode up in Open Food Facts. A candidate, never a saved food */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          code: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description The candidate and its values per 100 g; or, when the list has that barcode, `existingFoodId` and no lookup */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['BarcodeLookup'];
+          };
+        };
+        /** @description Not a barcode of 8 to 14 digits */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `not_found`: not in Open Food Facts */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `rate_limited`: Open Food Facts’ 15 reads a minute */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `upstream_failed`: Open Food Facts did not answer */
+        502: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/label-reads': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Read the 栄養成分表示 in a photo. A candidate with its basis, never a saved food */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'multipart/form-data': {
+            /**
+             * Format: binary
+             * @description JPEG, PNG or WebP, at most 4 MB. The client resizes to 1568 px on the long edge.
+             */
+            image: string;
+          };
+        };
+      };
+      responses: {
+        /** @description What the label prints, on its basis, and the same per 100 g */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['LabelRead'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `payload_too_large`: over 4 MB */
+        413: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `validation_failed`: no image, or not JPEG, PNG or WebP; `unreadable_label`: no nutrition table the model could read */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `model_cap_reached`: the day’s model calls, label reads and meal estimates together, are used up */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `upstream_failed`: the reader did not answer, or is not set up */
+        502: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/rotation-groups': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** The rotation groups, by name, with their foods */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Every group, by name */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['RotationGroupList'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    put?: never;
+    /** Make a group of foods that stand in for each other */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['RotationGroupCreate'];
+        };
+      };
+      responses: {
+        /** @description A repeat of the same create: the stored group */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['RotationGroup'];
+          };
+        };
+        /** @description Created */
+        201: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['RotationGroup'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `id_conflict`: the id is in use with other content */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `validation_failed`, including a food that is not on the caller’s list */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/rotation-groups/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Delete a group. Its foods stay, ungrouped */
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description The caller has no group with that id */
+        204: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description A malformed id */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    /** Rename a group, or replace its foods */
+    patch: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['RotationGroupPatch'];
+        };
+      };
+      responses: {
+        /** @description The group as it now stands */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['RotationGroup'];
+          };
+        };
+        /** @description A malformed id */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description The caller has no group with that id */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `validation_failed`, including a food that is not on the caller’s list */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    trace?: never;
+  };
+  '/api/admin/invites': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Every invite, newest first */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description The invites */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['InviteList'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description A member: the admin routes are not found for them */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    put?: never;
+    /** Invite a Google email */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['InviteCreate'];
+        };
+      };
+      responses: {
+        /** @description A repeat of the same create: the stored invite */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['Invite'];
+          };
+        };
+        /** @description Invited */
+        201: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['Invite'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description A member: the admin routes are not found for them */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `invite_exists`: the email already has an invite; restore it instead. `id_conflict`: the id is in use with another email or note */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `validation_failed` */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/admin/invites/{id}/revoke': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Revoke: sign the member out everywhere and refuse their next sign-in. Their data stays. A revoked invite is returned unchanged */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description The invite, revoked */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['Invite'];
+          };
+        };
+        /** @description A malformed id */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No invite with that id, or a member calling */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `admin_account`: the admin’s own invite */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/admin/invites/{id}/restore': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Restore: the member can sign in again. Their ingest tokens stay revoked. An invite that is not revoked is returned unchanged */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description The invite, admitting them again */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['Invite'];
+          };
+        };
+        /** @description A malformed id */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No invite with that id, or a member calling */
+        404: {
           headers: {
             [name: string]: unknown;
           };
@@ -986,6 +2633,11 @@ export interface components {
       }[];
       /** @description Present only for `setup_incomplete`: the steps to finish first. */
       missing?: ('profile' | 'foods' | 'day_routine' | 'goal_phase')[];
+      /**
+       * Format: uuid
+       * @description Present only for `food_exists`: the food already on the list.
+       */
+      existingFoodId?: string;
     };
     /** @description Omitted fields are unchanged and `null` clears one. The first save creates the profile. */
     ProfilePatch: {
@@ -1002,8 +2654,70 @@ export interface components {
       trainingWeekdays?: number[];
       weightUnit?: components['schemas']['WeightUnit'];
     };
-    ExerciseList: {
-      items: components['schemas']['Exercise'][];
+    /** @description One page of one section. `profile` has one item; `exercises`, `routines`, `workouts`, `weighIns`, `foods` and `rotationGroups` are cursor-paged. Workouts include ones in progress, and `foods` archived ones. */
+    ExportPage:
+      | {
+          /** @enum {string} */
+          section: 'profile';
+          items: components['schemas']['ExportProfile'][];
+          /** @description Opaque. Send it back as `cursor` for the next page. */
+          nextCursor: string | null;
+        }
+      | {
+          /** @enum {string} */
+          section: 'exercises';
+          items: components['schemas']['Exercise'][];
+          /** @description Opaque. Send it back as `cursor` for the next page. */
+          nextCursor: string | null;
+        }
+      | {
+          /** @enum {string} */
+          section: 'routines';
+          items: components['schemas']['Routine'][];
+          /** @description Opaque. Send it back as `cursor` for the next page. */
+          nextCursor: string | null;
+        }
+      | {
+          /** @enum {string} */
+          section: 'workouts';
+          items: components['schemas']['WorkoutDetail'][];
+          /** @description Opaque. Send it back as `cursor` for the next page. */
+          nextCursor: string | null;
+        }
+      | {
+          /** @enum {string} */
+          section: 'weighIns';
+          items: components['schemas']['WeighIn'][];
+          /** @description Opaque. Send it back as `cursor` for the next page. */
+          nextCursor: string | null;
+        }
+      | {
+          /** @enum {string} */
+          section: 'foods';
+          items: components['schemas']['Food'][];
+          /** @description Opaque. Send it back as `cursor` for the next page. */
+          nextCursor: string | null;
+        }
+      | {
+          /** @enum {string} */
+          section: 'rotationGroups';
+          items: components['schemas']['RotationGroup'][];
+          /** @description Opaque. Send it back as `cursor` for the next page. */
+          nextCursor: string | null;
+        };
+    ExportProfile: {
+      user: {
+        /**
+         * Format: uuid
+         * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+         */
+        id: string;
+        name: string;
+        /** Format: email */
+        email: string;
+        image: string | null;
+      };
+      profile: components['schemas']['Profile'];
     };
     Exercise: {
       /**
@@ -1014,6 +2728,34 @@ export interface components {
       /** @example Barbell Bench Press */
       name: string;
       equipment: components['schemas']['Equipment'];
+      muscleGroup: components['schemas']['MuscleGroup'];
+      /**
+       * @description The groups it also trains, where a working set counts half in the balance view. Each once, in the order of `MuscleGroup`, never `muscleGroup` itself. Empty for none.
+       * @example [
+       *       "shoulders",
+       *       "triceps"
+       *     ]
+       */
+      secondaryMuscleGroups: (
+        | 'chest'
+        | 'back'
+        | 'shoulders'
+        | 'biceps'
+        | 'triceps'
+        | 'forearms'
+        | 'quads'
+        | 'hamstrings'
+        | 'glutes'
+        | 'calves'
+        | 'core'
+      )[];
+      /**
+       * @description Other names for search to match, never shown as the name. Seeded only.
+       * @example [
+       *       "Flat Bench"
+       *     ]
+       */
+      aliases: string[];
       /** @description True for the caller’s own exercise, false for a seeded one. */
       custom: boolean;
       hidden: boolean;
@@ -1045,55 +2787,23 @@ export interface components {
       | 'cable'
       | 'bodyweight'
       | 'other';
-    ExerciseCreate: {
-      /**
-       * Format: uuid
-       * @description Made on the device (UUIDv7). A repeat returns the row.
-       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
-       */
-      id: string;
-      /** @example Cable Y-Raise */
-      name: string;
-      equipment: components['schemas']['Equipment'];
-      /**
-       * @description Default: the equipment class’s increment (docs/04 `exercise`).
-       * @example 2.5
-       */
-      incrementKg?: number;
-      /**
-       * @description Default 120.
-       * @example 120
-       */
-      restSeconds?: number;
-      /** @description Default 6. */
-      repLow?: number;
-      /** @description Default 10. */
-      repHigh?: number;
-    };
-    ExercisePatch: {
-      name?: string;
-      equipment?: components['schemas']['Equipment'];
-      /** @example 2.5 */
-      incrementKg?: number;
-      /** @example 120 */
-      restSeconds?: number;
-      repLow?: number;
-      repHigh?: number;
-    };
-    /** @description The whole setting. `null` restores the exercise’s default for that value. */
-    ExerciseSetting: {
-      /** @example 2.5 */
-      incrementKg: number | null;
-      /** @example 120 */
-      restSeconds: number | null;
-      repLow: number | null;
-      repHigh: number | null;
-      /** @description Off the caller’s pickers; history still names it. */
-      hidden: boolean;
-    };
-    RoutineList: {
-      items: components['schemas']['Routine'][];
-    };
+    /**
+     * @description The one group the library files an exercise under (docs/04 `exercise`).
+     * @enum {string|null}
+     */
+    MuscleGroup:
+      | 'chest'
+      | 'back'
+      | 'shoulders'
+      | 'biceps'
+      | 'triceps'
+      | 'forearms'
+      | 'quads'
+      | 'hamstrings'
+      | 'glutes'
+      | 'calves'
+      | 'core'
+      | null;
     Routine: {
       /**
        * Format: uuid
@@ -1123,6 +2833,389 @@ export interface components {
       targetSets: number;
       repLow: number | null;
       repHigh: number | null;
+    };
+    /** @description One workout whole. Every row is as the sync batch holds it, so a set can be sent back edited, or deleted, through `/api/workouts/sync`. */
+    WorkoutDetail: {
+      /**
+       * Format: uuid
+       * @description Made on the phone (UUIDv7).
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      id: string;
+      /**
+       * Format: uuid
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      routineId: string | null;
+      /** @example Push A */
+      name: string;
+      /**
+       * Format: date-time
+       * @example 2026-11-11T09:01:40.000Z
+       */
+      startedAt: string;
+      /**
+       * Format: date-time
+       * @description Null while the workout is in progress.
+       * @example 2026-11-11T09:01:40.000Z
+       */
+      endedAt: string | null;
+      note: string | null;
+      /**
+       * Format: date-time
+       * @description The phone’s clock at the last edit.
+       * @example 2026-11-11T09:01:40.000Z
+       */
+      clientUpdatedAt: string;
+      /** @description In order. One that logged no set is still listed. */
+      exercises: {
+        /**
+         * Format: uuid
+         * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+         */
+        id: string;
+        /**
+         * Format: uuid
+         * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+         */
+        workoutId: string;
+        /**
+         * Format: uuid
+         * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+         */
+        exerciseId: string;
+        /**
+         * Format: uuid
+         * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+         */
+        routineExerciseId: string | null;
+        position: number;
+        /** @description Copied from the routine at start. */
+        targetSets: number | null;
+        repLow: number;
+        repHigh: number;
+        /** @example 2.5 */
+        incrementKg: number;
+        /**
+         * Format: date-time
+         * @example 2026-11-11T09:01:40.000Z
+         */
+        clientUpdatedAt: string;
+        /** @example Barbell Bench Press */
+        name: string;
+        /** @description In `position` order, warm-ups included. */
+        sets: {
+          /**
+           * Format: uuid
+           * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+           */
+          id: string;
+          /**
+           * Format: uuid
+           * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+           */
+          workoutExerciseId: string;
+          /** @description Order within the exercise, warm-ups included. Never renumbered. */
+          position: number;
+          /** @example 82.5 */
+          weightKg: number;
+          /** @example 10 */
+          reps: number;
+          rir: number | null;
+          rpe: number | null;
+          isWarmup: boolean;
+          /**
+           * Format: date-time
+           * @example 2026-11-11T09:01:40.000Z
+           */
+          performedAt: string;
+          /**
+           * Format: date-time
+           * @example 2026-11-11T09:01:40.000Z
+           */
+          clientUpdatedAt: string;
+        }[];
+      }[];
+    };
+    WeighIn: {
+      /**
+       * Format: uuid
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      id: string;
+      /**
+       * Format: date-time
+       * @description When the reading was taken, not when it arrived.
+       * @example 2026-11-11T09:01:40.000Z
+       */
+      measuredAt: string;
+      /** @example 82.4 */
+      weightKg: number;
+      /** @example 18.5 */
+      bodyFatPct: number | null;
+      /**
+       * @description `manual` was typed by hand and can be deleted; `apple_health` cannot be.
+       * @enum {string}
+       */
+      source: 'apple_health' | 'manual';
+    };
+    /** @description One food on the list. Values are per 100 g of `state`. */
+    Food: {
+      /**
+       * Format: uuid
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      id: string;
+      /** @example 鶏むね肉（皮なし） */
+      name: string;
+      brand: string | null;
+      state: components['schemas']['FoodState'];
+      /** @example 105 */
+      energyKcal: number;
+      /** @example 23.3 */
+      proteinG: number;
+      /** @example 0.1 */
+      carbG: number;
+      /** @example 1.9 */
+      fatG: number;
+      /** @example 0 */
+      fiberG: number;
+      /**
+       * @description Set for a food counted in pieces. Null: counted in grams.
+       * @example 55
+       */
+      pieceWeightG: number | null;
+      /**
+       * @description How many days a cooked batch keeps. Null: not batch-cooked.
+       * @example 4
+       */
+      keepsDays: number | null;
+      source: components['schemas']['FoodSource'];
+      /** @description The MEXT food code, or the barcode. */
+      sourceRef: string | null;
+      /**
+       * Format: uuid
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      rotationGroupId: string | null;
+      /**
+       * Format: date-time
+       * @description Off the list and out of new plans; past plans still name it.
+       * @example 2026-11-11T09:01:40.000Z
+       */
+      archivedAt: string | null;
+    };
+    /**
+     * @description The state the values are for: weighed raw, or weighed cooked.
+     * @enum {string}
+     */
+    FoodState: 'raw' | 'cooked';
+    /** @enum {string} */
+    FoodSource: 'mext' | 'open_food_facts' | 'label_photo' | 'manual';
+    RotationGroup: {
+      /**
+       * Format: uuid
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      id: string;
+      /** @example Starch */
+      name: string;
+      /** @description Its foods on the list, by name. */
+      foodIds: string[];
+    };
+    /**
+     * @description The sections built so far. Later milestones add theirs (docs/07 §2).
+     * @enum {string}
+     */
+    ExportSection:
+      | 'profile'
+      | 'exercises'
+      | 'routines'
+      | 'workouts'
+      | 'weighIns'
+      | 'foods'
+      | 'rotationGroups';
+    ExerciseList: {
+      items: components['schemas']['Exercise'][];
+    };
+    ExerciseCreate: {
+      /**
+       * Format: uuid
+       * @description Made on the device (UUIDv7). A repeat returns the row.
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      id: string;
+      /** @example Cable Y-Raise */
+      name: string;
+      equipment: components['schemas']['Equipment'];
+      muscleGroup?: components['schemas']['MuscleGroup'];
+      /** @description The groups it also trains, where a set counts half. Stored each once, in order, without the group it is filed under. */
+      secondaryMuscleGroups?: (
+        | 'chest'
+        | 'back'
+        | 'shoulders'
+        | 'biceps'
+        | 'triceps'
+        | 'forearms'
+        | 'quads'
+        | 'hamstrings'
+        | 'glutes'
+        | 'calves'
+        | 'core'
+      )[];
+      /**
+       * @description Default: the equipment class’s increment (docs/04 `exercise`).
+       * @example 2.5
+       */
+      incrementKg?: number;
+      /**
+       * @description Default 120.
+       * @example 120
+       */
+      restSeconds?: number;
+      /** @description Default 6. */
+      repLow?: number;
+      /** @description Default 10. */
+      repHigh?: number;
+    };
+    ExercisePatch: {
+      name?: string;
+      equipment?: components['schemas']['Equipment'];
+      muscleGroup?: components['schemas']['MuscleGroup'];
+      /** @description The groups it also trains, where a set counts half. Stored each once, in order, without the group it is filed under. */
+      secondaryMuscleGroups?: (
+        | 'chest'
+        | 'back'
+        | 'shoulders'
+        | 'biceps'
+        | 'triceps'
+        | 'forearms'
+        | 'quads'
+        | 'hamstrings'
+        | 'glutes'
+        | 'calves'
+        | 'core'
+      )[];
+      /** @example 2.5 */
+      incrementKg?: number;
+      /** @example 120 */
+      restSeconds?: number;
+      repLow?: number;
+      repHigh?: number;
+    };
+    /** @description The whole setting. `null` restores the exercise’s default for that value. */
+    ExerciseSetting: {
+      /** @example 2.5 */
+      incrementKg: number | null;
+      /** @example 120 */
+      restSeconds: number | null;
+      repLow: number | null;
+      repHigh: number | null;
+      /** @description Off the caller’s pickers; history still names it. */
+      hidden: boolean;
+    };
+    /** @description One exercise’s chart (S7). Warm-ups are left out of every number (S6). */
+    Progress: {
+      span: components['schemas']['Span'];
+      /**
+       * Format: date
+       * @description The span’s first local date. For `all`, the first workout’s, and null without one.
+       */
+      from: string | null;
+      /**
+       * Format: date
+       * @description Today, in the caller’s time zone.
+       */
+      to: string;
+      /** @description One per workout with a working set of it, oldest first. */
+      points: components['schemas']['ProgressPoint'][];
+      /** @description Over the span: the best e1RM, the heaviest top set with the most reps done at it, and the volume load of every workout together. Null without a workout. */
+      stats: {
+        /** @example 106.7 */
+        bestE1rmKg: number | null;
+        /**
+         * @description The last workout’s e1RM less the first’s, from the estimates before they are rounded, to the thousandth. Null with fewer than two.
+         * @example 5.367
+         */
+        changeKg: number | null;
+        /** @example 82.5 */
+        topSetKg: number | null;
+        /** @example 10 */
+        topSetReps: number | null;
+        /** @example 28800 */
+        volumeKg: number;
+      };
+    };
+    /**
+     * @description How far back the chart reads: 4 or 12 weeks, 6 months, 1 year, or everything.
+     * @enum {string}
+     */
+    Span: '4w' | '12w' | '6m' | '1y' | 'all';
+    ProgressPoint: {
+      /**
+       * Format: uuid
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      workoutId: string;
+      /** @example Push A */
+      workoutName: string;
+      /**
+       * Format: date
+       * @description The workout’s local date.
+       */
+      date: string;
+      /**
+       * @description Epley on the best working set, to the tenth.
+       * @example 106.7
+       */
+      e1rmKg: number;
+      /**
+       * @description The heaviest working set.
+       * @example 80
+       */
+      topSetKg: number;
+      /**
+       * @description The most reps done at that weight.
+       * @example 10
+       */
+      topSetReps: number;
+      /**
+       * @description Volume load: weight × reps, summed over the working sets.
+       * @example 2400
+       */
+      volumeKg: number;
+      /** @description The working sets in order: the exercise’s past sets. A bodyweight lift’s are as counted. */
+      sets: {
+        weightKg: number;
+        reps: number;
+      }[];
+      /** @description Which weigh-in a bodyweight lift was counted at (issue #69): all of that weight plus the kg logged on the set. */
+      bodyweight:
+        | {
+            /**
+             * @description `same_day`: the day’s own weight. `earlier_day`: no reading that day, so the latest earlier day’s. `later_day`: the workout is older than the first weigh-in, so the first later one.
+             * @enum {string}
+             */
+            basis: 'same_day' | 'earlier_day' | 'later_day';
+            /** @example 82.4 */
+            weightKg: number;
+            /**
+             * Format: date
+             * @description The local date of the weigh-in counted.
+             */
+            weighedOn: string;
+          }
+        | {
+            /**
+             * @description No weigh-in at all: sets as logged.
+             * @enum {string}
+             */
+            basis: 'none';
+          }
+        | null;
+    };
+    RoutineList: {
+      items: components['schemas']['Routine'][];
     };
     RoutineCreate: {
       /**
@@ -1160,6 +3253,80 @@ export interface components {
     RoutineExercisesPut: {
       exercises: components['schemas']['RoutineSlotInput'][];
     };
+    /** @description Finished workouts, newest `startedAt` first. One in progress is not listed. */
+    WorkoutList: {
+      items: components['schemas']['WorkoutSummary'][];
+      /** @description Opaque. Send it back as `cursor` for the next page. */
+      nextCursor: string | null;
+      /** @description How many finished workouts the caller has in all. */
+      total: number;
+    };
+    WorkoutSummary: {
+      /**
+       * Format: uuid
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      id: string;
+      /** @example Push A */
+      name: string;
+      /**
+       * Format: uuid
+       * @description The routine it was started from; null when it came from none, or the routine is gone.
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      routineId: string | null;
+      /**
+       * Format: date-time
+       * @example 2026-11-11T09:01:40.000Z
+       */
+      startedAt: string;
+      /**
+       * Format: date-time
+       * @example 2026-11-11T09:01:40.000Z
+       */
+      endedAt: string;
+      /**
+       * @description Warm-ups are not counted (S6).
+       * @example 13
+       */
+      workingSets: number;
+      /** @description Each exercise that logged a working set, in the workout’s order. */
+      exercises: {
+        /** @example Barbell Bench Press */
+        name: string;
+        /**
+         * @description The heaviest working set.
+         * @example 80
+         */
+        topSetKg: number;
+        /**
+         * @description The most reps done at that weight.
+         * @example 10
+         */
+        topSetReps: number;
+      }[];
+    };
+    /** @description When each of the caller’s routines was last done. A routine never done, or deleted, is absent. */
+    LastDone: {
+      items: {
+        /**
+         * Format: uuid
+         * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+         */
+        routineId: string;
+        /**
+         * Format: uuid
+         * @description The routine’s newest finished workout.
+         * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+         */
+        workoutId: string;
+        /**
+         * Format: date-time
+         * @example 2026-11-11T09:01:40.000Z
+         */
+        startedAt: string;
+      }[];
+    };
     /** @description Every exercise the caller has logged. One never logged is absent. */
     LastTimes: {
       /**
@@ -1189,9 +3356,37 @@ export interface components {
       sets: {
         workingSet: number;
         weightKg: number;
+        /** @description The load counted for display; weightKg remains the logged added load. */
+        countedWeightKg: number;
         reps: number;
+        /** @description Null when the set recorded none. */
+        rir: number | null;
       }[];
       suggestion: components['schemas']['Suggestion'];
+      /** @description Which weigh-in a bodyweight lift was counted at (issue #69): all of that weight plus the kg logged on the set. */
+      bodyweight:
+        | {
+            /**
+             * @description `same_day`: the day’s own weight. `earlier_day`: no reading that day, so the latest earlier day’s. `later_day`: the workout is older than the first weigh-in, so the first later one.
+             * @enum {string}
+             */
+            basis: 'same_day' | 'earlier_day' | 'later_day';
+            /** @example 82.4 */
+            weightKg: number;
+            /**
+             * Format: date
+             * @description The local date of the weigh-in counted.
+             */
+            weighedOn: string;
+          }
+        | {
+            /**
+             * @description No weigh-in at all: sets as logged.
+             * @enum {string}
+             */
+            basis: 'none';
+          }
+        | null;
       /** @description Last time for each of the caller’s routine slots that has logged the exercise. */
       slots: components['schemas']['LastTimeSlot'][];
     };
@@ -1226,9 +3421,209 @@ export interface components {
       sets: {
         workingSet: number;
         weightKg: number;
+        /** @description The load counted for display; weightKg remains the logged added load. */
+        countedWeightKg: number;
         reps: number;
+        /** @description Null when the set recorded none. */
+        rir: number | null;
       }[];
       suggestion: components['schemas']['Suggestion'];
+      /** @description Which weigh-in a bodyweight lift was counted at (issue #69): all of that weight plus the kg logged on the set. */
+      bodyweight:
+        | {
+            /**
+             * @description `same_day`: the day’s own weight. `earlier_day`: no reading that day, so the latest earlier day’s. `later_day`: the workout is older than the first weigh-in, so the first later one.
+             * @enum {string}
+             */
+            basis: 'same_day' | 'earlier_day' | 'later_day';
+            /** @example 82.4 */
+            weightKg: number;
+            /**
+             * Format: date
+             * @description The local date of the weigh-in counted.
+             */
+            weighedOn: string;
+          }
+        | {
+            /**
+             * @description No weigh-in at all: sets as logged.
+             * @enum {string}
+             */
+            basis: 'none';
+          }
+        | null;
+    };
+    /** @description Every lift the caller logged with a working set in the span, with the trend of its e1RM. Warm-ups are left out (S6). */
+    StrengthOverview: {
+      /** @enum {string} */
+      span: '4w' | '12w' | '1y';
+      /**
+       * Format: date
+       * @description The span’s first local date.
+       */
+      from: string;
+      /**
+       * Format: date
+       * @description Today, in the caller’s time zone.
+       */
+      to: string;
+      /** @description The plain average of every verdict’s unrounded percentage, judged before rounding to the tenth for display. Null without a lift to average. */
+      overall: {
+        /**
+         * @description How many lifts have a verdict.
+         * @example 13
+         */
+        lifts: number;
+        /** @example 2.7 */
+        changePct: number | null;
+        status: components['schemas']['StrengthStatus'];
+      };
+      /** @description The lifts with a verdict, the largest gain first; then those without, by name. */
+      lifts: components['schemas']['StrengthLift'][];
+    };
+    /**
+     * @description Gaining is a trend up 2% or more across the span, losing one down 2% or more, holding anything between.
+     * @enum {string|null}
+     */
+    StrengthStatus: 'gaining' | 'holding' | 'losing' | null;
+    StrengthLift: {
+      /**
+       * Format: uuid
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      exerciseId: string;
+      /** @example Barbell Bench Press */
+      name: string;
+      /** @description One per workout with a positive e1RM in the span, oldest first. */
+      points: {
+        /**
+         * Format: date
+         * @description The workout’s local date.
+         */
+        date: string;
+        /**
+         * @description Epley on the best working set, to the tenth.
+         * @example 106.7
+         */
+        e1rmKg: number;
+      }[];
+      /** @description Workouts with a working set in the span. */
+      workoutCount: number;
+      /**
+       * @description The lift’s verdict, `too_few` below three workouts, `no_trend` when a percentage cannot be calculated, or `no_weight` without a positive e1RM.
+       * @enum {string}
+       */
+      status: 'gaining' | 'holding' | 'losing' | 'too_few' | 'no_trend' | 'no_weight';
+      /** @description Null without a verdict. */
+      trend: {
+        /**
+         * @description The trend line’s end less its start, to the thousandth.
+         * @example 4.712
+         */
+        changeKg: number;
+        /**
+         * @description That change as a share of the line’s start, to the tenth.
+         * @example 4.6
+         */
+        changePct: number;
+      } | null;
+      /** @description Which weigh-in a bodyweight lift was counted at (issue #69): all of that weight plus the kg logged on the set. */
+      bodyweight:
+        | {
+            /**
+             * @description `same_day`: the day’s own weight. `earlier_day`: no reading that day, so the latest earlier day’s. `later_day`: the workout is older than the first weigh-in, so the first later one.
+             * @enum {string}
+             */
+            basis: 'same_day' | 'earlier_day' | 'later_day';
+            /** @example 82.4 */
+            weightKg: number;
+            /**
+             * Format: date
+             * @description The local date of the weigh-in counted.
+             */
+            weighedOn: string;
+          }
+        | {
+            /**
+             * @description No weigh-in at all: sets as logged.
+             * @enum {string}
+             */
+            basis: 'none';
+          }
+        | null;
+    };
+    /** @description Working sets a week for each muscle group: whole for the group an exercise is filed under, half for each it also trains. Warm-ups are left out (S6). */
+    Balance: {
+      /** @enum {string} */
+      view: '4w' | 'week';
+      /**
+       * Format: date
+       * @description The view’s first local date.
+       */
+      from: string;
+      /**
+       * Format: date
+       * @description Today, in the caller’s time zone.
+       */
+      to: string;
+      /** @description What the sets are divided by: 4, or 1 for this week. */
+      weeks: number;
+      /** @description The weekly range every group is read against. */
+      range: {
+        /** @example 10 */
+        low: number;
+        /** @example 20 */
+        high: number;
+      };
+      /** @description All eleven groups, in the order of `MuscleGroup`, trained or not. */
+      groups: components['schemas']['MuscleBalance'][];
+    };
+    MuscleBalance: {
+      /** @enum {string} */
+      muscleGroup:
+        | 'chest'
+        | 'back'
+        | 'shoulders'
+        | 'biceps'
+        | 'triceps'
+        | 'forearms'
+        | 'quads'
+        | 'hamstrings'
+        | 'glutes'
+        | 'calves'
+        | 'core';
+      /**
+       * @description Working sets a week, whole and half, to the tenth. The status reads this figure.
+       * @example 14
+       */
+      sets: number;
+      /**
+       * @description The whole sets among them, to the tenth: those of exercises filed under it.
+       * @example 5.3
+       */
+      directSets: number;
+      /**
+       * @description `none` at 0, `low` under the range, `in_range` from its low to its high end, `high` over it.
+       * @enum {string}
+       */
+      status: 'in_range' | 'low' | 'none' | 'high';
+      /** @description The exercises its sets came from, by when each first came up. */
+      sources: {
+        /**
+         * Format: uuid
+         * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+         */
+        exerciseId: string;
+        /** @example Barbell Bench Press */
+        name: string;
+        /** @description True where the exercise trains the group indirectly, at half a set. */
+        indirect: boolean;
+        /**
+         * @description What it adds a week, to the tenth: already halved where indirect.
+         * @example 3.5
+         */
+        sets: number;
+      }[];
     };
     SyncResponse: {
       /** @description One per row sent. */
@@ -1276,6 +3671,11 @@ export interface components {
             /** @enum {string} */
             code: 'not_found' | 'parent_missing' | 'validation_failed';
             status: number;
+            /** @description Present when the row did not match its schema: the fields at fault, never a value. */
+            errors?: {
+              path: string;
+              message: string;
+            }[];
           };
         };
     WorkoutRow: {
@@ -1378,16 +3778,28 @@ export interface components {
        */
       clientUpdatedAt: string;
     };
-    /** @description The device’s queued rows, each the whole current row, parents before children. At most 500 rows a request. */
+    /** @description The device’s queued rows, each the whole current row or its deletion, parents before children. At most 500 rows a request. */
     SyncBatch: {
       /** @default [] */
-      workouts: (components['schemas']['SyncDeletion'] | components['schemas']['WorkoutRow'])[];
+      workouts: (
+        | components['schemas']['SyncDeletion']
+        | components['schemas']['WorkoutRow']
+        | components['schemas']['SyncUnreadableRow']
+      )[];
       /** @default [] */
-      workoutExercises: components['schemas']['WorkoutExerciseRow'][];
+      workoutExercises: (
+        | components['schemas']['SyncDeletion']
+        | components['schemas']['WorkoutExerciseRow']
+        | components['schemas']['SyncUnreadableRow']
+      )[];
       /** @default [] */
-      sets: components['schemas']['SetRow'][];
+      sets: (
+        | components['schemas']['SyncDeletion']
+        | components['schemas']['SetRow']
+        | components['schemas']['SyncUnreadableRow']
+      )[];
     };
-    /** @description A workout the phone deleted. */
+    /** @description A row the phone deleted. It goes if the stored copy is older than `deletedAt`, and its id is kept so a stale copy cannot bring it back. */
     SyncDeletion: {
       /**
        * Format: uuid
@@ -1399,6 +3811,276 @@ export interface components {
        * @example 2026-11-11T09:01:40.000Z
        */
       deletedAt: string;
+    };
+    /** @description Any other row with an id. It is not applied: its result is `refused` with `validation_failed`, and the rest of the batch is applied as usual. */
+    SyncUnreadableRow: {
+      /**
+       * Format: uuid
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      id: string;
+    } & {
+      [key: string]: unknown;
+    };
+    WeighIns: {
+      /** @description Every reading in the range, newest first. */
+      weighIns: components['schemas']['WeighIn'][];
+      /** @description The weighed days in the range, newest first. */
+      days: components['schemas']['WeightDay'][];
+      /** @description False with fewer than 3 weighed days up to `to`. */
+      trendAvailable: boolean;
+      /** @description The latest trend less the trend a week before today, to the hundredth. Null without a trend, or with no weighed day a week or more before today. */
+      weekChangeKg: number | null;
+    };
+    WeightDay: {
+      /**
+       * Format: date
+       * @description A local date in the profile’s time zone.
+       */
+      date: string;
+      /**
+       * Format: uuid
+       * @description The reading that stands for the day.
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      weighInId: string;
+      /** @example 82.4 */
+      weightKg: number;
+      /** @description False when the day had no reading before 10:00 local and its first reading stands in. */
+      morning: boolean;
+      /** @description The trend on this day, to the hundredth. Null while fewer than 3 days are weighed. */
+      trendKg: number | null;
+    };
+    WeighInCreate: {
+      /**
+       * Format: uuid
+       * @description Made on the device (UUIDv7). A repeat returns the row.
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      id: string;
+      /**
+       * Format: date-time
+       * @example 2026-11-11T09:01:40.000Z
+       */
+      measuredAt: string;
+      /** @example 82.4 */
+      weightKg: number;
+      /**
+       * @description Default: none.
+       * @example 18.5
+       */
+      bodyFatPct?: number | null;
+    };
+    FoodList: {
+      items: components['schemas']['Food'][];
+    };
+    /** @description A confirmed food, with its values on the basis they were read in. The API converts to per 100 g. */
+    FoodCreate: {
+      /**
+       * Format: uuid
+       * @description Made on the device (UUIDv7). A repeat returns the row.
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      id: string;
+      /** @example サラダチキン プレーン */
+      name: string;
+      /** @description Default: none. */
+      brand?: string | null;
+      state: components['schemas']['FoodState'];
+      basis: components['schemas']['Basis'];
+      energyKcal: number;
+      proteinG: number;
+      carbG: number;
+      fatG: number;
+      /** @description Null when the source gave none: saved as 0. */
+      fiberG: number | null;
+      /** @example 55 */
+      pieceWeightG?: number | null;
+      /** @example 4 */
+      keepsDays?: number | null;
+      source: components['schemas']['FoodSource'];
+      sourceRef?: string | null;
+      /**
+       * Format: uuid
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      rotationGroupId?: string | null;
+    };
+    /** @description The amount a set of values is for (docs/07 §4). */
+    Basis: {
+      /** @enum {string} */
+      kind: 'per_100g' | 'per_100ml' | 'per_piece' | 'per_serving' | 'per_package';
+      /** @description The weight of the stated amount, when known. `per_100g` is 100 whatever is sent; `per_100ml` needs the weight of 100 ml. */
+      grams: number | null;
+    };
+    /** @description Values per 100 g. An omitted field is unchanged. */
+    FoodPatch: {
+      name?: string;
+      brand?: string | null;
+      state?: components['schemas']['FoodState'];
+      /** @example 105 */
+      energyKcal?: number;
+      /** @example 23.3 */
+      proteinG?: number;
+      /** @example 0.1 */
+      carbG?: number;
+      /** @example 1.9 */
+      fatG?: number;
+      /** @example 0 */
+      fiberG?: number;
+      /** @example 55 */
+      pieceWeightG?: number | null;
+      /** @example 4 */
+      keepsDays?: number | null;
+      /**
+       * Format: uuid
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      rotationGroupId?: string | null;
+    };
+    ReferenceFoodList: {
+      items: components['schemas']['ReferenceFood'][];
+    };
+    /** @description One entry of 日本食品標準成分表（八訂）増補2023年 (MEXT), per 100 g. */
+    ReferenceFood: {
+      /** @example 11220 */
+      code: string;
+      /**
+       * @description As MEXT prints it.
+       * @example ＜鳥肉類＞　にわとり　［若どり・主品目］　むね　皮なし　生
+       */
+      name: string;
+      /**
+       * @description From the 2015 English table, by food number. Null for a food added since.
+       * @example Chicken, broiler, breast, meat without skin, raw
+       */
+      nameEn: string | null;
+      /** @description MEXT 食品群, 1 to 18. */
+      foodGroup: number;
+      state: components['schemas']['FoodState'];
+      /** @example 105 */
+      energyKcal: number;
+      /** @example 23.3 */
+      proteinG: number;
+      /** @example 0.1 */
+      carbG: number;
+      /** @example 1.9 */
+      fatG: number;
+      /** @example 0 */
+      fiberG: number;
+      /**
+       * Format: uuid
+       * @description The food on the caller’s list with this MEXT code, if there is one.
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      existingFoodId: string | null;
+    };
+    BarcodeLookup: {
+      /** @description Null when the barcode is on the list already: nothing is looked up. */
+      candidate: components['schemas']['FoodCandidate'] | null;
+      /** @description The candidate converted to per 100 g, as it would be saved. Null when the basis has no weight. */
+      per100g: {
+        energyKcal: number | null;
+        proteinG: number | null;
+        carbG: number | null;
+        fatG: number | null;
+        fiberG: number | null;
+      } | null;
+      /**
+       * Format: uuid
+       * @description The food on the caller’s list with this barcode, if there is one.
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      existingFoodId: string | null;
+    };
+    /** @description What a source gave, as printed, on its basis. A value it did not give is null, never a guess. Not saved. */
+    FoodCandidate: {
+      name: string | null;
+      brand: string | null;
+      state: components['schemas']['FoodState'] & (string | null);
+      basis: components['schemas']['Basis'];
+      energyKcal: number | null;
+      proteinG: number | null;
+      carbG: number | null;
+      fatG: number | null;
+      fiberG: number | null;
+    };
+    LabelRead: {
+      candidate: components['schemas']['FoodCandidate'];
+      /** @description The candidate converted to per 100 g, as it would be saved. Null when the basis has no weight. */
+      per100g: {
+        energyKcal: number | null;
+        proteinG: number | null;
+        carbG: number | null;
+        fatG: number | null;
+        fiberG: number | null;
+      } | null;
+      /** @example claude-haiku-4-5 */
+      model: string;
+    };
+    RotationGroupList: {
+      items: components['schemas']['RotationGroup'][];
+    };
+    RotationGroupCreate: {
+      /**
+       * Format: uuid
+       * @description Made on the device (UUIDv7). A repeat returns the group.
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      id: string;
+      /** @example Starch */
+      name: string;
+      /** @description Its foods. Each leaves any group it was in. */
+      foodIds: string[];
+    };
+    RotationGroupPatch: {
+      name?: string;
+      /** @description The whole membership. A food left out stays on the list, ungrouped. */
+      foodIds?: string[];
+    };
+    InviteList: {
+      items: components['schemas']['Invite'][];
+    };
+    Invite: {
+      /**
+       * Format: uuid
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      id: string;
+      /**
+       * Format: email
+       * @example kenji.tanaka@example.com
+       */
+      email: string;
+      /** @example gym friend */
+      note: string | null;
+      /**
+       * Format: date-time
+       * @example 2026-11-11T09:01:40.000Z
+       */
+      invitedAt: string;
+      /**
+       * Format: date-time
+       * @description Null while the invite admits them.
+       * @example 2026-11-11T09:01:40.000Z
+       */
+      revokedAt: string | null;
+    };
+    InviteCreate: {
+      /**
+       * Format: uuid
+       * @description Made on the device (UUIDv7). A repeat returns the invite.
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      id: string;
+      /**
+       * Format: email
+       * @description A Google email. Stored lowercased.
+       * @example Kenji.Tanaka@example.com
+       */
+      email: string;
+      /** @example gym friend */
+      note?: string | null;
     };
   };
   responses: never;

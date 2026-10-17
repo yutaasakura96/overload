@@ -12,3 +12,15 @@ export function bestE1rmKg(sets: LoggedSet[]): number | undefined {
   const estimates = sets.filter((s) => !s.isWarmup).map((s) => epley(s.weightKg, s.reps));
   return estimates.length === 0 ? undefined : Math.max(...estimates);
 }
+
+/**
+ * The top set (CONTEXT.md): the heaviest working set, with the most reps done at that weight. A
+ * workout of warm-ups alone has none.
+ */
+export function topSet(sets: LoggedSet[]): { weightKg: number; reps: number } | undefined {
+  const working = sets.filter((s) => !s.isWarmup);
+  if (working.length === 0) return undefined;
+  const weightKg = Math.max(...working.map((s) => s.weightKg));
+  const reps = Math.max(...working.filter((s) => s.weightKg === weightKg).map((s) => s.reps));
+  return { weightKg, reps };
+}

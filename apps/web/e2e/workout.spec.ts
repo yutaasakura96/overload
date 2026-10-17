@@ -1,7 +1,14 @@
 import { expect, test, type Page } from '@playwright/test';
-import { apiFixture } from './fixture';
+import { apiFixture, chooseTimezone } from './fixture';
 
 type Cookies = Parameters<import('@playwright/test').BrowserContext['addCookies']>[0];
+
+declare global {
+  interface Window {
+    /** The wake locks `countWakeLocks` has granted and not yet seen released. */
+    heldWakeLocks?: { count: number };
+  }
+}
 
 type StoredWorkout = {
   name: string;
@@ -47,11 +54,13 @@ test.beforeEach(async ({ context }) => {
 });
 
 const dataState = (page: Page) => page.locator('.data-state');
+// Last time and today's target, in words, on top of the open exercise (docs/05 §4.19).
+const brief = (page: Page) => page.locator('.brief');
 
 async function saveProfile(page: Page, unit?: 'Kilograms' | 'Pounds') {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Today', level: 1 })).toBeVisible();
-  await page.getByRole('textbox', { name: 'Time zone' }).fill('Asia/Tokyo');
+  await chooseTimezone(page, 'Asia/Tokyo');
   if (unit !== undefined) await page.getByRole('radio', { name: unit }).check();
   await page.getByRole('button', { name: /^Save (profile|and finish setup)$/ }).click();
   await expect(page.getByText('Saved.')).toBeVisible();
@@ -90,6 +99,39 @@ async function completeSet(page: Page, figures: { weight?: string; reps?: string
   await page.getByRole('button', { name: 'Complete set' }).click();
 }
 
+test('an offline start without cached last time does not claim a first workout', async ({
+  page,
+  context,
+}) => {
+  const email = `unknown-history-${Date.now()}@example.test`;
+  const { userId: offlineUser }: { userId: string } = JSON.parse(apiFixture('user', email));
+  try {
+    await context.clearCookies();
+    const cookies: Cookies = JSON.parse(apiFixture('cookies', offlineUser, 'localhost'));
+    await context.addCookies(cookies);
+    await page.route('**/api/training/last-time', (route) => route.abort());
+    await saveProfile(page);
+    const name = `Unknown history ${Date.now()}`;
+    await createRoutine(page, name, ['Barbell Bench Press']);
+    await page.getByRole('button', { name: 'Create routine' }).click();
+    await expect(page).toHaveURL('/routines');
+
+    await context.setOffline(true);
+    await page.getByRole('link', { name: 'Today' }).click();
+    await page.getByRole('button', { name: new RegExp(`${name}.*Start this workout`) }).click();
+    await expect(page).toHaveURL('/workout');
+    await expect(brief(page)).toContainText('Last time could not be loaded.');
+    await expect(brief(page)).not.toContainText('First workout');
+    await expect(brief(page)).not.toContainText('This is your first time logging');
+    await expect(page.getByRole('region', { name: 'SET 1 OF 3' })).not.toContainText(
+      'FIRST WORKOUT',
+    );
+  } finally {
+    await context.setOffline(false);
+    apiFixture('delete', email);
+  }
+});
+
 test('the library keeps its fetch time after a later workout upload', async ({ page }) => {
   const name = `Sync time ${Date.now()}`;
   await saveProfile(page);
@@ -99,7 +141,7 @@ test('the library keeps its fetch time after a later workout upload', async ({ p
 
   await page.clock.install({ time: new Date('2026-10-06T09:59:40') });
   await page.goto('/exercises');
-  await expect(page.getByRole('listitem')).toHaveCount(50);
+  await expect(page.getByRole('listitem')).toHaveCount(185);
   await expect(dataState(page)).toHaveText('SYNCED 09:59');
 
   // Every launch asks again for what it restored (query.ts), so from here the screens change
@@ -114,7 +156,7 @@ test('the library keeps its fetch time after a later workout upload', async ({ p
 
   await page.goBack();
   await tabs.getByRole('link', { name: 'Exercises' }).click();
-  await expect(page.getByRole('listitem')).toHaveCount(50);
+  await expect(page.getByRole('listitem')).toHaveCount(185);
   await expect(dataState(page)).toHaveText('SYNCED 09:59');
 
   // Finished with no set, the workout is not kept: the tests after this one start from none. The
@@ -122,7 +164,7 @@ test('the library keeps its fetch time after a later workout upload', async ({ p
   await page.clock.setFixedTime(new Date('2026-10-06T10:00:20'));
   await tabs.getByRole('link', { name: 'Today' }).click();
   await page.getByRole('link', { name: 'Resume workout' }).click();
-  await finish(page);
+  await finish(page, false);
   await expect.poll(() => stored().some((workout) => workout.name === name)).toBe(false);
 });
 
@@ -137,7 +179,7 @@ test('a workout is logged from a routine, offline and back, and finished', async
 
   // The user's own rep range, increment and rest for one exercise (docs/09 F2).
   await page.goto('/exercises');
-  await page.getByRole('link', { name: /Barbell Overhead Press/ }).click();
+  await page.getByRole('link', { name: /^Barbell Overhead Press/ }).click();
   await page.getByRole('textbox', { name: /Increment/ }).fill('1.25');
   await page.getByRole('textbox', { name: /Rest/ }).fill('60');
   await page.getByRole('textbox', { name: 'Reps low' }).fill('8');
@@ -155,33 +197,65 @@ test('a workout is logged from a routine, offline and back, and finished', async
   // One tap starts it (S4). The defaults are resolved here: the slot's range wins.
   await start(page, name);
   await expect(page.getByRole('heading', { name: 'Barbell Bench Press', level: 2 })).toBeVisible();
-  await expect(page.getByText('Reps 5–8 · increment +2.5')).toBeVisible();
+  await expect(page.getByText('Exercise 1 OF 2')).toBeVisible();
+  // A first workout says in words why there is no last time and no target yet.
+  await expect(brief(page)).toContainText('Last timeNone yet');
+  await expect(brief(page)).toContainText(
+    'This is your first time logging Barbell Bench Press, so there is nothing to compare with.',
+  );
+  await expect(brief(page)).toContainText('Today’s targetFirst workout');
+  await expect(brief(page)).toContainText('Find your weight × 5–8');
+  await expect(brief(page)).toContainText(
+    'Pick a weight you can lift for 5–8 reps with one to three left in you. From the next workout, this line shows what you did and what to aim for.',
+  );
   const card = page.getByRole('region', { name: 'SET 1 OF 3' });
-  await expect(card).toContainText('first workout');
+  await expect(card).toContainText('FIRST WORKOUT');
+  // The rest bar is there before the first set, saying the timer starts by itself.
+  const rest = page.getByRole('region', { name: 'Rest timer' });
+  await expect(rest).toContainText('REST TIMER');
+  await expect(rest).toContainText('Starts by itself after each set: 3:00');
+  await expect(rest.getByRole('timer')).toHaveCount(0);
+
+  // RIR is explained where it is entered, and the guide opens in the card without leaving the workout.
+  await expect(card).toContainText('RIR is reps in reserve');
+  await expect(card).toContainText('Optional');
+  await expect(card.getByText('Could not do another')).toBeHidden();
+  await card.getByRole('button', { name: 'How to gauge it' }).click();
+  await expect(card.getByText('Could not do another')).toBeVisible();
+  await expect(card.getByText('Comfortable')).toBeVisible();
+  await expect(page).toHaveURL('/workout');
+  await card.getByRole('button', { name: 'Hide guide' }).click();
+  await expect(card.getByText('Could not do another')).toBeHidden();
 
   // S1 online: the set shows, rest starts on its own (S5), and the upload needs no action.
   await completeSet(page, { weight: '60', reps: '8', rir: '2' });
-  await expect(page.getByRole('row', { name: '1 60 8 2 Done' })).toBeVisible();
-  const rest = page.getByRole('region', { name: 'Rest timer' });
-  await expect(rest).toContainText('REST');
+  await expect(page.getByRole('row', { name: '1 60 8 2 Set 1 done. Edit' })).toBeVisible();
+  await expect(rest).toContainText('REST · NEXT: SET 2 OF 3');
+  await expect(rest.getByRole('timer')).toHaveText(/^(3:00|2:5\d)$/);
   await expect(page.getByRole('region', { name: 'SET 2 OF 3' })).toBeVisible();
   await expect(page.getByRole('textbox', { name: 'Weight in kilograms' })).toHaveValue('60');
+  // Reps and RIR open on the set just done, as values and not placeholders.
+  await expect(page.getByRole('textbox', { name: 'Reps', exact: true })).toHaveValue('8');
+  await expect(page.getByRole('textbox', { name: 'Reps in reserve, optional' })).toHaveValue('2');
   await expect(dataState(page)).toContainText('SYNCED');
   await expect.poll(() => stored()[0]?.exercises[0]?.sets.length).toBe(1);
 
   // S1 offline: saved on the phone at once, counted as pending, kept across a relaunch.
   await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
   await context.setOffline(true);
-  // Chromium's emulated offline lapses for a moment after a reload, so the API is cut here too.
   await context.route('**/api/**', (route) => route.abort('internetdisconnected'));
   await completeSet(page, { reps: '8' });
   await expect(page.getByRole('row', { name: /^2 60 8/ })).toBeVisible();
   await expect(dataState(page)).toHaveText('1 PENDING');
-  // Playwright’s WebKit fails to reload a service-worker page offline.
-  if (browserName !== 'webkit') {
-    await page.reload();
-    await expect(page.getByRole('row', { name: /^2 60 8/ })).toBeVisible();
-    await expect(dataState(page)).toHaveText('1 PENDING');
+  // The relaunch is a second page, not a reload. Chromium's emulated offline lapses for a page
+  // being unloaded: it hears `online` on its way out, and the upload that starts gets past both
+  // the emulation and the route above. So no page with a pending set is unloaded before the server
+  // is asked. Playwright’s WebKit fails to open a service-worker page offline.
+  const relaunched = browserName === 'webkit' ? undefined : await context.newPage();
+  if (relaunched !== undefined) {
+    await relaunched.goto('/workout');
+    await expect(relaunched.getByRole('row', { name: /^2 60 8/ })).toBeVisible();
+    await expect(dataState(relaunched)).toHaveText('1 PENDING');
   }
   expect(stored()[0]?.exercises[0]?.sets).toHaveLength(1);
 
@@ -190,10 +264,24 @@ test('a workout is logged from a routine, offline and back, and finished', async
   await context.setOffline(false);
   await expect(dataState(page)).toContainText('SYNCED');
   await expect.poll(() => stored()[0]?.exercises[0]?.sets.length).toBe(2);
+  // The RIR the card opened on is logged without being typed.
+  expect(stored()[0]?.exercises[0]?.sets[1]?.rir).toBe(2);
+  await relaunched?.close();
 
   // S6: a warm-up is kept and shown, but is not one of the three working sets.
   await page.getByRole('button', { name: 'Warm-up set' }).click();
   await expect(page.getByRole('region', { name: 'WARM-UP' })).toBeVisible();
+  // A warm-up is not the set again: the reps and RIR the card opened on are gone, and come back
+  // with the working set while neither has been typed.
+  const carriedReps = page.getByRole('textbox', { name: 'Reps', exact: true });
+  const carriedRir = page.getByRole('textbox', { name: 'Reps in reserve, optional' });
+  await expect(carriedReps).toHaveValue('');
+  await expect(carriedRir).toHaveValue('');
+  await page.getByRole('button', { name: 'Warm-up set' }).click();
+  await expect(carriedReps).toHaveValue('8');
+  await expect(carriedRir).toHaveValue('2');
+  await page.getByRole('button', { name: 'Warm-up set' }).click();
+  // The RIR left empty is logged as none.
   await completeSet(page, { weight: '40', reps: '5' });
   await expect(page.getByRole('button', { name: /1 WARM-UP SET/ })).toBeVisible();
   await expect(page.getByRole('region', { name: 'SET 3 OF 3' })).toBeVisible();
@@ -204,7 +292,8 @@ test('a workout is logged from a routine, offline and back, and finished', async
   await expect(
     page.getByRole('heading', { name: 'Barbell Overhead Press', level: 2 }),
   ).toBeVisible();
-  await expect(page.getByText('Reps 8–12 · increment +1.25')).toBeVisible();
+  await expect(page.getByText('Exercise 2 OF 2')).toBeVisible();
+  await expect(brief(page)).toContainText('Find your weight × 8–12');
   await expect(page.getByRole('button', { name: /Barbell Bench Press 3 sets done/ })).toBeVisible();
 
   // S5: rest runs out. The bar says so and counts over until dismissed; +30s extends it first.
@@ -216,16 +305,20 @@ test('a workout is logged from a routine, offline and back, and finished', async
   await expect(rest).toContainText('REST OVER');
   await expect(rest.getByRole('timer')).toHaveText(/^\+0:0\d$/);
   await rest.getByRole('button', { name: 'Dismiss rest' }).click();
-  await expect(rest).toHaveCount(0);
+  // Dismissed, the bar stays and goes back to saying how long the next rest is.
+  await expect(rest.getByRole('timer')).toHaveCount(0);
+  await expect(rest).toContainText('Starts by itself after each set: 1:00');
 
   // Finish: the workout ends and everything reaches the server as it was logged.
   await expect(dataState(page)).toContainText('SYNCED');
   const lastTime = page.waitForResponse(
     (response) => response.url().includes('/api/training/last-time') && response.ok(),
   );
-  await page.getByRole('button', { name: 'Finish workout' }).click();
-  await page.getByRole('button', { name: 'Finish', exact: true }).click();
-  await expect(page).toHaveURL('/');
+  // It lands on the workout's own page in History, which is its summary.
+  await finish(page);
+  await expect(page.getByRole('heading', { name, level: 1 })).toBeVisible();
+  await expect(page.getByText('Workout finished. It is in History from now on.')).toBeVisible();
+  await expect(page.getByRole('heading', { name: /^Barbell Bench Press/, level: 2 })).toBeVisible();
   await expect.poll(() => stored()[0]?.endedAt ?? null).not.toBeNull();
   const [workout] = stored();
   expect(workout?.name).toBe(name);
@@ -235,9 +328,9 @@ test('a workout is logged from a routine, offline and back, and finished', async
   ]);
   expect(workout?.exercises[0]?.sets.map(({ performedAt: _performedAt, ...set }) => set)).toEqual([
     { weightKg: 60, reps: 8, rir: 2, isWarmup: false },
-    { weightKg: 60, reps: 8, rir: null, isWarmup: false },
+    { weightKg: 60, reps: 8, rir: 2, isWarmup: false },
     { weightKg: 40, reps: 5, rir: null, isWarmup: true },
-    { weightKg: 60, reps: 8, rir: null, isWarmup: false },
+    { weightKg: 60, reps: 8, rir: 2, isWarmup: false },
   ]);
   await lastTime;
 
@@ -245,15 +338,33 @@ test('a workout is logged from a routine, offline and back, and finished', async
   // the top of 5–8, the warm-up left out, so it is last weight plus the increment.
   await start(page, name);
   const next = page.getByRole('region', { name: 'SET 1 OF 3' });
-  await expect(next).toContainText('LAST60 × 8');
-  await expect(next).toContainText('62.5');
-  await expect(next).toContainText('hit 8 on every set last time');
+  await expect(next).toContainText('LAST TIME60 × 8');
+  // Both are said in words on top of the exercise, the target with its reason.
+  await expect(brief(page)).toContainText(/Last time\w{3} \d{1,2} \w{3} · today/);
+  await expect(brief(page)).toContainText('60 kg × 8 · 8 · 8');
+  await expect(brief(page)).toContainText('Today’s target+2.5 kg');
+  await expect(brief(page)).toContainText('62.5 kg × 5–8');
+  await expect(brief(page)).toContainText(
+    'You reached 8 reps on every set last time, so the weight goes up by 2.5 kg. Aim for 5 or more.',
+  );
+  // The chip in the set card and the coded range in the header are gone.
+  await expect(page.getByText('SUGGESTED')).toHaveCount(0);
+  await expect(page.getByText('hit 8 on every set last time')).toHaveCount(0);
   await expect(page.getByRole('textbox', { name: 'Weight in kilograms' })).toHaveValue('62.5');
+  // The weight went up, so reps start at the bottom of the range and last time's RIR is not used.
+  const reps = page.getByRole('textbox', { name: 'Reps', exact: true });
+  const rir = page.getByRole('textbox', { name: 'Reps in reserve, optional' });
+  await expect(reps).toHaveValue('5');
+  await expect(rir).toHaveValue('');
   // What is typed is never overwritten by it.
   await page.getByRole('textbox', { name: 'Weight in kilograms' }).fill('61');
+  await reps.fill('7');
+  await rir.fill('1');
   await page.getByRole('button', { name: 'Warm-up set' }).click();
   await page.getByRole('button', { name: 'Warm-up set' }).click();
   await expect(page.getByRole('textbox', { name: 'Weight in kilograms' })).toHaveValue('61');
+  await expect(reps).toHaveValue('7');
+  await expect(rir).toHaveValue('1');
 
   // Weights are shown in the user's unit; kilograms stay what is stored (docs/06, 2026-09-23).
   await page.goto('/');
@@ -261,7 +372,12 @@ test('a workout is logged from a routine, offline and back, and finished', async
   await page.getByRole('button', { name: 'Save profile' }).click();
   await expect(page.getByText('Saved.')).toBeVisible();
   await page.getByRole('link', { name: 'Resume workout' }).click();
-  await expect(page.getByRole('region', { name: 'SET 1 OF 3' })).toContainText('LAST132.3 × 8');
+  await expect(page.getByRole('region', { name: 'SET 1 OF 3' })).toContainText(
+    'LAST TIME132.3 × 8',
+  );
+  await expect(brief(page)).toContainText('132.3 lb × 8 · 8 · 8');
+  await expect(brief(page)).toContainText('Today’s target+5.5 lb');
+  await expect(brief(page)).toContainText('137.8 lb × 5–8');
   await expect(page.getByRole('textbox', { name: 'Weight in pounds' })).toHaveValue('137.8');
 
   // One workout at a time: starting another asks first, and Resume goes back to the one open.
@@ -281,12 +397,12 @@ test('a workout is logged from a routine, offline and back, and finished', async
 
   // The increment is typed in the user's unit too, and stored in kilograms.
   await page.goto('/exercises');
-  await page.getByRole('link', { name: /Barbell Overhead Press/ }).click();
+  await page.getByRole('link', { name: /^Barbell Overhead Press/ }).click();
   await expect(page.getByRole('textbox', { name: /Increment/ })).toHaveValue('2.8');
   await page.getByRole('textbox', { name: /Increment/ }).fill('5');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page).toHaveURL('/exercises');
-  await expect(page.getByRole('link', { name: /Barbell Overhead Press/ })).toContainText(
+  await expect(page.getByRole('link', { name: /^Barbell Overhead Press/ })).toContainText(
     'increment 5 pounds',
   );
   await page.goto('/workout');
@@ -299,10 +415,160 @@ test('a workout is logged from a routine, offline and back, and finished', async
   await expect.poll(() => stored().length).toBe(1);
 });
 
-async function finish(page: Page) {
+/** A workout's own page in History, which Finish opens (docs/09 F3 step 5). */
+const WORKOUT_PAGE = /\/workouts\/[0-9a-f-]{36}$/;
+
+/** Finish. A workout with a set opens its page in History; one with none is not kept: Today. */
+async function finish(page: Page, kept = true) {
   await page.getByRole('button', { name: 'Finish workout' }).click();
   await page.getByRole('button', { name: 'Finish', exact: true }).click();
+  await expect(page).toHaveURL(kept ? WORKOUT_PAGE : '/');
+}
+
+/** From a workout's page in History back to Today, with no reload. */
+async function toToday(page: Page) {
+  await page.getByRole('button', { name: 'Back' }).click();
+  await page
+    .getByRole('navigation', { name: 'Sections' })
+    .getByRole('link', { name: 'Today' })
+    .click();
   await expect(page).toHaveURL('/');
+}
+
+test('bodyweight history describes reps without a zero-weight target', async ({ page }) => {
+  const name = `Bodyweight ${Date.now()}`;
+  await saveProfile(page, 'Kilograms');
+  await createRoutine(page, name, ['Chin-Up']);
+  await page.getByRole('textbox', { name: 'Sets for Chin-Up' }).fill('1');
+  await page.getByRole('button', { name: 'Create routine' }).click();
+  await expect(page).toHaveURL('/routines');
+
+  await start(page, name);
+  await completeSet(page, { reps: '10' });
+  await expect(dataState(page)).toContainText('SYNCED');
+  const reached = page.waitForResponse(
+    (response) => response.url().includes('/api/training/last-time') && response.ok(),
+  );
+  await finish(page);
+  await reached;
+
+  await start(page, name);
+  await expect(brief(page)).toContainText('Bodyweight × 10');
+  await expect(brief(page)).toContainText('Today’s targetBodyweight × 6–10');
+  await expect(brief(page)).toContainText(
+    'You reached 10 reps on your only set last time. Aim for 6 or more.',
+  );
+  await expect(brief(page)).not.toContainText('0 kg');
+  await expect(brief(page)).not.toContainText('Same weight');
+
+  await completeSet(page, { reps: '6' });
+  await expect(dataState(page)).toContainText('SYNCED');
+  const repeated = page.waitForResponse(
+    (response) => response.url().includes('/api/training/last-time') && response.ok(),
+  );
+  await finish(page);
+  await repeated;
+
+  await start(page, name);
+  await expect(brief(page)).toContainText('Bodyweight × 6');
+  await expect(brief(page)).toContainText('Today’s targetBodyweight × 6–10');
+  await expect(brief(page)).toContainText(
+    'Your set stopped short of 10 reps last time. Reach 10 this time.',
+  );
+  await page.goto('/progress/weight/new');
+  await page.getByRole('textbox', { name: 'Weight' }).fill('82');
+  await page.getByRole('button', { name: 'Save weigh-in' }).click();
+  await expect(page).toHaveURL('/progress/weight');
+  await page.goto('/workout');
+  await expect(brief(page)).toContainText('82 kg × 6');
+  await expect(brief(page)).toContainText('Counted at 82 kg');
+  await expect(page.getByRole('region', { name: 'SET 1 OF 1' })).toContainText('LAST TIME82 × 6');
+  await expect(page.getByRole('textbox', { name: 'Weight in kilograms' })).toHaveValue('0');
+  await expect(brief(page)).toContainText('Today’s targetBodyweight × 6–10');
+  await page.goto('/progress/weight');
+  await page
+    .getByRole('region', { name: 'Recent weigh-ins' })
+    .getByRole('listitem')
+    .first()
+    .getByRole('button', { name: /Delete/ })
+    .click();
+  await page.goto('/workout');
+  await expect(brief(page)).toContainText('Bodyweight × 6');
+  await expect(brief(page)).toContainText('No weigh-in · counted as logged');
+  await finish(page, false);
+});
+
+/** How many records the set store holds, read over a connection of the test's own. */
+const rowsOnDevice = (page: Page) =>
+  page.evaluate(
+    () =>
+      new Promise<number>((resolve, reject) => {
+        const open = indexedDB.open('overload-sets');
+        open.addEventListener('error', () => reject(open.error));
+        open.addEventListener('success', () => {
+          const count = open.result.transaction('rows', 'readonly').objectStore('rows').count();
+          count.addEventListener('success', () => {
+            open.result.close();
+            resolve(count.result);
+          });
+          count.addEventListener('error', () => reject(count.error));
+        });
+      }),
+  );
+
+/**
+ * Leaves the server holding a newer, still open copy of the workout on the device, as an edit made
+ * elsewhere would: what the device then sends for it is the older write.
+ */
+async function editWorkoutElsewhere(page: Page) {
+  const row = await page.evaluate(
+    () =>
+      new Promise<Record<string, unknown> | undefined>((resolve, reject) => {
+        const open = indexedDB.open('overload-sets');
+        open.addEventListener('error', () => reject(open.error));
+        open.addEventListener('success', () => {
+          const all = open.result.transaction('rows', 'readonly').objectStore('rows').getAll();
+          all.addEventListener('error', () => reject(all.error));
+          all.addEventListener('success', () => {
+            open.result.close();
+            const records: { table: string; row: Record<string, unknown> }[] = all.result;
+            resolve(records.find((record) => record.table === 'workouts')?.row);
+          });
+        });
+      }),
+  );
+  expect(row).toBeDefined();
+  const newer = { ...row, clientUpdatedAt: new Date(Date.now() + 86_400_000).toISOString() };
+  const edit = await page.request.post('/api/workouts/sync', { data: { workouts: [newer] } });
+  expect(edit.ok()).toBe(true);
+  expect((await edit.json()).results[0].status).toBe('stored');
+}
+
+/**
+ * Refuses every write to the set store from here on, until `mend-sets`. Each refusal is counted on
+ * the document, so a test can wait for one.
+ */
+function refuseSetStoreWrites() {
+  const database: {
+    transaction: (
+      this: IDBDatabase,
+      ...args: Parameters<IDBDatabase['transaction']>
+    ) => IDBTransaction;
+  } = IDBDatabase.prototype;
+  const transaction = database.transaction;
+  let broken = true;
+  let refused = 0;
+  window.addEventListener('mend-sets', () => {
+    broken = false;
+  });
+  IDBDatabase.prototype.transaction = function refuse(this: IDBDatabase, stores, mode, options) {
+    if (broken && this.name === 'overload-sets' && mode === 'readwrite') {
+      refused += 1;
+      document.documentElement.dataset.setWritesRefused = String(refused);
+      throw new DOMException('The write failed.', 'UnknownError');
+    }
+    return transaction.call(this, stores, mode, options);
+  };
 }
 
 test('a weight left as the card opened it is logged as the stored kilograms', async ({ page }) => {
@@ -335,7 +601,7 @@ test('a weight left as the card opened it is logged as the stored kilograms', as
   // The increment follows the same rule: 2.5 kg shows as 5.5, which typed back is still 2.5 kg,
   // not the 2.49 that 5.5 lb converts to.
   await page.goto('/exercises');
-  await page.getByRole('link', { name: /Barbell Deadlift/ }).click();
+  await page.getByRole('link', { name: /^Barbell Deadlift/ }).click();
   await expect(page.getByRole('textbox', { name: /Increment/ })).toHaveValue('5.5');
   await page.getByRole('textbox', { name: /Increment/ }).fill('6');
   await page.getByRole('textbox', { name: /Increment/ }).fill('5.5');
@@ -381,8 +647,8 @@ test('a profile changed elsewhere reaches the open form without undoing an edit 
   page,
 }) => {
   await saveProfile(page, 'Kilograms');
-  const timezone = page.getByRole('textbox', { name: 'Time zone' });
-  await timezone.fill('Europe/Paris');
+  const timezone = page.getByRole('combobox', { name: 'Time zone' });
+  await chooseTimezone(page, 'Europe/Paris');
 
   // Another device saves pounds; coming back to the app asks /api/me again.
   const elsewhere = await page.request.patch('/api/me/profile', {
@@ -403,11 +669,13 @@ test('a profile changed elsewhere reaches the open form without undoing an edit 
   expect(me.profile).toMatchObject({ timezone: 'Europe/Paris', weightUnit: 'lb' });
 });
 
-test('an exercise with no rest shows no rest bar after a set', async ({ page }) => {
+test('an exercise with no rest starts no rest after a set, and the bar says so', async ({
+  page,
+}) => {
   const name = `No rest ${Date.now()}`;
   await saveProfile(page);
   await page.goto('/exercises');
-  await page.getByRole('link', { name: /Barbell Curl/ }).click();
+  await page.getByRole('link', { name: /^Barbell Curl/ }).click();
   await page.getByRole('textbox', { name: /Rest/ }).fill('0');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page).toHaveURL('/exercises');
@@ -416,16 +684,19 @@ test('an exercise with no rest shows no rest bar after a set', async ({ page }) 
   await expect(page).toHaveURL('/routines');
 
   await start(page, name);
+  const rest = page.getByRole('region', { name: 'Rest timer' });
+  await expect(rest).toContainText('This exercise has no rest set, so no timer starts.');
   await completeSet(page, { weight: '30', reps: '10' });
   await expect(page.getByRole('region', { name: 'SET 2 OF 3' })).toBeVisible();
-  await expect(page.getByRole('region', { name: 'Rest timer' })).toHaveCount(0);
+  await expect(rest.getByRole('timer')).toHaveCount(0);
   await completeSet(page, { reps: '10' });
   await expect(page.getByRole('region', { name: 'SET 3 OF 3' })).toBeVisible();
   await completeSet(page, { reps: '10' });
   await expect(page.getByRole('region', { name: 'SET 4 · EXTRA' })).toBeVisible();
   await completeSet(page, { reps: '10' });
   await expect(page.getByRole('region', { name: 'SET 5 · EXTRA' })).toBeVisible();
-  await expect(page.getByRole('region', { name: 'Rest timer' })).toHaveCount(0);
+  await expect(rest.getByRole('timer')).toHaveCount(0);
+  await expect(rest).toContainText('This exercise has no rest set, so no timer starts.');
   await finish(page);
 });
 
@@ -434,7 +705,7 @@ test('leaving the app and coming back keeps the workout screen as it was', async
   await page.clock.install();
   await saveProfile(page);
   await page.goto('/exercises');
-  await page.getByRole('link', { name: /Dumbbell Hammer Curl/ }).click();
+  await page.getByRole('link', { name: /^Dumbbell Hammer Curl/ }).click();
   await page.getByRole('textbox', { name: /Rest/ }).fill('120');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page).toHaveURL('/exercises');
@@ -485,11 +756,269 @@ test('leaving the app and coming back keeps the workout screen as it was', async
   await rest.getByRole('button', { name: 'Skip rest' }).click();
   await comeBack(async () => {
     await expect(page.getByRole('textbox', { name: /^Weight in/ })).toHaveValue('7.5');
-    await expect(rest).toHaveCount(0);
+    await expect(rest.getByRole('timer')).toHaveCount(0);
   });
   await page.getByRole('button', { name: 'Complete set' }).click();
   await expect(page.getByRole('button', { name: /1 WARM-UP SET/ })).toBeVisible();
   await finish(page);
+});
+
+// Counts the screen wake locks held, since a headless browser grants none of its own.
+async function countWakeLocks(page: Page) {
+  await page.addInitScript(() => {
+    const held = { count: 0 };
+    window.heldWakeLocks = held;
+    Object.defineProperty(navigator, 'wakeLock', {
+      configurable: true,
+      value: {
+        request: () => {
+          held.count += 1;
+          let released = false;
+          return Promise.resolve({
+            release: () => {
+              if (!released) held.count -= 1;
+              released = true;
+              return Promise.resolve();
+            },
+          });
+        },
+      },
+    });
+  });
+  return () => page.evaluate(() => window.heldWakeLocks?.count);
+}
+
+async function setRest(page: Page, exercise: string, seconds: string) {
+  await page.goto('/exercises');
+  await page.getByRole('link', { name: new RegExp(`^${exercise}`) }).click();
+  await page.getByRole('textbox', { name: /Rest/ }).fill(seconds);
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page).toHaveURL('/exercises');
+}
+
+test.describe('full screen', () => {
+  test('is one exercise and one set, entered and left without losing anything, with the screen kept awake', async ({
+    page,
+  }) => {
+    const name = `Full ${Date.now()}`;
+    await page.clock.install();
+    const wakeLocks = await countWakeLocks(page);
+    await saveProfile(page, 'Kilograms');
+    await setRest(page, 'Cable Lat Pulldown', '120');
+    await createRoutine(page, name, ['Cable Lat Pulldown', 'Seated Cable Row']);
+    await page.getByRole('button', { name: 'Create routine' }).click();
+    await expect(page).toHaveURL('/routines');
+    await start(page, name);
+
+    // A set half typed and the RIR guide open, before the layout changes.
+    const rest = page.getByRole('region', { name: 'Rest timer' });
+    const weight = page.getByRole('textbox', { name: 'Weight in kilograms' });
+    const reps = page.getByRole('textbox', { name: 'Reps', exact: true });
+    await weight.fill('47.5');
+    await reps.fill('9');
+    await page.getByRole('button', { name: 'How to gauge it' }).click();
+    await expect(rest).toContainText('Starts by itself after each set: 2:00');
+    // No rest counts, so nothing keeps the screen awake yet.
+    expect(await wakeLocks()).toBe(0);
+
+    // Turned on by hand, from the rest bar.
+    await rest.getByRole('button', { name: 'Full screen' }).click();
+    const exit = page.getByRole('button', { name: 'Exit full screen' });
+    await expect(exit).toBeFocused();
+    await expect(page.getByRole('heading', { name: name, level: 1 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Cable Lat Pulldown', level: 2 })).toBeVisible();
+    await expect(page.getByText('Exercise 1 of 2 · 0 of 3 sets done')).toBeVisible();
+    // One exercise, one set: the rest bar, the other exercises, Finish and the data-state slot go.
+    await expect(rest).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'Up next' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Finish workout' })).toBeHidden();
+    await expect(dataState(page)).toHaveCount(0);
+    // The block keeps its figures and drops the sentence the figures already say.
+    await expect(brief(page)).toContainText('Last timeNone yet');
+    await expect(brief(page)).toContainText('Find your weight × ');
+    await expect(brief(page)).not.toContainText('This is your first time logging');
+    // What was typed and opened is as it was.
+    await expect(weight).toHaveValue('47.5');
+    await expect(reps).toHaveValue('9');
+    await expect(page.getByText('Could not do another')).toBeVisible();
+    // On, it keeps the screen awake with no rest counting.
+    await expect.poll(wakeLocks).toBe(1);
+
+    // A set: the rest takes the screen, its countdown the one large figure, the next set under it.
+    await page.getByRole('button', { name: 'Complete set' }).click();
+    await expect(rest).toBeFocused();
+    await expect(rest.getByRole('timer')).toHaveText(/^(2:00|1:5\d)$/);
+    await expect(rest.getByRole('timer')).toHaveCSS('font-size', '56px');
+    await expect(page.getByText('Exercise 1 of 2 · 1 of 3 sets done')).toBeVisible();
+    const next = page.getByRole('region', { name: 'Next · SET 2 OF 3' });
+    await expect(next).toContainText('47.5\u00a0kg × 9');
+    await expect(next).toContainText('First workout of this exercise');
+    await expect(page.getByRole('button', { name: 'Complete set' })).toBeHidden();
+    await expect(brief(page)).toHaveCount(0);
+    await rest.getByRole('button', { name: '+30s rest' }).click();
+    await expect(rest.getByRole('timer')).toHaveText(/^2:[23]\d$/);
+    await expect.poll(wakeLocks).toBe(1);
+
+    // Left mid-rest: the same rest is on the bar, and the logged set is in its table.
+    await exit.click();
+    await expect(rest.getByRole('button', { name: 'Full screen' })).toBeFocused();
+    await expect(rest).toContainText('REST · NEXT: SET 2 OF 3');
+    await expect(rest.getByRole('timer')).toHaveText(/^2:[23]\d$/);
+    await expect(rest.getByRole('timer')).toHaveCSS('font-size', '42px');
+    await expect(page.getByRole('row', { name: /^1 47\.5 9/ })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Up next' })).toBeVisible();
+    await expect(dataState(page)).toContainText('SYNCED');
+    // Out of full screen the screen is kept awake for the rest only.
+    await expect.poll(wakeLocks).toBe(1);
+    await rest.getByRole('button', { name: 'Skip rest' }).click();
+    await expect.poll(wakeLocks).toBe(0);
+
+    // Back in, a rest that runs out: it counts over in place and one control starts the set.
+    await reps.fill('8');
+    await rest.getByRole('button', { name: 'Full screen' }).click();
+    await page.getByRole('button', { name: 'Complete set' }).click();
+    await expect(rest.getByRole('timer')).toHaveText(/^(2:00|1:5\d)$/);
+    await page.clock.fastForward('02:03');
+    await expect(rest).toContainText('REST OVER');
+    await expect(rest.getByRole('timer')).toHaveText(/^\+0:0\d$/);
+    await expect(rest.getByRole('button', { name: '+30s rest' })).toHaveCount(0);
+    await rest.getByRole('button', { name: 'Start set 3 of 3' }).click();
+    await expect(rest).toHaveCount(0);
+    await expect(page.getByRole('region', { name: 'SET 3 OF 3' })).toBeFocused();
+    await expect(reps).toHaveValue('8');
+    // Still on with no rest counting: still awake.
+    await expect.poll(wakeLocks).toBe(1);
+
+    // The set that reaches the target moves on to the next exercise, as outside full screen.
+    await page.getByRole('button', { name: 'Complete set' }).click();
+    await expect(page.getByRole('heading', { name: 'Seated Cable Row', level: 2 })).toBeVisible();
+    await expect(page.getByText('Exercise 2 of 2 · 0 of 3 sets done')).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Next · SET 1 OF 3' })).toBeVisible();
+
+    await exit.click();
+    await rest.getByRole('button', { name: 'Skip rest' }).click();
+    await expect.poll(wakeLocks).toBe(0);
+    await expect(
+      page.getByRole('button', { name: /Cable Lat Pulldown.*3 sets done of 3/ }),
+    ).toBeVisible();
+    await expect.poll(() => stored().at(-1)?.exercises[0]?.sets.length).toBe(3);
+
+    // Not remembered: the screen opens again in its usual layout.
+    await page.reload();
+    await expect(rest.getByRole('button', { name: 'Full screen' })).toBeVisible();
+    await expect(exit).toHaveCount(0);
+    await finish(page);
+  });
+
+  test('the iPhone Focus guide opens over the workout and keeps what is done on the device', async ({
+    page,
+  }) => {
+    const name = `Guide ${Date.now()}`;
+    await page.clock.install();
+    await saveProfile(page, 'Kilograms');
+    await setRest(page, 'Machine Leg Extension', '120');
+    await createRoutine(page, name, ['Machine Leg Extension']);
+    await page.getByRole('button', { name: 'Create routine' }).click();
+    await expect(page).toHaveURL('/routines');
+    await start(page, name);
+
+    const rest = page.getByRole('region', { name: 'Rest timer' });
+    const weight = page.getByRole('textbox', { name: 'Weight in kilograms' });
+    await completeSet(page, { weight: '40', reps: '12' });
+    await rest.getByRole('button', { name: 'Skip rest' }).click();
+    await weight.fill('42.5');
+    await rest.getByRole('button', { name: 'Full screen' }).click();
+
+    // The way to it is at the foot of full screen, and says why it is there.
+    const link = page.getByRole('link', { name: /Calls and messages can still interrupt/ });
+    await expect(link).toContainText('Set up an iPhone Focus that lets only chosen people through');
+    await link.click();
+    await expect(page).toHaveURL('/workout/focus');
+    await expect(page.getByRole('heading', { name: 'iPhone Focus', level: 1 })).toBeVisible();
+    await expect(page.getByRole('main')).toBeFocused();
+    await expect(page.getByRole('main')).toContainText(
+      'A web app cannot turn a Focus on, or stop you opening other apps.',
+    );
+    await expect(page.getByRole('heading', { level: 2 })).toHaveText([
+      '1. Create the Focus',
+      '2. Choose who can reach you',
+      '3. Choose which apps can notify',
+      '4. Have it turn on at the gym',
+    ]);
+    await expect(page.getByRole('listitem').first()).toContainText(
+      'Settings › Focus › Add › Custom',
+    );
+    await expect(page.getByText('Steps from Apple’s iPhone User Guide, iOS 27')).toBeVisible();
+    await expect(page.getByText('checked 10 Oct 2026')).toBeVisible();
+    // The workout is under it, not on screen.
+    await expect(page.getByRole('button', { name: 'Complete set' })).toBeHidden();
+
+    // A step is ticked on its check cell.
+    const first = page.getByRole('button', { name: 'Step 1 done' });
+    const third = page.getByRole('button', { name: 'Step 3 done' });
+    await expect(first).toHaveAttribute('aria-pressed', 'false');
+    await first.click();
+    await third.click();
+    await expect(first).toHaveAttribute('aria-pressed', 'true');
+    await expect(third).toHaveAttribute('aria-pressed', 'true');
+    await third.click();
+    await expect(third).toHaveAttribute('aria-pressed', 'false');
+
+    // Back: full screen is still on, with the set as it was typed.
+    await page.getByRole('button', { name: 'Back to the workout' }).click();
+    await expect(page).toHaveURL('/workout');
+    await expect(link).toBeFocused();
+    await expect(page.getByRole('button', { name: 'Exit full screen' })).toBeVisible();
+    await expect(weight).toHaveValue('42.5');
+    await page.goBack();
+    await expect(page).toHaveURL('/');
+    await page.goForward();
+    await expect(page).toHaveURL('/workout');
+    await expect(rest.getByRole('button', { name: 'Full screen' })).toBeVisible();
+    await rest.getByRole('button', { name: 'Full screen' }).click();
+
+    await link.click();
+    await page.getByRole('button', { name: 'I have set it up' }).click();
+    await expect(page).toHaveURL('/workout');
+    await page.goBack();
+    await expect(page).toHaveURL('/');
+    await page.goForward();
+    await expect(page).toHaveURL('/workout');
+    await expect(rest.getByRole('button', { name: 'Full screen' })).toBeVisible();
+    await rest.getByRole('button', { name: 'Full screen' }).click();
+
+    // The ticks are kept on the device, across a relaunch.
+    await page.getByRole('link', { name: /iPhone Focus: set up/ }).click();
+    await page.reload();
+    await expect(first).toHaveAttribute('aria-pressed', 'true');
+    await expect(third).toHaveAttribute('aria-pressed', 'false');
+    await page.getByRole('button', { name: 'I have set it up' }).click();
+    await expect(page).toHaveURL('/workout');
+    await page.goBack();
+    await expect(page).toHaveURL('/workout');
+    await page.goForward();
+    await expect(page).toHaveURL('/workout');
+
+    // Done is kept too: full screen's row now says so, and still opens the guide.
+    await rest.getByRole('button', { name: 'Full screen' }).click();
+    const again = page.getByRole('link', { name: /iPhone Focus: set up/ });
+    await expect(again).toContainText('Open the guide again');
+    await page.reload();
+    await rest.getByRole('button', { name: 'Full screen' }).click();
+    await expect(again).toBeVisible();
+    await again.click();
+    await expect(first).toHaveAttribute('aria-pressed', 'true');
+    // The browser's own back closes it as the chevron does.
+    await page.goBack();
+    await expect(page).toHaveURL('/workout');
+    await expect(page.getByRole('button', { name: 'Exit full screen' })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Exit full screen' }).click();
+    await finish(page);
+    // With no workout open there is nothing for the guide to open over.
+    await page.goto('/workout/focus');
+    await expect(page).toHaveURL('/');
+  });
 });
 
 test('finishing after deleting the routine keeps the workout on the server', async ({ page }) => {
@@ -545,9 +1074,9 @@ test('each slot of an exercise a routine holds twice keeps its own last time thr
 
   // The 5–8 slot reaches 8; the 8–12 slot stops at 10.
   await start(page, name);
-  await expect(page.getByText('Reps 5–8')).toBeVisible();
+  await expect(brief(page)).toContainText('× 5–8');
   await completeSet(page, { weight: '80', reps: '8' });
-  await expect(page.getByText('Reps 8–12')).toBeVisible();
+  await expect(brief(page)).toContainText('× 8–12');
   await completeSet(page, { weight: '60', reps: '10' });
   await expect(dataState(page)).toContainText('SYNCED');
   const lastTime = page.waitForResponse(
@@ -556,7 +1085,6 @@ test('each slot of an exercise a routine holds twice keeps its own last time thr
   await finish(page);
   await lastTime;
 
-  // The 8–12 slot is moved above the other.
   await page.goto('/routines');
   await page.getByRole('link', { name: new RegExp(name) }).click();
   await page
@@ -564,20 +1092,28 @@ test('each slot of an exercise a routine holds twice keeps its own last time thr
     .nth(1)
     .click();
   await expect(figures('Reps high', 0)).toHaveValue('12');
+  await figures('Reps high', 0).fill('14');
+  await figures('Reps high', 1).fill('12');
   await page.getByRole('button', { name: 'Save routine' }).click();
   await expect(page).toHaveURL('/routines');
 
-  // Each slot opens on its own sets, judged against its own range.
   await start(page, name);
-  await expect(page.getByText('Reps 8–12')).toBeVisible();
+  await expect(brief(page)).toContainText('60 kg × 8–14');
   const card = page.getByRole('region', { name: 'SET 1 OF 1' });
-  await expect(card).toContainText('LAST60 × 10');
-  await expect(card).toContainText('set 1 stopped at 10 of 12 last time');
+  await expect(card).toContainText('LAST TIME60 × 10');
+  await expect(brief(page)).toContainText('Today’s targetSame weight');
+  await expect(brief(page)).toContainText(
+    'Your set stopped short of 12 reps last time. Reach 14 and next time goes up to 62.5 kg.',
+  );
+  await expect(brief(page)).not.toContainText('stopped short of 14 reps last time');
   await expect(page.getByRole('textbox', { name: 'Weight in kilograms' })).toHaveValue('60');
-  await completeSet(page, { reps: '12' });
-  await expect(page.getByText('Reps 5–8')).toBeVisible();
-  await expect(card).toContainText('LAST80 × 8');
-  await expect(card).toContainText('hit 8 on the only set last time');
+  await completeSet(page, { reps: '14' });
+  await expect(brief(page)).toContainText('82.5 kg × 5–12');
+  await expect(card).toContainText('LAST TIME80 × 8');
+  await expect(brief(page)).toContainText(
+    'You reached 8 reps on your only set last time, so the weight goes up by 2.5 kg. Aim for 5 or more.',
+  );
+  await expect(brief(page)).not.toContainText('You reached 12 reps');
   await expect(page.getByRole('textbox', { name: 'Weight in kilograms' })).toHaveValue('82.5');
 });
 
@@ -592,7 +1128,8 @@ test('a workout left for three hours ends at its last set', async ({ page }) => 
 
   await start(page, name);
   await completeSet(page, { reps: '6' });
-  await expect(page.getByRole('row', { name: /^1 0 6/ })).toBeVisible();
+  // The Last cell is there once an earlier test has left the account a chin-up to compare with.
+  await expect(page.getByRole('row', { name: /^1 (0 × \d+ )?0 6/ })).toBeVisible();
   await expect(dataState(page)).toContainText('SYNCED');
 
   // Just short of three hours it is still in progress.
@@ -650,6 +1187,7 @@ test.describe('sign-out with a workout on the device', () => {
     // retry that cannot upload says so again.
     await page.getByRole('link', { name: 'Resume workout' }).click();
     await finish(page);
+    await toToday(page);
     await page.getByRole('button', { name: 'Sign out' }).click();
     await expect(page.getByText('Your workout has not finished uploading.')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Upload now' })).toHaveCount(0);
@@ -665,19 +1203,7 @@ test.describe('sign-out with a workout on the device', () => {
     await expect(page).toHaveURL('/sign-in');
     expect(stored().at(-1)?.endedAt).not.toBeNull();
     expect(setsOfLatest()).toBe(1);
-    const kept = await page.evaluate(
-      () =>
-        new Promise<number>((resolve, reject) => {
-          const open = indexedDB.open('overload-sets');
-          open.addEventListener('error', () => reject(open.error));
-          open.addEventListener('success', () => {
-            const count = open.result.transaction('rows', 'readonly').objectStore('rows').count();
-            count.addEventListener('success', () => resolve(count.result));
-            count.addEventListener('error', () => reject(count.error));
-          });
-        }),
-    );
-    expect(kept).toBe(0);
+    expect(await rowsOnDevice(page)).toBe(0);
   });
 
   test('offers to discard a set the server refused once its workout has ended there', async ({
@@ -710,6 +1236,7 @@ test.describe('sign-out with a workout on the device', () => {
     await completeSet(page, { reps: '6' });
     await expect(dataState(page)).toContainText('1 REFUSED');
     await finish(page);
+    await toToday(page);
     await expect.poll(() => stored().at(-1)?.endedAt ?? null).not.toBeNull();
 
     await page.getByRole('button', { name: 'Sign out' }).click();
@@ -717,24 +1244,11 @@ test.describe('sign-out with a workout on the device', () => {
     await expect(page).toHaveURL('/');
     await page.getByRole('button', { name: 'Discard and sign out' }).click();
     await expect(page).toHaveURL('/sign-in');
-    const kept = await page.evaluate(
-      () =>
-        new Promise<number>((resolve, reject) => {
-          const open = indexedDB.open('overload-sets');
-          open.addEventListener('error', () => reject(open.error));
-          open.addEventListener('success', () => {
-            const count = open.result.transaction('rows', 'readonly').objectStore('rows').count();
-            count.addEventListener('success', () => resolve(count.result));
-            count.addEventListener('error', () => reject(count.error));
-          });
-        }),
-    );
-    expect(kept).toBe(0);
+    expect(await rowsOnDevice(page)).toBe(0);
   });
 
   test('keeps a Finish the server did not take, and the sign-out it stops', async ({ page }) => {
-    const name = `Clock ${Date.now()}`;
-    await page.clock.install();
+    const name = `Newer ${Date.now()}`;
     await saveProfile(page);
     await createRoutine(page, name, ['Chin-Up']);
     await page.getByRole('button', { name: 'Create routine' }).click();
@@ -743,9 +1257,9 @@ test.describe('sign-out with a workout on the device', () => {
     await completeSet(page, { reps: '6' });
     await expect(dataState(page)).toContainText('SYNCED');
 
-    // The phone's clock goes back, so the server's copy of the workout is the newer one and stays
-    // open: its answer is not an acknowledgment of the ending.
-    await page.clock.setSystemTime(Date.now() - 60 * 60 * 1000);
+    // The server's copy of the workout is the newer one and stays open: its answer is not an
+    // acknowledgment of the ending.
+    await editWorkoutElsewhere(page);
     const answered = page.waitForResponse(
       (response) => response.url().includes('/api/workouts/sync') && response.ok(),
     );
@@ -753,6 +1267,7 @@ test.describe('sign-out with a workout on the device', () => {
     await answered;
     await expect(dataState(page)).toHaveText('1 PENDING');
     expect(stored().at(-1)?.endedAt).toBeNull();
+    await toToday(page);
 
     await page.getByRole('button', { name: 'Sign out' }).click();
     await expect(page.getByText('Your workout has not finished uploading.')).toBeVisible();
@@ -760,10 +1275,9 @@ test.describe('sign-out with a workout on the device', () => {
     await expect(page).toHaveURL('/');
   });
 
-  test('keeps the removal of a workout with no sets the server did not take', async ({ page }) => {
-    const name = `Clock ${Date.now()}`;
+  test('keeps a workout with no sets whose removal the server did not take', async ({ page }) => {
+    const name = `Newer ${Date.now()}`;
     const before = stored().length;
-    await page.clock.install();
     await saveProfile(page);
     await createRoutine(page, name, ['Chin-Up']);
     await page.getByRole('button', { name: 'Create routine' }).click();
@@ -771,17 +1285,20 @@ test.describe('sign-out with a workout on the device', () => {
     await start(page, name);
     await expect(dataState(page)).toContainText('SYNCED');
 
-    await page.clock.setSystemTime(Date.now() - 60 * 60 * 1000);
+    // The server's copy is the newer one, so it survives the removal and comes back to the device
+    // still in progress.
+    await editWorkoutElsewhere(page);
     const answered = page.waitForResponse(
       (response) => response.url().includes('/api/workouts/sync') && response.ok(),
     );
-    await finish(page);
+    await finish(page, false);
     await answered;
-    await expect(dataState(page)).toHaveText('1 PENDING');
+    await expect(page.getByRole('link', { name: 'Resume workout' })).toBeVisible();
     expect(stored().length).toBe(before + 1);
+    expect(stored().at(-1)?.endedAt).toBeNull();
 
     await page.getByRole('button', { name: 'Sign out' }).click();
-    await expect(page.getByText('Your workout has not finished uploading.')).toBeVisible();
+    await expect(page.getByText('A workout is in progress')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Discard and sign out' })).toHaveCount(0);
     await expect(page).toHaveURL('/');
   });
@@ -899,5 +1416,216 @@ test.describe('sign-out with a workout on the device', () => {
     await page.getByRole('button', { name: 'Sign out' }).click();
     await expect(page).toHaveURL('/sign-in?wipe=failed');
     await expect(page.getByText("Saved data couldn't be cleared from this device.")).toBeVisible();
+  });
+
+  test('stays usable when the upload it asks for cannot be written to the device', async ({
+    page,
+  }) => {
+    const name = `Unwritten ${Date.now()}`;
+    const errors: Error[] = [];
+    page.on('pageerror', (error) => errors.push(error));
+    await page.clock.install();
+    await saveProfile(page);
+    await createRoutine(page, name, ['Chin-Up']);
+    await page.getByRole('button', { name: 'Create routine' }).click();
+    await expect(page).toHaveURL('/routines');
+    await start(page, name);
+    await expect(dataState(page)).toContainText('SYNCED');
+
+    // The server stores the set, but its answer for it never arrives: the workout ends and is
+    // acknowledged with one set still waiting.
+    let endedAnswered = false;
+    let setSentAgain = false;
+    await page.route('**/api/workouts/sync', async (route) => {
+      const sent: { workouts?: { endedAt?: string | null }[] } = route.request().postDataJSON();
+      const response = await route.fetch();
+      const body: { results: { table: string }[] } = await response.json();
+      const results = body.results.filter((result) => result.table !== 'sets');
+      await route.fulfill({ response, json: { results } });
+      if (endedAnswered) setSentAgain = true;
+      if (sent.workouts?.some((workout) => typeof workout.endedAt === 'string')) {
+        endedAnswered = true;
+      }
+    });
+    await completeSet(page, { reps: '6' });
+    await finish(page);
+    await toToday(page);
+    // The clock stops here, so the uploader's own timer asks for no upload the steps below do not.
+    await page.clock.pauseAt(Date.now() + 1000);
+    const signOut = page.getByRole('button', { name: 'Sign out' });
+    await expect(async () => {
+      await signOut.click();
+      await expect(page.getByText('1 set not uploaded yet.')).toBeVisible({ timeout: 1000 });
+    }).toPass();
+    // The workout's answer changed the records, which sends the waiting set once more. That
+    // request is answered before the device and the routes change under it.
+    await expect.poll(() => setSentAgain).toBe(true);
+
+    // The device stops taking writes. The uploader's own try reaches the server and cannot note
+    // the answer; so does the one Upload now asks for.
+    await page.evaluate(refuseSetStoreWrites);
+    await page.unrouteAll();
+    const refusals = page.locator('html');
+    await page.evaluate(() => window.dispatchEvent(new Event('online')));
+    await expect(refusals).toHaveAttribute('data-set-writes-refused', '1');
+    await page.getByRole('button', { name: 'Upload now' }).click();
+    await expect(page.getByText("Couldn't sign out. Try again.")).toBeVisible();
+    await expect(refusals).toHaveAttribute('data-set-writes-refused', '2');
+    await expect(signOut).toBeEnabled();
+    await expect(page).toHaveURL('/');
+
+    // Once the device takes writes again, the same way out works.
+    await page.evaluate(() => window.dispatchEvent(new Event('mend-sets')));
+    await signOut.click();
+    await page.getByRole('button', { name: 'Upload now' }).click();
+    await expect(page).toHaveURL('/sign-in');
+    expect(setsOfLatest()).toBe(1);
+    expect(errors).toEqual([]);
+  });
+
+  test('offline Upload now keeps the pending warning visible', async ({ page, context }) => {
+    const name = `Offline upload ${Date.now()}`;
+    await saveProfile(page);
+    await createRoutine(page, name, ['Chin-Up']);
+    await page.getByRole('button', { name: 'Create routine' }).click();
+    await start(page, name);
+    await expect(dataState(page)).toContainText('SYNCED');
+    await page.route('**/api/workouts/sync', async (route) => {
+      const response = await route.fetch();
+      const body: { results: { table: string }[] } = await response.json();
+      await route.fulfill({
+        response,
+        json: { results: body.results.filter((result) => result.table !== 'sets') },
+      });
+    });
+    await completeSet(page, { reps: '6' });
+    await finish(page);
+    await toToday(page);
+    await expect(async () => {
+      await page.getByRole('button', { name: 'Sign out' }).click();
+      await expect(page.getByText('1 set not uploaded yet.')).toBeVisible({ timeout: 1000 });
+    }).toPass();
+    await page.goto('/account');
+    await page.getByRole('textbox', { name: 'Type DELETE to confirm' }).fill('DELETE');
+    await page.getByRole('button', { name: 'Delete account' }).click();
+    await expect(page.getByText(/1 set not uploaded yet/)).toBeVisible();
+    await context.setOffline(true);
+    await page.getByRole('button', { name: 'Upload now' }).click();
+    await expect(
+      page.getByText(
+        'Couldn’t confirm the upload finished. Some workout data may have uploaded. Your account was not deleted. Check your connection and try again.',
+      ),
+    ).toBeVisible();
+    await expect(page).toHaveURL('/account');
+  });
+
+  test('a launch that cannot end an idle workout on the device leaves it in progress', async ({
+    page,
+  }) => {
+    const name = `Idle unwritten ${Date.now()}`;
+    const errors: Error[] = [];
+    page.on('pageerror', (error) => errors.push(error));
+    await page.clock.install();
+    await saveProfile(page);
+    await createRoutine(page, name, ['Chin-Up']);
+    await page.getByRole('button', { name: 'Create routine' }).click();
+    await expect(page).toHaveURL('/routines');
+    await start(page, name);
+    await completeSet(page, { reps: '6' });
+    await expect(page.getByRole('row', { name: /^1 (\S+ × \d+ )?0 6/ })).toBeVisible();
+    await expect(dataState(page)).toContainText('SYNCED');
+
+    // Past three hours, with the device refusing the write that would end it.
+    await page.clock.fastForward('03:00:30');
+    await page.addInitScript(refuseSetStoreWrites);
+    await page.goto('/');
+    await expect(page.locator('html')).toHaveAttribute('data-set-writes-refused', /^\d+$/);
+    await expect(page.getByRole('link', { name: 'Resume workout' })).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+});
+
+test.describe('the set store’s connection, lost under the open app', () => {
+  // The app's connections to the set store, kept where the test can end them as the browser does:
+  // `lose-sets` closes them and says so (the `close` event).
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+      const factory: {
+        open: (this: IDBFactory, ...args: Parameters<IDBFactory['open']>) => IDBOpenDBRequest;
+      } = IDBFactory.prototype;
+      const open = factory.open;
+      const held = new Set<IDBDatabase>();
+      IDBFactory.prototype.open = function kept(this: IDBFactory, database, version) {
+        const request = open.call(this, database, version);
+        if (database === 'overload-sets') {
+          request.addEventListener('success', () => held.add(request.result));
+        }
+        return request;
+      };
+      window.addEventListener('lose-sets', () => {
+        for (const connection of held) {
+          connection.close();
+          connection.dispatchEvent(new Event('close'));
+        }
+        held.clear();
+      });
+    });
+  });
+
+  test('the browser closes it: the next set is saved, and Finish works', async ({ page }) => {
+    const name = `Closed ${Date.now()}`;
+    await saveProfile(page, 'Kilograms');
+    await createRoutine(page, name, ['Chin-Up']);
+    await page.getByRole('button', { name: 'Create routine' }).click();
+    await expect(page).toHaveURL('/routines');
+    await start(page, name);
+    await completeSet(page, { reps: '6' });
+    await expect(page.getByRole('row', { name: /^1 (\S+ × \d+ )?0 6/ })).toBeVisible();
+    await expect(dataState(page)).toContainText('SYNCED');
+
+    await page.evaluate(() => window.dispatchEvent(new Event('lose-sets')));
+    await completeSet(page, { reps: '5' });
+    await expect(page.getByRole('row', { name: /^2 (\S+ × \d+ )?0 5/ })).toBeVisible();
+    await expect(page.getByText('Couldn’t save the set on this device')).toHaveCount(0);
+    // The workout, its exercise and both sets.
+    expect(await rowsOnDevice(page)).toBe(4);
+
+    await finish(page);
+    await expect
+      .poll(() => stored().find((workout) => workout.name === name)?.exercises[0]?.sets.length)
+      .toBe(2);
+  });
+
+  test('another connection asks for the database: it is let go, and the next set is saved', async ({
+    page,
+  }) => {
+    const name = `Asked ${Date.now()}`;
+    await saveProfile(page, 'Kilograms');
+    await createRoutine(page, name, ['Chin-Up']);
+    await page.getByRole('button', { name: 'Create routine' }).click();
+    await expect(page).toHaveURL('/routines');
+    await start(page, name);
+    await completeSet(page, { reps: '6' });
+    await expect(page.getByRole('row', { name: /^1 (\S+ × \d+ )?0 6/ })).toBeVisible();
+    await expect(dataState(page)).toContainText('SYNCED');
+
+    // The device's storage is cleared from elsewhere, which asks every connection to close
+    // (`versionchange`). One that stays open blocks it.
+    const cleared = await page.evaluate(
+      () =>
+        new Promise<string>((resolve, reject) => {
+          const request = indexedDB.deleteDatabase('overload-sets');
+          request.addEventListener('success', () => resolve('cleared'));
+          request.addEventListener('blocked', () => resolve('blocked'));
+          request.addEventListener('error', () => reject(request.error));
+        }),
+    );
+    expect(cleared).toBe('cleared');
+
+    await completeSet(page, { reps: '5' });
+    await expect(page.getByRole('row', { name: /^2 (\S+ × \d+ )?0 5/ })).toBeVisible();
+    // Only the set logged since: what was cleared is gone from the device.
+    expect(await rowsOnDevice(page)).toBe(1);
+    await finish(page);
   });
 });

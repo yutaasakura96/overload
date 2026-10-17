@@ -1,6 +1,17 @@
-import { ACCOUNT_HEADER, type Me } from '@overload/api-contract';
+import {
+  ACCOUNT_HEADER,
+  type BalanceView,
+  type Me,
+  type Span,
+  type StrengthSpan,
+} from '@overload/api-contract';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
-import { QueryClient, queryOptions, type FetchStatus } from '@tanstack/react-query';
+import {
+  QueryClient,
+  infiniteQueryOptions,
+  queryOptions,
+  type FetchStatus,
+} from '@tanstack/react-query';
 import {
   persistQueryClientRestore,
   persistQueryClientSubscribe,
@@ -10,6 +21,7 @@ import {
 import { useState, useSyncExternalStore } from 'react';
 import { api, ApiError, isUnauthenticated, unwrap } from './api';
 import { deviceStore } from './device-store';
+import { dropCandidate } from './food';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -30,15 +42,13 @@ class AccountCheckFailed extends Error {
   }
 }
 
+// A 401 means the session has ended; retrying cannot change that (docs/08 §5).
+const retries = (failureCount: number, error: unknown) =>
+  !isUnauthenticated(error) && !(error instanceof AccountCheckFailed) && failureCount < 2;
+
 export const queryClient = new QueryClient({
   defaultOptions: {
-    queries: {
-      gcTime: CACHE_MAX_AGE_MS,
-      staleTime: 60 * 1000,
-      // A 401 means the session has ended; retrying cannot change that (docs/08 §5).
-      retry: (failureCount, error) =>
-        !isUnauthenticated(error) && !(error instanceof AccountCheckFailed) && failureCount < 2,
-    },
+    queries: { gcTime: CACHE_MAX_AGE_MS, staleTime: 60 * 1000, retry: retries },
   },
 });
 
@@ -165,6 +175,7 @@ tabs?.addEventListener('message', (event: MessageEvent<{ userId: string | null }
 
 /** Stops saving and forgets whose copy is open. */
 export function closeAccount() {
+  dropCandidate();
   accountClosed = true;
   accountGeneration += 1;
   stopPersisting?.();
@@ -222,6 +233,7 @@ async function confirm(me: Me, generation: number) {
   const { id } = me.user;
   const switched = account.userId !== id;
   if (switched) {
+    dropCandidate();
     stopPersisting?.();
     stopPersisting = undefined;
     setAccount({ userId: id, status: 'confirmed' });
@@ -357,6 +369,175 @@ export const lastTimeQuery = queryOptions({
 });
 
 /**
+ * Last time as the open workout reads it: from the workout before it, never its own synced sets.
+ * Asked again after a weigh-in, which moves the bodyweight counted on it (issue #69).
+ */
+export const openLastTimeQuery = (workoutId: string) =>
+  queryOptions({
+    queryKey: ['last-time', workoutId],
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    queryFn: async ({ signal }) =>
+      (
+        await confirmedAccountData(() =>
+          api.GET('/api/training/last-time', { params: { query: { exclude: workoutId } }, signal }),
+        )
+      ).exercises,
+  });
+
+/**
+ * One exercise's chart over a span (S7, docs/07 §3). Enable it only once the profile exists:
+ * without one the API answers `setup_incomplete`.
+ */
+export const progressQuery = (exerciseId: string, span: Span) =>
+  queryOptions({
+    queryKey: ['progress', exerciseId, span],
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    queryFn: async ({ signal }) =>
+      confirmedAccountData(() =>
+        api.GET('/api/exercises/{id}/progress', {
+          params: { path: { id: exerciseId }, query: { span } },
+          signal,
+        }),
+      ),
+  });
+
+/**
+ * The strength overview over a span (docs/07 §3): every lift's points, trend and status. Enable it
+ * only once the profile exists: without one the API answers `setup_incomplete`.
+ */
+export const strengthQuery = (span: StrengthSpan) =>
+  queryOptions({
+    queryKey: ['strength', span],
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    queryFn: async ({ signal }) =>
+      confirmedAccountData(() =>
+        api.GET('/api/training/strength', { params: { query: { span } }, signal }),
+      ),
+  });
+
+/**
+ * Muscle balance over a view (docs/07 §3): every muscle group's sets a week, its status and its
+ * sources. Enable it only once the profile exists: without one the API answers `setup_incomplete`.
+ */
+export const balanceQuery = (view: BalanceView) =>
+  queryOptions({
+    queryKey: ['balance', view],
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    queryFn: async ({ signal }) =>
+      confirmedAccountData(() =>
+        api.GET('/api/training/balance', { params: { query: { view } }, signal }),
+      ),
+  });
+
+/**
+ * Every weigh-in, with the daily weights and the trend (S11, docs/07 §5). Enable it only once the
+ * profile exists: without one the API answers `setup_incomplete`.
+ */
+export const weighInsQuery = queryOptions({
+  queryKey: ['weigh-ins'],
+  refetchOnWindowFocus: false,
+  refetchOnReconnect: false,
+  queryFn: async ({ signal }) => confirmedAccountData(() => api.GET('/api/weigh-ins', { signal })),
+});
+
+/**
+ * The food list (S12, docs/07 §4), archived foods included: one food's page still opens for a food
+ * past plans name. The list screen leaves archived ones out.
+ */
+export const foodsQuery = queryOptions({
+  queryKey: ['foods'],
+  refetchOnWindowFocus: false,
+  refetchOnReconnect: false,
+  queryFn: async ({ signal }) =>
+    (
+      await confirmedAccountData(() =>
+        api.GET('/api/foods', { params: { query: { includeArchived: 'true' } }, signal }),
+      )
+    ).items,
+});
+
+/** The rotation groups with their foods (S12). */
+export const rotationGroupsQuery = queryOptions({
+  queryKey: ['rotation-groups'],
+  refetchOnWindowFocus: false,
+  refetchOnReconnect: false,
+  queryFn: async ({ signal }) =>
+    (await confirmedAccountData(() => api.GET('/api/rotation-groups', { signal }))).items,
+});
+
+/** The MEXT table searched (S12): the same words answer the same, so a search is kept a while. */
+export const referenceFoodsQuery = (q: string) =>
+  queryOptions({
+    queryKey: ['reference-foods', q],
+    gcTime: 5 * 60 * 1000,
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    queryFn: async ({ signal }) =>
+      (
+        await confirmedAccountData(() =>
+          api.GET('/api/reference-foods', { params: { query: { q } }, signal }),
+        )
+      ).items,
+  });
+
+/**
+ * History (docs/07 §3): the finished workouts, newest first, a page at a time. A workout the
+ * device still holds rows of is read from the set store over this (history.ts).
+ */
+export const workoutsQuery = infiniteQueryOptions({
+  queryKey: ['workouts', 'list'],
+  refetchOnWindowFocus: false,
+  refetchOnReconnect: false,
+  initialPageParam: undefined as string | undefined,
+  queryFn: async ({ pageParam, signal }) =>
+    confirmedAccountData(() =>
+      api.GET('/api/workouts', {
+        params: { query: pageParam === undefined ? {} : { cursor: pageParam } },
+        signal,
+      }),
+    ),
+  getNextPageParam: (last) => last.nextCursor ?? undefined,
+});
+
+/**
+ * When each routine was last done (docs/07 §3), in one call, so Today need not read History page by
+ * page. Under `workouts`, so it is asked again with History.
+ */
+export const lastDoneQuery = queryOptions({
+  queryKey: ['workouts', 'last-done'],
+  refetchOnWindowFocus: false,
+  refetchOnReconnect: false,
+  queryFn: async ({ signal }) =>
+    (await confirmedAccountData(() => api.GET('/api/workouts/last-done', { signal }))).items,
+});
+
+/** The admin's invite list (S9). A member is never sent here: the screen opens for the admin only. */
+export const invitesQuery = queryOptions({
+  queryKey: ['invites'],
+  queryFn: async ({ signal }) =>
+    (await confirmedAccountData(() => api.GET('/api/admin/invites', { signal }))).items,
+});
+
+/** One workout whole, every row as the sync batch holds it (docs/07 §3). */
+export const workoutQuery = (id: string) =>
+  queryOptions({
+    queryKey: ['workouts', 'one', id],
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    // A workout that is not the account's stays that way: asking again cannot change a 404.
+    retry: (failureCount, error) =>
+      !(error instanceof ApiError && error.status === 404) && retries(failureCount, error),
+    queryFn: async ({ signal }) =>
+      confirmedAccountData(() =>
+        api.GET('/api/workouts/{id}', { params: { path: { id } }, signal }),
+      ),
+  });
+
+/**
  * Whether an editor may open on this query's copy: not while a stale copy, such as the one restored
  * at launch, is being asked again, so its draft starts from the server's state. Offline (paused) or
  * after a failed ask it opens on the saved copy. Once open it stays open: its own saves refetch.
@@ -374,28 +555,75 @@ export function useOpensEditor({
   return opens;
 }
 
-/** After a write: both exercise lists, since a setting or a new exercise changes each. */
-export const refreshExercises = () => queryClient.invalidateQueries({ queryKey: ['exercises'] });
+/**
+ * After a write: both exercise lists, since a setting or a new exercise changes each, and the
+ * balance view, which reads an exercise's muscle groups.
+ */
+export const refreshExercises = () =>
+  queryClient.invalidateQueries({
+    predicate: (query) => query.queryKey[0] === 'exercises' || query.queryKey[0] === 'balance',
+  });
 export const refreshRoutines = () => queryClient.invalidateQueries({ queryKey: ['routines'] });
+export const refreshInvites = () => queryClient.invalidateQueries({ queryKey: ['invites'] });
+/**
+ * After a weigh-in is typed or deleted: the daily weights and the trend move with it, and so does
+ * the weight a bodyweight lift is counted at on a chart or the strength overview (issue #69).
+ */
+export const refreshWeighIns = () =>
+  queryClient.invalidateQueries({
+    predicate: (query) =>
+      query.queryKey[0] === 'weigh-ins' ||
+      query.queryKey[0] === 'progress' ||
+      query.queryKey[0] === 'strength' ||
+      query.queryKey[0] === 'last-time',
+  });
+/**
+ * After a food or a group is saved, archived or deleted: both lists, since a food names its group
+ * and a group its foods, and any search, which marks the foods already on the list.
+ */
+export const refreshFoods = () =>
+  queryClient.invalidateQueries({
+    predicate: (query) =>
+      query.queryKey[0] === 'foods' ||
+      query.queryKey[0] === 'rotation-groups' ||
+      query.queryKey[0] === 'reference-foods',
+  });
+/**
+ * After an acknowledged sync batch: a chart on screen is asked again, the rest when next opened.
+ * The strength overview and the balance view read the same sets, so they go with them.
+ */
+export const refreshProgress = () =>
+  queryClient.invalidateQueries({
+    predicate: (query) =>
+      query.queryKey[0] === 'progress' ||
+      query.queryKey[0] === 'strength' ||
+      query.queryKey[0] === 'balance',
+  });
+/** The same for History: the list, when each routine was last done, and each workout read whole. */
+export const refreshHistory = () => queryClient.invalidateQueries({ queryKey: ['workouts'] });
 
 /**
  * Asks for last time again whether or not a screen is reading it, since the next workout starts
- * from this copy (S2). Without a profile there is nothing to ask (`setup_incomplete`). It never
- * rejects: a failed ask leaves the copy as it was.
+ * from this copy (S2). An ask already on its way may have been answered before the change this one
+ * follows, so it is dropped and made again. Without a profile there is nothing to ask
+ * (`setup_incomplete`). It never rejects: a failed ask leaves the copy as it was.
  */
-export function refreshLastTime(): Promise<void> {
-  if (queryClient.getQueryData<Me>(ME_KEY)?.profile == null) return Promise.resolve();
-  return queryClient.fetchQuery({ ...lastTimeQuery, staleTime: 0 }).then(
-    () => undefined,
-    () => undefined,
-  );
+export async function refreshLastTime(): Promise<void> {
+  if (queryClient.getQueryData<Me>(ME_KEY)?.profile == null) return;
+  await queryClient.cancelQueries({ queryKey: lastTimeQuery.queryKey, exact: true });
+  await queryClient.fetchQuery({ ...lastTimeQuery, staleTime: 0 }).catch(() => undefined);
 }
 
 /** The unit weights are shown and typed in (docs/06, 2026-09-23). Kilograms until a profile says. */
 export const currentWeightUnit = () =>
   queryClient.getQueryData<Me>(ME_KEY)?.profile?.weightUnit ?? 'kg';
 
-/** After the profile is saved: /api/me carries it, so the cached answer takes the new one. */
+/**
+ * After the profile is saved: /api/me carries it, so the cached answer takes the new one. The
+ * weigh-ins' days and trend are counted in its time zone, so a changed zone refetches them.
+ */
 export function setProfile(profile: NonNullable<Me['profile']>) {
+  const zoneChanged = queryClient.getQueryData<Me>(ME_KEY)?.profile?.timezone !== profile.timezone;
   queryClient.setQueryData<Me>(ME_KEY, (me) => (me === undefined ? me : { ...me, profile }));
+  if (zoneChanged) void refreshWeighIns();
 }

@@ -1,9 +1,10 @@
 import { defineConfig, devices } from '@playwright/test';
 
 // The built web app (vite preview, service worker included), the API on Node, and the test
-// database, as docs/11 §1 lays out. Ports differ from `pnpm dev` so both can run at once.
-export const WEB_PORT = 4174;
-export const API_PORT = 8788;
+// database, as docs/11 §1 lays out. Ports differ from `pnpm dev` so both can run at once, and can
+// be moved so two checkouts on one machine never reuse each other's servers.
+export const WEB_PORT = Number(process.env.E2E_WEB_PORT ?? 4174);
+export const API_PORT = Number(process.env.E2E_API_PORT ?? 8788);
 export const WEB_ORIGIN = `http://localhost:${WEB_PORT}`;
 // The build under test reports to Sentry on a host that never resolves; e2e/sentry.spec.ts catches
 // what it sends.

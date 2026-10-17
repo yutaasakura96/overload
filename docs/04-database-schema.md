@@ -71,8 +71,8 @@ ahead of the current slice, not a description of the database.**
 | **2** | `routine` · `routine_exercise` |
 | **3** | `workout` · `workout_exercise` · `set` |
 | **4** | `sync_tombstone` |
-| **M2** | Everything under *M2 — meal plan + weight* |
-| **M3** | Everything under *M3 — health + coaching*, and `ingest_token` |
+| **M2** | Everything under *M2 — meal plan + weight*, slice by slice. M2 slice 1 (`#76`): `body_measurement`, without M3's `lean_mass_kg` (`06`, 2026-10-16). M2 slice 3 (`#78`): `food`, `reference_food` with its seed, `rotation_group` and `model_call_count` (`06`, 2026-10-17) |
+| **M3** | Everything under *M3 — health + coaching*, and `ingest_token`. Its revoke on an invite's revoke and the two tests that go with it come with the table (`06`, 2026-10-15) |
 
 Each slice's GitHub issue names the tables it creates, so the gap between this document and the
 database stays visible.
@@ -107,7 +107,7 @@ removing invite-only means dropping it and deleting the `validateUserInfo` allow
 
 ## exercise
 
-One exercise. Either **seeded** (`owner_user_id IS NULL`, visible to everyone, ~50 rows) or
+One exercise. Either **seeded** (`owner_user_id IS NULL`, visible to everyone, ~180 rows) or
 **custom** (owned by one user, visible only to them).
 
 | Column | Type | Null | Default | Notes |
@@ -120,13 +120,19 @@ One exercise. Either **seeded** (`owner_user_id IS NULL`, visible to everyone, ~
 | `default_rest_seconds` | integer | no | `120` | Fallback. S5's 120 s default lives here |
 | `default_rep_low` | smallint | no | `6` | Fallback rep range (S3) |
 | `default_rep_high` | smallint | no | `10` | |
+| `muscle_group` | text | yes | — | `chest` \| `back` \| `shoulders` \| `biceps` \| `triceps` \| `forearms` \| `quads` \| `hamstrings` \| `glutes` \| `calves` \| `core`, enforced by `CHECK`. The one group the library files it under. Set on every seeded row; `NULL` on a custom exercise the user has not filed (`06`, 2026-10-08) |
+| `aliases` | text[] | yes | — | Other names search matches ("RDL"), never shown as the name. Seeded rows only; `NULL` on a custom exercise (`06`, 2026-10-08) |
+| `secondary_muscle_groups` | text[] | yes | — | The groups it also trains, where a working set counts half in the balance view. Values from the `muscle_group` list, never including the row's own `muscle_group`, enforced by `CHECK`. Reviewed on every seeded row, `'{}'` for one that trains a single group (migration `0014`); `NULL` on a custom exercise not given any, which reads as none. The API stores each once, in list order (`06`, 2026-10-14). Added by `0013`; dropping the column reverses both |
 | `created_at` | timestamptz | no | `now()` | |
 | `updated_at` | timestamptz | no | `now()` | |
 
 - `CHECK (default_rep_low <= default_rep_high)`.
 - `UNIQUE INDEX … NULLS NOT DISTINCT (owner_user_id, lower(name))` — one user cannot have two
   exercises of the same name, and seeded names are unique among themselves. An index, not a table
-  constraint, because it has an expression.
+  constraint, because it has an expression. A custom exercise may share a name with a seeded one:
+  both show, the user's marked `Yours`.
+- A seeded row's `id` never changes. A rename is an `UPDATE` in a new migration, so routines and
+  history, which hold the id and no name, follow it.
 - `INDEX (owner_user_id)` — the picker reads "seeded plus mine".
 - Deleting a custom exercise that has sets logged is refused by the API; it is hidden instead (see
   `exercise_setting.hidden_at`). With no sets logged it is deleted outright.
@@ -262,10 +268,10 @@ here does not touch the routine (S4).
 | `exercise_id` | uuid | no | — | → `exercise.id`, `NO ACTION DEFERRABLE INITIALLY DEFERRED`, for the reason under `routine_exercise` |
 | `routine_exercise_id` | uuid | yes | — | The routine slot it was started from. **No FK**, see below. Null for rows made before 2026-10-04 and for an exercise that came from no slot |
 | `position` | integer | no | — | Order within the workout |
-| `target_sets` | smallint | yes | — | Copied from the routine slot at start |
-| `rep_low` | smallint | no | — | **Resolved and copied at start**: routine slot → user setting → exercise default |
+| `target_sets` | smallint | yes | — | Copied from the routine slot at start; 3 for an exercise added during a workout |
+| `rep_low` | smallint | no | — | **Resolved and copied when the exercise joins the workout**: routine slot → user setting → exercise default |
 | `rep_high` | smallint | no | — | Same |
-| `increment_kg` | numeric(5,2) | no | — | Copied at start, same order |
+| `increment_kg` | numeric(5,2) | no | — | Copied when the exercise joins the workout, same order |
 | `client_updated_at` | timestamptz | no | — | Same sync guard as `workout` |
 | `created_at` | timestamptz | no | `now()` | |
 | `updated_at` | timestamptz | no | `now()` | |
@@ -328,19 +334,25 @@ The id of a `workout`, `workout_exercise` or `set` deleted through sync, kept so
 arriving later is not inserted again (`docs/03` §8.1). An id and a time, no content. *Added
 2026-09-22.*
 
+Migration `0012_slice4_sync_tombstone` creates the table with `(user_id, id)` as its primary key.
+
 | Column | Type | Null | Default | Notes |
 | --- | --- | --- | --- | --- |
-| `id` | uuid | no | — | PK. **The deleted row's own id**, not a new one |
-| `user_id` | uuid | no | — | → `user.id`, `ON DELETE CASCADE`. Account deletion removes these too |
+| `id` | uuid | no | — | Composite PK with `user_id`. **The deleted row's own id**, not a new one |
+| `user_id` | uuid | no | — | Composite PK with `id`; → `user.id`, `ON DELETE CASCADE`. Account deletion removes these too |
 | `table_name` | text | no | — | `CHECK (table_name IN ('workout', 'workout_exercise', 'set'))` |
 | `deleted_at` | timestamptz | no | — | The phone's `deletedAt`, or the parent's for a cascaded id |
-| `created_at` | timestamptz | no | `now()` | Server clock. The purge reads this |
+| `created_at` | timestamptz | no | `now()` | Server clock; indexed for the planned purge (`docs/03` §8.4) |
 
 - Written in the same transaction as the delete. Deleting a workout also writes its
-  `workout_exercise` and `set` ids, which the server knows at that moment.
+  `workout_exercise` and `set` ids, which the server knows at that moment; deleting a workout
+  exercise writes its `set` ids.
+- A delete of an id the server never held writes one too: the row may still be on its way from
+  another tab. That user's tombstone for the id, if already there, is left as it is. *Built 2026-10-08.*
+- Read only for the user who wrote it. Another user sending the same id is not told it was
+  deleted.
 - No `updated_at`: a tombstone is never updated (see Conventions, Exceptions).
-- `INDEX (created_at)` for the purge. The daily job deletes rows older than 30 days.
-- One PK serves all three tables: UUIDv7 ids carry 74 random bits, so a collision across tables is negligible.
+- The `(user_id, id)` PK serves all three tables. Each account can bury the same row id independently; UUIDv7 ids carry 74 random bits, so a collision across tables is negligible.
 
 ---
 
@@ -349,9 +361,10 @@ arriving later is not inserted again (`docs/03` §8.1). An id and a time, no con
 | Query | Path |
 | --- | --- |
 | **Last time** (S2): the previous workout's weight × reps per working set, in order | `workout (user_id, started_at DESC)` → `workout_exercise (exercise_id)` → `set (workout_exercise_id, position)`, `is_warmup = false` |
-| **Suggestion** (S3): did every working set hit the top of the range last time | Same rows, plus `workout_exercise.rep_high` copied at start |
+| **Suggestion** (S3): did every working set hit the top of the range last time | Same rows, plus `workout_exercise.rep_high` copied when the exercise joined the workout |
 | **Chart** (S7): best working set per workout over a span, Epley `weight × (1 + reps / 30)` | `workout (user_id, started_at DESC)` filtered by span → the same join, `is_warmup = false` |
-| **Upload a set** (S1) | `INSERT … ON CONFLICT (id) DO UPDATE … WHERE set.client_updated_at < EXCLUDED.client_updated_at` on the PK. *Changed 2026-09-21* from `DO NOTHING`, so a retry or stale copy changes nothing (`docs/07` §3.4). Offline set edits and deletes, including the `sync_tombstone` guard, are planned for slice 4. |
+| **Upload a set** (S1) | `INSERT … ON CONFLICT (id) DO UPDATE … WHERE set.client_updated_at < EXCLUDED.client_updated_at` on the PK. *Changed 2026-09-21* from `DO NOTHING`, so a retry or stale copy changes nothing (`docs/07` §3.4). An edit made offline is the same upsert under a newer `client_updated_at` |
+| **Delete through sync** (S1) | `DELETE` by PK where `client_updated_at < deletedAt`, then `INSERT INTO sync_tombstone … ON CONFLICT (user_id, id) DO NOTHING`. Every upsert first reads `sync_tombstone` by `(user_id, id)` for the row's id and its parent's |
 | **Exercise picker** (S8) | `exercise (owner_user_id)`, left joined to `exercise_setting` to drop `hidden_at` rows |
 | **Export** (S10) | Every table by `user_id`, or by join for the child tables |
 
@@ -403,10 +416,15 @@ One reading from the scale, or one typed by hand (S11).
 - `body_fat_pct` and `lean_mass_kg` are filled by hand entry (and later a native client). Health
   Auto Export sends both as daily `health_sample` metrics instead (`docs/03` §9).
 - `INDEX (user_id, measured_at DESC)`.
+- *Created 2026-10-16* (M2 slice 1, migration `0015`), as above. Typed rows carry the device's
+  UUIDv7 and `source = 'manual'`; only those can be deleted (`07` §5).
 - **The day's weight is derived, not stored:** the first reading before 10:00 in the user's
   timezone; failing that, the day's first reading, flagged as not a morning weigh-in (S11, and the
   "several weigh-ins in one day" edge case). The smoothed trend line is computed in `domain/`, never
   written back.
+- **A bodyweight lift counts that day's weight** (#69, `06` 2026-10-16): with no reading that day,
+  the latest earlier day's; before the first weigh-in, the first later one, labelled as such.
+  Built 2026-10-17 in `domain/bodyweight.ts`; read at request time, never stored on the set.
 
 ---
 
@@ -427,7 +445,8 @@ everything downstream does one kind of arithmetic.
 | `carb_g` | numeric(6,2) | no | — | Per 100 g |
 | `fat_g` | numeric(6,2) | no | — | Per 100 g |
 | `fiber_g` | numeric(6,2) | no | `0` | Per 100 g |
-| `piece_weight_g` | numeric(6,2) | yes | — | Set for foods counted in units. One egg = 55 g. `NULL` means grams only |
+| `piece_weight_g` | numeric(6,2) | yes | — | Set for foods counted in units. One egg = 55 g. `NULL` means grams only. `CHECK > 0` |
+| `keeps_days` | smallint | yes | — | How many days a cooked batch of this food keeps (S13); S16 limits planned servings to days covered by the week's at most two cook days. `NULL` for a food not batch-cooked. `CHECK` 1–30. *Added 2026-10-16* (`06`) |
 | `source` | text | no | — | `mext` \| `open_food_facts` \| `label_photo` \| `manual`, `CHECK` |
 | `source_ref` | text | yes | — | MEXT food code, or the barcode |
 | `rotation_group_id` | uuid | yes | — | → `rotation_group.id`, `ON DELETE SET NULL` |
@@ -436,6 +455,13 @@ everything downstream does one kind of arithmetic.
 
 - `INDEX (user_id) WHERE archived_at IS NULL`.
 - `INDEX (user_id, source_ref)` — barcode lookup checks "do I already have this?" first.
+- `INDEX (rotation_group_id)`, for the group's members and its `ON DELETE SET NULL`.
+- **Two keys refuse a duplicate on the list**, both partial unique indexes over unarchived foods, in
+  the custom migration `0017` (built 2026-10-17, `06`): `(user_id, (source = 'mext'), source_ref)`
+  where `source_ref` is set, so one food per barcode and one per MEXT code; and
+  `(user_id, lower(name), lower(coalesce(brand, '')), state)`. An archived food counts for neither,
+  so archiving and adding again makes a new row. The API inserts with `ON CONFLICT DO NOTHING` and
+  answers `409 food_exists` with `existingFoodId` (`docs/07` §4).
 - Whatever basis the label or database gave (per piece, per serving), the API converts to per 100 g
   before saving. The confirmation screen shows the original basis; the table only ever holds one.
 
@@ -457,8 +483,9 @@ it, and the schema had nowhere to keep it.
 | --- | --- | --- | --- | --- |
 | `code` | text | no | — | PK. MEXT 食品番号, e.g. `11220` |
 | `name` | text | no | — | As MEXT prints it |
-| `food_group` | smallint | no | — | MEXT 食品群, 1–18 |
-| `state` | text | no | — | `raw` \| `cooked`, `CHECK`. Derived from the MEXT name at import |
+| `name_en` | text | yes | — | The 2015 English table's name for the same 食品番号. `NULL` for the 353 foods added since 2015. *Added 2026-10-17* (`06`) |
+| `food_group` | smallint | no | — | MEXT 食品群, 1–18, `CHECK` |
+| `state` | text | no | — | `raw` \| `cooked`, `CHECK`. Derived from the MEXT name's cooking words (ゆで, 焼き, 炊き…) at import |
 | `energy_kcal` / `protein_g` / `carb_g` / `fat_g` / `fiber_g` | numeric | no | — | Per 100 g, same types as `food` |
 | `created_at` / `updated_at` | timestamptz | no | `now()` | |
 
@@ -466,10 +493,15 @@ it, and the schema had nowhere to keep it.
   nothing references it.
 - No `user_id` and no foreign keys in or out. A `food` copied from it keeps working if the seed is
   re-imported, because the values were copied, not referenced.
-- `INDEX` on `name` with `pg_trgm` (`gin_trgm_ops`) for search. **Unverified:** that `pg_trgm` is
-  available on Neon Free. Check it when M2 starts; `ILIKE` over ~2,500 rows is the fallback.
-- Which MEXT column supplies `carb_g` (差引き法 or 利用可能炭水化物) is decided at import and recorded
-  in `seed/`.
+- `INDEX` on `name` and on `name_en` with `pg_trgm` (`gin_trgm_ops`) for search. **Verified
+  2026-10-16:** Neon lists `pg_trgm` 1.6 on Postgres 18, and it is a trusted extension, so the owner
+  role creates it. Search is `ILIKE` per word, which the trigram index serves.
+- `overload_app` has `SELECT` only: `INSERT`, `UPDATE` and `DELETE` are revoked, and only a migration
+  changes it.
+- Seeded by migration `0018`, generated by `apps/api/seed/mext.ts` from the 増補2023 file with its
+  errata (2,537 foods). `carb_g` is 利用可能炭水化物（質量計）, falling back to 差引き法 where MEXT
+  gives no mass figure; `Tr` reads as 0, fibre MEXT did not measure as 0, and estimates in
+  parentheses as they stand (`06`, 2026-10-17).
 
 ---
 
@@ -486,6 +518,28 @@ A set of foods that stand in for each other (S12: okra ↔ broccoli, rice ↔ po
 
 - A group rather than pairs: "okra ↔ broccoli ↔ green beans" is one row plus three memberships, and
   the planner picks from a set instead of walking a chain of pairs.
+- The membership is `food.rotation_group_id`, so a food is in one group at most. Deleting a group
+  leaves its foods ungrouped. `INDEX (user_id)`.
+
+---
+
+## model_call_count
+
+The model calls a user made on one local day, counted against the one daily cap (`docs/13` §9):
+label reads in M2, meal estimates in M3. *Added 2026-10-17* (`06`): a label read leaves no other row
+to count.
+
+| Column | Type | Null | Default | Notes |
+| --- | --- | --- | --- | --- |
+| `user_id` | uuid | no | — | → `user.id`, `ON DELETE CASCADE` |
+| `day` | date | no | — | The local day in the profile's time zone, `Asia/Tokyo` without one |
+| `calls` | smallint | no | `0` | |
+| `created_at` / `updated_at` | timestamptz | no | `now()` | |
+
+- PK `(user_id, day)`. One upsert takes a call only while `calls` is under the cap (20), so two
+  reads at once cannot pass it. The call is counted before the model is asked, and a failed read
+  still counts.
+- Bookkeeping, not the user's data: not in the export.
 
 ---
 

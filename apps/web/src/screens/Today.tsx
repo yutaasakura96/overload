@@ -1,20 +1,39 @@
 import type { Me, Routine, WeightUnit } from '@overload/api-contract';
-import { useQuery } from '@tanstack/react-query';
-import { useId, useState, type FormEvent } from 'react';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { api } from '../api';
-import { AccountFooter, AppBar, DataState, Notice, ScreenTabs, TextField } from '../components';
+import {
+  AccountFooter,
+  AppBar,
+  Chevron,
+  DataState,
+  Notice,
+  ScreenTabs,
+  TextField,
+} from '../components';
+import { agoLabel, dayLabel, minutesBetween } from '../dates';
+import { historyOnDevice, removedOnDevice } from '../history';
+import type { Navigate } from '../navigation';
 import {
   allExercisesQuery,
   confirmedAccountData,
+  lastDoneQuery,
   lastTimeQuery,
   queryClient,
   refreshLastTime,
   routinesQuery,
   setProfile,
   useAccount,
+  workoutsQuery,
 } from '../query';
+import { RefusedSet, setFigures } from '../refused';
 import { SaveNotice, saveProblem, useFocusRefused, type SaveProblem } from '../saving';
+import type { WorkoutRecord } from '../set-store';
+import { ThemeField } from '../theme-field';
+import { TimezoneField } from '../timezone-field';
+import { deviceTimezone } from '../timezones';
 import {
+  EMPTY_WORKOUT_NAME,
   endIdleWorkout,
   exercisesOf,
   finishWorkout,
@@ -23,31 +42,34 @@ import {
   readFailedFor,
   recordsLoadedFor,
   recordsOf,
+  refusedSets,
   setsOf,
+  startEmptyWorkout,
   startWorkout,
   useWorkoutStore,
 } from '../workout';
 
 // Today (docs/09 F1, F2, F3): where sign-in lands and a workout starts. A routine starts a workout
-// in one tap (S4); one in progress is resumed instead, since only one is open at a time. The
+// in one tap (S4), and an empty workout starts from no routine; one in progress is resumed instead,
+// since only one is open at a time. The
 // profile's time zone is the day boundary every local date is read against, and its weight unit is
-// how weights are shown (docs/06, 2026-09-23). The meal cards arrive with M2.
-
-/** The device's own zone, offered until the user has saved one. */
-const deviceTimezone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
+// how weights are shown (docs/06, 2026-09-23). The last workout is the way into History from here
+// (docs/10 §9). The meal cards arrive with M2.
 
 const clock = (iso: string, timeZone: string) =>
   new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', timeZone }).format(
     new Date(iso),
   );
 
-export function Today({ me, navigate }: { me: Me; navigate: (path: string) => void }) {
+export function Today({ me, navigate }: { me: Me; navigate: Navigate }) {
   const account = useAccount();
   const confirmed = account.status === 'confirmed';
   const routines = useQuery({ ...routinesQuery, enabled: confirmed });
   const exercises = useQuery({ ...allExercisesQuery, enabled: confirmed });
   // Kept warm here so a start has it offline (S2); `start` reads the cache's copy.
   useQuery({ ...lastTimeQuery, enabled: confirmed && me.profile !== null });
+  const history = useInfiniteQuery({ ...workoutsQuery, enabled: confirmed });
+  const lastDone = useQuery({ ...lastDoneQuery, enabled: confirmed });
   const userId = me.user.id;
   const loaded = useWorkoutStore((state) => recordsLoadedFor(state, userId));
   const readFailed = useWorkoutStore((state) => readFailedFor(state, userId));
@@ -69,6 +91,39 @@ export function Today({ me, navigate }: { me: Me; navigate: (path: string) => vo
   }).format(new Date());
   const open = openWorkout(records);
   const items = routines.data ?? [];
+  // The open workout's refused sets are on its own screen; these have no other place to be seen.
+  const refused = refusedSets(records).filter((set) => set.workoutId !== open?.id);
+  // The newest finished workout, as the device has it: one just finished is here before it uploads.
+  const pages = history.data?.pages;
+  const finished =
+    pages === undefined
+      ? []
+      : historyOnDevice(
+          {
+            items: pages.flatMap((page) => page.items),
+            total: pages[0]?.total ?? 0,
+            more: history.hasNextPage,
+          },
+          records,
+        ).items;
+  const [latest] = finished;
+  // When each routine was last done: the server's answer, with a workout finished here laid over
+  // it. One whose answer the device has since deleted is not known again until the server says.
+  const doneAt = new Map<string, string>();
+  const unknown = new Set<string>();
+  for (const last of lastDone.data ?? []) {
+    if (removedOnDevice(records, last.workoutId)) unknown.add(last.routineId);
+    else doneAt.set(last.routineId, last.startedAt);
+  }
+  for (const workout of finished) {
+    if (workout.routineId == null) continue;
+    const known = doneAt.get(workout.routineId);
+    if (known !== undefined && Date.parse(known) >= Date.parse(workout.startedAt)) continue;
+    doneAt.set(workout.routineId, workout.startedAt);
+    unknown.delete(workout.routineId);
+  }
+  const top = useRef<HTMLElement>(null);
+  const refusedHeading = useRef<HTMLHeadingElement>(null);
 
   const start = async (routine: Routine, finishFirst = false) => {
     if (exercises.data === undefined) {
@@ -84,18 +139,18 @@ export function Today({ me, navigate }: { me: Me; navigate: (path: string) => vo
     try {
       if (finishFirst) await finishWorkout();
       // An answer already on its way is worth a moment: it may carry the workout just finished.
-      if (queryClient.isFetching({ queryKey: lastTimeQuery.queryKey }) > 0) {
+      if (queryClient.isFetching({ queryKey: lastTimeQuery.queryKey, exact: true }) > 0) {
         await Promise.race([
-          refreshLastTime(),
+          queryClient.fetchQuery({ ...lastTimeQuery, staleTime: 0 }).catch(() => undefined),
           new Promise((resolve) => setTimeout(resolve, 1500)),
         ]);
       }
-      const lastTimes = queryClient.getQueryData(lastTimeQuery.queryKey) ?? [];
+      const lastTimes = queryClient.getQueryData(lastTimeQuery.queryKey);
       await startWorkout({
         userId: me.user.id,
         routine,
         exercises: new Map(exercises.data.map((exercise) => [exercise.id, exercise])),
-        lastTimes: new Map(lastTimes.map((last) => [last.exerciseId, last])),
+        lastTimes: lastTimes && new Map(lastTimes.map((last) => [last.exerciseId, last])),
       });
       navigate('/workout');
     } catch {
@@ -104,8 +159,20 @@ export function Today({ me, navigate }: { me: Me; navigate: (path: string) => vo
     }
   };
 
+  const startEmpty = async (name: string) => {
+    setStarting(true);
+    setStartFailed(undefined);
+    try {
+      await startEmptyWorkout({ userId: me.user.id, name });
+      navigate('/workout');
+    } catch {
+      setStartFailed('device');
+      setStarting(false);
+    }
+  };
+
   return (
-    <main>
+    <main ref={top} tabIndex={-1}>
       <AppBar
         title="Today"
         subline={date.toUpperCase()}
@@ -136,11 +203,48 @@ export function Today({ me, navigate }: { me: Me; navigate: (path: string) => vo
           <button
             type="button"
             className="button button--tertiary"
-            onClick={() => void loadWorkouts(me.user.id).then(() => endIdleWorkout())}
+            onClick={() =>
+              void loadWorkouts(me.user.id)
+                .then(() => endIdleWorkout())
+                .catch(() => undefined)
+            }
           >
             Try again
           </button>
         </Notice>
+      )}
+
+      {loaded && refused.length > 0 && (
+        <section className="today__section" aria-labelledby="refused-sets">
+          <h2 ref={refusedHeading} id="refused-sets" className="section-label" tabIndex={-1}>
+            Refused sets
+          </h2>
+          <ul className="refused-list">
+            {refused.map((set) => {
+              const exercise = records.find((record) => record.id === set.row.workoutExerciseId);
+              const workout = records.find((record) => record.id === set.workoutId);
+              const name = exercise?.table === 'workoutExercises' ? exercise.local.name : 'Set';
+              const unit = me.profile?.weightUnit ?? 'kg';
+              return (
+                <li key={set.id} className="refused-list__item">
+                  <div className="refused-list__name">{name}</div>
+                  <div className="refused-list__meta">
+                    {workout?.table === 'workouts' && `${workout.row.name} · `}
+                    {setFigures(set, unit)}
+                  </div>
+                  <RefusedSet
+                    set={set}
+                    unit={unit}
+                    name={`the ${name} set, ${setFigures(set, unit)}`}
+                    icon
+                    // The list stays while another set is on it; with the last one it goes.
+                    onSettled={() => (refused.length > 1 ? refusedHeading : top).current?.focus()}
+                  />
+                </li>
+              );
+            })}
+          </ul>
+        </section>
       )}
 
       {loaded && open !== undefined && (
@@ -180,7 +284,7 @@ export function Today({ me, navigate }: { me: Me; navigate: (path: string) => vo
           </h2>
           <p className="empty-state__body">
             A routine is the exercises you do together, in order, like Push A. Make one and starting
-            a workout becomes one tap.
+            a workout becomes one tap. Or start an empty workout and add exercises as you go.
           </p>
           <button
             type="button"
@@ -189,6 +293,13 @@ export function Today({ me, navigate }: { me: Me; navigate: (path: string) => vo
           >
             Create a routine
           </button>
+          <EmptyStart
+            variant="button"
+            open={undefined}
+            starting={starting}
+            onStart={(name) => void startEmpty(name)}
+            onResume={() => navigate('/workout')}
+          />
         </section>
       )}
 
@@ -213,6 +324,11 @@ export function Today({ me, navigate }: { me: Me; navigate: (path: string) => vo
                       {routine.exercises.length === 1 ? 'EXERCISE' : 'EXERCISES'} ·{' '}
                       {routine.exercises.reduce((sum, slot) => sum + slot.targetSets, 0)} SETS
                     </span>
+                    <LastDone
+                      startedAt={doneAt.get(routine.id)}
+                      known={lastDone.data !== undefined && !unknown.has(routine.id)}
+                      timeZone={timeZone}
+                    />
                   </span>
                   <span className="starts__go" aria-hidden="true">
                     START
@@ -244,14 +360,246 @@ export function Today({ me, navigate }: { me: Me; navigate: (path: string) => vo
                 )}
               </li>
             ))}
+            <li>
+              <EmptyStart
+                variant="row"
+                open={open}
+                starting={starting}
+                onStart={(name) => void startEmpty(name)}
+                onResume={() => navigate('/workout')}
+              />
+            </li>
           </ul>
+        </section>
+      )}
+
+      {loaded && latest !== undefined && (
+        <section className="today__section" aria-labelledby="last-workout">
+          <h2 id="last-workout" className="section-label">
+            Last workout
+          </h2>
+          <a
+            href={`/workouts/${latest.id}`}
+            className="link-row link-row--flush"
+            onClick={(event) => {
+              event.preventDefault();
+              navigate(`/workouts/${latest.id}`, { returns: true });
+            }}
+          >
+            <span>
+              <span className="link-row__name">
+                {latest.name} · {dayLabel(latest.startedAt, timeZone)}
+              </span>
+              <span className="link-row__meta">
+                {latest.workingSets} {latest.workingSets === 1 ? 'working set' : 'working sets'} ·{' '}
+                {minutesBetween(latest.startedAt, latest.endedAt)} min ·{' '}
+                {agoLabel(latest.startedAt, timeZone)}
+              </span>
+            </span>
+            <Chevron direction="forward" />
+          </a>
         </section>
       )}
 
       <ProfileForm key={me.user.id} me={me} />
 
-      <AccountFooter email={me.user.email} navigate={navigate} />
+      <ThemeField />
+
+      <AccountFooter email={me.user.email} admin={me.isAdmin} navigate={navigate} />
     </main>
+  );
+}
+
+/** The prototype's line under a routine: when it was last done, or that it has not been. */
+function LastDone({
+  startedAt,
+  known,
+  timeZone,
+}: {
+  startedAt: string | undefined;
+  known: boolean;
+  timeZone: string;
+}) {
+  if (startedAt !== undefined) {
+    return (
+      <span className="routines__preview">
+        Last done {dayLabel(startedAt, timeZone)}, {agoLabel(startedAt, timeZone)}
+      </span>
+    );
+  }
+  // Said only once the server has answered, or it would be wrong for a while.
+  return known ? <span className="routines__preview">Not done yet</span> : null;
+}
+
+/** The longest name a workout takes (docs/07 §3.4). */
+const NAME_MAX = 80;
+
+/**
+ * Starting an empty workout (docs/09 F2 step 3, docs/10 §8.2): it opens a name in place, which
+ * defaults to `Workout` left empty, then the workout with no exercises. With one in progress it asks
+ * first, as a routine does: one workout at a time (docs/09 F3).
+ */
+function EmptyStart({
+  variant,
+  open,
+  starting,
+  onStart,
+  onResume,
+}: {
+  /** A row of the start list, or the no-routines empty state's second button. */
+  variant: 'row' | 'button';
+  open: WorkoutRecord | undefined;
+  starting: boolean;
+  onStart: (name: string) => void;
+  onResume: () => void;
+}) {
+  const [step, setStep] = useState<'closed' | 'asking' | 'naming'>('closed');
+  const [name, setName] = useState('');
+  const [tooLong, setTooLong] = useState(false);
+  const [finishing, setFinishing] = useState(false);
+  const [finishFailed, setFinishFailed] = useState(false);
+  const opener = useRef<HTMLButtonElement>(null);
+  const question = useId();
+  // Cancel gives focus back to what opened the name; set by that tap only.
+  const focusOpener = useRef(false);
+  useEffect(() => {
+    if (step !== 'closed' || !focusOpener.current) return;
+    focusOpener.current = false;
+    opener.current?.focus();
+  }, [step]);
+
+  const tap = () => {
+    if (step !== 'closed') {
+      setStep('closed');
+      return;
+    }
+    setStep(open === undefined ? 'naming' : 'asking');
+  };
+
+  const finishFirst = async () => {
+    setFinishing(true);
+    setFinishFailed(false);
+    try {
+      await finishWorkout();
+      setStep('naming');
+    } catch {
+      setFinishFailed(true);
+    } finally {
+      setFinishing(false);
+    }
+  };
+
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    if (name.trim().length > NAME_MAX) {
+      setTooLong(true);
+      return;
+    }
+    onStart(name);
+  };
+
+  const busy = starting || finishing;
+  return (
+    <>
+      {variant === 'row' ? (
+        <button
+          ref={opener}
+          type="button"
+          className="starts__row"
+          disabled={busy}
+          aria-expanded={step !== 'closed'}
+          onClick={tap}
+        >
+          <span className="routines__text">
+            <span className="routines__name">Empty workout</span>
+            <span className="routines__meta">NO ROUTINE</span>
+            <span className="routines__preview">Add exercises as you go</span>
+          </span>
+          <span className="starts__go" aria-hidden="true">
+            START
+          </span>
+          <span className="visually-hidden">. Start an empty workout</span>
+        </button>
+      ) : (
+        <button
+          ref={opener}
+          type="button"
+          className="button button--secondary"
+          disabled={busy}
+          aria-expanded={step !== 'closed'}
+          onClick={tap}
+        >
+          Start an empty workout
+        </button>
+      )}
+      {step === 'asking' && open !== undefined && (
+        <fieldset className={variant === 'row' ? 'confirm confirm--row' : 'confirm'}>
+          <legend className="confirm__question">Finish {open.row.name} first?</legend>
+          {finishFailed && (
+            <Notice tone="flag" word="Not finished">
+              Couldn’t save that on this device. Try again.
+            </Notice>
+          )}
+          <div className="confirm__actions">
+            <button
+              type="button"
+              className="button button--tertiary"
+              disabled={busy}
+              onClick={onResume}
+            >
+              Resume
+            </button>
+            <button
+              type="button"
+              className="button button--secondary"
+              disabled={busy}
+              onClick={() => void finishFirst()}
+            >
+              Finish
+            </button>
+          </div>
+        </fieldset>
+      )}
+      {step === 'naming' && (
+        <form
+          className={variant === 'row' ? 'confirm confirm--row' : 'confirm'}
+          aria-labelledby={question}
+          noValidate
+          onSubmit={submit}
+        >
+          <p id={question} className="confirm__question">
+            Start an empty workout. Name it, or leave it as {EMPTY_WORKOUT_NAME}.
+          </p>
+          <TextField
+            label="Workout name"
+            value={name}
+            onChange={(value) => {
+              setName(value);
+              setTooLong(false);
+            }}
+            placeholder={EMPTY_WORKOUT_NAME}
+            error={tooLong ? `Shorten it to ${NAME_MAX} characters or fewer` : undefined}
+            focusOnOpen
+          />
+          <div className="confirm__actions">
+            <button
+              type="button"
+              className="button button--tertiary"
+              disabled={busy}
+              onClick={() => {
+                focusOpener.current = true;
+                setStep('closed');
+              }}
+            >
+              Cancel
+            </button>
+            <button type="submit" className="button button--secondary" disabled={busy}>
+              Start workout
+            </button>
+          </div>
+        </form>
+      )}
+    </>
   );
 }
 
@@ -296,7 +644,7 @@ function ProfileForm({ me }: { me: Me }) {
     setProblem(undefined);
     try {
       const profile = await confirmedAccountData(() =>
-        api.PATCH('/api/me/profile', { body: { timezone: timezone.trim(), weightUnit } }),
+        api.PATCH('/api/me/profile', { body: { timezone, weightUnit } }),
       );
       setProfile(profile);
       void refreshLastTime();
@@ -321,12 +669,11 @@ function ProfileForm({ me }: { me: Me }) {
           </p>
         )}
         <SaveNotice problem={problem} what="profile" />
-        <TextField
+        <TimezoneField
           label="Time zone"
-          identifier
           value={timezone}
-          onChange={(value) => {
-            setTimezone(value);
+          onChange={(zone) => {
+            setTimezone(zone);
             setSaved(false);
           }}
           error={problem?.kind === 'refused' ? problem.fields.get('timezone') : undefined}

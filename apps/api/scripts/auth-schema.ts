@@ -16,6 +16,7 @@ export const auth = createAuth({
     googleClientId: 'schema-generation',
     googleClientSecret: 'schema-generation',
     adminEmail: 'schema-generation@example.com',
+    anthropicApiKey: null,
   },
   db: createDatabase(createPool('postgres://schema-generation-only@127.0.0.1:1/none')),
 });

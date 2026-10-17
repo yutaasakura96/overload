@@ -1,24 +1,37 @@
 import type { SyncBatch } from '@overload/api-contract';
 import { api, isUnauthenticated } from './api';
+import { keepHistory } from './history';
 import {
   confirmedAccountData,
   currentAccount,
   onAccountChange,
   queryClient,
+  refreshHistory,
   refreshLastTime,
+  refreshProgress,
 } from './query';
-import type { StoreRecord } from './set-store';
-import { applySyncResults, markSynced, sentRowOf, useWorkoutStore } from './workout';
+import { onChangeElsewhere, type StoreRecord } from './set-store';
+import {
+  applySyncResults,
+  markSynced,
+  refreshWorkouts,
+  sentRowOf,
+  useWorkoutStore,
+} from './workout';
 
 // The uploader (docs/03 §8.1): sends the set store's pending rows whenever the app is open and has
 // signal. It does not depend on Background Sync. A retry is harmless, since the server applies a row
 // only when the phone's `clientUpdatedAt` is newer than its own (docs/07 §3.4). One upload runs at a
-// time in this tab; one tab at a time, by Web Locks, is slice 4's.
+// time in this tab, and one tab at a time under a Web Lock.
 
 /** The server's limit on one request (docs/07 §3.4). A larger queue goes in several. */
 const BATCH_ROWS = 500;
 /** How often a waiting queue is tried again while the app stays open. */
 const RETRY_MS = 30 * 1000;
+/** The lock every tab of this origin uploads under. */
+const UPLOAD_LOCK = 'overload-upload';
+/** How long a tab waits for it before uploading anyway. */
+const LOCK_WAIT_MS = 10 * 1000;
 
 const tables = ['workouts', 'workoutExercises', 'sets'] as const;
 
@@ -31,17 +44,75 @@ function batchOf(records: StoreRecord[]): SyncBatch {
     workouts: records.filter((r) => r.table === 'workouts').map(sent),
     workoutExercises: records.filter((r) => r.table === 'workoutExercises').map(sent),
     sets: records.filter((r) => r.table === 'sets').map(sent),
-    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- each array holds its own table's rows
-  } as SyncBatch;
+  };
+}
+
+/**
+ * Runs an upload while this tab holds the origin's upload lock, so one tab uploads at a time
+ * (docs/03 §8.1). The lock saves requests, nothing more: the server stores a row once whoever
+ * sends it, and a tombstone keeps a deleted one from coming back. So where the browser has no Web
+ * Locks, refuses the request, or another tab holds the lock too long (a tab the browser froze
+ * mid-request never lets go), the upload goes ahead without it.
+ */
+async function underUploadLock(upload: () => Promise<void>): Promise<void> {
+  // Present in every browser this app supports, Safari 15.4 on; absent on an insecure origin.
+  const locks: LockManager | undefined = navigator.locks;
+  if (locks === undefined) return upload();
+  const waiting = new AbortController();
+  const timer = setTimeout(() => waiting.abort(), LOCK_WAIT_MS);
+  let granted = false;
+  try {
+    await locks.request(UPLOAD_LOCK, { signal: waiting.signal }, async () => {
+      granted = true;
+      clearTimeout(timer);
+      await upload();
+    });
+  } catch (error) {
+    // The upload's own failure is the caller's to hear; a lock that never came is not a failure.
+    if (granted) throw error;
+    await upload();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Asks the server again for everything it derives from the sets: last time, the charts, History. */
+function refreshDerived() {
+  void refreshLastTime();
+  void refreshProgress();
+  void refreshHistory();
+}
+
+/**
+ * Reads the records again, and resolves to whether rows this tab was waiting on have been answered
+ * by another tab's upload. Those may have left the device with it, so History's cache is told what
+ * they said first, exactly as before an upload of this tab's own is applied.
+ */
+async function readAgain(): Promise<boolean> {
+  const before = useWorkoutStore.getState();
+  await refreshWorkouts();
+  const now = useWorkoutStore.getState();
+  if (now.userId !== before.userId) return false;
+  const waiting = new Set(
+    now.records.filter((record) => record.state === 'pending').map((record) => record.id),
+  );
+  const answered = before.records.some(
+    (record) => record.state === 'pending' && !waiting.has(record.id),
+  );
+  if (answered) keepHistory(before.records);
+  return answered;
 }
 
 /** Sends pending rows, parents first, until none is left or the server cannot be reached. */
 async function uploadPending(): Promise<void> {
   for (;;) {
+    // What another tab uploaded while this one waited is not sent again: the set store says what
+    // is still pending. A store that cannot be read leaves this tab's own view, which still holds.
+    if (await readAgain().catch(() => false)) refreshDerived();
     const account = currentAccount();
     const { records, userId } = useWorkoutStore.getState();
     // Only the confirmed account's rows, under its own session (docs/08 §5).
-    if (account.status !== 'confirmed' || account.userId !== userId) return;
+    if (account.status !== 'confirmed' || userId === undefined || account.userId !== userId) return;
     const pending = tables.flatMap((table) =>
       records.filter((record) => record.table === table && record.state === 'pending'),
     );
@@ -57,9 +128,13 @@ async function uploadPending(): Promise<void> {
       if (isUnauthenticated(error)) void queryClient.invalidateQueries({ queryKey: ['me'] });
       return;
     }
-    await applySyncResults(chunk.map(sentRowOf), results);
+    // The answer lets an ended workout's rows leave the device: History reads them from the cache
+    // from then on, so the cache is told what they say first (history.ts).
+    keepHistory(useWorkoutStore.getState().records);
+    // The answer is the sending account's, even when another has been confirmed meanwhile.
+    if (!(await applySyncResults(userId, chunk.map(sentRowOf), results))) return;
     markSynced();
-    void refreshLastTime();
+    refreshDerived();
     if (pending.length <= BATCH_ROWS) return;
   }
 }
@@ -67,7 +142,10 @@ async function uploadPending(): Promise<void> {
 let running: Promise<void> | undefined;
 let again = false;
 
-/** Uploads what is pending. Resolves when this and any upload asked for meanwhile have finished. */
+/**
+ * Uploads what is pending. Resolves when this and any upload asked for meanwhile have finished, and
+ * rejects when the set store could not take an answer: those rows stay pending for the next upload.
+ */
 export function requestUpload(): Promise<void> {
   if (running !== undefined) {
     again = true;
@@ -77,7 +155,7 @@ export function requestUpload(): Promise<void> {
     try {
       do {
         again = false;
-        await uploadPending();
+        await underUploadLock(uploadPending);
       } while (again);
     } finally {
       running = undefined;
@@ -89,8 +167,11 @@ export function requestUpload(): Promise<void> {
 const hasPending = () =>
   useWorkoutStore.getState().records.some((record) => record.state === 'pending');
 
+/** An upload nobody waits for: what one could not write to the device, the next one sends again. */
+const uploadUnwatched = () => void requestUpload().catch(() => undefined);
+
 const tryUpload = () => {
-  if (hasPending()) void requestUpload();
+  if (hasPending()) uploadUnwatched();
 };
 
 /**
@@ -103,11 +184,20 @@ const retry = () => {
     void queryClient.refetchQueries({ queryKey: ['me'] });
     return;
   }
-  void requestUpload();
+  uploadUnwatched();
 };
 
 /** Starts uploading: on every change to the records, on reconnect, on return, and on a timer. */
 export function startUploader() {
+  // Another tab changed this account's records: they are read again, and what that tab left
+  // pending is this one's to upload too, should it be closed first. What it uploaded may have come
+  // and gone before this tab read anything, so the server is asked again whatever the read shows.
+  onChangeElsewhere((userId) => {
+    if (userId !== useWorkoutStore.getState().userId) return;
+    void readAgain()
+      .catch(() => false)
+      .then(refreshDerived);
+  });
   useWorkoutStore.subscribe((state, previous) => {
     if (state.records !== previous.records) tryUpload();
   });

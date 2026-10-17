@@ -4,22 +4,51 @@ import type { components, paths } from './schema';
 
 export type { components, operations, paths } from './schema';
 
+export type Balance = components['schemas']['Balance'];
+export type BarcodeLookup = components['schemas']['BarcodeLookup'];
+export type Basis = components['schemas']['Basis'];
+export type BalanceView = Balance['view'];
 export type Equipment = components['schemas']['Equipment'];
 export type Exercise = components['schemas']['Exercise'];
+export type ExportPage = components['schemas']['ExportPage'];
+export type Food = components['schemas']['Food'];
+export type FoodCandidate = components['schemas']['FoodCandidate'];
+export type FoodSource = components['schemas']['FoodSource'];
+export type FoodState = components['schemas']['FoodState'];
+export type Invite = components['schemas']['Invite'];
+export type LabelRead = components['schemas']['LabelRead'];
 export type LastTime = components['schemas']['LastTime'];
 export type Me = components['schemas']['Me'];
+// The generated component carries the `null` of the fields that use it, as `Profile` does.
+export type MuscleGroup = NonNullable<components['schemas']['MuscleGroup']>;
+export type MuscleBalance = components['schemas']['MuscleBalance'];
 export type Problem = components['schemas']['Problem'];
 export type Profile = components['schemas']['Profile'];
+export type ReferenceFood = components['schemas']['ReferenceFood'];
+export type RotationGroup = components['schemas']['RotationGroup'];
+export type Progress = components['schemas']['Progress'];
+export type ProgressPoint = components['schemas']['ProgressPoint'];
 export type Routine = components['schemas']['Routine'];
 export type RoutineSlot = components['schemas']['RoutineSlot'];
 export type SetRow = components['schemas']['SetRow'];
+export type Span = components['schemas']['Span'];
+export type BodyweightCount = NonNullable<ProgressPoint['bodyweight']>;
+export type StrengthLift = components['schemas']['StrengthLift'];
+export type StrengthOverview = components['schemas']['StrengthOverview'];
+export type StrengthSpan = StrengthOverview['span'];
 export type Suggestion = components['schemas']['Suggestion'];
 export type SyncBatch = components['schemas']['SyncBatch'];
 export type SyncDeletion = components['schemas']['SyncDeletion'];
 export type SyncResult = components['schemas']['SyncResult'];
+export type WeighIn = components['schemas']['WeighIn'];
+export type WeighIns = components['schemas']['WeighIns'];
+export type WeightDay = components['schemas']['WeightDay'];
 export type WeightUnit = components['schemas']['WeightUnit'];
+export type WorkoutDetail = components['schemas']['WorkoutDetail'];
 export type WorkoutExerciseRow = components['schemas']['WorkoutExerciseRow'];
+export type WorkoutList = components['schemas']['WorkoutList'];
 export type WorkoutRow = components['schemas']['WorkoutRow'];
+export type WorkoutSummary = components['schemas']['WorkoutSummary'];
 
 /**
  * The header names a GET's success response declares, without the index signature every one
@@ -37,4 +66,4 @@ type DeclaredHeaders<Path extends keyof paths> = paths[Path] extends {
  * declares on each member route's success response.
  */
 export const ACCOUNT_HEADER =
-  'Overload-User' satisfies DeclaredHeaders<'/api/me'> satisfies DeclaredHeaders<'/api/exercises'> satisfies DeclaredHeaders<'/api/routines'>;
+  'Overload-User' satisfies DeclaredHeaders<'/api/me'> satisfies DeclaredHeaders<'/api/exercises'> satisfies DeclaredHeaders<'/api/routines'> satisfies DeclaredHeaders<'/api/exercises/{id}/progress'> satisfies DeclaredHeaders<'/api/workouts'> satisfies DeclaredHeaders<'/api/workouts/{id}'> satisfies DeclaredHeaders<'/api/training/balance'> satisfies DeclaredHeaders<'/api/weigh-ins'>;

@@ -18,7 +18,7 @@ test('a signed-in user sees the seeded exercise library', async ({ page }) => {
 
   await expect(page.getByRole('heading', { name: 'Exercises' })).toBeVisible();
   const rows = page.getByRole('listitem');
-  await expect(rows).toHaveCount(50);
+  await expect(rows).toHaveCount(185);
   const bench = rows.filter({ has: page.getByText('Barbell Bench Press', { exact: true }) });
   await expect(bench).toContainText('2.5');
   await expect(bench).toContainText('6–10');
@@ -26,9 +26,107 @@ test('a signed-in user sees the seeded exercise library', async ({ page }) => {
   await expect(page.getByRole('status').filter({ hasText: 'SYNCED' })).toBeVisible();
 });
 
+test('the library is filed under muscle groups and searched by name or alias', async ({ page }) => {
+  await page.goto('/exercises');
+
+  const chest = page.getByRole('region', { name: 'Chest' });
+  await expect(chest.getByRole('heading', { level: 3 })).toContainText('Chest');
+  await expect(chest.getByText('Barbell Bench Press', { exact: true })).toBeVisible();
+  await expect(chest.getByText('Barbell Back Squat', { exact: true })).toHaveCount(0);
+  await expect(page.getByRole('heading', { level: 3 })).toHaveText([
+    /^Chest/,
+    /^Back/,
+    /^Shoulders/,
+    /^Biceps/,
+    /^Triceps/,
+    /^Forearms/,
+    /^Quads/,
+    /^Hamstrings/,
+    /^Glutes/,
+    /^Calves/,
+    /^Core/,
+  ]);
+
+  // "RDL" is in no name: the naming rule keeps abbreviations out, so the alias has to match.
+  await page.getByRole('searchbox', { name: 'Search' }).fill('rdl');
+  await expect(page.getByRole('heading', { name: '4 matching' })).toBeVisible();
+  const rows = page.getByRole('listitem');
+  await expect(rows).toHaveCount(4);
+  await expect(rows.filter({ hasText: 'Barbell Romanian Deadlift' })).toHaveCount(1);
+  await expect(rows.filter({ hasText: 'Barbell Romanian Deadlift' })).not.toContainText('RDL');
+  await expect(page.getByRole('heading', { level: 3 })).toHaveText([/^Hamstrings/]);
+
+  await page.getByRole('searchbox', { name: 'Search' }).fill('zzz');
+  await expect(page.getByText('Nothing matches.')).toBeVisible();
+  await expect(rows).toHaveCount(0);
+});
+
+test('the library narrows to a split or a muscle group, and to a search within it', async ({
+  page,
+}) => {
+  await page.goto('/exercises');
+  const show = page.getByRole('combobox', { name: 'Show' });
+  const headings = page.getByRole('heading', { level: 3 });
+  await expect(headings).toHaveCount(11);
+  await expect(show.locator('optgroup[label="Split"] option')).toHaveText([
+    'Push',
+    'Pull',
+    'Legs',
+    'Core',
+  ]);
+  await expect(show.locator('optgroup[label="Muscle group"] option')).toHaveCount(10);
+  await expect(show.locator('option[value="core"]')).toHaveCount(1);
+
+  await show.selectOption('push');
+  await expect(headings).toHaveText([/^Chest/, /^Shoulders/, /^Triceps/]);
+  await expect(page.getByRole('heading', { name: /^\d+ matching$/ })).toBeVisible();
+
+  await show.selectOption('pull');
+  await expect(headings).toHaveText([/^Back/, /^Biceps/, /^Forearms/]);
+
+  await show.selectOption('legs');
+  await expect(headings).toHaveText([/^Quads/, /^Hamstrings/, /^Glutes/, /^Calves/]);
+
+  await show.selectOption('core');
+  await expect(headings).toHaveText([/^Core/]);
+
+  await show.selectOption('biceps');
+  await expect(headings).toHaveText([/^Biceps/]);
+
+  // A search narrows within the filter: a bench press is not a biceps exercise.
+  await page.getByRole('searchbox', { name: 'Search' }).fill('bench');
+  await expect(page.getByText('Nothing matches.')).toBeVisible();
+  await show.selectOption('push');
+  await expect(page.getByText('Barbell Bench Press', { exact: true })).toBeVisible();
+
+  await show.selectOption('all');
+  await page.getByRole('searchbox', { name: 'Search' }).fill('');
+  await expect(headings).toHaveCount(11);
+});
+
+test('a custom exercise is filed under the muscle group chosen for it', async ({ page }) => {
+  await page.goto('/exercises/new');
+  await page.getByRole('textbox', { name: 'Name' }).fill('Cable Y-Raise');
+  await page.getByRole('combobox', { name: 'Equipment' }).selectOption('cable');
+  await page.getByRole('combobox', { name: 'Muscle group' }).selectOption('shoulders');
+  await page.getByRole('button', { name: 'Create exercise' }).click();
+
+  await expect(page).toHaveURL('/exercises');
+  const shoulders = page.getByRole('region', { name: 'Shoulders' });
+  const row = shoulders.getByRole('listitem').filter({ hasText: 'Cable Y-Raise' });
+  await expect(row).toContainText('Yours');
+
+  // Tidy up: the run shares one user, and other tests count the library.
+  await row.getByRole('link').click();
+  await page.getByRole('button', { name: 'Delete exercise' }).click();
+  await page.getByRole('button', { name: 'Delete', exact: true }).click();
+  await expect(page).toHaveURL('/exercises');
+  await expect(page.getByRole('listitem')).toHaveCount(185);
+});
+
 test('sign-out ends the session and wipes the device', async ({ page }) => {
   await page.goto('/exercises');
-  await expect(page.getByRole('listitem')).toHaveCount(50);
+  await expect(page.getByRole('listitem')).toHaveCount(185);
   // The persister writes at most once a second.
   await expect
     .poll(() => deviceKeys(page))
@@ -56,7 +154,7 @@ test('the installed shell opens offline with the last loaded library', async ({
     'Playwright’s WebKit fails to reload a service-worker page offline',
   );
   await page.goto('/exercises');
-  await expect(page.getByRole('listitem')).toHaveCount(50);
+  await expect(page.getByRole('listitem')).toHaveCount(185);
   // The service worker controls the page, and the library has reached IndexedDB (the persister
   // writes at most once a second).
   await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
@@ -66,7 +164,7 @@ test('the installed shell opens offline with the last loaded library', async ({
   await page.reload();
 
   await expect(page.getByRole('heading', { name: 'Exercises' })).toBeVisible();
-  await expect(page.getByRole('listitem')).toHaveCount(50);
+  await expect(page.getByRole('listitem')).toHaveCount(185);
   await context.setOffline(false);
 });
 

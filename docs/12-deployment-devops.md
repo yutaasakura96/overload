@@ -11,7 +11,7 @@ are not restated here. Decisions are in `06` (2026-09-21, deployment)._
 | Git branch | any | `develop` | `main` |
 | Web | `vite` dev server | Vercel preview, branch URL `overload-web-git-develop-yuta-asakuras-projects.vercel.app` | `https://overload-web-pied.vercel.app` |
 | API | Hono on Node | Vercel preview of `overload-api`, branch `develop` | `https://overload-api-mu.vercel.app`, `sin1` |
-| Database | Postgres 18 in Docker (`docker compose`, as in `11`) | Neon branch `staging` | Neon branch `main` (root) |
+| Database | Postgres 18 in Docker (`docker compose` for development; `11` for tests) | Neon branch `staging` | Neon branch `main` (root) |
 | Migrations | `pnpm db:migrate` (`drizzle-kit migrate`) by hand | In the API build (§3) | In the API build (§3) |
 | Cron | none; call the route by hand | none (Vercel runs crons on production only) | `0 15 * * *` UTC (`03` §8.4) |
 | Monitoring | none | Sentry events tagged `staging`, no alerts | Everything in §5 |
@@ -201,9 +201,9 @@ sign in, so CI catches it.
 - **If a migration fails, the build fails** and the previous deployment keeps serving. A migration
   that succeeded before a later build step failed stays applied — which the add-first rule makes
   harmless.
-- **Seed data is migrations too** (decided by default): the ~50 seeded exercises and the MEXT
+- **Seed data is migrations too** (decided by default): the ~180 seeded exercises and the MEXT
   `reference_food` import are custom migrations whose SQL is generated (`pnpm --filter @overload/api
-  seed:exercises` writes `0003_seed_exercises.sql`), so every environment gets them the same way. A
+  seed:exercises` writes `0003_seed_exercises.sql` and `0011_grow_exercise_library.sql`), so every environment gets them the same way. A
   correction is a new migration. `apps/api/seed/` holds the generator, not a runner.
 
 ### The add-first rule (binding)

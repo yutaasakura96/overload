@@ -5,12 +5,28 @@ import { AppBar, Notice } from './components';
 import { routeOf, safeNext, useLocation } from './navigation';
 import { meQuery, useAccount } from './query';
 import { ExerciseScreen } from './screens/ExerciseForm';
+import { AddFood } from './screens/AddFood';
 import { ExerciseLibrary } from './screens/ExerciseLibrary';
+import { FoodBarcode } from './screens/FoodBarcode';
+import { FoodCheck, FoodEdit } from './screens/FoodCheck';
+import { FoodLabel } from './screens/FoodLabel';
+import { FoodPage } from './screens/FoodPage';
+import { Foods } from './screens/Foods';
+import { History } from './screens/History';
+import { Invites } from './screens/Invites';
+import { PastWorkout } from './screens/PastWorkout';
+import { Progress } from './screens/Progress';
+import { Balance } from './screens/Balance';
 import { RoutineScreen } from './screens/RoutineEditor';
 import { RoutineList } from './screens/RoutineList';
+import { RotationGroups } from './screens/RotationGroups';
 import { SignIn } from './screens/SignIn';
+import { Strength } from './screens/Strength';
 import { Today } from './screens/Today';
+import { WeighIn } from './screens/WeighIn';
+import { Weight } from './screens/Weight';
 import { Workout } from './screens/Workout';
+import { YourData } from './screens/YourData';
 import { endIdleWorkout, loadWorkouts } from './workout';
 
 // /sign-in is open to everyone; every other route needs a member (docs/08 §5).
@@ -50,7 +66,10 @@ export function App() {
   const userId = opens ? me.data.user.id : undefined;
   useEffect(() => {
     if (userId === undefined) return undefined;
-    void loadWorkouts(userId).then(() => endIdleWorkout());
+    // A workout the device could not end stays in progress; coming back to the app tries again.
+    void loadWorkouts(userId)
+      .then(() => endIdleWorkout())
+      .catch(() => undefined);
     const onReturn = () => {
       if (document.visibilityState === 'visible') void endIdleWorkout().catch(() => undefined);
     };
@@ -61,11 +80,47 @@ export function App() {
   if (onSignIn) return <SignIn searchParams={searchParams} />;
   if (opens) {
     const route = routeOf(pathname);
-    if (route.screen === 'workout') return <Workout me={me.data} navigate={navigate} />;
+    if (route.screen === 'workout')
+      return <Workout me={me.data} navigate={navigate} guide={route.guide} />;
     if (route.screen === 'routines') return <RoutineList me={me.data} navigate={navigate} />;
     if (route.screen === 'routine') return <RoutineScreen id={route.id} navigate={navigate} />;
     if (route.screen === 'exercise') return <ExerciseScreen id={route.id} navigate={navigate} />;
+    if (route.screen === 'progress')
+      return (
+        <Progress
+          key={route.id}
+          id={route.id}
+          me={me.data}
+          searchParams={searchParams}
+          navigate={navigate}
+        />
+      );
     if (route.screen === 'library') return <ExerciseLibrary me={me.data} navigate={navigate} />;
+    if (route.screen === 'history') return <History me={me.data} navigate={navigate} />;
+    if (route.screen === 'strength')
+      return <Strength me={me.data} searchParams={searchParams} navigate={navigate} />;
+    if (route.screen === 'balance')
+      return <Balance me={me.data} searchParams={searchParams} navigate={navigate} />;
+    if (route.screen === 'weight') return <Weight me={me.data} navigate={navigate} />;
+    if (route.screen === 'weigh-in') return <WeighIn me={me.data} navigate={navigate} />;
+    if (route.screen === 'foods') return <Foods me={me.data} navigate={navigate} />;
+    if (route.screen === 'food')
+      return <FoodPage key={route.id} id={route.id} navigate={navigate} />;
+    if (route.screen === 'food-edit')
+      return <FoodEdit key={route.id} id={route.id} navigate={navigate} />;
+    if (route.screen === 'food-add') return <AddFood navigate={navigate} />;
+    if (route.screen === 'food-barcode') return <FoodBarcode navigate={navigate} />;
+    if (route.screen === 'food-label') return <FoodLabel navigate={navigate} />;
+    if (route.screen === 'food-check') return <FoodCheck navigate={navigate} />;
+    if (route.screen === 'rotation-groups') return <RotationGroups navigate={navigate} />;
+    if (route.screen === 'invites') {
+      // A member gets the not-found screen, not a forbidden one (docs/08 §5).
+      if (!me.data.isAdmin) return <NotFound navigate={navigate} />;
+      return <Invites me={me.data} navigate={navigate} />;
+    }
+    if (route.screen === 'account') return <YourData me={me.data} navigate={navigate} />;
+    if (route.screen === 'past-workout')
+      return <PastWorkout key={route.id} id={route.id} me={me.data} navigate={navigate} />;
     return <Today me={me.data} navigate={navigate} />;
   }
   if (me.isError && !signedOut) {
@@ -79,4 +134,22 @@ export function App() {
     );
   }
   return <AppBar title="Overload" slot={<span />} />;
+}
+
+/** The app's not-found screen: says nothing about what might be at the address. */
+function NotFound({ navigate }: { navigate: (path: string) => void }) {
+  return (
+    <main>
+      <AppBar title="Not found" slot={<span />} />
+      <section className="empty-state" aria-labelledby="not-found">
+        <h2 id="not-found" className="empty-state__title">
+          Nothing is here
+        </h2>
+        <p className="empty-state__body">This address is not a screen of Overload.</p>
+        <button type="button" className="button button--primary" onClick={() => navigate('/')}>
+          Go to Today
+        </button>
+      </section>
+    </main>
+  );
 }

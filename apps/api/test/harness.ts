@@ -1,7 +1,8 @@
 import { testUtils, type TestHelpers } from 'better-auth/plugins';
-import { sql } from 'drizzle-orm';
+import { inArray, sql } from 'drizzle-orm';
 import { Pool } from 'pg';
 import { afterAll, afterEach, beforeAll, beforeEach } from 'vitest';
+import type { FoodSources } from '../src/app-env';
 import { createApp } from '../src/create-app';
 import { createAuth } from '../src/auth/auth';
 import { createDatabase } from '../src/db/connection';
@@ -11,6 +12,12 @@ import { WEB_ORIGIN, testConfig } from './harness-config';
 
 export { ADMIN_EMAIL, WEB_ORIGIN, testConfig } from './harness-config';
 
+/** No outside service is ever called from a test: Open Food Facts fails, and no reader is set up. */
+const noFoodSources: FoodSources = {
+  openFoodFacts: { lookup: async () => ({ kind: 'failed' }) },
+  labelReader: null,
+};
+
 /** What Google would assert about a user. The stub below reads it back out of the "id token". */
 export type GoogleIdentity = { sub: string; email: string; emailVerified: boolean; name?: string };
 
@@ -18,32 +25,47 @@ export type GoogleIdentity = { sub: string; email: string; emailVerified: boolea
  * One app per test file, on one connection, as the app role (so a missing grant fails here, not in
  * production). Each test runs inside a transaction that is rolled back (docs/11 §1).
  *
+ * `committed` is for the race tests, which rollback-per-test cannot run: two requests inside one
+ * transaction share a connection and take turns. There the app has several connections and commits
+ * for real, and each test's users, with everything they own, are deleted after it.
+ *
  * Google is the only thing replaced: its token check and userinfo read. The gate, the hooks and
  * Better Auth's own sign-in pipeline all run for real. `testUtils()` sits on this test-only
  * instance and never in the production config.
  */
-export function useTestApp() {
+export function useTestApp({
+  committed = false,
+  foodSources = noFoodSources,
+  log = () => {},
+}: { committed?: boolean; foodSources?: FoodSources; log?: (line: string) => void } = {}) {
   // max: 1 and no idle timeout keep every query, Better Auth's included, on the one connection that
   // holds the open transaction.
-  const pool = new Pool({ connectionString: testDatabaseUrl, max: 1, idleTimeoutMillis: 0 });
+  const pool = new Pool({
+    connectionString: testDatabaseUrl,
+    max: committed ? 8 : 1,
+    idleTimeoutMillis: 0,
+  });
   const db = createDatabase(pool);
+  const newUsers: string[] = [];
   // The app's own transactions nest inside each test's as savepoints. A real BEGIN on this one
   // connection would be ignored, and its COMMIT would commit the test's rows, which the rollback
   // below could then not undo.
   let savepoints = 0;
-  db.transaction = async (run) => {
-    const name = `app_tx_${++savepoints}`;
-    await pool.query(`SAVEPOINT ${name}`);
-    try {
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the same connection, inside the test's transaction
-      const result = await run(db as unknown as Parameters<typeof run>[0]);
-      await pool.query(`RELEASE SAVEPOINT ${name}`);
-      return result;
-    } catch (error) {
-      await pool.query(`ROLLBACK TO SAVEPOINT ${name}`);
-      throw error;
-    }
-  };
+  if (!committed) {
+    db.transaction = async (run) => {
+      const name = `app_tx_${++savepoints}`;
+      await pool.query(`SAVEPOINT ${name}`);
+      try {
+        // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the same connection, inside the test's transaction
+        const result = await run(db as unknown as Parameters<typeof run>[0]);
+        await pool.query(`RELEASE SAVEPOINT ${name}`);
+        return result;
+      } catch (error) {
+        await pool.query(`ROLLBACK TO SAVEPOINT ${name}`);
+        throw error;
+      }
+    };
+  }
   const auth = createAuth({
     config: testConfig,
     db,
@@ -77,16 +99,20 @@ export function useTestApp() {
     },
     plugins: [testUtils()],
   });
-  const app = createApp({ auth, config: testConfig, db, log: () => {} });
+  const app = createApp({ auth, config: testConfig, db, log, foodSources });
 
   beforeAll(async () => {
     await pool.query('SELECT 1');
   });
   beforeEach(async () => {
-    await pool.query('BEGIN');
+    if (!committed) await pool.query('BEGIN');
   });
   afterEach(async () => {
-    await pool.query('ROLLBACK');
+    if (!committed) {
+      await pool.query('ROLLBACK');
+      return;
+    }
+    if (newUsers.length > 0) await db.delete(user).where(inArray(user.id, newUsers.splice(0)));
   });
   afterAll(async () => {
     await pool.end();
@@ -100,11 +126,17 @@ export function useTestApp() {
     return (ctx as unknown as { test: TestHelpers }).test;
   };
 
+  const mintSession = async (userId: string) => {
+    const login = await (await helpers()).login({ userId });
+    return { cookie: login.headers.get('cookie') ?? '', token: login.token };
+  };
+
   return {
     app,
     db,
     auth,
     sql,
+    mintSession,
 
     /** Sign in through Better Auth's real Google ID-token path, with Google stubbed. */
     signInWithGoogle(identity: GoogleIdentity) {
@@ -126,8 +158,8 @@ export function useTestApp() {
         .values({ email, name: `Test ${email}`, emailVerified: true })
         .returning();
       if (created === undefined) throw new Error('user insert returned no row');
-      const login = await (await helpers()).login({ userId: created.id });
-      return { user: created, cookie: login.headers.get('cookie') ?? '', token: login.token };
+      newUsers.push(created.id);
+      return { user: created, ...(await mintSession(created.id)) };
     },
 
     async invite(email: string, options: { revoked?: boolean } = {}) {

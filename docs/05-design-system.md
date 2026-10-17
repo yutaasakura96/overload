@@ -3,10 +3,13 @@
 **Direction:** Instrument (picked 2026-09-16 — see `docs/06-decision-log.md`).
 **Extracted from:** the six `.dc.html` artboards in `design/`, 2026-09-16. Updated 2026-09-22 from the
 scoped design pass (review 2b): the artboards now carry these tokens, and seven state artboards were added.
+A light theme was added 2026-10-10 under the same token names (§1.7): the artboards are dark, and
+every statement below about a hex or a ratio is the dark theme's unless it says otherwise.
 
-Every value here was lifted from the artboard source. Nothing is rounded to a 4/8px grid and nothing
-is invented. Where a value appears once, or where two artboards disagree, that is recorded rather
-than smoothed over — see *Deviations found in extraction* at the end.
+The original dark palette and non-colour values were lifted from the artboard source; the light
+palette was chosen later (§1.7). Nothing from the artboards is rounded to a 4/8px grid. Where a
+value appears once, or where two artboards disagree, that is recorded rather than smoothed over —
+see *Deviations found in extraction* at the end.
 
 The "THE SYSTEM" sticky note on page 1 of the canvas was the starting point. It is not accurate: it
 lists four text tones where the files use six, omits two colours, and gives one colour
@@ -18,59 +21,60 @@ lists four text tones where the files use six, omits two colours, and gives one 
 
 ### 1.1 Surfaces
 
-| Token | Hex | Where it is used |
-| --- | --- | --- |
-| `surface/ground` | `#0B0D0F` | Body background of all six screens. |
-| `surface/raised` | `#12161A` | Rest bar (screen 1) and the sheet (§4.16). The system's only raised surface. |
-| `surface/active` | `#0F171B` | Active set card (1), active meal card (3), maintenance check (6). |
-| `surface/accent` | `#10262E` | Fill behind every accent control: COMPLETE SET, SKIP, active span, active tab, EATEN AS PLANNED, CONFIRM ALL, APPLY TO TARGETS. |
-| `surface/done` | `#15241E` | Completed set check cell (1), completed prep row check cell (5). |
-| `surface/flag` | `#15110A` | Warning panel (4). |
-| `surface/error` | `#170B0C` | Fill behind a refused item: the refused set row and the refused slot (1). Added 2026-09-22 (§1.4). |
-| `scrim` | `rgba(11, 13, 15, 0.72)` | `surface/ground` at 72%, behind a sheet. Added 2026-09-22 (review 2b). |
+| Token | Dark | Light | Where it is used |
+| --- | --- | --- | --- |
+| `surface/ground` | `#0B0D0F` | `#F4F6F8` | Body background of all six screens. |
+| `surface/raised` | `#12161A` | `#FFFFFF` | Rest bar (screen 1) and the sheet (§4.16). The system's only raised surface. |
+| `surface/active` | `#0F171B` | `#EBF4F7` | Active set card (1), active meal card (3), maintenance check (6). |
+| `surface/accent` | `#10262E` | `#D6EDF4` | Fill behind every accent control: COMPLETE SET, SKIP, active span, active tab, EATEN AS PLANNED, CONFIRM ALL, APPLY TO TARGETS. |
+| `surface/done` | `#15241E` | `#DCF1E7` | Completed set check cell (1), completed prep row check cell (5). |
+| `surface/flag` | `#15110A` | `#FAF0DA` | Warning panel (4). |
+| `surface/error` | `#170B0C` | `#FBE9E9` | Fill behind a refused item: the refused set row and the refused slot (1). Added 2026-09-22 (§1.4). |
+| `scrim` | `rgba(11, 13, 15, 0.72)` | `rgba(15, 20, 24, 0.48)` | Behind a sheet. Dark: `surface/ground` at 72%. Light: `text/primary` at 48%, since a veil of the light ground would wash the screen out, not set it back. Added 2026-09-22 (review 2b). |
+| `surface/status-bar` | `#0B0D0F` | `#0B0D0F` | The strip behind the installed app's status bar. The same in both themes, and painted only in the light one, where the ground would hide the status bar's white text (§1.7). Added 2026-10-10. |
 
 ### 1.2 Lines
 
-| Token | Hex | Where it is used |
-| --- | --- | --- |
-| `line/row` | `#14191E` | Divider between rows inside a table (set rows on 1, prep rows on 5). Deliberately weaker than the hairline. |
-| `line/hairline` | `#1A2026` | App-bar underline, resting card borders, section dividers, chart gridlines, meter tracks, timeline rail. The default border. |
-| `line/border` | `#232B32` | Rest-bar top edge (1), chart baseline (2, 6), unconfirmed meal cards (4). |
-| `line/field` | `#2A3440` | Secondary control borders (+30s, WARM, ADJUST, REPL, pending chip), inert overlay swatches, unfilled timeline dots. Every one of these sits beside a label or a redundant state cue, so it is not the thing that identifies the control. |
-| `line/control` | `#55687A` | 3.38:1 on ground. Anything that must be seen and has no label to carry it: the inert check cell's border and check (1, 5) and the daily-weight discs and fallback rings (6), and the border of a text field (§4.18), since an empty field's border is what shows where to type. Added 2026-09-22 (§1.5). |
-| `line/accent` | `#234A57` | Border of active panels and the suggested-weight chip. |
-| `line/done` | `#2E4A40` | Border of done fills. |
-| `line/flag` | `#4A3A1C` | Border of flag fills and the evidence tag. |
-| `line/error` | `#501C1E` | Border of a refused item. Always beside a label, so it is not held to 3:1. Added 2026-09-22. |
+| Token | Dark | Light | Where it is used |
+| --- | --- | --- | --- |
+| `line/row` | `#14191E` | `#E8ECF0` | Divider between rows inside a table (set rows on 1, prep rows on 5). Deliberately weaker than the hairline. |
+| `line/hairline` | `#1A2026` | `#DEE3E8` | App-bar underline, resting card borders, section dividers, chart gridlines, meter tracks, timeline rail. The default border. |
+| `line/border` | `#232B32` | `#CED5DC` | Rest-bar top edge (1), chart baseline (2, 6), unconfirmed meal cards (4). |
+| `line/field` | `#2A3440` | `#BAC4CE` | Secondary control borders (+30s, WARM, ADJUST, REPL, pending chip), inert overlay swatches, unfilled timeline dots. Every one of these sits beside a label or a redundant state cue, so it is not the thing that identifies the control. |
+| `line/control` | `#55687A` | `#75838F` | Anything that must be seen and has no label to carry it: the inert check cell's border and check (1, 5) and the daily-weight discs and fallback rings (6), and the border of a text field (§4.18), since an empty field's border is what shows where to type. Added 2026-09-22 (§1.5). |
+| `line/accent` | `#234A57` | `#96CBDA` | Border of active panels and the tag on today's target (§4.19). |
+| `line/done` | `#2E4A40` | `#9FD2B9` | Border of done fills. |
+| `line/flag` | `#4A3A1C` | `#DCC289` | Border of flag fills and the evidence tag. |
+| `line/error` | `#501C1E` | `#EAAEB0` | Border of a refused item. Always beside a label, so it is not held to 3:1. Added 2026-09-22. |
 
 ### 1.3 Text
 
 Four text tones and one placeholder tone. Until 2026-09-22 there were six; the bottom three failed
 WCAG AA and were merged (§1.5, `docs/06` 2026-09-22).
 
-| Token | Hex | Contrast on ground | Where it is used |
-| --- | --- | --- | --- |
-| `text/primary` | `#E6EDF3` | 16.48:1 | Every figure that is the answer to the screen's question, and every app-bar title. |
-| `text/secondary` | `#A8B4C0` | 9.23:1 | Named things next to a figure: meal names, food names, exercise names in a list, secondary button labels. |
-| `text/tertiary` | `#8A96A3` | 6.46:1 | Supporting figures (set number, RIR, per-food grams), the WARM and ADJUST/REPL control labels, the back chevron. |
-| `text/quaternary` | `#738393` | 5.00:1 | Metadata under a title, the "last time" reference value, food-list strings, unit suffixes, 9px small-caps column heads and section labels, inline qualifiers (`cooked`), chart axis labels, macro-target denominators (`/180`), em-dash empty values, footer metadata. |
-| `text/placeholder` | `#5A6673` | 3.32:1 | **Large text only (≥24px).** The unfilled figures in the active set: the REPS `10` and RIR `—` are 56px in this tone until entered. Never used below 24px. |
+| Token | Dark | On ground | Light | On ground | Where it is used |
+| --- | --- | --- | --- | --- | --- |
+| `text/primary` | `#E6EDF3` | 16.48:1 | `#0F1418` | 17.10:1 | Every figure that is the answer to the screen's question, and every app-bar title. |
+| `text/secondary` | `#A8B4C0` | 9.23:1 | `#3B4753` | 8.76:1 | Named things next to a figure: meal names, food names, exercise names in a list, secondary button labels. |
+| `text/tertiary` | `#8A96A3` | 6.46:1 | `#505E6B` | 6.15:1 | Supporting figures (set number, RIR, per-food grams), the WARM and ADJUST/REPL control labels, the back chevron. |
+| `text/quaternary` | `#738393` | 5.00:1 | `#5C6A77` | 5.12:1 | Metadata under a title, the "last time" reference value, food-list strings, unit suffixes, 9px small-caps column heads and section labels, inline qualifiers (`cooked`), chart axis labels, macro-target denominators (`/180`), em-dash empty values, footer metadata. |
+| `text/placeholder` | `#5A6673` | 3.32:1 | `#7B8894` | 3.35:1 | **Large text only (≥24px).** The empty figures in the active set: a figure cleared, or opened with nothing to carry over, shows `—` at 56px in this tone (`10` §1, *Figure states*). Never used below 24px. |
 
 With the bottom of the ladder flattened, rank below `text/tertiary` is carried by size, case and
 tracking, not tone: a 9px uppercase head at `0.1em` and an 11px mono value are both
-`text/quaternary` and still read as different things. New quaternary against tertiary is only 1.29:1,
-so do not rely on those two tones alone to separate adjacent items.
+`text/quaternary` and still read as different things. In the dark theme, quaternary against
+tertiary is only 1.29:1, so do not rely on those two tones alone to separate adjacent items.
 
 ### 1.4 Accents
 
-| Token | Hex | Contrast on ground | Where it is used |
-| --- | --- | --- | --- |
-| `accent` | `#3FB6D4` | 8.21:1 | The one accent. Active state, primary action, the e1RM and trend line, the "now" marker on the timeline. |
-| `accent/pressed` | `#6FCDE3` | 10.68:1 | The label and border colour of an accent control while it is pressed. 8.6:1 on `surface/accent`. Renamed from `accent/hover` 2026-09-22: the app runs from the iPhone home screen and has no hover. Pressed motion and timing belong to the polish gate. |
-| `done` | `#57C99A` | 9.48:1 | Completed, confirmed, on-target. Check marks, macro meter fills, the synced dot, positive deltas. |
-| `flag` | `#E0A83C` | 9.12:1 | Needs attention, not an error. Pending count, unconfirmed count, `CARBS ↑`. Also the low-logging line on screen 6. The weight-trend overlay has the same hex but uses its own token, `series/weight` (§1.6). |
-| `flag/dim` | `#947B45` | 4.80:1 | One use: the strength label in the evidence tag (3), at 9px. Raised from `#8A7340` 2026-09-22; 4.64:1 on `surface/flag`. |
-| `error` | `#F2555A` | 5.77:1 | **The server refused the data**, and nothing else: a refused set, a rejected save, revoked access. Added 2026-09-22; 5.71:1 on `surface/error`. |
+| Token | Dark | On ground | Light | On ground | Where it is used |
+| --- | --- | --- | --- | --- | --- |
+| `accent` | `#3FB6D4` | 8.21:1 | `#025C71` | 6.99:1 | The one accent. Active state, primary action, the e1RM and trend line, the "now" marker on the timeline. |
+| `accent/pressed` | `#6FCDE3` | 10.68:1 | `#013F4E` | 10.64:1 | The label and border colour of an accent control while it is pressed. 8.6:1 on `surface/accent`. Renamed from `accent/hover` 2026-09-22: the app runs from the iPhone home screen and has no hover. Pressed motion and timing belong to the polish gate. |
+| `done` | `#57C99A` | 9.48:1 | `#08785C` | 5.03:1 | Completed, confirmed, on-target. Check marks, macro meter fills, the synced dot, positive deltas. |
+| `flag` | `#E0A83C` | 9.12:1 | `#995600` | 5.26:1 | Needs attention, not an error. Pending count, unconfirmed count, `CARBS ↑`. Also the low-logging line on screen 6. The weight-trend overlay has the same hex but uses its own token, `series/weight` (§1.6). |
+| `flag/dim` | `#947B45` | 4.80:1 | `#846424` | 5.06:1 | One use: the strength label in the evidence tag (3), at 9px. Raised from `#8A7340` 2026-09-22; 4.64:1 on `surface/flag`. |
+| `error` | `#F2555A` | 5.77:1 | `#901117` | 8.51:1 | **The server refused the data**, and nothing else: a refused set, a rejected save, revoked access. Added 2026-09-22; 5.71:1 on `surface/error`. |
 
 **Rules for `error`.**
 - It never carries meaning alone (WCAG 1.4.1). A refused item always shows the word `REFUSED` and
@@ -130,6 +134,21 @@ Weight's chip fill and border are the values drawn on screen 2. The other three 
 series colour on its own chip fill is at least 5.29:1 (intake). Chip borders are below 3:1 and allowed,
 because the chip is labelled (§1.5).
 
+The light theme's series (§1.7), with every chip fill and border at the same 7% and 30% over the
+light ground:
+
+| Token | Hex | On ground | Chip fill | Chip border | Dash |
+| --- | --- | --- | --- | --- | --- |
+| `series/weight` | `#995600` | 5.26:1 | `#EEEBE7` | `#D9C6AE` | `3 3` |
+| `series/intake` | `#5B48C9` | 6.03:1 | `#E9EAF5` | `#C6C2EA` | `6 3` |
+| `series/sleep` | `#26241F` | 14.31:1 | `#E6E7E9` | `#B6B7B7` | `1.5 3` |
+| `series/hrv` | `#723311` | 8.82:1 | `#EBE8E8` | `#CDBCB3` | `8 3 2 3` |
+
+Each is at least 4.80:1 on its own chip fill (weight). Sleep is the near-white series in the dark
+theme and the near-black one here. Measured the same way as below, the worst pair with all five
+lines on is `series/sleep`–`series/hrv` at 0.113, and `series/hrv`–`error` is 0.024, the same known
+collision.
+
 **Rules.**
 - **Colour is the third cue, not the first.** A series is identified by its end label (§5) and its
   dash pattern, and only after that by its colour, so the chart passes WCAG 1.4.1 however the colours
@@ -142,6 +161,74 @@ because the chip is labelled (§1.5).
 - **Known collision.** `series/hrv` and `error` read almost the same under deuteranopia (0.026).
   Allowed, because `error` never appears on a chart, and the chip always names its series.
 - Pinks and magentas are out: under deuteranopia they collapse onto `accent` (0.01–0.04).
+
+### 1.7 Themes
+
+Two themes, dark and light, under one set of token names. Added 2026-10-10 (`docs/06`). Dark is
+what the artboards draw and is unchanged. A component names tokens and never a theme, so a screen
+built from the tokens is right in both; the one exception is the status bar's strip below.
+
+**How the light values were chosen.** Each token keeps its place in the ladder:
+
+- `surface/ground` is a cool off-white and `surface/raised` is white, so raised is the lighter of
+  the two in both themes. The five state fills are tints of their colour, as they are shades of it
+  in the dark theme.
+- The lines keep their order and nearly their ratios on ground: row 1.10, hairline 1.19, border
+  1.37, field 1.63, control 3.59 (dark: 1.10, 1.19, 1.36, 1.54, 3.38).
+- The text tones keep theirs (§1.3). Tertiary against quaternary is 1.20:1, so the rule against
+  separating neighbours by those two tones alone holds here too.
+- `accent`, `done`, `flag` and `error` are darker and less bright than the dark theme's, because
+  they are text on a light ground and each must reach 4.5:1 there and on its own fill.
+  `accent/pressed` is the darker accent here and the lighter one in the dark theme: pressed is
+  always the step with more contrast.
+- Those four were searched, not picked by eye: within each hue's family, the set with the greatest
+  worst-case separation under normal, deuteranopic and protanopic vision (§1.4's measure) that
+  still passes contrast. The worst pair is `flag`–`done` at 0.093, against 0.100 (`error`–`done`)
+  in the dark theme. `error` against `flag` is 0.102 / 0.153 and against `done` 0.103 / 0.209.
+  As before, none of them carries meaning by colour alone.
+
+**Contrast, light theme**, measured as in §1.5:
+
+| Tone | On ground | Lowest surface it sits on | Verdict |
+| --- | --- | --- | --- |
+| `text/primary` `#0F1418` | 17.10 | 15.24 on `surface/accent` | Passes everywhere. |
+| `text/secondary` `#3B4753` | 8.76 | 7.81 on `surface/accent` | Passes everywhere. |
+| `text/tertiary` `#505E6B` | 6.15 | 5.48 on `surface/accent` | Passes everywhere. |
+| `text/quaternary` `#5C6A77` | 5.12 | 4.74 on `surface/error` | Passes AA at every size. It passes on `surface/accent` (4.57) and `surface/done` (4.70) too, but §1.5's rule against placing it there stays, since the dark theme fails. |
+| `text/placeholder` `#7B8894` | 3.35 | 3.25 on `surface/active` | Passes AA-large. 24px and up only, as in the dark theme. |
+| `accent` `#025C71` | 6.99 | 6.23 on `surface/accent` | Passes everywhere. |
+| `accent/pressed` `#013F4E` | 10.64 | 9.48 on `surface/accent` | Passes everywhere. |
+| `done` `#08785C` | 5.03 | 4.62 on `surface/done` | Passes on ground, `surface/active` (4.89) and its own fill. Not for text on `surface/accent` (4.49). |
+| `flag` `#995600` | 5.26 | 5.03 on `surface/flag` | Passes on ground and its own fill. |
+| `error` `#901117` | 8.51 | 7.87 on `surface/error` | Passes everywhere. |
+| `flag/dim` `#846424` | 5.06 | 4.84 on `surface/flag` | Passes AA. |
+| `line/control` `#75838F` | 3.59 | 3.32 on `surface/error` | Passes 1.4.11 for unlabelled controls and chart observations. |
+| `line/field` `#BAC4CE` | 1.63 | — | Below 3.0, and allowed for the reason §1.5 gives. |
+
+`apps/web/e2e/theme.spec.ts` computes these pairs from browser-computed token values in both themes,
+and checks the loaded stylesheet's CSSOM rules for colours outside the two token blocks.
+
+**How a theme is applied.** `<html>` carries `data-theme="light"` or `"dark"`, and the light values
+are one block under `:root[data-theme='light']`. A script in the page's `<head>` sets it before the
+first paint, from the choice remembered on the device (`localStorage`, `overload:theme`) or, with
+none, from the device's own setting, which it then follows as it changes. The choice is made in the
+profile section (`docs/10` §8.2). `color-scheme` and the page's `theme-color` follow the theme, so
+native controls and the browser's own bar match. The page's `theme-color` has no literal value: a
+script in `<body>` sets it from the browser-computed `surface/ground` once the stylesheet has loaded,
+and `theme.ts` sets it again whenever the theme changes.
+
+**The status bar.** The installed app draws under the iPhone's status bar (`black-translucent`),
+and iOS always draws that bar's text in white. In the light theme a strip of `surface/status-bar`,
+as tall as the top safe-area inset, sits behind it so the clock stays readable. In a browser tab the inset is zero and there is no strip.
+
+**Colours written outside the tokens.** These are the only ones, and none is themed:
+
+- The manifest's `background_color` and `theme_color` (`apps/web/vite.config.ts`). A manifest is
+  static and cannot read a token, so each holds the dark `surface/ground`.
+  `apps/web/e2e/theme.spec.ts` fails when either differs from the token.
+- The app icon (`apps/web/public/icon.svg` and the PNGs made from it), which is artwork.
+
+Nothing else is: the page's `theme-color` has no first-paint literal, as above.
 
 ---
 
@@ -167,7 +254,7 @@ Every size present in the six screens, with its use.
 | px | Family | Where |
 | --- | --- | --- |
 | 8 | — | **Retired 2026-09-22.** The evidence-tag strength label moved to 9px (§1.5). Nothing is set at 8px. |
-| 9 | Sans | All small-caps column heads and field labels. |
+| 9 | Sans | All small-caps column heads and field labels. `FULL SCREEN` in two lines on the rest bar (§4.14). |
 | 9 | Mono | Chart axis labels (SVG), macro denominators, yield percentages. |
 | 10 | Sans | Button labels on 44px controls, inline explanatory text, section headings. |
 | 10 | Mono | Timestamps, metadata, food-list strings, unit suffixes. |
@@ -182,16 +269,16 @@ Every size present in the six screens, with its use.
 | 15 | Sans | Exercise name (1), "meals unconfirmed" (4), the claim on the sources sheet. |
 | 15 | Mono | Prep raw/cooked gram figures (5). |
 | 16 | Sans | Text typed into a field (§4.18). Not a display size: iOS zooms into a focused field under 16px. Added 2026-10-01 (`06`). |
-| 17 | Mono | **Working-set kg and reps (1). The app's standard figure size.** Also figures typed into a field (§4.18). |
+| 17 | Mono | **Working-set kg and reps (1). The app's standard figure size.** Also figures typed into a field (§4.18), and last time and today's target (§4.19). |
 | 19 | Mono | If-confirmed kcal and protein (4). |
-| 20 | Mono | Top set, volume load (2). |
+| 20 | Mono | Top set, volume load (2). The set that comes next, in full screen (§4.22). |
 | 22 | Mono | Avg intake, trend change (6). |
 | 24 | Mono | Implied maintenance (6). |
 | 26 | Mono | Day kcal total (3). |
-| 30 | Mono | Rest timer (1). |
+| 30 | — | **Retired 2026-10-10.** The rest timer moved to 42px (§4.14, `06`). Nothing is set at 30px. |
 | 38 | Mono | Unconfirmed meal count (4). |
-| 42 | Mono | e1RM headline (2), weight trend headline (6). |
-| 56 | Mono | **Active set only (1). The named exception — §2.5.** |
+| 42 | Mono | e1RM headline (2), weight trend headline (6), rest countdown (1, §4.14). |
+| 56 | Mono | **The active set (1), and in full screen the rest countdown that stands in for it (§4.22). The named exception — §2.6.** |
 
 ### 2.3 Weight
 
@@ -207,7 +294,7 @@ Every size present in the six screens, with its use.
 | --- | --- |
 | `-0.03em` | 42px and 56px figures. |
 | `-0.02em` | 38px figure. |
-| `-0.01em` | 26px and 30px figures. |
+| `-0.01em` | 26px figure. |
 | `0.02em`–`0.04em` | Mono metadata on screen 1 (elapsed time, rep range). |
 | `0.06em` | Exercise name, overlay chip labels, warm-up summary label. |
 | `0.08em` | Small-caps labels and 44px button labels. |
@@ -222,33 +309,40 @@ tracking.
 
 | Value | Applied to |
 | --- | --- |
-| `0.86` | 56px active-set figures. |
-| `0.9` | 38px and 42px headline figures. |
-| `1` | 30px rest timer. |
+| `0.86` | 56px active-set figures, and the 56px countdown in full screen. |
+| `0.9` | 38px and 42px headline figures, and the 42px rest countdown. |
 | `1.55` | Wrapping prose at 10–11px. |
 | `1.6` | Mono food-list strings at 10px. |
 
 ### 2.6 The 56px exception — named, single, not a second scale
 
-**Rule.** The app's figure size is 17–18px. One element breaks it: the weight, reps and RIR of the
-*currently active working set* on screen 1, at 56px / weight 500 / `-0.03em` / line-height 0.86.
+**Rule.** The app's figure size is 17–18px. The weight, reps and RIR of the *currently active
+working set* on screen 1 use 56px / weight 500 / `-0.03em` / line-height 0.86. In full screen,
+the rest countdown uses the same size while the active set is hidden (2026-10-12; `06`).
 
 **Why.** This is a deliberate borrow from the rejected Heavy direction, covering the one moment
 Instrument is weakest at: mid-set, arm's length, bad gym light, one hand free. The decision log
 records this as the recoverable part of Heavy's narrow win. The 42px headlines on screens 2 and 6
-are a separate, smaller step and are read seated, not mid-set.
+are a separate, smaller step and are read seated, not mid-set. The rest countdown took that step on
+2026-10-10 (§4.14): it is the "bigger figure uses 42px" rule below, applied, and it leaves the
+active set the only 56px on the screen.
 
 **Constraints on its use.**
-- It applies to exactly one row at a time — the active set, inside `surface/active`.
+- For set entry, it applies to exactly one row at a time — the active set, inside `surface/active`.
 - The moment the set is completed it drops to the 17px table row. There is no 56px history.
 - No other screen may introduce it. A new screen that wants a bigger figure uses 42px.
-- Its unfilled state is the same 56px in `text/placeholder` `#5A6673`, not a smaller placeholder.
+- **One second use, recorded 2026-10-12** (`06`): the rest countdown in full screen (§4.22), in the
+  same four values. Full screen is screen 1 with one exercise and one set on it, and while a rest
+  is on screen there the active card is hidden, so the countdown stands where the card's figures
+  stood and is read the same way. Only the active set or the full-screen countdown is visible at
+  a time. The rest bar's countdown is not part of this and stays 42px (§4.14).
+- Its unfilled state is the same 56px in `text/placeholder`, not a smaller placeholder.
 - A figure too long for its column at 56px is set at the largest size that shows it whole
   (`min(56px, column ÷ characters)`), since a field clips what does not fit: `102.25`, or `137.8` on
   a 375px phone. Still one size by rule, not a second step. *Added 2026-10-03.*
 
-If a second 56px use is ever proposed, it is a request to change the type scale and belongs in the
-decision log, not in a component.
+A further 56px use is a request to change the type scale and belongs in the decision log, not in a
+component, as the one above was.
 
 ---
 
@@ -285,15 +379,16 @@ The rule is 44px minimum. It holds across the six screens. The one drawn excepti
 | Height | Controls |
 | --- | --- |
 | 44 | Set check cell (46 × 44), prep check cell (44 × 44), span selector, tabs, `EATEN AS PLANNED`, `ADJUST` (62 wide), `REPL` (78 wide), the warm-up summary row (full width), `EDIT` (62) and `DISCARD` (78) on a refused set, `CLOSE` and each citation row on the sources sheet, the evidence tag's hit area |
-| 46 | Overlay chips, `+30s` (min-width 62), `SKIP` (min-width 72), `LEAVE DAY INCOMPLETE` |
-| 52 | `APPLY TO TARGETS` |
+| 46 | Overlay chips, `+30s` (min-width 62), `SKIP` (min-width 72), `LEAVE DAY INCOMPLETE`, `FULL SCREEN` on the rest bar (58 wide, or as wide as its one line) |
+| 52 | `APPLY TO TARGETS`; `+30S` and `SKIP REST` in full screen's rest, `I HAVE SET IT UP` |
 | 60 | `CONFIRM ALL AS PLANNED` |
-| 64 | `COMPLETE SET`, `WARM` (52 wide) |
+| 64 | `COMPLETE SET`, `WARM` (52 wide), `START SET 3 OF 4` in full screen's rest |
 | 44 | Back chevron (2): 44 × 44 target around the 18px icon, taken from the app bar's left padding so the title does not move. Drawn as 30px; superseded 2026-09-22. |
 
 Two further elements read as tappable but have no target: the `+ 4 more` grocery link (5, 11px text
 only) and the chart data points (2, r=2.5–3.5). Both need 44px targets or an explicit decision that
-they are not interactive.
+they are not interactive. **Decided for the chart 2026-10-10** (`06`): a point is not a target. The
+whole chart is, and picks out the workout nearest the touch (`10` §2).
 
 ### 3.3 Spacing
 
@@ -344,7 +439,7 @@ sectioning device — there are no rules, no card headers and no larger headings
 
 ### 4.4 Data table
 Column heads at 9px / `0.1em` / `text/quaternary`, then a 1px `line/hairline` inset to the gutters, then
-rows separated by `line/row` `#14191E`. Rows are `9px 16px` (set table) or `11px 16px` (prep table).
+rows separated by `line/row`. Rows are `9px 16px` (set table) or `11px 16px` (prep table).
 Numeric columns are right-aligned in the prep table and left-aligned in the set table.
 
 ### 4.5 Active card
@@ -365,9 +460,12 @@ Primary scales with importance: 44px inline, 52px in a card, 60px as a screen's 
 
 ### 4.7 Check cell
 A square-ish control that carries done state instead of a label.
-- **Inert:** 1px `line/control` `#55687A`, no fill, 15px check stroked `line/control`. It has no label,
+- **Inert:** 1px `line/control`, no fill, 15px check stroked `line/control`. It has no label,
   so its boundary is what identifies it and must meet 3:1 (§1.5).
-- **Done:** 1px `line/done`, `surface/done` fill, 15–17px check stroked `done` `#57C99A`.
+- **Done:** 1px `line/done`, `surface/done` fill, 15–17px check stroked `done`.
+
+A done cell in the workout's set table is a button since 2026-10-11: it opens the set editor
+(§4.20) under its row, and looks no different.
 
 Check icon geometry is fixed across the app: `viewBox="0 0 24 24"`, path `M4 12.5 9.5 18 20 6.5`,
 `stroke-linecap`/`linejoin` round, stroke width 2.5 (3 at small sizes).
@@ -376,7 +474,8 @@ Check icon geometry is fixed across the app: `viewBox="0 0 24 24"`, path `M4 12.
 Equal columns, 5px gap, 44px tall, radius 2. Inactive: 1px `line/hairline`, 11px label in
 `text/quaternary`. Active: 1px `accent`, `surface/accent`, 11px label in `accent`. Weight on the
 active segment is 600 in both the span selector (2, mono) and the tabs (5, sans). The artboard's
-700 on `12W` is superseded (§7).
+700 on `12W` is superseded (§7). The sections of the Progress tab (`10` §9) are a third use: three
+equal columns of links, 14px under the tabs, the current one marked as an active segment.
 
 ### 4.9 Meal card — four states
 
@@ -416,6 +515,11 @@ a 9px sans strength label at `0.06em`. 13px tall. The colour pair varies by stre
 Every tag opens the sources sheet (§4.16). Its hit area is 44px tall and at least 44px wide, expanded
 into the space around it, so the row keeps its height. All three are drawn on the `EvidenceTag` board.
 
+**Built 2026-10-14** (`06`; issue `#50`) as a button in `apps/web/src/evidence.tsx`, all three
+strengths in CSS, Moderate the one in use. The strength label is set in capitals by CSS. In the
+balance view's range line, whose type is 11px at 1.5, the tag measures 19.5px, as the approved
+prototype draws it there; the 13px above is its height at the type's own line height.
+
 ### 4.13 Overlay chip
 46px tall, `0 12px`, 9px gap, radius 2. A 14 × 2px swatch, then an 11px `0.06em` label.
 - **Off:** 1px `line/hairline`, swatch `line/field`, label `text/quaternary`.
@@ -426,12 +530,30 @@ into the space around it, so the row keeps its height. All three are drawn on th
 ### 4.14 Rest bar
 Pinned to the bottom edge, `surface/raised` with a top border in `line/border`. A 2px progress track
 in `line/hairline` sits on the very top edge with an `accent` fill (62% in the artboard). Below:
-`REST` at 9px `0.12em` `text/quaternary` over a 30px mono timer, and two controls right-aligned.
+`REST · NEXT: SET 3 OF 4` at 9px `0.12em` `text/quaternary` over the countdown, and three controls
+right-aligned, all 46px tall with an 8px gap: `FULL SCREEN` (58px wide), `+30s` (56px wide) and
+`SKIP` (64px wide). Body padding `12px 16px 14px`, plus the safe-area inset.
 
-**Rest over** (`06`, 2026-10-03, not drawn). At zero the fill is full, the label reads `REST OVER`
-and the timer counts up as `+0:12`, both in `accent`; `+30s` goes and `SKIP` becomes `DISMISS`. It
-stays until dismissed or the next set. Fixed to the bottom edge over the safe-area inset. An
-exercise whose rest is 0 seconds shows no bar.
+**`FULL SCREEN`** (`06`, 2026-10-12; not in the artboard) switches screen 1 to its full-screen
+layout (§4.22) and is on the bar for the whole workout. 1px `line/field`, no fill, `text/tertiary`,
+`0.08em`. Beside the countdown it is 58 × 46 with its two words on two lines at 9px, line-height
+1.35. With no rest counting it is one line at 10px, as wide as the words with 12px either side.
+
+**The countdown is 42px** mono / 500 / `-0.03em` / line-height 0.9, tabular (`06`, 2026-10-10; 30px
+as drawn). It is the next size up the scale, not a second 56px (§2.6).
+
+**On screen for the whole workout** (`06`, 2026-10-10). With no rest counting, before the first set
+and after `SKIP` or `DISMISS`, the bar stays: the label reads `REST TIMER` over one 12px line in
+`text/secondary`, `Starts by itself after each set: 3:00`, the length in mono/500 `text/primary`. It
+is the rest of the exercise that is open. The track is empty and `FULL SCREEN` is the only control.
+The bar keeps the height its 46px controls give it, so it does not jump when a rest starts. An exercise
+whose rest is 0 seconds starts no rest, and the line says so: `This exercise has no rest set, so no
+timer starts.`
+
+**Rest over** (`06`, 2026-10-03, not drawn). At zero the fill is full, the label reads `REST OVER ·
+NEXT: SET 3 OF 4` and the timer counts up as `+0:12`, both in `accent`; `+30s` goes and `SKIP`
+becomes `DISMISS`. It stays until dismissed or the next set. Fixed to the bottom edge over the
+safe-area inset.
 
 ### 4.15 Footnote rule
 Absolutely positioned at `bottom: 18px`, 12px padding above a `line/hairline` top border, holding a
@@ -444,6 +566,11 @@ radius `2px 2px 0 0`, padding `6px 16px 30px`, 14px gap. The first row is a 9px 
 and `CLOSE` on the right, 11px `0.08em` `text/tertiary` in a 44px target with no border. There is no
 drag handle and no shadow. One use so far: the sources sheet (`docs/10` §7.1). `text/quaternary` on
 `surface/raised` is 4.67:1, so the whole text ladder works on it.
+
+**Built 2026-10-14** (`06`; issue `#50`) as a modal `<dialog>`: the dialog is the scrim and the
+sheet sits on its foot, at most the app's 480px wide, its bottom padding grown by the safe-area
+inset. It holds focus, closes on Escape, `CLOSE` or a tap on the scrim, and gives focus back to the
+tag. Each source is a 44px row that opens the paper's DOI in a new tab.
 
 ### 4.17 Refused set row
 The set row keeps its figures in their usual tones, on a `surface/error` band with 1px `line/error` top
@@ -461,7 +588,133 @@ optional note on the right of the same row (`DEFAULT` / `YOURS`, 9px `text/quate
 `accent`. A refused field turns it `error` and prints, under it, the 12px info icon, `REFUSED` and the
 reason, as §4.17 does; a field too narrow for that sends its message under its row instead.
 
+### 4.19 Last time and target block
+Added 2026-10-10 (`06`; reference `docs/prototype/`). Two rows in one 1px `line/hairline` box, radius
+2, inset to the gutters, the rows divided by the same hairline. It opens an exercise on screen 1 and
+says in words what a chip and a code said before. Each row is `10px 12px 11px` with a 5px gap:
+
+- **Head.** A 9px `0.12em` uppercase label on the left; on the right, baseline-aligned, the row's
+  reference.
+- **Figures.** 17px mono / 500 / tabular, the app's figure size, with the unit and `×` at 11px / 400
+  `text/quaternary`: `80 kg × 10 · 10 · 10 · 9`. Sets at different weights read `80×10 · 82.5×9`.
+- **Sentence.** 11px sans, line-height 1.55, `text/secondary`. A figure and its unit do not part at
+  a line end.
+
+**Last time** is the quiet row: label `text/quaternary`, figures `text/secondary`, and on the right
+the date and its age, 10px mono `0.02em` uppercase `text/quaternary` (`MON 5 OCT · 5 DAYS AGO`;
+`TODAY`, `YESTERDAY`, days up to 13, then weeks). It has no sentence.
+
+**Today's target** is the row that is read: `surface/active` fill and a 2px `accent` left edge, as
+the active card on screen 1 (§4.5); label `accent`, figures `text/primary`. On the right, a tag:
+10px mono `0.06em` uppercase `accent` in a `3px 7px` box with a 1px `line/accent` border, `+2.5 KG`
+or `SAME WEIGHT`. Under the figures, the reason as a sentence.
+
+**First workout.** The same two rows. Last time reads `None yet` with a sentence saying why; the
+target reads `Find your weight × 6–10`, tagged `FIRST WORKOUT`, with a sentence on how to pick one.
+
+**Compact**, in full screen (§4.22; `06`, 2026-10-12). Rows are `8px 11px 9px`, and a sentence that
+only repeats what the figures show is left out: the target's reason, and the first workout's `so
+there is nothing to compare with`. How to pick a first weight stays, since no figure says it.
+
+### 4.20 Set editor
+Added 2026-10-11 (`06`) from the approved prototype (`10` §9). What a logged set opens into: under
+its tick in the workout's set table, and under its row on a workout's page in History. The same
+component in both. An active card (§4.5) without the left edge: 1px `line/accent`, `surface/active`,
+radius 2, 12px padding, 10px gap. Inside, in order:
+
+- three fields (§4.18) in columns of `3fr 2fr 2fr`, 8px apart, as a refused set's are (§4.17):
+  the weight with its unit, `REPS`, and `RIR` with an em dash for none;
+- a refusal, as §4.18 prints one, under the row of fields;
+- `Cancel` (tertiary) and `Save set` (primary, 44px, 11px label) in two equal columns;
+- `Delete set` (tertiary), full width, under them.
+
+`Delete set` turns the two rows of actions into the question in place, `10` §8.1's delete
+pattern: the question in 11px `text/secondary` over `Keep` (tertiary) and `Delete` (secondary).
+`error` is not used: deleting is a choice, not a failure (§1.4). In the set table the editor is
+indented to the LAST column, `2px 16px 14px 46px`; in History it is inset to the gutters,
+`2px 16px 12px`.
+
+### 4.21 Said-once line
+Added 2026-10-11 with §4.20. One line under the app bar, `12px 16px 0`, that says what the action
+that opened or changed the screen just did: a 13px check in `done`, 8px gap, then the sentence in
+11px sans `text/secondary` at 1.5. It is an `output`, so it is announced. It is said once: it goes
+when the screen is opened again or the next action is taken, and is never the only record of a
+change. Three uses, all in `10` §9.
+
+### 4.22 Full screen
+Added 2026-10-12 (`06`; reference `docs/prototype/`). Screen 1 with one exercise and one set on it,
+a viewport tall. Everything in it is an existing part or one of the three below.
+
+- **Bar.** `14px 16px 12px`, bottom `line/hairline`, not stuck. Left: the workout's name and the
+  elapsed time, as the app bar sets them (§4.1). Right: `EXIT FULL SCREEN`, a tertiary button
+  (§4.6), in place of the data-state slot.
+- **Count.** Under the exercise name (header padding `18px 16px 4px`): `EXERCISE 1 OF 5 · 2 OF 4
+  SETS DONE`, 10px mono `0.04em` uppercase `text/quaternary`, 10px below it.
+- **Rest.** While a rest is on screen it takes the place of the last-time block and the card. 1px
+  `line/border`, `surface/raised`, radius 2, inset to the gutters, `16px 14px`, 14px gap, 14px
+  above. `REST` in the rest bar's label, then the countdown at **56px** mono / 500 / `-0.03em` /
+  line-height 0.86, tabular (§2.6); the 2px track of §4.14; then `+30S` (secondary) and `SKIP
+  REST` (primary), two equal columns, 52px tall, 8px apart. **Rest over:** label and countdown turn
+  `accent`, the label reads `REST OVER`, the count runs up as `+0:12`, the track is full, and the
+  two controls give way to one primary, `START SET 3 OF 4`, 64px tall at 14px.
+- **Next set.** Under the rest, 14px below: 1px `line/hairline`, `11px 12px`, 6px gap. A section
+  label (§4.3), `NEXT · SET 3 OF 4`; the set at 20px mono / 500 `text/primary`, `80 kg × 10`; then
+  10px mono uppercase `text/quaternary`, `LAST TIME 80 × 10`, or `NO MATCHING SET LAST TIME`, or
+  `FIRST WORKOUT OF THIS EXERCISE`.
+- **Foot.** A link row (as the exercise form's row to its chart) held at the foot of the screen,
+  14px above it and 34px below: `Calls and messages can still interrupt` over `Set up an iPhone
+  Focus that lets only chosen people through`, and once the guide is done `iPhone Focus: set up`
+  over `Open the guide again`.
+
+**Guide step** (`10` §8.3). A 1px `line/hairline` box, `12px`, 8px between steps: the check cell
+of §4.7 in a 46px column, 12px, then the title at 13px / 600 `text/primary`, the path through
+Settings at 11px mono `accent`, line-height 1.5, and the text at 11px `text/secondary`, line-height
+1.55. The path is not a link: `accent` on `surface/ground` is 8.21:1 (§1.5), and nothing in the
+step but the check cell is a target.
+
 ---
+
+### 4.23 Tally and lift row
+Added 2026-10-14 (`06`) from the approved prototype's Strength screen (`10` §9). No token and no
+icon is added.
+
+- **Tally.** Three cells in a row, 8px apart, inset to the gutters. Each is the stat card of
+  screen 2 (`10` §2) at `10px 11px`: the 9px `0.1em` label in `text/quaternary`, 6px, then the
+  count at 20px mono / 500 in `text/primary`. A count that is good news is `done`, one that asks
+  for attention `flag`; the label says which it is, so the colour is never the only cue.
+- **Lift row.** A list under a `line/hairline`, each row over a `line/row`. The row is a link, 58px
+  at least, `8px 16px`, in three columns `1fr 64px 76px` 10px apart, centred: the name in 12px
+  `text/secondary` at 1.35 over a 10px mono line in `text/quaternary`, 4px below; the sparkline;
+  and, right-aligned, the change at 13px mono / 500 tabular over a 10px mono line in
+  `text/quaternary`, 3px below. The change is `done` for a gain, `flag` for a loss and
+  `text/tertiary` otherwise, always with its sign. Pressed: `surface/active`.
+- **Lift without a trend.** The row uses two equal columns and shows its workout count under the
+  name, with `No weight logged · no trend` or `Can’t work out a trend yet` in the second column.
+  It has no sparkline or verdict colour.
+- **Sparkline.** 64 × 24, no axes and no labels: a 1.5px `accent` line with round caps and joins
+  through the points by date, from x 2 to 60 and y 20 to 4, flat at 12 when every value is equal,
+  and a 2px `accent` dot on the latest. It repeats the figures beside it and is hidden from a
+  screen reader.
+
+### 4.24 Muscle row and meter
+Added 2026-10-14 (`06`) from the approved prototype's Balance screen (`10` §9). No token and no
+icon is added.
+
+- **Muscle row.** A list under a `line/hairline`, each row over a `line/row`. The row is a button,
+  52px at least, `9px 16px 10px`, 7px between its line and its meter: the group's name in 12px
+  `text/secondary` at `0.03em` on the left; on the right the sets a week at 13px mono / 500 tabular
+  in `text/primary`, then 8px and the status at 9px `0.1em` capitals: `IN RANGE` in `done`, `LOW`
+  and `NOT TRAINED` in `flag`, `HIGH` in `text/quaternary`. Pressed: `surface/active`. Open, it
+  shows its sources under the meter in 10px `text/quaternary` at 1.55.
+- **Meter.** 8px tall on `line/hairline`, its scale 0 to 25 sets with more filling it. The range
+  is a band 3px proud of the track above and below, 1px `line/control` at each end over
+  `line/control` at 16% (`color-mix` over the token, so the light theme follows). Whole sets fill
+  from the left in `done`; half sets continue as 135° stripes of `done`, 2px on and 3px off. A
+  low row draws both in `flag`. The meter repeats the figure beside it and is hidden from a
+  screen reader.
+- **Scale and legend.** Under the list: `0`, `10` and `20` at 9px mono `text/quaternary`, centred
+  on their places on the meter (0 at its start); then three 10px `text/quaternary` items, 16px
+  apart, each after a 14 × 6px swatch: whole sets, half sets, and the band at 10px tall.
 
 ## 5. Charts
 
@@ -495,6 +748,12 @@ because the headline names it.
 pushed apart as a group, keeping their order by value, spaced exactly 11px and centred on the group's
 mean y. A pushed label gets a 1px leader in its series colour from (291, line end) to (295, label).
 With all four on, the drawn case moves labels by at most 6.25px.
+
+**As built for the e1RM chart, 2026-10-10** (`06`). The canvas is as wide as the screen's content
+and the plot ends 68px short of it. The gridlines keep their three y positions; their values are a
+round step apart, chosen so the highest value is at or under the top line and the lowest stays over
+the baseline. The date axis runs in proportion to time. A picked workout is a 1px `line/control`
+hairline from y=8 to the baseline and an r=3.5 `accent` disc with a 2px `surface/ground` ring.
 
 A legend appears only where raw and derived data are both plotted (6): 14 × 2px swatch or 5px dot,
 7px gap, 10px sans in `text/quaternary`, 18px between entries.
@@ -540,7 +799,7 @@ Recorded, not silently resolved. Each needs a decision before or during build.
 
 ## 8. Token export
 
-Names for implementation. Values are exactly as extracted.
+Names for implementation. The dark values are exactly as extracted.
 
 ```
 --surface-ground:   #0B0D0F;
@@ -550,6 +809,7 @@ Names for implementation. Values are exactly as extracted.
 --surface-done:     #15241E;
 --surface-flag:     #15110A;
 --surface-error:    #170B0C;
+--surface-status-bar: #0B0D0F;   /* the same in both themes */
 --scrim:            rgba(11, 13, 15, 0.72);
 
 --line-row:         #14191E;
@@ -587,4 +847,46 @@ Names for implementation. Values are exactly as extracted.
 --gutter:           16px;
 --content:          358px;
 --target-min:       44px;
+```
+
+The light theme's values (§1.7), under `:root[data-theme='light']`. Fonts, radius and sizes are
+shared.
+
+```
+--surface-ground:   #F4F6F8;
+--surface-raised:   #FFFFFF;
+--surface-active:   #EBF4F7;
+--surface-accent:   #D6EDF4;
+--surface-done:     #DCF1E7;
+--surface-flag:     #FAF0DA;
+--surface-error:    #FBE9E9;
+--scrim:            rgba(15, 20, 24, 0.48);
+
+--line-row:         #E8ECF0;
+--line-hairline:    #DEE3E8;
+--line-border:      #CED5DC;
+--line-field:       #BAC4CE;
+--line-control:     #75838F;
+--line-accent:      #96CBDA;
+--line-done:        #9FD2B9;
+--line-flag:        #DCC289;
+--line-error:       #EAAEB0;
+
+--text-primary:     #0F1418;
+--text-secondary:   #3B4753;
+--text-tertiary:    #505E6B;
+--text-quaternary:  #5C6A77;
+--text-placeholder: #7B8894;   /* >= 24px only */
+
+--accent:           #025C71;
+--accent-pressed:   #013F4E;
+--done:             #08785C;
+--flag:             #995600;
+--flag-dim:         #846424;
+--error:            #901117;
+
+--series-weight:    #995600;   /* chip #EEEBE7 / #D9C6AE, dash 3 3 */
+--series-intake:    #5B48C9;   /* chip #E9EAF5 / #C6C2EA, dash 6 3 */
+--series-sleep:     #26241F;   /* chip #E6E7E9 / #B6B7B7, dash 1.5 3 */
+--series-hrv:       #723311;   /* chip #EBE8E8 / #CDBCB3, dash 8 3 2 3 */
 ```

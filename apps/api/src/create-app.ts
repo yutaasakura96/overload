@@ -1,20 +1,30 @@
 import { OpenAPIHono } from '@hono/zod-openapi';
 import type { Hook } from '@hono/zod-openapi';
 import type { Context, Next } from 'hono';
+import { bodyLimit } from 'hono/body-limit';
 import { csrf } from 'hono/csrf';
 import { HTTPException } from 'hono/http-exception';
 import { requestId } from 'hono/request-id';
-import type { AppEnv, RouteDeps } from './app-env.js';
+import { and, eq, isNotNull } from 'drizzle-orm';
+import type { AppEnv, FoodSources, RouteDeps } from './app-env.js';
 import type { Auth } from './auth/auth.js';
+import { invite } from './db/schema.js';
 import { ACCOUNT_HEADER } from './lib/account.js';
 import { describeError } from './lib/error-log.js';
+import { labelReader } from './lib/label-reader.js';
+import { openFoodFacts } from './lib/open-food-facts.js';
 import type { ReportError } from './lib/error-report.js';
-import { problem, type ProblemCode } from './lib/problem.js';
+import { problem, validationErrors, type ProblemCode } from './lib/problem.js';
+import { adminRoutes } from './routes/admin.js';
 import { exerciseRoutes } from './routes/exercises.js';
+import { exportRoutes } from './routes/export.js';
+import { LABEL_PHOTO_MAX_BYTES, foodRoutes } from './routes/foods.js';
 import { healthRoutes } from './routes/health.js';
 import { meRoutes } from './routes/me.js';
+import { rotationGroupRoutes } from './routes/rotation-groups.js';
 import { routineRoutes } from './routes/routines.js';
 import { trainingRoutes } from './routes/training.js';
+import { weighInRoutes } from './routes/weigh-ins.js';
 
 export type AppDeps = RouteDeps & {
   auth: Auth;
@@ -22,6 +32,8 @@ export type AppDeps = RouteDeps & {
   log?: (line: string) => void;
   /** Sentry, when SENTRY_DSN is set (src/sentry.ts). Awaited, so the event is sent before the 500. */
   reportError?: ReportError;
+  /** Open Food Facts and the label reader. Tests pass stubs; by default, the real ones. */
+  foodSources?: FoodSources;
 };
 
 const AUTH_PREFIX = '/api/auth/';
@@ -37,10 +49,7 @@ const isCsrfExempt = (path: string) =>
 
 const validationHook: Hook<unknown, AppEnv, string, unknown> = (result, c) => {
   if (result.success) return undefined;
-  const errors = result.error.issues.map((issue) => ({
-    path: issue.path.map(String).join('.'),
-    message: issue.message,
-  }));
+  const errors = validationErrors(result.error);
   if (result.target === 'json' || result.target === 'form') {
     return problem(c, 'validation_failed', { errors });
   }
@@ -50,7 +59,18 @@ const validationHook: Hook<unknown, AppEnv, string, unknown> = (result, c) => {
   });
 };
 
-export function createApp({ auth, config, db, log = console.log, reportError }: AppDeps) {
+export function createApp({
+  auth,
+  config,
+  db,
+  log = console.log,
+  reportError,
+  foodSources = {
+    openFoodFacts: openFoodFacts({ userAgent: `Overload/1 (${config.webOrigin})` }),
+    labelReader:
+      config.anthropicApiKey === null ? null : labelReader({ apiKey: config.anthropicApiKey }),
+  },
+}: AppDeps) {
   const app = new OpenAPIHono<AppEnv>({ defaultHook: validationHook });
 
   app.use('*', requestId({ generator: () => `req_${crypto.randomUUID().replaceAll('-', '')}` }));
@@ -81,19 +101,46 @@ export function createApp({ auth, config, db, log = console.log, reportError }: 
     const session = await auth.api.getSession({ headers: c.req.raw.headers });
     if (session === null) return problem(c, 'unauthenticated');
     const { id, name, email, image } = session.user;
+    const [revoked] = await db
+      .select({ id: invite.id })
+      .from(invite)
+      .where(and(eq(invite.email, email.toLowerCase()), isNotNull(invite.revokedAt)));
+    if (revoked !== undefined) return problem(c, 'unauthenticated');
     c.set('user', { id, name, email, image: image ?? null });
     await next();
     // Names whose session answered, so a client can refuse another account's answer (docs/08 §5).
     c.res.headers.set(ACCOUNT_HEADER, id);
   });
 
+  // The admin is the member whose email is ADMIN_EMAIL (docs/08 §3). To anyone else the admin
+  // routes do not exist: 404, never 403, which would confirm them (docs/08 §5).
+  app.use('/api/admin/*', async (c: Context<AppEnv>, next: Next) => {
+    if (c.get('user').email.toLowerCase() !== config.adminEmail) return problem(c, 'not_found');
+    return next();
+  });
+
+  // A label photo over the limit is refused before it is read into memory (docs/07 §1.5). The
+  // margin is the multipart framing around the image.
+  app.use(
+    '/api/label-reads',
+    bodyLimit({
+      maxSize: LABEL_PHOTO_MAX_BYTES + 64 * 1024,
+      onError: (c) => problem(c, 'payload_too_large'),
+    }),
+  );
+
   app.on(['GET', 'POST'], `${AUTH_PREFIX}*`, (c) => auth.handler(c.req.raw));
 
   app.openapiRoutes(healthRoutes);
   app.openapiRoutes(meRoutes({ config, db }));
+  app.openapiRoutes(exportRoutes({ config, db }));
   app.openapiRoutes(exerciseRoutes({ config, db }));
   app.openapiRoutes(routineRoutes({ config, db }));
   app.openapiRoutes(trainingRoutes({ config, db }));
+  app.openapiRoutes(weighInRoutes({ config, db }));
+  app.openapiRoutes(foodRoutes({ config, db, foodSources }));
+  app.openapiRoutes(rotationGroupRoutes({ config, db }));
+  app.openapiRoutes(adminRoutes({ config, db }));
 
   app.openAPIRegistry.registerComponent('securitySchemes', 'session', {
     type: 'apiKey',

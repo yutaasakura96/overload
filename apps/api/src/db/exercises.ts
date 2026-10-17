@@ -6,16 +6,29 @@ import {
   type Equipment,
 } from '../domain/equipment.js';
 import type { Database, Queryable } from './connection.js';
-import { exercise, exerciseSetting, routine, routineExercise } from './schema.js';
+import {
+  exercise,
+  exerciseSetting,
+  routine,
+  muscleGroupValues,
+  routineExercise,
+} from './schema.js';
 import { exercisesWithHistory } from './workouts.js';
 
 export type { Equipment };
+export type MuscleGroup = (typeof muscleGroupValues)[number];
 
 /** One exercise as one user sees it: their setting where they have one, else its default. */
 export type UserExercise = {
   id: string;
   name: string;
   equipment: Equipment;
+  /** Where the library files it. Null on a custom exercise the user has not filed. */
+  muscleGroup: MuscleGroup | null;
+  /** The groups it also trains, where a set counts half (issue #50). Empty for none. */
+  secondaryMuscleGroups: MuscleGroup[];
+  /** Other names search matches. Seeded exercises only. */
+  aliases: string[];
   custom: boolean;
   hidden: boolean;
   incrementKg: number;
@@ -29,6 +42,8 @@ export type UserExercise = {
 export type ExerciseFields = {
   name: string;
   equipment: Equipment;
+  muscleGroup: MuscleGroup | null;
+  secondaryMuscleGroups: MuscleGroup[];
   incrementKg: number;
   restSeconds: number;
   repLow: number;
@@ -44,6 +59,17 @@ export type ExerciseSettingFields = {
   hidden: boolean;
 };
 
+/**
+ * The groups an exercise also trains, as stored: each once, in `muscleGroupValues` order, and never
+ * the group it is filed under, since a set counts whole there (issue #50).
+ */
+function secondaryGroups(groups: readonly MuscleGroup[], filed: MuscleGroup | null | undefined) {
+  return muscleGroupValues.filter((group) => group !== filed && groups.includes(group));
+}
+
+const sameGroups = (a: readonly string[], b: readonly string[]) =>
+  a.length === b.length && a.every((group, index) => group === b[index]);
+
 /** Seeded exercises and this user's own; never another user's (S8). */
 const visibleTo = (userId: string) =>
   or(isNull(exercise.ownerUserId), eq(exercise.ownerUserId, userId));
@@ -53,7 +79,11 @@ function selectUserExercises(db: Queryable, userId: string) {
     .select({
       id: exercise.id,
       name: exercise.name,
+      sortName: sql<string>`lower(${exercise.name})`,
       equipment: exercise.equipment,
+      muscleGroup: exercise.muscleGroup,
+      secondaryMuscleGroups: exercise.secondaryMuscleGroups,
+      aliases: exercise.aliases,
       ownerUserId: exercise.ownerUserId,
       defaultIncrementKg: exercise.defaultIncrementKg,
       defaultRestSeconds: exercise.defaultRestSeconds,
@@ -79,6 +109,9 @@ function toUserExercise(row: UserExerciseRow): UserExercise {
     id: row.id,
     name: row.name,
     equipment: row.equipment,
+    muscleGroup: row.muscleGroup,
+    secondaryMuscleGroups: row.secondaryMuscleGroups ?? [],
+    aliases: row.aliases ?? [],
     custom: row.ownerUserId !== null,
     hidden: row.hiddenAt !== null,
     incrementKg: row.incrementKg ?? row.defaultIncrementKg,
@@ -109,6 +142,31 @@ export async function listExercises(
     )
     .orderBy(sql`lower(${exercise.name})`, asc(exercise.id));
   return rows.map(toUserExercise);
+}
+
+export async function exportExercises(
+  db: Database,
+  userId: string,
+  page: { limit: number; after?: { name: string; id: string } | undefined },
+): Promise<{ items: UserExercise[]; next: { name: string; id: string } | null }> {
+  const found = await selectUserExercises(db, userId)
+    .where(
+      and(
+        visibleTo(userId),
+        page.after === undefined
+          ? undefined
+          : sql`(lower(${exercise.name}), ${exercise.id}) > (${page.after.name}, ${page.after.id}::uuid)`,
+      ),
+    )
+    .orderBy(sql`lower(${exercise.name})`, asc(exercise.id))
+    .limit(page.limit + 1);
+  const shown = found.slice(0, page.limit);
+  const last = shown.at(-1);
+  return {
+    items: shown.map(toUserExercise),
+    next:
+      found.length > page.limit && last !== undefined ? { name: last.sortName, id: last.id } : null,
+  };
 }
 
 /** One exercise this user can see, hidden or not. */
@@ -142,6 +200,8 @@ export async function createExercise(
   const fields: ExerciseFields = {
     name: input.name,
     equipment: input.equipment,
+    muscleGroup: input.muscleGroup ?? null,
+    secondaryMuscleGroups: secondaryGroups(input.secondaryMuscleGroups ?? [], input.muscleGroup),
     incrementKg: input.incrementKg ?? defaultIncrementKg[input.equipment],
     restSeconds: input.restSeconds ?? defaultRestSeconds,
     repLow: input.repLow ?? defaultRepRange.low,
@@ -165,6 +225,8 @@ export async function createExercise(
     stored.ownerUserId === userId &&
     stored.name === fields.name &&
     stored.equipment === fields.equipment &&
+    stored.muscleGroup === fields.muscleGroup &&
+    sameGroups(stored.secondaryMuscleGroups ?? [], fields.secondaryMuscleGroups) &&
     stored.defaultIncrementKg === fields.incrementKg &&
     stored.defaultRestSeconds === fields.restSeconds &&
     stored.defaultRepLow === fields.repLow &&
@@ -192,9 +254,17 @@ export async function updateExercise(
     .where(and(eq(exercise.id, id), eq(exercise.ownerUserId, userId)));
   if (stored === undefined) return { kind: 'not_found' };
 
+  // Null files it under no muscle group; left out, it stays where it is.
+  const muscleGroup = patch.muscleGroup === undefined ? stored.muscleGroup : patch.muscleGroup;
   const fields: ExerciseFields = {
     name: patch.name ?? stored.name,
     equipment: patch.equipment ?? stored.equipment,
+    muscleGroup,
+    // Left out, they stay; either way the group it is filed under is never one of them.
+    secondaryMuscleGroups: secondaryGroups(
+      patch.secondaryMuscleGroups ?? stored.secondaryMuscleGroups ?? [],
+      muscleGroup,
+    ),
     incrementKg: patch.incrementKg ?? stored.defaultIncrementKg,
     restSeconds: patch.restSeconds ?? stored.defaultRestSeconds,
     repLow: patch.repLow ?? stored.defaultRepLow,
@@ -352,6 +422,8 @@ function toColumns(fields: ExerciseFields) {
   return {
     name: fields.name,
     equipment: fields.equipment,
+    muscleGroup: fields.muscleGroup,
+    secondaryMuscleGroups: fields.secondaryMuscleGroups,
     defaultIncrementKg: fields.incrementKg,
     defaultRestSeconds: fields.restSeconds,
     defaultRepLow: fields.repLow,

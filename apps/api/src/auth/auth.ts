@@ -1,8 +1,10 @@
 import { betterAuth, type BetterAuthPlugin } from 'better-auth';
+import { APIError } from 'better-auth/api';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { bearer } from 'better-auth/plugins';
 import type { GoogleOptions } from 'better-auth/social-providers';
 import type { Config } from '../config.js';
+import { deleteAccount } from '../db/account.js';
 import { authSchema } from '../db/auth-schema.js';
 import type { Database } from '../db/connection.js';
 import { bootstrapAdminInvite, checkInvite } from './invite-gate.js';
@@ -53,6 +55,21 @@ export function createAuth({ config, db, google, plugins = [] }: AuthDeps) {
     rateLimit: { enabled: true, storage: 'database' },
     user: {
       validateUserInfo: async ({ user }) => checkInvite(db, config.adminEmail, user),
+      // `POST /api/auth/delete-user`, behind `freshAge` (docs/08 §6). Our delete runs here, in one
+      // transaction; Better Auth's own that follows finds nothing left but the session cookie.
+      deleteUser: {
+        enabled: true,
+        beforeDelete: async (user) => {
+          // So the only admin cannot lock themselves out by accident.
+          if (user.email.toLowerCase() === config.adminEmail) {
+            throw new APIError('CONFLICT', {
+              code: 'admin_account',
+              message: 'The admin account cannot be deleted while ADMIN_EMAIL names it.',
+            });
+          }
+          await deleteAccount(db, user);
+        },
+      },
     },
     databaseHooks: {
       user: {

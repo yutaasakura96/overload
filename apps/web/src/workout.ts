@@ -1,8 +1,15 @@
-import type { Exercise, LastTime, Routine, SyncResult } from '@overload/api-contract';
+import type {
+  Exercise,
+  LastTime,
+  Routine,
+  SyncResult,
+  WorkoutDetail,
+} from '@overload/api-contract';
 import { create } from 'zustand';
 import { newId } from './ids';
 import {
   setStore,
+  type Change,
   type SetRecord,
   type StoreRecord,
   type WorkoutExerciseRecord,
@@ -50,26 +57,79 @@ export const useWorkoutStore = create<WorkoutState>()(() => ({
   idleEnded: undefined,
 }));
 
-type Change = { put?: StoreRecord[]; remove?: string[] };
-
-// One change at a time, each made from the records the one before it left.
+// One change at a time in this tab, each made from the records the one before it left.
 let queue: Promise<unknown> = Promise.resolve();
 
-/** Writes a change to the set store, then shows it. A failed write shows nothing and rejects. */
-function mutate(change: (records: StoreRecord[]) => Change | undefined): Promise<void> {
+const waiting = (record: StoreRecord) => record.state === 'pending';
+
+/**
+ * Shows the records the set store holds, unless they are what is on screen or another account's.
+ * Rows that were waiting and no longer are have been answered, by this tab's upload or another's,
+ * and the data-state slot says when.
+ */
+function show(userId: string, records: StoreRecord[]) {
+  const state = useWorkoutStore.getState();
+  if (state.userId !== userId) return;
+  if (JSON.stringify(records) === JSON.stringify(state.records)) return;
+  const answered = state.records.some(waiting) && !records.some(waiting);
+  useWorkoutStore.setState(answered ? { records, lastSyncedAt: Date.now() } : { records });
+}
+
+// What `setStore.remade()` said when the records were last loaded whole.
+let remadeAtLoad = 0;
+
+/**
+ * The records this tab goes on from: the set store's. The one exception is a store emptied under
+ * the open app, its storage cleared from elsewhere. What was cleared is gone from the device, but
+ * the records on screen that it no longer holds stay until the next launch, so a workout does not
+ * vanish mid-set and Finish still ends it.
+ */
+function held(userId: string, stored: StoreRecord[], removed: string[] = []): StoreRecord[] {
+  if (setStore.remade() === remadeAtLoad) return stored;
+  const gone = new Set([...stored.map((record) => record.id), ...removed]);
+  const { records } = useWorkoutStore.getState();
+  return [
+    ...records.filter((record) => record.userId === userId && !gone.has(record.id)),
+    ...stored,
+  ];
+}
+
+/**
+ * Makes a change in the set store, from the records it holds, then shows it. The change belongs to
+ * the account it is asked for, by default the one open when it is asked, however long it waits in
+ * line: it is made from that account's records and written under it, and shown only while that
+ * account is still the one open, never into another's (docs/08 §5). Resolves to whether it still
+ * is, so what the caller does next on screen is skipped for an account no longer open. A failed
+ * write shows nothing and rejects.
+ */
+function mutate(
+  change: (records: StoreRecord[]) => Change | undefined,
+  userId = useWorkoutStore.getState().userId,
+): Promise<boolean> {
   const run = queue.then(async () => {
-    const { records } = useWorkoutStore.getState();
-    const result = change(records);
-    if (result === undefined) return;
-    await setStore.write(result);
-    const put = new Map((result.put ?? []).map((record) => [record.id, record]));
-    const gone = new Set(result.remove ?? []);
-    useWorkoutStore.setState({
-      records: [
-        ...records.filter((record) => !gone.has(record.id) && !put.has(record.id)),
-        ...put.values(),
-      ],
+    if (userId === undefined) throw new Error('no account’s records are loaded');
+    let removed: string[] = [];
+    const stored = await setStore.change(userId, (records) => {
+      const made = change(held(userId, records));
+      removed = made?.remove ?? [];
+      return made;
     });
+    show(userId, held(userId, stored, removed));
+    return useWorkoutStore.getState().userId === userId;
+  });
+  queue = run.catch(() => undefined);
+  return run;
+}
+
+/**
+ * Reads the records again: another tab changed them, or is about to be relied on not to have
+ * (uploader.ts). Before the first load there is nothing to bring up to date.
+ */
+export function refreshWorkouts(): Promise<void> {
+  const run = queue.then(async () => {
+    const { userId, loaded } = useWorkoutStore.getState();
+    if (userId === undefined || !loaded) return;
+    show(userId, held(userId, await setStore.all(userId)));
   });
   queue = run.catch(() => undefined);
   return run;
@@ -143,9 +203,17 @@ export function lastSetOf(records: StoreRecord[], workoutId: string): SetRecord 
   )[0];
 }
 
+/** The sets the server refused, each waiting to be edited or discarded (docs/09 F4). */
+export function refusedSets(records: StoreRecord[]): SetRecord[] {
+  return records.filter(
+    (record): record is SetRecord =>
+      record.table === 'sets' && record.state === 'refused' && record.deletedAt === undefined,
+  );
+}
+
 /**
- * What the data-state slot counts (docs/10 §7.4): refused rows, and sets the server has not
- * acknowledged. With no set waiting, a workout row still waiting counts instead, so the slot never
+ * What the data-state slot counts (docs/10 §7.4): refused sets, and sets the server has not
+ * acknowledged. With no set waiting, another row still waiting counts instead, so the slot never
  * reads synced while something is not.
  */
 export function dataState(records: StoreRecord[]): { refused: number; pending: number } {
@@ -154,7 +222,7 @@ export function dataState(records: StoreRecord[]): { refused: number; pending: n
     (record) => record.table === 'sets' && record.deletedAt === undefined,
   );
   return {
-    refused: records.filter((record) => record.state === 'refused').length,
+    refused: refusedSets(records).length,
     pending: sets.length > 0 ? sets.length : pending.length,
   };
 }
@@ -175,6 +243,7 @@ export async function loadWorkouts(userId: string, nowMs = Date.now()): Promise<
   // and neither a start nor a sign-out goes ahead on records nobody has seen (docs/08 §7).
   const records = await setStore.all(userId).catch(() => undefined);
   if (load !== latestLoad) return;
+  remadeAtLoad = setStore.remade();
   // What the store says of the account before stays with that account.
   const other =
     useWorkoutStore.getState().userId === userId ? {} : { idleEnded: undefined, lastSyncedAt: 0 };
@@ -213,71 +282,224 @@ export async function loadWorkouts(userId: string, nowMs = Date.now()): Promise<
   });
 }
 
+/** The name an empty workout takes when none is typed (docs/10 §8.2). */
+export const EMPTY_WORKOUT_NAME = 'Workout';
+
+/** The sets an exercise added during a workout aims at: a new routine slot's default (docs/04). */
+export const ADDED_TARGET_SETS = 3;
+
+function workoutRecord(
+  userId: string,
+  fields: { routineId: string | null; name: string },
+  now: string,
+): WorkoutRecord {
+  const id = newId();
+  return {
+    userId,
+    workoutId: id,
+    state: 'pending',
+    table: 'workouts',
+    id,
+    row: { id, ...fields, startedAt: now, endedAt: null, note: null, clientUpdatedAt: now },
+  };
+}
+
 /**
- * Starts a workout from a routine (docs/09 F3 step 1): the workout and its exercises are made on
- * the device, each exercise with its rep range, increment and target sets resolved and copied
- * (routine slot → user setting → exercise default; `exercises` already holds the last two), and
- * with last time and the suggestion from the offline cache.
+ * One exercise of a workout as the device makes it: its rep range, increment and target sets
+ * resolved and copied (routine slot → user setting → exercise default; `exercise` already holds
+ * the last two), and last time and the suggestion from the offline cache (docs/09 F3 step 1).
  */
+function exerciseRecord(input: {
+  workout: Pick<WorkoutRecord, 'userId' | 'id'>;
+  exercise: Exercise;
+  position: number;
+  slot?: Routine['exercises'][number];
+  lastTimes: Map<string, LastTime> | undefined;
+  now: string;
+}): WorkoutExerciseRecord {
+  const { exercise, slot } = input;
+  // A slot reads its own last time; one never logged, or no slot, falls back to the exercise's.
+  const logged = input.lastTimes?.get(exercise.id);
+  const last = logged?.slots.find((own) => own.routineExerciseId === slot?.id) ?? logged;
+  const id = newId();
+  return {
+    userId: input.workout.userId,
+    workoutId: input.workout.id,
+    state: 'pending',
+    table: 'workoutExercises',
+    id,
+    row: {
+      id,
+      workoutId: input.workout.id,
+      exerciseId: exercise.id,
+      routineExerciseId: slot?.id ?? null,
+      position: input.position,
+      targetSets: slot?.targetSets ?? ADDED_TARGET_SETS,
+      repLow: slot?.repLow ?? exercise.repLow,
+      repHigh: slot?.repHigh ?? exercise.repHigh,
+      incrementKg: exercise.incrementKg,
+      clientUpdatedAt: input.now,
+    },
+    local: {
+      name: exercise.name,
+      bodyweight: exercise.equipment === 'bodyweight',
+      restSeconds: exercise.restSeconds,
+      lastTime: (last?.sets ?? []).map((set) => ({
+        weightKg: set.weightKg,
+        countedWeightKg: set.countedWeightKg,
+        reps: set.reps,
+        rir: set.rir,
+      })),
+      lastTimeBodyweight: last?.bodyweight ?? null,
+      lastTimeOn: last?.performedOn ?? null,
+      lastTimeKnown: input.lastTimes !== undefined,
+      suggestion: last?.suggestion ?? null,
+      equipment: exercise.equipment,
+    },
+  };
+}
+
+const startIfNone = (records: StoreRecord[], put: StoreRecord[]): Change | undefined =>
+  openWorkout(records) === undefined ? { put } : undefined;
+
+/** Starts a workout from a routine (docs/09 F3 step 1): the workout and its exercises, on the device. */
 export async function startWorkout(input: {
   userId: string;
   routine: Routine;
   exercises: Map<string, Exercise>;
-  lastTimes: Map<string, LastTime>;
+  lastTimes?: Map<string, LastTime>;
 }): Promise<void> {
   const now = new Date().toISOString();
-  const workoutId = newId();
-  const base = { userId: input.userId, workoutId, state: 'pending' } as const;
-  const workout: WorkoutRecord = {
-    ...base,
-    table: 'workouts',
-    id: workoutId,
-    row: {
-      id: workoutId,
-      routineId: input.routine.id,
-      name: input.routine.name,
-      startedAt: now,
-      endedAt: null,
-      note: null,
-      clientUpdatedAt: now,
-    },
-  };
-  const exercises = input.routine.exercises.flatMap((slot, position): WorkoutExerciseRecord[] => {
+  const workout = workoutRecord(
+    input.userId,
+    { routineId: input.routine.id, name: input.routine.name },
+    now,
+  );
+  const exercises = input.routine.exercises.flatMap((slot, position) => {
     const exercise = input.exercises.get(slot.exerciseId);
     if (exercise === undefined) return [];
-    // A slot reads its own last time; one never logged falls back to the exercise's.
-    const logged = input.lastTimes.get(slot.exerciseId);
-    const last = logged?.slots.find((own) => own.routineExerciseId === slot.id) ?? logged;
-    const id = newId();
-    return [
-      {
-        ...base,
-        table: 'workoutExercises',
-        id,
-        row: {
-          id,
-          workoutId,
-          exerciseId: slot.exerciseId,
-          routineExerciseId: slot.id,
-          position,
-          targetSets: slot.targetSets,
-          repLow: slot.repLow ?? exercise.repLow,
-          repHigh: slot.repHigh ?? exercise.repHigh,
-          incrementKg: exercise.incrementKg,
-          clientUpdatedAt: now,
-        },
-        local: {
-          name: exercise.name,
-          bodyweight: exercise.equipment === 'bodyweight',
-          restSeconds: exercise.restSeconds,
-          lastTime: (last?.sets ?? []).map((set) => ({ weightKg: set.weightKg, reps: set.reps })),
-          suggestion: last?.suggestion ?? null,
-        },
-      },
-    ];
+    return [exerciseRecord({ workout, exercise, position, slot, lastTimes: input.lastTimes, now })];
   });
-  await mutate(() => ({ put: [workout, ...exercises] }));
+  if (!(await mutate((records) => startIfNone(records, [workout, ...exercises]), input.userId)))
+    return;
   useWorkoutStore.setState({ rest: undefined, idleEnded: undefined });
+}
+
+/**
+ * Starts a workout from no routine and with no exercises (docs/09 F2 step 3): they are added from
+ * the picker as it goes. A blank name takes the default.
+ */
+export async function startEmptyWorkout(input: { userId: string; name: string }): Promise<void> {
+  const name = input.name.trim() || EMPTY_WORKOUT_NAME;
+  const workout = workoutRecord(input.userId, { routineId: null, name }, new Date().toISOString());
+  if (!(await mutate((records) => startIfNone(records, [workout]), input.userId))) return;
+  useWorkoutStore.setState({ rest: undefined, idleEnded: undefined });
+}
+
+// Changing the open workout's exercises (S4, docs/09 F3 step 4). None of it touches the routine:
+// only the workout's own rows change, and each goes to the set store before the screen.
+
+/** The open workout, if it is still the one with this id. */
+const stillOpen = (records: StoreRecord[], workoutId: string) => {
+  const workout = openWorkout(records);
+  return workout?.id === workoutId ? workout : undefined;
+};
+
+/**
+ * Adds exercises to the end of the open workout, in the order given, each opening as one from a
+ * routine does: with last time and the suggestion when the offline cache has them.
+ */
+export async function addExercises(input: {
+  workoutId: string;
+  exercises: Exercise[];
+  lastTimes?: Map<string, LastTime>;
+}): Promise<boolean> {
+  const now = new Date().toISOString();
+  let applied = false;
+  const shown = await mutate((records) => {
+    const workout = stillOpen(records, input.workoutId);
+    if (workout === undefined || input.exercises.length === 0) return undefined;
+    applied = true;
+    const positions = exercisesOf(records, workout.id).map((record) => record.row.position);
+    const after = positions.length === 0 ? 0 : Math.max(...positions) + 1;
+    return {
+      put: input.exercises.map((exercise, index) =>
+        exerciseRecord({
+          workout,
+          exercise,
+          position: after + index,
+          lastTimes: input.lastTimes,
+          now,
+        }),
+      ),
+    };
+  });
+  return applied && shown;
+}
+
+/**
+ * Removes an exercise from the open workout, and its logged sets with it. Each goes from the screen
+ * now and from the device once the server has answered its deletion, which buries it (docs/07 §3.4).
+ */
+export async function removeExercise(
+  id: string,
+  confirmedSets: number,
+): Promise<{ applied: boolean; setCount?: number }> {
+  let removedSets: string[] = [];
+  let setCount: number | undefined;
+  let applied = false;
+  const shown = await mutate((records) => {
+    const record = records.find(
+      (each): each is WorkoutExerciseRecord =>
+        each.table === 'workoutExercises' && each.id === id && each.deletedAt === undefined,
+    );
+    if (record === undefined || stillOpen(records, record.workoutId) === undefined)
+      return undefined;
+    const sets = setsOf(records, id);
+    if (sets.length !== confirmedSets) {
+      setCount = sets.length;
+      return undefined;
+    }
+    removedSets = sets.map((set) => set.id);
+    applied = true;
+    return { put: [asDeletion(record), ...sets.map((set) => asDeletion(set))] };
+  });
+  // Rest does not count from a set that is no longer in the workout.
+  const { rest } = useWorkoutStore.getState();
+  if (applied && shown && rest !== undefined && removedSets.includes(rest.setId)) {
+    useWorkoutStore.setState({ rest: undefined });
+  }
+  return { applied: applied && shown, setCount: shown ? setCount : undefined };
+}
+
+/**
+ * Moves an exercise of the open workout up or down one place. The order is written again as
+ * positions 0 to n − 1, and only the rows whose position changed are queued.
+ */
+export async function moveExercise(id: string, by: -1 | 1): Promise<boolean> {
+  let applied = false;
+  const shown = await mutate((records) => {
+    const record = records.find((each) => each.table === 'workoutExercises' && each.id === id);
+    const workout = record && stillOpen(records, record.workoutId);
+    if (workout === undefined) return undefined;
+    const order = exercisesOf(records, workout.id);
+    const from = order.findIndex((each) => each.id === id);
+    const to = from + by;
+    if (from < 0 || to < 0 || to >= order.length) return undefined;
+    const [moved] = order.splice(from, 1);
+    if (moved === undefined) return undefined;
+    order.splice(to, 0, moved);
+    const put = order.flatMap((each, position): WorkoutExerciseRecord[] => {
+      if (each.row.position === position) return [];
+      const { refusal: _refusal, ...kept } = each;
+      const row = { ...each.row, position, clientUpdatedAt: stampAfter(each.row.clientUpdatedAt) };
+      return [{ ...kept, state: 'pending', row }];
+    });
+    if (put.length === 0) return undefined;
+    applied = true;
+    return { put };
+  });
+  return applied && shown;
 }
 
 /** Logs a set: on the device first, then on screen, and rest starts from it (S1, S5). */
@@ -290,7 +512,15 @@ export async function completeSet(input: {
 }): Promise<void> {
   const now = new Date().toISOString();
   const id = newId();
-  await mutate((records) => {
+  const shown = await mutate((records) => {
+    const exercise = records.find(
+      (record): record is WorkoutExerciseRecord =>
+        record.table === 'workoutExercises' &&
+        record.id === input.exercise.id &&
+        record.deletedAt === undefined,
+    );
+    if (exercise === undefined || stillOpen(records, exercise.workoutId) === undefined)
+      throw new Error('workout exercise is no longer open');
     // A deleted set keeps its place: positions are never renumbered (docs/04 `set`).
     const positions = records.flatMap((record) =>
       record.table === 'sets' && record.row.workoutExerciseId === input.exercise.id
@@ -317,35 +547,190 @@ export async function completeSet(input: {
       },
     };
     return { put: [record] };
-  });
+  }, input.exercise.userId);
+  if (!shown) return;
   const rests = input.exercise.local.restSeconds > 0;
   useWorkoutStore.setState({
     rest: rests ? { setId: id, extraSeconds: 0, dismissed: false } : undefined,
   });
 }
 
-/** A workout left with no logged set is deleted, not kept (docs/09 F3). */
-function removeWorkout(records: StoreRecord[], workout: WorkoutRecord, now: string): Change {
-  return {
-    put: [{ ...workout, state: 'pending', deletedAt: now }],
-    remove: records
-      .filter((record) => record.workoutId === workout.id && record.id !== workout.id)
-      .map((record) => record.id),
-  };
+/**
+ * The stamp of an edit or a delete: now, and always after the version it replaces. The server keeps
+ * whichever is newer (docs/07 §3.4), so a phone clock set back must not make a change lose to the
+ * row it changes.
+ */
+const stampAfter = (previous: string) =>
+  new Date(Math.max(Date.now(), new Date(previous).getTime() + 1)).toISOString();
+
+const loggedSet = (records: StoreRecord[], id: string) =>
+  records.find(
+    (record): record is SetRecord =>
+      record.table === 'sets' && record.id === id && record.deletedAt === undefined,
+  );
+
+/**
+ * Edits a logged set (docs/09 F4): the whole row is queued again under a new `clientUpdatedAt`,
+ * and a refusal it carried is over. A set records RIR or RPE, so entering one clears the other.
+ */
+export async function editSet(
+  id: string,
+  figures: { weightKg: number; reps: number; rir: number | null },
+): Promise<void> {
+  await mutate((records) => {
+    const record = loggedSet(records, id);
+    return record === undefined ? undefined : { put: [asEdit(record, figures)] };
+  });
 }
 
-/** Finish (docs/09 F3 step 5): `ended_at` is now. With no logged set the workout is deleted. */
-export async function finishWorkout(): Promise<void> {
-  const now = new Date().toISOString();
+/**
+ * Discards a logged set (docs/09 F4). It goes from the screen now and from the device once the
+ * server has answered its deletion, which removes a copy the server holds and keeps a stale one
+ * from coming back (docs/03 §8.1).
+ */
+export async function discardSet(id: string): Promise<void> {
   await mutate((records) => {
+    const record = loggedSet(records, id);
+    return record === undefined ? undefined : { put: [asDeletion(record)] };
+  });
+  // Rest does not count from a set that was never done.
+  if (useWorkoutStore.getState().rest?.setId === id) useWorkoutStore.setState({ rest: undefined });
+}
+
+/**
+ * A past workout's rows as the set store holds them: every row acknowledged, as the server has it.
+ * The device let them go once the workout ended and uploaded, so this is the way back for a set
+ * that is to be changed (docs/03 §6). Rest, last time and the suggestion belong to a workout in
+ * progress and are left empty.
+ */
+function recordsOfPast(userId: string, workout: WorkoutDetail): StoreRecord[] {
+  const { exercises, ...row } = workout;
+  const base = { userId, workoutId: workout.id, state: 'acknowledged', stored: true } as const;
+  return [
+    { ...base, table: 'workouts', id: row.id, row },
+    ...exercises.flatMap(({ name, sets, ...exercise }): StoreRecord[] => [
+      {
+        ...base,
+        table: 'workoutExercises',
+        id: exercise.id,
+        row: exercise,
+        local: { name, bodyweight: false, restSeconds: 0, lastTime: [], suggestion: null },
+      },
+      ...sets.map((set): SetRecord => ({ ...base, table: 'sets', id: set.id, row: set })),
+    ]),
+  ];
+}
+
+/**
+ * Makes a change to a workout from History (docs/09 F3a): on the rows the device holds of it, and
+ * for one it let go, on the rows `workout` puts back, which are written with the change. The rows
+ * are read inside the change, so a workout another tab put back is not put back over it.
+ */
+function mutatePast(
+  workout: WorkoutDetail,
+  change: (records: StoreRecord[]) => StoreRecord[],
+): Promise<boolean> {
+  const { userId } = useWorkoutStore.getState();
+  return mutate((records) => {
+    if (userId === undefined) return undefined;
+    const here = records.some((record) => record.id === workout.id);
+    if (!here && workout.endedAt === null) return undefined;
+    const back = here ? [] : recordsOfPast(userId, workout);
+    const changed = change([...records, ...back]);
+    if (changed.length === 0) return undefined;
+    const ids = new Set(changed.map((record) => record.id));
+    return { put: [...back.filter((record) => !ids.has(record.id)), ...changed] };
+  }, userId);
+}
+
+/** `record` queued again as an edit of its figures (docs/09 F4). */
+function asEdit(
+  record: SetRecord,
+  figures: { weightKg: number; reps: number; rir: number | null },
+): SetRecord {
+  const { refusal: _refusal, ...kept } = record;
+  const row = {
+    ...record.row,
+    ...figures,
+    rpe: figures.rir === null ? record.row.rpe : null,
+    clientUpdatedAt: stampAfter(record.row.clientUpdatedAt),
+  };
+  return { ...kept, state: 'pending', row };
+}
+
+/** `record` queued as a deletion. */
+function asDeletion<Kept extends StoreRecord>(record: Kept): Kept {
+  const { refusal: _refusal, ...kept } = record;
+  const deletedAt = stampAfter(record.row.clientUpdatedAt);
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the same record, less its refusal
+  return { ...kept, state: 'pending', deletedAt } as Kept;
+}
+
+/**
+ * Edits a set of a past workout (docs/09 F3a): the whole row is queued under a new
+ * `clientUpdatedAt`, exactly as an edit made during the workout is.
+ */
+export async function editPastSet(
+  workout: WorkoutDetail,
+  id: string,
+  figures: { weightKg: number; reps: number; rir: number | null },
+): Promise<void> {
+  await mutatePast(workout, (records) => {
+    const record = loggedSet(records, id);
+    return record === undefined ? [] : [asEdit(record, figures)];
+  });
+}
+
+/**
+ * Deletes a set of a past workout (docs/09 F3a). A workout left with no set at all is deleted with
+ * it, as Finish deletes one that never logged a set. Resolves to whether the workout went.
+ */
+export async function deletePastSet(workout: WorkoutDetail, id: string): Promise<boolean> {
+  let emptied = false;
+  await mutatePast(workout, (records) => {
+    const record = loggedSet(records, id);
+    const parent = records.find(
+      (each): each is WorkoutRecord => each.table === 'workouts' && each.id === workout.id,
+    );
+    if (record === undefined || parent === undefined) return [];
+    // One still in progress is Finish's to remove, not a delete's.
+    emptied =
+      parent.row.endedAt !== null &&
+      setsOfWorkout(records, workout.id).every((set) => set.id === id);
+    return emptied ? [asDeletion(record), asDeletion(parent)] : [asDeletion(record)];
+  });
+  if (useWorkoutStore.getState().rest?.setId === id) useWorkoutStore.setState({ rest: undefined });
+  return emptied;
+}
+
+/** A workout left with no logged set is deleted, not kept (docs/09 F3). */
+function removeWorkout(workout: WorkoutRecord): Change {
+  return { put: [asDeletion(workout)] };
+}
+
+/**
+ * Finish (docs/09 F3 step 5): `ended_at` is now. With no logged set the workout is deleted.
+ * Resolves to whether it was kept, as the set store held it when it ended, or to undefined when
+ * another account is open by then: what was ended is not the workout on screen.
+ */
+export async function finishWorkout(): Promise<boolean | undefined> {
+  const now = new Date().toISOString();
+  let kept = false;
+  const shown = await mutate((records) => {
     const workout = openWorkout(records);
     if (workout === undefined) return undefined;
-    if (setsOfWorkout(records, workout.id).length === 0)
-      return removeWorkout(records, workout, now);
-    const row = { ...workout.row, endedAt: now, clientUpdatedAt: now };
+    if (setsOfWorkout(records, workout.id).length === 0) return removeWorkout(workout);
+    kept = true;
+    const row = {
+      ...workout.row,
+      endedAt: now,
+      clientUpdatedAt: stampAfter(workout.row.clientUpdatedAt),
+    };
     return { put: [{ ...workout, state: 'pending', row }] };
   });
+  if (!shown) return undefined;
   useWorkoutStore.setState({ rest: undefined });
+  return kept;
 }
 
 /**
@@ -354,20 +739,23 @@ export async function finishWorkout(): Promise<void> {
  * derives nothing. One that never logged a set is deleted, as Finish would.
  */
 export async function endIdleWorkout(nowMs = Date.now()): Promise<void> {
-  const now = new Date(nowMs).toISOString();
   let ended: WorkoutState['idleEnded'];
-  await mutate((records) => {
+  const shown = await mutate((records) => {
     const workout = openWorkout(records);
     if (workout === undefined) return undefined;
     const last = lastSetOf(records, workout.id);
     const lastActivity = last?.row.performedAt ?? workout.row.startedAt;
     if (nowMs - new Date(lastActivity).getTime() < IDLE_END_MS) return undefined;
-    if (last === undefined) return removeWorkout(records, workout, now);
+    if (last === undefined) return removeWorkout(workout);
     ended = { name: workout.row.name, endedAt: last.row.performedAt };
-    const row = { ...workout.row, endedAt: last.row.performedAt, clientUpdatedAt: now };
+    const row = {
+      ...workout.row,
+      endedAt: last.row.performedAt,
+      clientUpdatedAt: stampAfter(workout.row.clientUpdatedAt),
+    };
     return { put: [{ ...workout, state: 'pending', row }] };
   });
-  if (ended !== undefined) useWorkoutStore.setState({ rest: undefined, idleEnded: ended });
+  if (shown && ended !== undefined) useWorkoutStore.setState({ rest: undefined, idleEnded: ended });
 }
 
 /** The rest counted from this set, as the store holds it or as it starts. */
@@ -406,17 +794,42 @@ const stillOpenThere = (record: StoreRecord, row: object) =>
   'endedAt' in row &&
   row.endedAt === null;
 
+/** Whether `other` is a row a delete of `record` takes with it. */
+const isUnder = (other: StoreRecord, record: StoreRecord) =>
+  (record.table === 'workouts' && other.workoutId === record.id && other.id !== record.id) ||
+  (record.table === 'workoutExercises' &&
+    other.table === 'sets' &&
+    other.row.workoutExerciseId === record.id);
+
+/**
+ * Whether an ended workout's record has nothing left to wait for: the server has it, or it refused
+ * a workout or exercise row that holds no set. Planned sets never ticked are not stored (docs/09
+ * F3), so a row like that is nothing of the user's; a refused set is, and keeps its workout here.
+ */
+function settled(record: StoreRecord, whole: StoreRecord[]) {
+  if (record.state === 'acknowledged') return true;
+  if (record.state !== 'refused' || record.table === 'sets') return false;
+  return !whole.some((other) => other.table === 'sets' && isUnder(other, record));
+}
+
 /**
  * Applies a sync answer (docs/07 §3.4). A stored, unchanged or deleted row is acknowledged: its
  * record is deleted, or, while its workout is open, kept and marked acknowledged. A refused row is
- * kept and marked refused. A record changed since it was sent stays pending for the next upload,
- * and so does a workout's ending or removal the server's answer does not show: its own copy won
- * and is still open (docs/08 §7).
- * Then every ended workout whose records are all acknowledged leaves the device.
+ * kept and marked refused, with the reason. A record changed since it was sent stays pending for
+ * the next upload, and so does a workout's ending or removal the server's answer does not show: its
+ * own copy won and is still open (docs/08 §7). A deleted row the server kept is
+ * back as the server has it: its copy was edited after the delete was made, and the newer wins.
+ * Then every ended workout with nothing left to wait for leaves the device. The answer is applied to
+ * the records of the user whose rows were sent, whichever account is open by then. Resolves to
+ * whether that user's is.
  */
-export async function applySyncResults(sent: SentRow[], results: SyncResult[]): Promise<void> {
+export function applySyncResults(
+  userId: string,
+  sent: SentRow[],
+  results: SyncResult[],
+): Promise<boolean> {
   const sentById = new Map(sent.map((row) => [row.id, row]));
-  await mutate((records) => {
+  return mutate((records) => {
     const byId = new Map(records.map((record) => [record.id, record]));
     const put = new Map<string, StoreRecord>();
     const remove = new Set<string>();
@@ -426,19 +839,28 @@ export async function applySyncResults(sent: SentRow[], results: SyncResult[]): 
       if (record === undefined || was === undefined) continue;
       const now = sentRowOf(record);
       if (now.clientUpdatedAt !== was.clientUpdatedAt || now.deletedAt !== was.deletedAt) continue;
-      if (result.status === 'refused') {
-        put.set(record.id, { ...record, state: 'refused' });
-      } else if (result.status === 'deleted') {
+      const gone = result.status === 'deleted' || (result.status === 'refused' && record.deletedAt);
+      if (gone) {
+        // A delete the server would not take was of a row it does not hold for this account.
         for (const other of records) {
-          if (
-            other.id === record.id ||
-            (record.table === 'workouts' && other.workoutId === record.id)
-          ) {
-            remove.add(other.id);
-          }
+          if (other.id === record.id || isUnder(other, record)) remove.add(other.id);
         }
-      } else if (record.deletedAt === undefined && !stillOpenThere(record, result.row)) {
-        put.set(record.id, { ...record, state: 'acknowledged' });
+      } else if (result.status === 'refused') {
+        const fields = (result.problem.errors ?? []).map((error) => error.path);
+        put.set(record.id, {
+          ...record,
+          state: 'refused',
+          refusal: { code: result.problem.code, fields },
+        });
+      } else if (record.deletedAt === undefined) {
+        if (!stillOpenThere(record, result.row)) {
+          put.set(record.id, { ...record, state: 'acknowledged', stored: true });
+        }
+      } else {
+        const { deletedAt: _deletedAt, ...kept } = record;
+        const answered = { ...kept, state: 'acknowledged', stored: true, row: result.row } as const;
+        // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the answer's row is this record's table's
+        put.set(record.id, answered as StoreRecord);
       }
     }
     const after = records
@@ -447,7 +869,7 @@ export async function applySyncResults(sent: SentRow[], results: SyncResult[]): 
     for (const workout of after) {
       if (workout.table !== 'workouts' || workout.row.endedAt === null) continue;
       const whole = after.filter((record) => record.workoutId === workout.id);
-      if (whole.every((record) => record.state === 'acknowledged')) {
+      if (whole.every((record) => settled(record, whole))) {
         for (const record of whole) remove.add(record.id);
       }
     }
@@ -456,7 +878,28 @@ export async function applySyncResults(sent: SentRow[], results: SyncResult[]): 
       put: [...put.values()].filter((record) => !remove.has(record.id)),
       remove: [...remove],
     };
-  });
+  }, userId);
+}
+
+/**
+ * The gate refused this user's sign-in with `access_revoked` (docs/09 F4): every set of theirs the
+ * server has not taken becomes refused, access revoked. It stays on the device, never dropped
+ * silently, and can only be discarded. Answers how many of their sets are refused so.
+ */
+export async function refuseRevokedSets(userId: string): Promise<number> {
+  const after = await setStore.change(userId, (records) => ({
+    put: records
+      .filter(
+        (record): record is SetRecord =>
+          record.table === 'sets' && record.state === 'pending' && record.deletedAt === undefined,
+      )
+      .map((record) => ({
+        ...record,
+        state: 'refused',
+        refusal: { code: 'access_revoked', fields: [] },
+      })),
+  }));
+  return refusedSets(after).filter((set) => set.refusal?.code === 'access_revoked').length;
 }
 
 /** Removes every record of this user from the device: sign-out's explicit discard (docs/08 §7). */
