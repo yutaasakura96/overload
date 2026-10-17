@@ -735,8 +735,10 @@ at most 900 kcal and 100 g of each nutrient once converted to 100 g; above that,
 than per 100 g without its grams, is 422. `fiberG: null` is saved as 0. A food with an id the caller
 already has, with the same content, is the stored food (200). Open Food Facts is asked with
 `User-Agent: Overload/1 (<web origin>)`, an 8 s timeout, and its values per serving when it gives
-them per serving with the serving's weight. A label read takes one of the day's model calls before
-the model is asked (`04` `model_call_count`) and is read by `claude-haiku-4-5`.
+them per serving with the serving's weight. A barcode record measured per 100 ml returns
+`per_100ml` with `grams: null`; a serving measured in ml returns `per_serving` with `grams: null`.
+Both need the weight of the stated amount before conversion. A label read takes one of the day's
+model calls before the model is asked (`04` `model_call_count`) and is read by `claude-haiku-4-5`.
 
 The three lookups never save. The user confirms the candidate on the confirmation screen and the
 client then calls `POST /api/foods`. That is S12's "shown for confirmation before saving".
@@ -757,7 +759,7 @@ Content-Type: multipart/form-data; boundary=…
 ```
 
 `basis.kind` is `per_100g`, `per_100ml`, `per_piece`, `per_serving` or `per_package`, with its grams when
-known. A label read per 100 ml returns `per_100ml` with `grams: null` until the user weighs 100 ml.
+known. A label read per 100 ml has the same basis and missing weight as a barcode per 100 ml.
 `per100g` is the server's conversion, or null while the basis has no grams. A field
 the label does not print is `null`, never a guess.
 

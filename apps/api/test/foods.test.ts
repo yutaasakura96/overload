@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { food, modelCallCount } from '../src/db/schema';
 import { MODEL_CALLS_PER_DAY } from '../src/db/model-calls';
 import type { BarcodeLookup, LabelImage, LabelRead } from '../src/lib/food-candidate';
+import { openFoodFacts } from '../src/lib/open-food-facts';
 import { sender } from './account-fixture';
 import { WEB_ORIGIN, useTestApp } from './harness';
 
@@ -36,6 +37,20 @@ const t = useTestApp({
 
 /** The same app with no reader set up, as until the owner sets the Anthropic key. */
 const unset = useTestApp();
+
+let upstreamProduct: Record<string, unknown> = {};
+const volumeSource = useTestApp({
+  foodSources: {
+    openFoodFacts: openFoodFacts({
+      userAgent: 'Overload test',
+      fetch: async () =>
+        new Response(JSON.stringify({ status: 1, product: upstreamProduct }), {
+          headers: { 'Content-Type': 'application/json' },
+        }),
+    }),
+    labelReader: null,
+  },
+});
 
 /** The same sources, keeping the request log's lines. */
 const logLines: string[] = [];
@@ -461,6 +476,53 @@ const candidate = {
 };
 
 describe('GET /api/barcodes/{code}', () => {
+  it('keeps liquid barcode values on their volume basis until a member gives grams', async () => {
+    const { send } = await member('liquid-barcode@example.test', volumeSource);
+    upstreamProduct = {
+      product_name: 'Dense drink',
+      nutrition_data_per: '100ml',
+      nutriments: {
+        'energy-kcal_100g': 100,
+        proteins_100g: 11,
+        carbohydrates_100g: 10,
+        fat_100g: 2,
+      },
+    };
+    const res = await send('GET', '/api/barcodes/4901234567894');
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.candidate.basis).toEqual({ kind: 'per_100ml', grams: null });
+    expect(body.per100g).toBeNull();
+
+    upstreamProduct = {
+      ...upstreamProduct,
+      nutrition_data_per: '100g',
+      product_quantity_unit: 'ml',
+    };
+    const packagedVolume = await (await send('GET', '/api/barcodes/4901234567897')).json();
+    expect(packagedVolume.candidate.basis).toEqual({ kind: 'per_100ml', grams: null });
+    expect(packagedVolume.per100g).toBeNull();
+
+    upstreamProduct = {
+      ...upstreamProduct,
+      nutrition_data_per: 'serving',
+      serving_quantity: 200,
+      serving_quantity_unit: 'ml',
+      nutriments: {
+        'energy-kcal_serving': 130,
+        proteins_serving: 7,
+      },
+    };
+    const serving = await (await send('GET', '/api/barcodes/4901234567895')).json();
+    expect(serving.candidate.basis).toEqual({ kind: 'per_serving', grams: null });
+    expect(serving.per100g).toBeNull();
+
+    upstreamProduct = { ...upstreamProduct, serving_quantity_unit: 'g', product_quantity_unit: 'ml' };
+    const weighed = await (await send('GET', '/api/barcodes/4901234567896')).json();
+    expect(weighed.candidate.basis).toEqual({ kind: 'per_serving', grams: 200 });
+    expect(weighed.per100g.energyKcal).toBe(65);
+  });
+
   it('returns Open Food Facts’ candidate and its values per 100 g, saving nothing', async () => {
     const { send, user } = await member('scan@example.test');
     barcodeAnswer = { kind: 'found', candidate };

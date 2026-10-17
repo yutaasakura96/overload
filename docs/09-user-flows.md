@@ -282,7 +282,8 @@ The order is the PRD's (S12): search, then barcode, then label photo, then manua
    screen.
 4. **Manual:** the same confirm screen, empty.
 5. **Confirm screen:** values, basis, raw or cooked, piece weight, optional rotation group → **Save**
-   → `POST /api/foods`. The API converts to per 100 g; the screen shows the converted values first.
+   → `POST /api/foods`. The screen asks for a missing weight, including a barcode's volume basis
+   (`10` §8.6). The API converts to per 100 g; the screen shows the converted values first.
 
 | Step | Goes wrong | User sees |
 | --- | --- | --- |
