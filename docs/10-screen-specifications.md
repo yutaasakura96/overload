@@ -96,9 +96,9 @@ completion control is enabled regardless; a missing weight or reps is refused on
   `Pick a weight you can lift for 6–10 reps with one to three left in you. From the next workout,
   this line shows what you did and what to aim for.` (`Bodyweight × 6–10` and `Do 6–10 reps…` for a
   bodyweight exercise.) No LAST column value; the card's label row reads `FIRST WORKOUT`.
-- **Unknown last time.** If cached data was unavailable at start, or an older saved workout has no
-  history flag, the block shows only `Last time could not be loaded.` It makes no claim about the
-  connection or whether this is the first workout; no first-workout tag appears.
+- **Unknown last time.** If cached data was unavailable when the exercise joined the workout, or an
+  older saved workout has no history flag, the block shows only `Last time could not be loaded.` It
+  makes no claim about the connection or whether this is the first workout; no first-workout tag appears.
 - **Target (S4), decided 2026-10-03** (`06`). The label counts working sets against
   `target_sets`: `SET 3 OF 4`, then `SET 5 · EXTRA` past the target, and `SET 3` with no target.
   With the warm-up toggle on it reads `WARM-UP`, and a warm-up never moves the count.
@@ -154,6 +154,26 @@ completion control is enabled regardless; a missing weight or reps is refused on
   and typed in pounds, to the tenth; the column head and the weight label read `LB`.
 - **The other exercises.** `UP NEXT` lists the exercises with sets left, then `DONE` the ones at
   their target, as `3 / 3 × 6–10`. A row opens that exercise, in any order.
+- **Changing the exercises, as built 2026-10-17** (`06`; `09` F3 step 4, S4). No artboard draws
+  it; it is built from `05`'s tokens and §8.1's parts and passes the polish gate. A `CHANGE
+  EXERCISES` section label under `UP NEXT` and `DONE`, then two buttons side by side: a secondary
+  `Add exercises` (primary, and alone, while the workout has none) and a tertiary `Reorder or
+  remove` with `aria-expanded`. Full screen hides the section.
+  - `Add exercises` opens §8.1's picker over the workout, its back reading `Back to the workout`.
+    The workout stays mounted under it, hidden as under the guide, so a set half typed and a rest
+    counting are kept. Ticked exercises join the end of the workout in the order ticked, and focus
+    comes back to `Add exercises`. `New exercise` opens the exercise form as in the routine editor.
+  - `Reorder or remove` opens the routine editor's slot list in place, without figures: the number,
+    the name (`· Open` on the exercise on screen), `Remove`; under them `2 SETS LOGGED` or `NO SETS
+    YET` and the move up and move down buttons, `aria-disabled` at the ends so focus stays on the
+    button that moved. Removing an exercise with no set is immediate and moves focus to the row now
+    in its place. With sets, `Remove` becomes the question in place (§8.1's delete pattern):
+    `Remove Bench Press? Its 3 logged sets go with it.` — `Keep` / `Remove`, focus on `Keep`.
+  - The exercise on screen stays on screen through a reorder; removing it opens the first. A rest
+    counted from a removed set stops. None of it changes the routine.
+  - An empty workout reads `No exercises yet. Add them as you go: each one opens with last time
+    and today's target.` in place of the exercise, over the rest bar's `Starts by itself after
+    each set.`
 - **Finish.** A tertiary `Finish workout` under the lists, which becomes the question in place
   (`Finish Push A? 9 sets logged.` — `Keep going` / `Finish`), the delete pattern of §8.1. With no
   set logged it says nothing is kept (`09` F3). Finishing opens the workout's page in History
@@ -607,8 +627,9 @@ screens and states the PRD requires that Phase 2 did not draw.
 
 - **Workout start** (S4) from a routine. Routine selection and the no-routines empty state are
   specified in §8.1, from slice 2; Today and the start itself in §8.2, from slice 3. The finish
-  summary is the workout's page in History (§9, 2026-10-11). Start empty and changing a live
-  workout's exercises are not designed yet; they are built alongside M2 (`06`, 2026-10-16).
+  summary is the workout's page in History (§9, 2026-10-11). Start empty (§8.2) and changing a
+  live workout's exercises (§1) were designed in the build, alongside M2 (`06`, 2026-10-16 and
+  2026-10-17).
 - **Food list management** (S12) and manual label entry, goal phase and macro target setup (S14),
   routine and meal count (S15), typed weight (S11) and the scale's setup. Drawn in the M2 prototype
   and approved 2026-10-16: §8.6.
@@ -740,7 +761,16 @@ data-state slot. Under the tabs, in order:
   with a workout finished on the device laid over it. Until that call has answered the line is
   left out, so `Not done yet` is never said early; so is a routine's line whose answer is a workout
   since deleted on the device, until the server answers again. A routine deleted and made again starts over.
-- **No routines:** the empty state of the routine list, `Create a routine`.
+- **Empty workout, 2026-10-17** (`09` F2 step 3): the last row of the start list, `Empty workout`
+  over `NO ROUTINE` and `Add exercises as you go`, with `START`. The tap opens the name in place
+  under the row: `Start an empty workout. Name it, or leave it as Workout.`, a `Workout name` field
+  with `Workout` as its placeholder, then `Cancel` / `Start workout`. Left empty, the workout is
+  named `Workout`; over 80 characters is refused on the field, `Shorten it to 80 characters or fewer`. While a workout is in progress the
+  tap asks `Finish Push A first?` — `Resume` / `Finish`, as a routine does, and `Finish` then opens
+  the name. Cancel returns focus to the row.
+- **No routines:** the empty state of the routine list, `Create a routine`, with one more sentence,
+  `Or start an empty workout and add exercises as you go.`, and a secondary `Start an empty
+  workout` under it that opens the same name in place.
 - **Last workout, 2026-10-11** (§9): a link row under the routines, `PUSH A · FRI 9 OCT` over
   `13 working sets · 54 min · yesterday`, with a forward chevron. It opens the newest finished
   workout's page in History, and is not drawn before the first workout is finished.

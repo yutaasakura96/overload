@@ -46,13 +46,13 @@ Vocabulary is `CONTEXT.md`'s: **workout** (not session), **confirm**, **pending*
 ### F2. First run
 
 1. First sign-in lands on Today. With no routines, Today's training card offers **Create a
-   routine**. Today also holds the profile form (time zone and weight unit), reading "Set up your
-   profile" until it is first saved (`10` §8.2). **Start an empty workout** is planned but not
-   built yet (`06`, 2026-10-03).
+   routine** and **Start an empty workout**. Today also holds the profile form (time zone and weight
+   unit), reading "Set up your profile" until it is first saved (`10` §8.2).
 2. **Create a routine:** name → add exercises from the picker (F5) → per slot, target sets and rep
    range (default 6–10) → save.
-3. **Planned — Start an empty workout:** goes straight to F3 with no exercises; the user adds them
-   from the picker.
+3. **Start an empty workout** (built 2026-10-17, `06`): a name in place, `Workout` when left
+   empty, then F3 with no routine and no exercises; the user adds them from the picker (step 4).
+   With routines it is the last row of Today's start list. The one-workout rule of F3 applies.
 
 | Step | Goes wrong | User sees |
 | --- | --- | --- |
@@ -66,12 +66,13 @@ Vocabulary is `CONTEXT.md`'s: **workout** (not session), **confirm**, **pending*
 Works identically offline. Every write below goes to the IndexedDB set store first and uploads later
 (`03` §8.1).
 
-1. **Start.** Tap a routine on Today. The phone creates the `workout` and its
-   `workout_exercise` rows with UUIDv7 ids, copying rep range, increment and target sets (`04`):
+1. **Start.** Tap a routine on Today, or start an empty workout (F2 step 3). The phone creates the
+   `workout` with a UUIDv7 id; a routine also creates its `workout_exercise` rows with UUIDv7 ids,
+   copying rep range, increment and target sets (`04`):
    the routine slot's range if it has one, else the user's own, else the exercise's default.
    Last time and suggestions come from the offline cache when available (`07` §3, "Last time and
-   suggestions") and are kept with the workout from then on. Without that data, last time is
-   unknown (`10` §1).
+   suggestions") and are kept with each exercise from when it joins the workout. Without that data,
+   last time is unknown (`10` §1).
 2. **Log a set.** The active set card opens with weight, reps and RIR as specified in `10` §1.
    Edit or clear the figures, optionally mark a warm-up (S6), then tap the tick. RPE entry waits
    for a later slice (`06`, 2026-10-03). The set is written locally before the screen updates.
@@ -89,9 +90,14 @@ Works identically offline. Every write below goes to the IndexedDB set store fir
    carries them since slice 4 (2026-10-08), and the screen edits or discards a refused set (F4).*
    **A ticked set is corrected from its tick** (built 2026-10-11, `06`): the tick opens the set
    editor of F3a under the row, which changes the weight, reps and RIR or deletes the set, uploaded
-   or not. The card under the table is then made again from the corrected set. *Changing the
-   exercises has no screen yet.* Any exercise of the workout can be opened from **Up next** or
-   **Done**, in any order.
+   or not. The card under the table is then made again from the corrected set. **The exercises are
+   changed under `Change exercises`** (built 2026-10-17, `06`; `10` §1): `Add exercises` opens the
+   picker over the workout, and each added exercise opens as one from a routine does, with last
+   time and the suggestion from the offline cache (step 1), 3 target sets and the exercise's rep
+   range. `Reorder or remove` lists them in place to move up or down or remove; an exercise with
+   ticked sets asks first, and its sets go with it, deleted through sync with tombstones. The open
+   exercise stays open through a reorder. Any exercise of the workout can be opened from **Up
+   next** or **Done**, in any order.
 5. **Finish.** Tap **Finish workout**, confirm → `ended_at` is set to now → the workout's own page
    in History (F3a), which says `Workout finished. It is in History from now on.` once and serves
    as the summary (built 2026-10-11, `06`). Back from it goes to History. A workout finished with

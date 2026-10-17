@@ -10,13 +10,15 @@ import {
   type ExerciseFilter,
 } from '../exercise-list';
 
-// S8's picker, opened from the routine editor (docs/09 F2 step 2, F5 step 1; docs/10 §8.1). Several
-// exercises can be ticked at once, and they join the routine in the order they were ticked.
+// S8's picker, opened from the routine editor (docs/09 F2 step 2, F5 step 1; docs/10 §8.1) and from a
+// live workout (F3 step 4). Several exercises can be ticked at once, and they join the routine or the
+// workout in the order they were ticked.
 
 export function ExercisePicker({
   exercises,
   failed,
   slot,
+  backLabel = 'Back to the routine',
   onCancel,
   onAdd,
   onCreate,
@@ -25,6 +27,8 @@ export function ExercisePicker({
   exercises: Exercise[] | undefined;
   failed: boolean;
   slot: ReactNode;
+  /** Where back goes: the screen the picker opened over. */
+  backLabel?: string;
   onCancel: () => void;
   onAdd: (exerciseIds: string[]) => void;
   onCreate: () => void;
@@ -51,7 +55,7 @@ export function ExercisePicker({
         title="Add exercises"
         subline={picked.length === 0 ? undefined : `${picked.length} TICKED`}
         slot={slot}
-        back={{ label: 'Back to the routine', onClick: onCancel }}
+        back={{ label: backLabel, onClick: onCancel }}
       />
 
       {failed && (

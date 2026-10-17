@@ -1622,6 +1622,41 @@ main:focus {
   margin: 0;
 }
 
+/* Changing the workout's exercises (docs/10 §1): the routine editor's slot rows, without figures */
+.workout__changes {
+  display: grid;
+  gap: 10px;
+  padding: 22px var(--gutter) 0;
+}
+.workout__changes .section-label,
+.workout__changes .notice {
+  margin: 0;
+}
+.workout__change-actions {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+.workout__change-actions > :only-child {
+  grid-column: 1 / -1;
+}
+.slot__foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-left: 30px;
+}
+.slot__meta {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  color: var(--text-quaternary);
+}
+.slot__confirm {
+  margin-left: 30px;
+}
+
 /* 4.14 Rest bar: fixed to the bottom edge, over the home indicator's inset, for the whole workout */
 .rest-bar {
   position: fixed;
