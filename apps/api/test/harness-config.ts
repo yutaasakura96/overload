@@ -12,4 +12,5 @@ export const testConfig: Config = {
   googleClientId: 'test-google-client',
   googleClientSecret: 'test-google-secret',
   adminEmail: ADMIN_EMAIL,
+  anthropicApiKey: null,
 };

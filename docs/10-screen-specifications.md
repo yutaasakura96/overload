@@ -398,6 +398,10 @@ end-of-day card on Today (§3).
 14). The Food tab (Q7) holds four sections as `05` §4.8's segments under the tabs: `Prep`, `Grocery`,
 `Foods`, `Batches`, opening on `Prep` (Q3). `Foods` is §8.6.
 
+**As built in M2 slice 3** (`#78`, `06` 2026-10-17): the Food tab is the fifth tab, at `/food`, and
+holds `Foods` only. With one section the segments are not drawn; they come with Prep and Grocery
+(`#81`), and the tab opens on `Prep` then. Five tabs fit 390px with the tabs' tracking at 0.04em.
+
 ### Prep (S17, Q8)
 
 | Block | Content |
@@ -972,9 +976,44 @@ the first, `That amount weighs`. For those other bases, the fields hold the pack
 the converted per-100 g values appear below them before saving. A duplicate shows `Already on
 your list` with a link to it.
 
+When a label or barcode gives values per piece, serving or package without its weight, `That amount
+weighs` appears under `AS PRINTED`. The editable fields start with the source's figures on that
+basis, and the converted per-100 g preview appears below them. Saving requires the weight and
+sends those figures on the printed basis for conversion by the API.
+For a label printed per 100 ml, the box says `Per 100 ml` and asks what 100 ml weighs; the preview
+then converts the printed values using that weight.
+
 **Rotation groups.** A lede (the planner varies the week within a group; Adjust offers the others as
 swaps), then a section per group, `STARCH · 2`, with its foods as 48px rows and a tertiary `Remove`,
 and `+ Add a food to starch`. A secondary `New group`.
+
+**As built in M2 slice 3** (`#78`, `06` 2026-10-17), at `/food`, `/food/{id}`, `/food/{id}/edit`,
+`/food/new`, `/food/new/barcode`, `/food/new/label`, `/food/new/check` and `/food/groups`, checked at
+390px in both themes on invented foods:
+- Calories print whole on the list, the picks, a food's page and the per-100 g preview, as everywhere
+  else in the app; the stored value keeps its hundredths, and `As printed` shows what the source
+  printed.
+- MEXT's own name is printed without its leading food group (`＜魚類＞`), which the English name
+  already says, and with one space between words. A food MEXT gives no English name is listed by
+  that name.
+- One food leaves out its batches and `Record a batch` until `#81`. `Archive` asks first, with
+  `05`'s delete confirmation (`Keep` / `Archive`); archived, the list says `Archived. Past plans
+  still name it.` once, and the food's page says it is archived.
+- Both camera boxes are `surface/status-bar`, the one colour the same in both themes, with a
+  `line/border` edge, and their caption sits under the box in `text/tertiary`: over it, no text token
+  holds its contrast on black in light, nor over whatever the camera sees.
+- Scan a barcode also takes the number typed (`Or type the number`, the number pad), for a phone
+  without a camera or one not allowed; then the frame's caption says so. The camera is read with
+  the browser's `BarcodeDetector`, or the ZXing ponyfill where there is none, its
+  WebAssembly served by the app. A barcode not found is carried to the label photo or the form as
+  the food's key.
+- Photograph the label opens the phone's camera through the file input, and the photo is resized to
+  1568px as JPEG before it is sent. The reader down, or no signal, offers `Continue by hand` and
+  `Try another photo`: nothing was read, so the form opens empty, keeping a scanned barcode.
+- A duplicate, from a pick already on the list or refused on saving (`food_exists`), says `Nothing
+  was saved: it is on your list already.` with `Open it`.
+- When an outcome replaces the button pressed (a lookup, a read, a group's change), focus moves to
+  what replaced it.
 
 **About you** (F10 step 0). `ABOUT YOU` over `STEP 1 OF 4`: weight (from a weigh-in when there is
 one, noted so), height, birth date, and `Sex, for the formula only` as two segments. `Save`.

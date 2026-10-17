@@ -1579,6 +1579,726 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/foods': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** The food list, by name */
+    get: {
+      parameters: {
+        query?: {
+          /** @description Include archived foods. Default `false`. */
+          includeArchived?: 'true' | 'false';
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Every food on the list, by name */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['FoodList'];
+          };
+        };
+        /** @description A parameter of the wrong type */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    put?: never;
+    /** Add a confirmed food, converted to per 100 g */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['FoodCreate'];
+        };
+      };
+      responses: {
+        /** @description A repeat of the same create: the stored food */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['Food'];
+          };
+        };
+        /** @description Created */
+        201: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['Food'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `id_conflict`: the id is in use with other content; `food_exists`: the same barcode, MEXT code, or name, brand and state is on the list, named by `existingFoodId` */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `validation_failed`, including a basis without its weight, a value above what 100 g can hold, and a rotation group that is not the caller’s */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/foods/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Archive a food. Past plans keep it. 204 whenever the caller has no listed food with that id afterwards */
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Archived, or never on the caller’s list */
+        204: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description A malformed id */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    /** Edit a food’s values per 100 g, piece weight, keeping days or rotation group */
+    patch: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['FoodPatch'];
+        };
+      };
+      responses: {
+        /** @description The food as it now stands */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['Food'];
+          };
+        };
+        /** @description A malformed id */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description The caller has no food with that id */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `food_exists`: another food on the list has that name, brand and state */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `validation_failed` */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    trace?: never;
+  };
+  '/api/reference-foods': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Search the MEXT table (八訂 増補2023), 20 results, best match first */
+    get: {
+      parameters: {
+        query: {
+          /** @description Words in the English name or the name as MEXT prints it. Every word must match. */
+          q: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description The matches, best first */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ReferenceFoodList'];
+          };
+        };
+        /** @description `q` empty or over 80 characters */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/barcodes/{code}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Look a barcode up in Open Food Facts. A candidate, never a saved food */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          code: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description The candidate and its values per 100 g; or, when the list has that barcode, `existingFoodId` and no lookup */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['BarcodeLookup'];
+          };
+        };
+        /** @description Not a barcode of 8 to 14 digits */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `not_found`: not in Open Food Facts */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `rate_limited`: Open Food Facts’ 15 reads a minute */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `upstream_failed`: Open Food Facts did not answer */
+        502: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/label-reads': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Read the 栄養成分表示 in a photo. A candidate with its basis, never a saved food */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'multipart/form-data': {
+            /**
+             * Format: binary
+             * @description JPEG, PNG or WebP, at most 4 MB. The client resizes to 1568 px on the long edge.
+             */
+            image: string;
+          };
+        };
+      };
+      responses: {
+        /** @description What the label prints, on its basis, and the same per 100 g */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['LabelRead'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `payload_too_large`: over 4 MB */
+        413: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `validation_failed`: no image, or not JPEG, PNG or WebP; `unreadable_label`: no nutrition table the model could read */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `model_cap_reached`: the day’s model calls, label reads and meal estimates together, are used up */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `upstream_failed`: the reader did not answer, or is not set up */
+        502: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/rotation-groups': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** The rotation groups, by name, with their foods */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Every group, by name */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['RotationGroupList'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    put?: never;
+    /** Make a group of foods that stand in for each other */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['RotationGroupCreate'];
+        };
+      };
+      responses: {
+        /** @description A repeat of the same create: the stored group */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['RotationGroup'];
+          };
+        };
+        /** @description Created */
+        201: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['RotationGroup'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `id_conflict`: the id is in use with other content */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `validation_failed`, including a food that is not on the caller’s list */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/rotation-groups/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Delete a group. Its foods stay, ungrouped */
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description The caller has no group with that id */
+        204: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description A malformed id */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    /** Rename a group, or replace its foods */
+    patch: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['RotationGroupPatch'];
+        };
+      };
+      responses: {
+        /** @description The group as it now stands */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['RotationGroup'];
+          };
+        };
+        /** @description A malformed id */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description The caller has no group with that id */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `validation_failed`, including a food that is not on the caller’s list */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    trace?: never;
+  };
   '/api/admin/invites': {
     parameters: {
       query?: never;
@@ -1913,6 +2633,11 @@ export interface components {
       }[];
       /** @description Present only for `setup_incomplete`: the steps to finish first. */
       missing?: ('profile' | 'foods' | 'day_routine' | 'goal_phase')[];
+      /**
+       * Format: uuid
+       * @description Present only for `food_exists`: the food already on the list.
+       */
+      existingFoodId?: string;
     };
     /** @description Omitted fields are unchanged and `null` clears one. The first save creates the profile. */
     ProfilePatch: {
@@ -1929,7 +2654,7 @@ export interface components {
       trainingWeekdays?: number[];
       weightUnit?: components['schemas']['WeightUnit'];
     };
-    /** @description One page of one section. `profile` has one item; `exercises`, `routines`, `workouts` and `weighIns` are cursor-paged. Workouts include ones in progress. */
+    /** @description One page of one section. `profile` has one item; `exercises`, `routines`, `workouts`, `weighIns`, `foods` and `rotationGroups` are cursor-paged. Workouts include ones in progress, and `foods` archived ones. */
     ExportPage:
       | {
           /** @enum {string} */
@@ -1963,6 +2688,20 @@ export interface components {
           /** @enum {string} */
           section: 'weighIns';
           items: components['schemas']['WeighIn'][];
+          /** @description Opaque. Send it back as `cursor` for the next page. */
+          nextCursor: string | null;
+        }
+      | {
+          /** @enum {string} */
+          section: 'foods';
+          items: components['schemas']['Food'][];
+          /** @description Opaque. Send it back as `cursor` for the next page. */
+          nextCursor: string | null;
+        }
+      | {
+          /** @enum {string} */
+          section: 'rotationGroups';
+          items: components['schemas']['RotationGroup'][];
           /** @description Opaque. Send it back as `cursor` for the next page. */
           nextCursor: string | null;
         };
@@ -2220,11 +2959,82 @@ export interface components {
        */
       source: 'apple_health' | 'manual';
     };
+    /** @description One food on the list. Values are per 100 g of `state`. */
+    Food: {
+      /**
+       * Format: uuid
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      id: string;
+      /** @example 鶏むね肉（皮なし） */
+      name: string;
+      brand: string | null;
+      state: components['schemas']['FoodState'];
+      /** @example 105 */
+      energyKcal: number;
+      /** @example 23.3 */
+      proteinG: number;
+      /** @example 0.1 */
+      carbG: number;
+      /** @example 1.9 */
+      fatG: number;
+      /** @example 0 */
+      fiberG: number;
+      /**
+       * @description Set for a food counted in pieces. Null: counted in grams.
+       * @example 55
+       */
+      pieceWeightG: number | null;
+      /**
+       * @description How many days a cooked batch keeps. Null: not batch-cooked.
+       * @example 4
+       */
+      keepsDays: number | null;
+      source: components['schemas']['FoodSource'];
+      /** @description The MEXT food code, or the barcode. */
+      sourceRef: string | null;
+      /**
+       * Format: uuid
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      rotationGroupId: string | null;
+      /**
+       * Format: date-time
+       * @description Off the list and out of new plans; past plans still name it.
+       * @example 2026-11-11T09:01:40.000Z
+       */
+      archivedAt: string | null;
+    };
+    /**
+     * @description The state the values are for: weighed raw, or weighed cooked.
+     * @enum {string}
+     */
+    FoodState: 'raw' | 'cooked';
+    /** @enum {string} */
+    FoodSource: 'mext' | 'open_food_facts' | 'label_photo' | 'manual';
+    RotationGroup: {
+      /**
+       * Format: uuid
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      id: string;
+      /** @example Starch */
+      name: string;
+      /** @description Its foods on the list, by name. */
+      foodIds: string[];
+    };
     /**
      * @description The sections built so far. Later milestones add theirs (docs/07 §2).
      * @enum {string}
      */
-    ExportSection: 'profile' | 'exercises' | 'routines' | 'workouts' | 'weighIns';
+    ExportSection:
+      | 'profile'
+      | 'exercises'
+      | 'routines'
+      | 'workouts'
+      | 'weighIns'
+      | 'foods'
+      | 'rotationGroups';
     ExerciseList: {
       items: components['schemas']['Exercise'][];
     };
@@ -3060,6 +3870,173 @@ export interface components {
        * @example 18.5
        */
       bodyFatPct?: number | null;
+    };
+    FoodList: {
+      items: components['schemas']['Food'][];
+    };
+    /** @description A confirmed food, with its values on the basis they were read in. The API converts to per 100 g. */
+    FoodCreate: {
+      /**
+       * Format: uuid
+       * @description Made on the device (UUIDv7). A repeat returns the row.
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      id: string;
+      /** @example サラダチキン プレーン */
+      name: string;
+      /** @description Default: none. */
+      brand?: string | null;
+      state: components['schemas']['FoodState'];
+      basis: components['schemas']['Basis'];
+      energyKcal: number;
+      proteinG: number;
+      carbG: number;
+      fatG: number;
+      /** @description Null when the source gave none: saved as 0. */
+      fiberG: number | null;
+      /** @example 55 */
+      pieceWeightG?: number | null;
+      /** @example 4 */
+      keepsDays?: number | null;
+      source: components['schemas']['FoodSource'];
+      sourceRef?: string | null;
+      /**
+       * Format: uuid
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      rotationGroupId?: string | null;
+    };
+    /** @description The amount a set of values is for (docs/07 §4). */
+    Basis: {
+      /** @enum {string} */
+      kind: 'per_100g' | 'per_100ml' | 'per_piece' | 'per_serving' | 'per_package';
+      /** @description The weight of the stated amount, when known. `per_100g` is 100 whatever is sent; `per_100ml` needs the weight of 100 ml. */
+      grams: number | null;
+    };
+    /** @description Values per 100 g. An omitted field is unchanged. */
+    FoodPatch: {
+      name?: string;
+      brand?: string | null;
+      state?: components['schemas']['FoodState'];
+      /** @example 105 */
+      energyKcal?: number;
+      /** @example 23.3 */
+      proteinG?: number;
+      /** @example 0.1 */
+      carbG?: number;
+      /** @example 1.9 */
+      fatG?: number;
+      /** @example 0 */
+      fiberG?: number;
+      /** @example 55 */
+      pieceWeightG?: number | null;
+      /** @example 4 */
+      keepsDays?: number | null;
+      /**
+       * Format: uuid
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      rotationGroupId?: string | null;
+    };
+    ReferenceFoodList: {
+      items: components['schemas']['ReferenceFood'][];
+    };
+    /** @description One entry of 日本食品標準成分表（八訂）増補2023年 (MEXT), per 100 g. */
+    ReferenceFood: {
+      /** @example 11220 */
+      code: string;
+      /**
+       * @description As MEXT prints it.
+       * @example ＜鳥肉類＞　にわとり　［若どり・主品目］　むね　皮なし　生
+       */
+      name: string;
+      /**
+       * @description From the 2015 English table, by food number. Null for a food added since.
+       * @example Chicken, broiler, breast, meat without skin, raw
+       */
+      nameEn: string | null;
+      /** @description MEXT 食品群, 1 to 18. */
+      foodGroup: number;
+      state: components['schemas']['FoodState'];
+      /** @example 105 */
+      energyKcal: number;
+      /** @example 23.3 */
+      proteinG: number;
+      /** @example 0.1 */
+      carbG: number;
+      /** @example 1.9 */
+      fatG: number;
+      /** @example 0 */
+      fiberG: number;
+      /**
+       * Format: uuid
+       * @description The food on the caller’s list with this MEXT code, if there is one.
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      existingFoodId: string | null;
+    };
+    BarcodeLookup: {
+      /** @description Null when the barcode is on the list already: nothing is looked up. */
+      candidate: components['schemas']['FoodCandidate'] | null;
+      /** @description The candidate converted to per 100 g, as it would be saved. Null when the basis has no weight. */
+      per100g: {
+        energyKcal: number | null;
+        proteinG: number | null;
+        carbG: number | null;
+        fatG: number | null;
+        fiberG: number | null;
+      } | null;
+      /**
+       * Format: uuid
+       * @description The food on the caller’s list with this barcode, if there is one.
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      existingFoodId: string | null;
+    };
+    /** @description What a source gave, as printed, on its basis. A value it did not give is null, never a guess. Not saved. */
+    FoodCandidate: {
+      name: string | null;
+      brand: string | null;
+      state: components['schemas']['FoodState'] & (string | null);
+      basis: components['schemas']['Basis'];
+      energyKcal: number | null;
+      proteinG: number | null;
+      carbG: number | null;
+      fatG: number | null;
+      fiberG: number | null;
+    };
+    LabelRead: {
+      candidate: components['schemas']['FoodCandidate'];
+      /** @description The candidate converted to per 100 g, as it would be saved. Null when the basis has no weight. */
+      per100g: {
+        energyKcal: number | null;
+        proteinG: number | null;
+        carbG: number | null;
+        fatG: number | null;
+        fiberG: number | null;
+      } | null;
+      /** @example claude-haiku-4-5 */
+      model: string;
+    };
+    RotationGroupList: {
+      items: components['schemas']['RotationGroup'][];
+    };
+    RotationGroupCreate: {
+      /**
+       * Format: uuid
+       * @description Made on the device (UUIDv7). A repeat returns the group.
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      id: string;
+      /** @example Starch */
+      name: string;
+      /** @description Its foods. Each leaves any group it was in. */
+      foodIds: string[];
+    };
+    RotationGroupPatch: {
+      name?: string;
+      /** @description The whole membership. A food left out stays on the list, ungrouped. */
+      foodIds?: string[];
     };
     InviteList: {
       items: components['schemas']['Invite'][];

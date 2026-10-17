@@ -9,6 +9,9 @@ const Env = z.object({
   GOOGLE_CLIENT_ID: z.string().min(1),
   GOOGLE_CLIENT_SECRET: z.string().min(1),
   ADMIN_EMAIL: z.email(),
+  // Label reads (S12). Optional: until the owner sets it (docs/00), a label read answers as if the
+  // reader were down.
+  ANTHROPIC_API_KEY: z.string().min(1).optional(),
 });
 
 export type Config = {
@@ -20,6 +23,8 @@ export type Config = {
   googleClientSecret: string;
   /** Lowercased, so it compares with the lowercased emails in `invite`. */
   adminEmail: string;
+  /** Null until set: label reads then answer `upstream_failed` and count nothing. */
+  anthropicApiKey: string | null;
 };
 
 export function readConfig(env: Record<string, string | undefined> = process.env): Config {
@@ -37,5 +42,6 @@ export function readConfig(env: Record<string, string | undefined> = process.env
     googleClientId: e.GOOGLE_CLIENT_ID,
     googleClientSecret: e.GOOGLE_CLIENT_SECRET,
     adminEmail: e.ADMIN_EMAIL.toLowerCase(),
+    anthropicApiKey: e.ANTHROPIC_API_KEY ?? null,
   };
 }

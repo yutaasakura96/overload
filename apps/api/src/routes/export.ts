@@ -1,14 +1,17 @@
 import { createRoute, defineOpenAPIRoute, z } from '@hono/zod-openapi';
 import type { AppEnv, RouteDeps } from '../app-env.js';
 import { exportExercises } from '../db/exercises.js';
+import { exportFoods } from '../db/foods.js';
 import { exportWorkouts } from '../db/history.js';
 import { getProfile } from '../db/profile.js';
+import { exportRotationGroups } from '../db/rotation-groups.js';
 import { exportRoutines } from '../db/routines.js';
 import { exportWeighIns } from '../db/weigh-ins.js';
 import { accountHeaders } from '../lib/account.js';
 import { problem, problemResponse } from '../lib/problem.js';
 import { pageQuery } from './paging.js';
 import { ExportPage, ExportSection, Uuid } from './schemas.js';
+import { foodJson } from './foods.js';
 import { weighInJson } from './weigh-ins.js';
 
 // S10's export (docs/07 §2). Sectioned and paged because Vercel caps a response body at 4.5 MB; the
@@ -25,6 +28,8 @@ export const EXPORTED_TABLES = {
   routines: ['routine', 'routine_exercise'],
   workouts: ['workout', 'workout_exercise', 'set'],
   weighIns: ['body_measurement'],
+  foods: ['food'],
+  rotationGroups: ['rotation_group'],
 } as const satisfies Record<ExportSection, readonly string[]>;
 
 type ExportSection = z.infer<typeof ExportSection>;
@@ -42,6 +47,8 @@ const ExportCursor = z.discriminatedUnion('section', [
     measuredAt: z.iso.datetime({ offset: true }),
     id: Uuid,
   }),
+  z.object({ section: z.literal('foods'), id: Uuid }),
+  z.object({ section: z.literal('rotationGroups'), id: Uuid }),
 ]);
 
 type ExportCursor = z.infer<typeof ExportCursor>;
@@ -69,6 +76,8 @@ export const NOT_EXPORTED = [
   'audit_event',
   'sync_tombstone',
   'health_sync_state',
+  // The daily count of model calls, against the cap (docs/06, 2026-09-22).
+  'model_call_count',
 ] as const;
 
 const getExport = createRoute({
@@ -148,6 +157,34 @@ export function exportRoutes({ db }: RouteDeps) {
             {
               section,
               items: page.items.map(weighInJson),
+              nextCursor: page.next === null ? null : encodeExportCursor({ section, ...page.next }),
+            },
+            200,
+          );
+        }
+        if (section === 'foods') {
+          const page = await exportFoods(db, user.id, {
+            limit,
+            after: after?.section === 'foods' ? after : undefined,
+          });
+          return c.json(
+            {
+              section,
+              items: page.items.map(foodJson),
+              nextCursor: page.next === null ? null : encodeExportCursor({ section, ...page.next }),
+            },
+            200,
+          );
+        }
+        if (section === 'rotationGroups') {
+          const page = await exportRotationGroups(db, user.id, {
+            limit,
+            after: after?.section === 'rotationGroups' ? after : undefined,
+          });
+          return c.json(
+            {
+              section,
+              items: page.items,
               nextCursor: page.next === null ? null : encodeExportCursor({ section, ...page.next }),
             },
             200,

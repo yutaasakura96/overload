@@ -5,11 +5,18 @@ import type { components, paths } from './schema';
 export type { components, operations, paths } from './schema';
 
 export type Balance = components['schemas']['Balance'];
+export type BarcodeLookup = components['schemas']['BarcodeLookup'];
+export type Basis = components['schemas']['Basis'];
 export type BalanceView = Balance['view'];
 export type Equipment = components['schemas']['Equipment'];
 export type Exercise = components['schemas']['Exercise'];
 export type ExportPage = components['schemas']['ExportPage'];
+export type Food = components['schemas']['Food'];
+export type FoodCandidate = components['schemas']['FoodCandidate'];
+export type FoodSource = components['schemas']['FoodSource'];
+export type FoodState = components['schemas']['FoodState'];
 export type Invite = components['schemas']['Invite'];
+export type LabelRead = components['schemas']['LabelRead'];
 export type LastTime = components['schemas']['LastTime'];
 export type Me = components['schemas']['Me'];
 // The generated component carries the `null` of the fields that use it, as `Profile` does.
@@ -17,6 +24,8 @@ export type MuscleGroup = NonNullable<components['schemas']['MuscleGroup']>;
 export type MuscleBalance = components['schemas']['MuscleBalance'];
 export type Problem = components['schemas']['Problem'];
 export type Profile = components['schemas']['Profile'];
+export type ReferenceFood = components['schemas']['ReferenceFood'];
+export type RotationGroup = components['schemas']['RotationGroup'];
 export type Progress = components['schemas']['Progress'];
 export type ProgressPoint = components['schemas']['ProgressPoint'];
 export type Routine = components['schemas']['Routine'];

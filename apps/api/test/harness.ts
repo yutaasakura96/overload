@@ -2,6 +2,7 @@ import { testUtils, type TestHelpers } from 'better-auth/plugins';
 import { inArray, sql } from 'drizzle-orm';
 import { Pool } from 'pg';
 import { afterAll, afterEach, beforeAll, beforeEach } from 'vitest';
+import type { FoodSources } from '../src/app-env';
 import { createApp } from '../src/create-app';
 import { createAuth } from '../src/auth/auth';
 import { createDatabase } from '../src/db/connection';
@@ -10,6 +11,12 @@ import { testDatabaseUrl } from './database-urls';
 import { WEB_ORIGIN, testConfig } from './harness-config';
 
 export { ADMIN_EMAIL, WEB_ORIGIN, testConfig } from './harness-config';
+
+/** No outside service is ever called from a test: Open Food Facts fails, and no reader is set up. */
+const noFoodSources: FoodSources = {
+  openFoodFacts: { lookup: async () => ({ kind: 'failed' }) },
+  labelReader: null,
+};
 
 /** What Google would assert about a user. The stub below reads it back out of the "id token". */
 export type GoogleIdentity = { sub: string; email: string; emailVerified: boolean; name?: string };
@@ -26,7 +33,11 @@ export type GoogleIdentity = { sub: string; email: string; emailVerified: boolea
  * Better Auth's own sign-in pipeline all run for real. `testUtils()` sits on this test-only
  * instance and never in the production config.
  */
-export function useTestApp({ committed = false }: { committed?: boolean } = {}) {
+export function useTestApp({
+  committed = false,
+  foodSources = noFoodSources,
+  log = () => {},
+}: { committed?: boolean; foodSources?: FoodSources; log?: (line: string) => void } = {}) {
   // max: 1 and no idle timeout keep every query, Better Auth's included, on the one connection that
   // holds the open transaction.
   const pool = new Pool({
@@ -88,7 +99,7 @@ export function useTestApp({ committed = false }: { committed?: boolean } = {}) 
     },
     plugins: [testUtils()],
   });
-  const app = createApp({ auth, config: testConfig, db, log: () => {} });
+  const app = createApp({ auth, config: testConfig, db, log, foodSources });
 
   beforeAll(async () => {
     await pool.query('SELECT 1');

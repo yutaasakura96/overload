@@ -1,5 +1,6 @@
 import { z } from '@hono/zod-openapi';
 import { BALANCE_VIEWS, MUSCLE_GROUPS, MUSCLE_STATUSES } from '../domain/balance.js';
+import { BASIS_KINDS, PER_100G_MAX } from '../domain/food.js';
 import { SPANS } from '../domain/progress.js';
 import { LIFT_STATUSES, STRENGTH_SPANS, STRENGTH_STATUSES } from '../domain/strength.js';
 
@@ -874,6 +875,236 @@ export const WeighIns = z
   })
   .openapi('WeighIns');
 
+// The food list and its sources (S12, docs/07 §4). Every stored value is per 100 g of the state
+// named; a lookup's candidate carries its source's basis, and the API converts.
+
+export const FoodState = z.enum(['raw', 'cooked']).openapi('FoodState', {
+  description: 'The state the values are for: weighed raw, or weighed cooked.',
+});
+
+export const FoodSource = z
+  .enum(['mext', 'open_food_facts', 'label_photo', 'manual'])
+  .openapi('FoodSource');
+
+export const Basis = z
+  .object({
+    kind: z.enum(BASIS_KINDS),
+    grams: z.number().positive().max(10000).nullable().openapi({
+      description:
+        'The weight of the stated amount, when known. `per_100g` is 100 whatever is sent; `per_100ml` needs the weight of 100 ml.',
+    }),
+  })
+  .openapi('Basis', { description: 'The amount a set of values is for (docs/07 §4).' });
+
+/** A value per 100 g, to the hundredth, as `numeric(6,2)` keeps it. */
+const per100 = (max: number) => z.number().min(0).max(max).multipleOf(0.01);
+const PieceWeightG = z.number().positive().max(5000).multipleOf(0.01).openapi({ example: 55 });
+const KeepsDays = z.int().min(1).max(30).openapi({ example: 4 });
+const Brand = z.string().trim().min(1).max(80);
+const SourceRef = z.string().trim().min(1).max(40);
+
+const Per100gFields = {
+  energyKcal: per100(PER_100G_MAX.energyKcal).openapi({ example: 105 }),
+  proteinG: per100(PER_100G_MAX.proteinG).openapi({ example: 23.3 }),
+  carbG: per100(PER_100G_MAX.carbG).openapi({ example: 0.1 }),
+  fatG: per100(PER_100G_MAX.fatG).openapi({ example: 1.9 }),
+  fiberG: per100(PER_100G_MAX.fiberG).openapi({ example: 0 }),
+};
+
+export const Food = z
+  .object({
+    id: Uuid,
+    name: z.string().openapi({ example: '鶏むね肉（皮なし）' }),
+    brand: z.string().nullable(),
+    state: FoodState,
+    ...Per100gFields,
+    pieceWeightG: PieceWeightG.nullable().openapi({
+      description: 'Set for a food counted in pieces. Null: counted in grams.',
+    }),
+    keepsDays: KeepsDays.nullable().openapi({
+      description: 'How many days a cooked batch keeps. Null: not batch-cooked.',
+    }),
+    source: FoodSource,
+    sourceRef: z
+      .string()
+      .nullable()
+      .openapi({ description: 'The MEXT food code, or the barcode.' }),
+    rotationGroupId: Uuid.nullable(),
+    archivedAt: Instant.nullable().openapi({
+      description: 'Off the list and out of new plans; past plans still name it.',
+    }),
+  })
+  .openapi('Food', { description: 'One food on the list. Values are per 100 g of `state`.' });
+
+export const FoodList = z.object({ items: z.array(Food) }).openapi('FoodList');
+
+/** A value as a source or the user gave it, on its basis. Bounded per 100 g after conversion. */
+const Given = z.number().min(0).max(100000);
+
+export const FoodCreate = z
+  .object({
+    id: Uuid.openapi({ description: 'Made on the device (UUIDv7). A repeat returns the row.' }),
+    name: Name.openapi({ example: 'サラダチキン プレーン' }),
+    brand: Brand.nullable().optional().openapi({ description: 'Default: none.' }),
+    state: FoodState,
+    basis: Basis,
+    energyKcal: Given,
+    proteinG: Given,
+    carbG: Given,
+    fatG: Given,
+    fiberG: Given.nullable().openapi({
+      description: 'Null when the source gave none: saved as 0.',
+    }),
+    pieceWeightG: PieceWeightG.nullable().optional(),
+    keepsDays: KeepsDays.nullable().optional(),
+    source: FoodSource,
+    sourceRef: SourceRef.nullable().optional(),
+    rotationGroupId: Uuid.nullable().optional(),
+  })
+  .openapi('FoodCreate', {
+    description:
+      'A confirmed food, with its values on the basis they were read in. The API converts to per 100 g.',
+  });
+
+export const FoodPatch = z
+  .object({
+    name: Name.optional(),
+    brand: Brand.nullable().optional(),
+    state: FoodState.optional(),
+    energyKcal: Per100gFields.energyKcal.optional(),
+    proteinG: Per100gFields.proteinG.optional(),
+    carbG: Per100gFields.carbG.optional(),
+    fatG: Per100gFields.fatG.optional(),
+    fiberG: Per100gFields.fiberG.optional(),
+    pieceWeightG: PieceWeightG.nullable().optional(),
+    keepsDays: KeepsDays.nullable().optional(),
+    rotationGroupId: Uuid.nullable().optional(),
+  })
+  .openapi('FoodPatch', { description: 'Values per 100 g. An omitted field is unchanged.' });
+
+export const ReferenceFood = z
+  .object({
+    code: z.string().openapi({ example: '11220' }),
+    name: z.string().openapi({
+      description: 'As MEXT prints it.',
+      example: '＜鳥肉類＞　にわとり　［若どり・主品目］　むね　皮なし　生',
+    }),
+    nameEn: z.string().nullable().openapi({
+      description: 'From the 2015 English table, by food number. Null for a food added since.',
+      example: 'Chicken, broiler, breast, meat without skin, raw',
+    }),
+    foodGroup: z.int().openapi({ description: 'MEXT 食品群, 1 to 18.' }),
+    state: FoodState,
+    ...Per100gFields,
+    existingFoodId: Uuid.nullable().openapi({
+      description: 'The food on the caller’s list with this MEXT code, if there is one.',
+    }),
+  })
+  .openapi('ReferenceFood', {
+    description: 'One entry of 日本食品標準成分表（八訂）増補2023年 (MEXT), per 100 g.',
+  });
+
+export const ReferenceFoodList = z
+  .object({ items: z.array(ReferenceFood) })
+  .openapi('ReferenceFoodList');
+
+const GivenValue = z.number().nullable();
+
+export const FoodCandidate = z
+  .object({
+    name: z.string().nullable(),
+    brand: z.string().nullable(),
+    state: FoodState.nullable().openapi({ description: 'Null when the source does not say.' }),
+    basis: Basis,
+    energyKcal: GivenValue,
+    proteinG: GivenValue,
+    carbG: GivenValue,
+    fatG: GivenValue,
+    fiberG: GivenValue,
+  })
+  .openapi('FoodCandidate', {
+    description:
+      'What a source gave, as printed, on its basis. A value it did not give is null, never a guess. Not saved.',
+  });
+
+const Per100gCandidate = z
+  .object({
+    energyKcal: GivenValue,
+    proteinG: GivenValue,
+    carbG: GivenValue,
+    fatG: GivenValue,
+    fiberG: GivenValue,
+  })
+  .nullable()
+  .openapi({
+    description:
+      'The candidate converted to per 100 g, as it would be saved. Null when the basis has no weight.',
+  });
+
+export const BarcodeLookup = z
+  .object({
+    // A union, not `.nullable()`: that would make the registered FoodCandidate itself nullable.
+    candidate: z.union([FoodCandidate, z.null()]).openapi({
+      description: 'Null when the barcode is on the list already: nothing is looked up.',
+    }),
+    per100g: Per100gCandidate,
+    existingFoodId: Uuid.nullable().openapi({
+      description: 'The food on the caller’s list with this barcode, if there is one.',
+    }),
+  })
+  .openapi('BarcodeLookup');
+
+export const LabelReadResult = z
+  .object({
+    candidate: FoodCandidate,
+    per100g: Per100gCandidate,
+    model: z.string().openapi({ example: 'claude-haiku-4-5' }),
+  })
+  .openapi('LabelRead');
+
+export const RotationGroup = z
+  .object({
+    id: Uuid,
+    name: z.string().openapi({ example: 'Starch' }),
+    foodIds: z.array(Uuid).openapi({ description: 'Its foods on the list, by name.' }),
+  })
+  .openapi('RotationGroup');
+
+export const RotationGroupList = z
+  .object({ items: z.array(RotationGroup) })
+  .openapi('RotationGroupList');
+
+/** A food may appear once. */
+const FoodIds = z
+  .array(Uuid)
+  .max(100)
+  .superRefine((ids, ctx) => {
+    for (const [index, id] of ids.entries()) {
+      if (ids.indexOf(id) !== index) {
+        ctx.addIssue({ code: 'custom', path: [index], message: 'Food listed twice' });
+      }
+    }
+  });
+
+export const RotationGroupCreate = z
+  .object({
+    id: Uuid.openapi({ description: 'Made on the device (UUIDv7). A repeat returns the group.' }),
+    name: Name.openapi({ example: 'Starch' }),
+    foodIds: FoodIds.openapi({
+      description: 'Its foods. Each leaves any group it was in.',
+    }),
+  })
+  .openapi('RotationGroupCreate');
+
+export const RotationGroupPatch = z
+  .object({
+    name: Name.optional(),
+    foodIds: FoodIds.optional().openapi({
+      description: 'The whole membership. A food left out stays on the list, ungrouped.',
+    }),
+  })
+  .openapi('RotationGroupPatch');
+
 // The export (S10, docs/07 §2): one section a call, each item as the API's normal read returns it.
 
 export const EXPORT_SECTIONS = [
@@ -882,6 +1113,8 @@ export const EXPORT_SECTIONS = [
   'routines',
   'workouts',
   'weighIns',
+  'foods',
+  'rotationGroups',
 ] as const;
 
 export const ExportSection = z.enum(EXPORT_SECTIONS).openapi('ExportSection', {
@@ -911,9 +1144,12 @@ export const ExportPage = z
     exportPage('routines', Routine),
     exportPage('workouts', WorkoutDetail),
     exportPage('weighIns', WeighIn),
+    exportPage('foods', Food),
+    exportPage('rotationGroups', RotationGroup),
   ])
   .openapi('ExportPage', {
     description:
-      'One page of one section. `profile` has one item; `exercises`, `routines`, `workouts` and ' +
-      '`weighIns` are cursor-paged. Workouts include ones in progress.',
+      'One page of one section. `profile` has one item; `exercises`, `routines`, `workouts`, ' +
+      '`weighIns`, `foods` and `rotationGroups` are cursor-paged. Workouts include ones in ' +
+      'progress, and `foods` archived ones.',
   });

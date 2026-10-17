@@ -9,7 +9,7 @@ const subscribe = (onChange: () => void) => {
 const snapshot = () => window.location.pathname + window.location.search;
 
 /** What a screen says once on opening, for the screen that sent the user there to choose. */
-export type Note = 'finished' | 'removed' | 'weighed';
+export type Note = 'finished' | 'removed' | 'weighed' | 'food-saved' | 'food-archived';
 
 /**
  * What one history entry remembers. `returns`: the entry before it is the screen the user came
@@ -20,13 +20,16 @@ type EntryState = { returns?: boolean | undefined; note?: Note | undefined };
 export type NavigateOptions = { replace?: boolean; returns?: boolean; note?: Note | undefined };
 export type Navigate = (path: string, options?: NavigateOptions) => void;
 
+const NOTES: readonly unknown[] = ['finished', 'removed', 'weighed', 'food-saved', 'food-archived'];
+const isNote = (value: unknown): value is Note => NOTES.includes(value);
+
 function entryState(): EntryState {
   const state: unknown = window.history.state;
   if (typeof state !== 'object' || state === null) return {};
   const note = 'note' in state ? state.note : undefined;
   return {
     returns: 'returns' in state && state.returns === true,
-    note: note === 'finished' || note === 'removed' || note === 'weighed' ? note : undefined,
+    note: isNote(note) ? note : undefined,
   };
 }
 
@@ -97,6 +100,14 @@ export type Route =
   | { screen: 'balance' }
   | { screen: 'weight' }
   | { screen: 'weigh-in' }
+  | { screen: 'foods' }
+  | { screen: 'food'; id: string }
+  | { screen: 'food-edit'; id: string }
+  | { screen: 'food-add' }
+  | { screen: 'food-barcode' }
+  | { screen: 'food-label' }
+  | { screen: 'food-check' }
+  | { screen: 'rotation-groups' }
   | { screen: 'past-workout'; id: string }
   | { screen: 'invites' }
   | { screen: 'account' };
@@ -107,6 +118,21 @@ export function routeOf(pathname: string): Route {
     return { screen: 'progress', id: second };
   if (first === 'progress' && second === 'weight' && rest.length === 1 && rest[0] === 'new')
     return { screen: 'weigh-in' };
+  if (first === 'food') {
+    if (second === undefined) return { screen: 'foods' };
+    if (second === 'groups' && rest.length === 0) return { screen: 'rotation-groups' };
+    if (second === 'new' && rest.length === 0) return { screen: 'food-add' };
+    if (second === 'new' && rest.length === 1 && rest[0] === 'barcode')
+      return { screen: 'food-barcode' };
+    if (second === 'new' && rest.length === 1 && rest[0] === 'label')
+      return { screen: 'food-label' };
+    if (second === 'new' && rest.length === 1 && rest[0] === 'check')
+      return { screen: 'food-check' };
+    if (second !== 'new' && rest.length === 0) return { screen: 'food', id: second };
+    if (second !== 'new' && rest.length === 1 && rest[0] === 'edit')
+      return { screen: 'food-edit', id: second };
+    return { screen: 'today' };
+  }
   if (rest.length > 0) return { screen: 'today' };
   // The iPhone Focus guide opens over the workout, which keeps running under it.
   if (first === 'workout' && (second === undefined || second === 'focus'))

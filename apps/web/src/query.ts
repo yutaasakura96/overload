@@ -21,6 +21,7 @@ import {
 import { useState, useSyncExternalStore } from 'react';
 import { api, ApiError, isUnauthenticated, unwrap } from './api';
 import { deviceStore } from './device-store';
+import { dropCandidate } from './food';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -174,6 +175,7 @@ tabs?.addEventListener('message', (event: MessageEvent<{ userId: string | null }
 
 /** Stops saving and forgets whose copy is open. */
 export function closeAccount() {
+  dropCandidate();
   accountClosed = true;
   accountGeneration += 1;
   stopPersisting?.();
@@ -231,6 +233,7 @@ async function confirm(me: Me, generation: number) {
   const { id } = me.user;
   const switched = account.userId !== id;
   if (switched) {
+    dropCandidate();
     stopPersisting?.();
     stopPersisting = undefined;
     setAccount({ userId: id, status: 'confirmed' });
@@ -442,6 +445,46 @@ export const weighInsQuery = queryOptions({
 });
 
 /**
+ * The food list (S12, docs/07 §4), archived foods included: one food's page still opens for a food
+ * past plans name. The list screen leaves archived ones out.
+ */
+export const foodsQuery = queryOptions({
+  queryKey: ['foods'],
+  refetchOnWindowFocus: false,
+  refetchOnReconnect: false,
+  queryFn: async ({ signal }) =>
+    (
+      await confirmedAccountData(() =>
+        api.GET('/api/foods', { params: { query: { includeArchived: 'true' } }, signal }),
+      )
+    ).items,
+});
+
+/** The rotation groups with their foods (S12). */
+export const rotationGroupsQuery = queryOptions({
+  queryKey: ['rotation-groups'],
+  refetchOnWindowFocus: false,
+  refetchOnReconnect: false,
+  queryFn: async ({ signal }) =>
+    (await confirmedAccountData(() => api.GET('/api/rotation-groups', { signal }))).items,
+});
+
+/** The MEXT table searched (S12): the same words answer the same, so a search is kept a while. */
+export const referenceFoodsQuery = (q: string) =>
+  queryOptions({
+    queryKey: ['reference-foods', q],
+    gcTime: 5 * 60 * 1000,
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    queryFn: async ({ signal }) =>
+      (
+        await confirmedAccountData(() =>
+          api.GET('/api/reference-foods', { params: { query: { q } }, signal }),
+        )
+      ).items,
+  });
+
+/**
  * History (docs/07 §3): the finished workouts, newest first, a page at a time. A workout the
  * device still holds rows of is read from the set store over this (history.ts).
  */
@@ -533,6 +576,17 @@ export const refreshWeighIns = () =>
       query.queryKey[0] === 'progress' ||
       query.queryKey[0] === 'strength' ||
       query.queryKey[0] === 'last-time',
+  });
+/**
+ * After a food or a group is saved, archived or deleted: both lists, since a food names its group
+ * and a group its foods, and any search, which marks the foods already on the list.
+ */
+export const refreshFoods = () =>
+  queryClient.invalidateQueries({
+    predicate: (query) =>
+      query.queryKey[0] === 'foods' ||
+      query.queryKey[0] === 'rotation-groups' ||
+      query.queryKey[0] === 'reference-foods',
   });
 /**
  * After an acknowledged sync batch: a chart on screen is asked again, the rest when next opened.

@@ -5,7 +5,13 @@ import { AppBar, Notice } from './components';
 import { routeOf, safeNext, useLocation } from './navigation';
 import { meQuery, useAccount } from './query';
 import { ExerciseScreen } from './screens/ExerciseForm';
+import { AddFood } from './screens/AddFood';
 import { ExerciseLibrary } from './screens/ExerciseLibrary';
+import { FoodBarcode } from './screens/FoodBarcode';
+import { FoodCheck, FoodEdit } from './screens/FoodCheck';
+import { FoodLabel } from './screens/FoodLabel';
+import { FoodPage } from './screens/FoodPage';
+import { Foods } from './screens/Foods';
 import { History } from './screens/History';
 import { Invites } from './screens/Invites';
 import { PastWorkout } from './screens/PastWorkout';
@@ -13,6 +19,7 @@ import { Progress } from './screens/Progress';
 import { Balance } from './screens/Balance';
 import { RoutineScreen } from './screens/RoutineEditor';
 import { RoutineList } from './screens/RoutineList';
+import { RotationGroups } from './screens/RotationGroups';
 import { SignIn } from './screens/SignIn';
 import { Strength } from './screens/Strength';
 import { Today } from './screens/Today';
@@ -96,6 +103,16 @@ export function App() {
       return <Balance me={me.data} searchParams={searchParams} navigate={navigate} />;
     if (route.screen === 'weight') return <Weight me={me.data} navigate={navigate} />;
     if (route.screen === 'weigh-in') return <WeighIn me={me.data} navigate={navigate} />;
+    if (route.screen === 'foods') return <Foods me={me.data} navigate={navigate} />;
+    if (route.screen === 'food')
+      return <FoodPage key={route.id} id={route.id} navigate={navigate} />;
+    if (route.screen === 'food-edit')
+      return <FoodEdit key={route.id} id={route.id} navigate={navigate} />;
+    if (route.screen === 'food-add') return <AddFood navigate={navigate} />;
+    if (route.screen === 'food-barcode') return <FoodBarcode navigate={navigate} />;
+    if (route.screen === 'food-label') return <FoodLabel navigate={navigate} />;
+    if (route.screen === 'food-check') return <FoodCheck navigate={navigate} />;
+    if (route.screen === 'rotation-groups') return <RotationGroups navigate={navigate} />;
     if (route.screen === 'invites') {
       // A member gets the not-found screen, not a forbidden one (docs/08 §5).
       if (!me.data.isAdmin) return <NotFound navigate={navigate} />;

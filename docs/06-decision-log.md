@@ -3911,3 +3911,74 @@ Checked on invented weigh-ins.
   weight the lifter did not weigh that day.
 
 **Changed:** `00`, `04`, `06`, `07` §3, `10` §1, §2, §9.
+
+### 2026-10-17 — M2 slice 3: the food list, its four sources, and the daily model-call cap
+
+Issue `#78`, S12, built as `04` `food`, `reference_food` and `rotation_group`, `07` §4, `09` F9 and
+`10` §8.6 describe, with the screens from the approved M2 prototype (screens 15 to 23). Checked on
+invented foods; the label read is tested against a stubbed model until the Anthropic key is set
+(owner, 2026-10-16).
+
+- **The Food tab is the fifth tab and holds `Foods` only.** Prep, Grocery and Batches come with
+  `#81`; with one section the segments are not drawn, as the weight section left out its one span
+  (2026-10-16). Five tabs fit 390px with the tabs' tracking at 0.04em.
+- **`reference_food` gains `name_en`**, the 2015 English table's name matched by 食品番号: the
+  2023 file has no English, and the screens search and show it (`10` §8.6). The 353 foods added
+  since 2015 have none and are found by their Japanese name. The seed is the 増補2023 file with
+  its errata, generated into migration `0018` by `apps/api/seed/mext.ts` (2,537 foods).
+- **`carb_g` is 利用可能炭水化物（質量計）** (CHOAVL), sugars and starch by mass without fibre, which is
+  its own value; where MEXT gives none, 差引き法 (CHOAVLDF-). `Tr` reads as 0, fibre MEXT did not
+  measure as 0, and estimates in parentheses as they stand. A food without energy, protein, fat or
+  either carbohydrate is left out. `state` comes from MEXT's cooking words (ゆで, 焼き, 炊き…).
+  *Rejected:* 差引き法 first: it is what remains of 100 g once everything else is subtracted, so it
+  carries every other measurement's error.
+- **`pg_trgm` is verified on Neon** (1.6 on Postgres 18, a trusted extension the owner role
+  creates). The search is per word: every word must be in the English or the Japanese name, `%` and
+  `_` taken literally; a name starting with the words first, then raw, then the shorter name. An
+  empty `q` is 400 `bad_request`, as a malformed parameter is (`07` §1.3), not the plan's 422.
+- **One food per barcode, per MEXT code, and per name, brand and state on the list**: two partial
+  unique indexes over unarchived foods, so a food archived and added again is a new row. A create or
+  rename that hits one is **409 `food_exists`**, a new code, whose problem detail carries
+  `existingFoodId`; the check screen says `Nothing was saved: it is on your list already.` with
+  `Open it`. A barcode already on the list answers `{ candidate: null, per100g: null,
+  existingFoodId }` and does not ask Open Food Facts.
+- **The model-call cap is built now, at 20 a day** (`13` §9), because the label read is the first
+  model call. Its store is `model_call_count`, a row per user and local day in the profile's time
+  zone (`Asia/Tokyo` without a profile), taken by one upsert that adds a call only while under the
+  cap, so two reads at once cannot pass it. The call is counted before the model is asked, and a read
+  that fails still counts. With no reader set up (no key), the route is 502 `upstream_failed` and
+  counts nothing. The table is bookkeeping and not in the export.
+- **The label reader is `claude-haiku-4-5`** through the SDK's structured output, as decided for
+  label reads. The model says when there is no table to read (`unreadable_label`); **any error from
+  Anthropic is `upstream_failed`**, never unreadable: the photo was re-encoded on the phone and its
+  type checked, and a spent workspace answers 400 (`13` §3), so `Retake` would only spend another
+  call. `sodiumMg` is dropped from the candidate: nothing stores it.
+- **HEIC is refused** (422 on `image`): Anthropic's image input takes JPEG, PNG, GIF and WebP, and
+  the phone's resize already re-encodes every photo as JPEG at 1568px (`07` §1.5). The 4 MB limit is
+  Hono's `bodyLimit`, so an oversized body is not read.
+- **Open Food Facts** is asked by API v2 with `User-Agent: Overload/1 (<web origin>)` and an 8 s
+  timeout; a product whose values are per serving, with the serving's weight, is a per-serving
+  candidate, converted like a label.
+- **The camera is read on the device** with the browser's `BarcodeDetector`, or the ZXing ponyfill
+  where there is none, its WebAssembly served by the app, not a CDN. The number can also be typed,
+  for a phone without a camera or one not allowed.
+- **Limits:** a value as given is at most 100,000; converted, at most 900 kcal and 100 g of a
+  nutrient per 100 g, refused under the field above that. `fiberG` not given is saved as 0, and the
+  form says so.
+- **A source without a package weight keeps its printed basis through confirmation.** The check
+  screen asks for the missing weight, starts its editable fields from the printed figures, and
+  previews the converted values. The API receives the original precision and rounds only after
+  conversion, for label, barcode and hand entry alike.
+- **A label per 100 ml is a volume basis.** The reader keeps `per_100ml` with no grams, even if its
+  answer supplies a number; the check screen asks what 100 ml weighs before converting to per 100 g.
+- **Archiving asks first** with the delete confirmation (`Keep` / `Archive`): it takes the food out
+  of new plans. Regenerating unconfirmed plan days without it waits for plans (`#79`).
+- **Display:** calories print whole on the list, the picks, a food's page and the preview, as every
+  other screen prints them, while the stored value keeps its hundredths. MEXT's Japanese name is
+  printed without its leading food group (`＜魚類＞`), which the English already says.
+- **A food in one group at most:** putting a food into a group takes it out of the one it was in.
+- **The contract:** a registered schema made nullable with `.nullable()` turns the component itself
+  nullable in the generated OpenAPI, so `BarcodeLookup.candidate` is a union with null. `Profile` and
+  `MuscleGroup` have the same shape already and are left as they are.
+
+**Changed:** `00`, `04`, `06`, `07` §1.3, §1.5, §2, §4, `10` §5, §8.6, `11` §2, `13` §3, §9.

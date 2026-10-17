@@ -93,11 +93,12 @@ export function ScreenTabs({
   current,
   navigate,
 }: {
-  current: '/' | '/progress' | '/routines' | '/exercises';
+  current: '/' | '/food' | '/progress' | '/routines' | '/exercises';
   navigate: (path: string) => void;
 }) {
   const tabs = [
     { path: '/', label: 'Today' },
+    { path: '/food', label: 'Food' },
     { path: '/progress', label: 'Progress' },
     { path: '/routines', label: 'Routines' },
     { path: '/exercises', label: 'Exercises' },
@@ -250,12 +251,15 @@ export function TextField({
   focusOnOpen,
   type = 'text',
   literal = false,
+  inputMode,
 }: FieldProps & {
   /** Focus on mount: only for a form's first field, on a screen opened to fill it in. */
   focusOnOpen?: boolean;
   type?: 'text' | 'search' | 'email';
   /** A word typed exactly, in capitals, such as `DELETE`: no autocorrect. */
   literal?: boolean;
+  /** `numeric` for a code typed in digits, such as a barcode: the number pad, no spellcheck. */
+  inputMode?: 'numeric';
 }) {
   const id = useId();
   const email = type === 'email';
@@ -271,7 +275,8 @@ export function TextField({
         autoComplete="off"
         autoCapitalize={email ? 'none' : literal ? 'characters' : undefined}
         autoCorrect={literal ? 'off' : undefined}
-        spellCheck={email || literal ? false : undefined}
+        spellCheck={email || literal || inputMode !== undefined ? false : undefined}
+        inputMode={inputMode}
         // oxlint-disable-next-line jsx-a11y/no-autofocus -- only a form's first field, opened on purpose
         autoFocus={focusOnOpen}
         aria-invalid={error === undefined ? undefined : true}
@@ -313,7 +318,7 @@ export function NumberField({
         htmlFor={id}
         label={label}
         note={note}
-        context={[labelContext, unit === undefined ? undefined : `in ${unitNames[unit]}`]
+        context={[labelContext, unit === undefined ? undefined : `in ${unitNames[unit] ?? unit}`]
           .filter(Boolean)
           .join(' ')}
       />
@@ -349,6 +354,9 @@ const unitNames: Record<string, string> = {
   lb: 'pounds',
   s: 'seconds',
   '%': 'percent',
+  g: 'grams',
+  kcal: 'kilocalories',
+  days: 'days',
 };
 
 export function FieldLabel({

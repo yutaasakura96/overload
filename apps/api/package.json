@@ -17,6 +17,7 @@
     "vercel-build": "sh scripts/vercel-build.sh"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "0.131.0",
     "@hono/node-server": "2.1.1",
     "@hono/zod-openapi": "1.6.3",
     "@sentry/hono": "11.0.0",

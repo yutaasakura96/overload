@@ -25,10 +25,20 @@ Progress.
 `body_measurement` (migration `0015`), `GET`, `POST` and `DELETE /api/weigh-ins`, the day's weight
 and the trend in `domain/weight.ts`, the export's `weighIns` section, and Weight as Progress's
 fourth section with `Type a weight` (`06`, 2026-10-16). Checked on generated weigh-ins.
+
 **M1's MUSTs are complete, 2026-10-17** (`#74`), on `fm/overload-74`, in review against
 `develop`: a live workout's exercises are added from the picker, reordered and removed (with their
 sets, after asking), and Today starts an empty workout, named or `Workout` (`06`, 2026-10-17; `09`
 F2, F3; `10` §1, §8.2). No server change.
+
+**M2 slice 3 is built, 2026-10-17** (`#78`), on `fm/overload-78`, in review against `develop`:
+the food list (S12). `food`, `rotation_group`, `reference_food` with the MEXT 八訂 増補2023 seed and
+`model_call_count` (migrations `0016`–`0018`); `/api/foods`, `/api/reference-foods`,
+`/api/barcodes/{code}` (Open Food Facts), `/api/label-reads` (Haiku 4.5, the daily cap of 20) and
+`/api/rotation-groups`; the export's `foods` and `rotationGroups` sections; and the Food tab, a fifth
+tab, with adding a food four ways, each checked before saving (`06`, 2026-10-17). The label read is
+tested against a stubbed model only, until the API key is set.
+
 Building comes first: seeded or fake data is fine until the app is built. Owed, and Yuta's: the two
 weight hardware tests (`06`, 2026-09-19) and an Anthropic API key with a small balance for label
 reads. #69 is built on `fm/overload-69b` (`06`, 2026-10-17): bodyweight lifts count the

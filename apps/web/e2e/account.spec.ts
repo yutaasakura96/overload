@@ -45,6 +45,8 @@ test('a member exports their data as one file', async ({ context, page }, testIn
       'routines',
       'workouts',
       'weighIns',
+      'foods',
+      'rotationGroups',
     ]);
     expect(saved['profile']).toEqual([
       expect.objectContaining({ user: expect.objectContaining({ id: userId }) }),
