@@ -16,7 +16,6 @@ import {
   BASES,
   basisLabel,
   dropCandidate,
-  figure,
   manualCandidate,
   nutrientFigure,
   NUTRIENTS,
