@@ -365,7 +365,9 @@ GET /api/training/last-time  →  200
 - **`routineExerciseId` may be left out of a synced `workoutExercises` row** and is then stored as
   null: a row made on a device before the field existed still uploads.
 - **`performedOn`** is the workout's `started_at` as a date in the profile's time zone: the day
-  boundary. Without a profile there is no zone to read it in, hence `setup_incomplete`.
+  boundary. `?timezone=<IANA zone>` reads it, and the daily weights behind `bodyweight`, in that
+  zone instead: the open workout asks in the zone it started in, so a profile change while it is
+  open moves no date (`#60`). Without a profile there is still `setup_incomplete`.
 
 ### 3.4 Sync — the only write path for workouts, workout exercises and sets
 
