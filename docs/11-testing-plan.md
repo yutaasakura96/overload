@@ -41,7 +41,8 @@ Rollback-per-test is the default. Two kinds of test opt out, or they pass withou
   Postgres 18, so no `uuidv7()`; the auth tests need a real Postgres).
 - Playwright's WebKit is not iOS Safari. It catches engine differences early; it does not replace §3.
 - Under the service worker, Playwright's WebKit does not route a page's requests, so a test cannot
-  drop one response there. `setOffline` works on both engines. *Found 2026-10-08.*
+  drop or stub one response there: a test that uses `page.route` runs with
+  `serviceWorkers: 'block'`. `setOffline` works on both engines. *Found 2026-10-08.*
 - `E2E_WEB_PORT` and `E2E_API_PORT` move the browser tests' two servers, so two checkouts on one
   machine do not reuse each other's. *Added 2026-10-08.*
 
