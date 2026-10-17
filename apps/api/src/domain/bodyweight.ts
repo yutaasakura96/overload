@@ -5,10 +5,6 @@ import type { DailyWeight } from './weight.js';
 // weight plus any added kg, so its e1RM, top set and volume are not zero. The weight is the
 // day's weight (`dailyWeights`), found for the workout's local date.
 
-/** Which weigh-in a workout was counted at, relative to the workout's own day. */
-export const BODYWEIGHT_BASES = ['same_day', 'earlier_day', 'later_day', 'none'] as const;
-export type BodyweightBasis = (typeof BODYWEIGHT_BASES)[number];
-
 /**
  * The weight a bodyweight lift was counted at. `none` is a lifter with no weigh-in at all, whose
  * sets keep the weight they were logged with.

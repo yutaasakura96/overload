@@ -1,4 +1,5 @@
-import type { BodyweightCount, WeightUnit } from '@overload/api-contract';
+import type { BodyweightCount, WeightDay, WeightUnit } from '@overload/api-contract';
+import type { WorkoutExerciseRecord } from './set-store';
 import { formatWeight } from './units';
 
 // Which weigh-in a bodyweight lift was counted at (issue #69, docs/06 2026-10-16). The API names
@@ -21,4 +22,39 @@ export function countedAt(count: BodyweightCount, unit: WeightUnit): string {
     return `Counted at ${weight} · your weigh-in of ${shortDate(count.weighedOn)}`;
   }
   return `Counted at ${weight} · your first weigh-in, ${shortDate(count.weighedOn)}`;
+}
+
+export function countedLastTime(
+  exercise: WorkoutExerciseRecord,
+  days: WeightDay[] | undefined,
+): WorkoutExerciseRecord {
+  const date = exercise.local.lastTimeOn;
+  if (!exercise.local.bodyweight || date == null || days === undefined) return exercise;
+  const same = days.find((day) => day.date === date);
+  const earlier = days.find((day) => day.date < date);
+  const later = days.findLast((day) => day.date > date);
+  const chosen = same ?? earlier ?? later;
+  const count: BodyweightCount =
+    chosen === undefined
+      ? { basis: 'none' }
+      : {
+          basis:
+            same !== undefined ? 'same_day' : earlier !== undefined ? 'earlier_day' : 'later_day',
+          weightKg: chosen.weightKg,
+          weighedOn: chosen.date,
+        };
+  return {
+    ...exercise,
+    local: {
+      ...exercise.local,
+      lastTimeBodyweight: count,
+      lastTime: exercise.local.lastTime.map((set) => ({
+        ...set,
+        countedWeightKg:
+          count.basis === 'none'
+            ? set.weightKg
+            : Math.round((count.weightKg + set.weightKg) * 100) / 100,
+      })),
+    },
+  };
 }

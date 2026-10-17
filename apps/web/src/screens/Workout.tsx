@@ -1,4 +1,4 @@
-import type { Exercise, Me, WeightUnit } from '@overload/api-contract';
+import type { Exercise, Me, WeightDay, WeightUnit } from '@overload/api-contract';
 import { useQuery } from '@tanstack/react-query';
 import {
   Fragment,
@@ -10,7 +10,7 @@ import {
   type RefObject,
 } from 'react';
 import { Brief } from '../brief';
-import { countedAt } from '../bodyweight';
+import { countedAt, countedLastTime } from '../bodyweight';
 import {
   AppBar,
   CheckIcon,
@@ -24,7 +24,13 @@ import {
 import { readFigures, type FigureRefusal } from '../figures';
 import { useFocusGuide } from '../focus-guide';
 import type { Navigate } from '../navigation';
-import { allExercisesQuery, lastTimeQuery, queryClient, useAccount } from '../query';
+import {
+  allExercisesQuery,
+  lastTimeQuery,
+  queryClient,
+  useAccount,
+  weighInsQuery,
+} from '../query';
 import { RefusedSet } from '../refused';
 import { keepAwake, playTone, unlockTone } from '../rest-alert';
 import { SetEditor } from '../set-editor';
@@ -121,6 +127,11 @@ export function Workout({
   guide?: boolean;
 }) {
   const userId = me.user.id;
+  const account = useAccount();
+  const weighIns = useQuery({
+    ...weighInsQuery,
+    enabled: account.status === 'confirmed' && me.profile !== null,
+  });
   const loaded = useWorkoutStore(
     (state) => recordsLoadedFor(state, userId) || readFailedFor(state, userId),
   );
@@ -194,6 +205,7 @@ export function Workout({
           key={workout.id}
           workout={workout}
           records={records}
+          weighedDays={weighIns.data?.days}
           unit={me.profile?.weightUnit ?? 'kg'}
           timeZone={me.profile?.timezone ?? deviceTimezone()}
           guideOpen={guide}
@@ -263,6 +275,7 @@ function readRest(rest: CountedRest, now: number) {
 function LiveWorkout({
   workout,
   records,
+  weighedDays,
   unit,
   timeZone,
   guideOpen,
@@ -275,6 +288,7 @@ function LiveWorkout({
 }: {
   workout: WorkoutRecord;
   records: StoreRecord[];
+  weighedDays: WeightDay[] | undefined;
   unit: WeightUnit;
   timeZone: string;
   guideOpen: boolean;
@@ -289,7 +303,9 @@ function LiveWorkout({
   /** Finish was tapped: whether the workout was kept, once known; `undefined` when it failed. */
   onFinish: (result: Promise<boolean | undefined>) => void;
 }) {
-  const exercises = exercisesOf(records, workout.id);
+  const exercises = exercisesOf(records, workout.id).map((exercise) =>
+    countedLastTime(exercise, weighedDays),
+  );
   // Turned on by hand each workout and not remembered (docs/06, 2026-10-12): it lives here, in a
   // component keyed by the workout.
   const [full, setFull] = useState(false);

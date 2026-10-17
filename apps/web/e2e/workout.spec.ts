@@ -475,6 +475,26 @@ test('bodyweight history describes reps without a zero-weight target', async ({ 
   await expect(brief(page)).toContainText(
     'Your set stopped short of 10 reps last time. Reach 10 this time.',
   );
+  await page.goto('/progress/weight/new');
+  await page.getByRole('textbox', { name: 'Weight' }).fill('82');
+  await page.getByRole('button', { name: 'Save weigh-in' }).click();
+  await expect(page).toHaveURL('/progress/weight');
+  await page.goto('/workout');
+  await expect(brief(page)).toContainText('82 kg × 6');
+  await expect(brief(page)).toContainText('Counted at 82 kg');
+  await expect(page.getByRole('region', { name: 'SET 1 OF 1' })).toContainText('LAST TIME82 × 6');
+  await expect(page.getByRole('textbox', { name: 'Weight in kilograms' })).toHaveValue('0');
+  await expect(brief(page)).toContainText('Today’s targetBodyweight × 6–10');
+  await page.goto('/progress/weight');
+  await page
+    .getByRole('region', { name: 'Recent weigh-ins' })
+    .getByRole('listitem')
+    .first()
+    .getByRole('button', { name: /Delete/ })
+    .click();
+  await page.goto('/workout');
+  await expect(brief(page)).toContainText('Bodyweight × 6');
+  await expect(brief(page)).toContainText('No weigh-in · counted as logged');
   await finish(page, false);
 });
 
