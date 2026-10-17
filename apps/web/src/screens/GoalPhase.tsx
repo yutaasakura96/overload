@@ -1,0 +1,432 @@
+import type { GoalPhase, GoalPhaseType, Me, PhaseDefaults } from '@overload/api-contract';
+import { useQuery } from '@tanstack/react-query';
+import { useId, useState } from 'react';
+import { api, ApiError, unwrap } from '../api';
+import { AppBar, DataState, Notice, NumberField, parseFigure } from '../components';
+import { EVIDENCE, EvidenceTag } from '../evidence';
+import { newId } from '../ids';
+import { goBack, type Navigate } from '../navigation';
+import { phaseLine } from '../plan';
+import {
+  forAccount,
+  goalPhasesQuery,
+  phaseDefaultsQuery,
+  planToday,
+  queryClient,
+  regeneratePlan,
+  useAccount,
+} from '../query';
+import {
+  refusedOnDevice,
+  saveProblem,
+  SaveNotice,
+  useFocusRefused,
+  type SaveProblem,
+} from '../saving';
+import { deviceTimezone } from '../timezones';
+
+// Goal phase and targets (S14, docs/10 §8.6): cut, maintain or bulk, and the targets that follow,
+// each default with its source and what it means in plain figures. The calories are a formula's
+// estimate, labelled provisional, until the maintenance check is applied. Every figure is the API's
+// (docs/07 §4); this screen multiplies them out for the lines under the fields only.
+
+const TYPES: { type: GoalPhaseType; label: string }[] = [
+  { type: 'cut', label: 'Cut' },
+  { type: 'maintain', label: 'Maintain' },
+  { type: 'bulk', label: 'Bulk' },
+];
+const LIMITS = {
+  rate: { min: 0.05, max: 2, message: 'A rate between 0.05 and 2% a week.' },
+  protein: { min: 1, max: 4, message: 'Between 1 and 4 g per kg.' },
+  fat: { min: 10, max: 60, message: 'Between 10 and 60% of calories.' },
+  kcal: { min: 1000, max: 6000, message: 'Between 1,000 and 6,000 kcal, in whole kcal.' },
+};
+
+const outside = (figure: number | null, limit: { min: number; max: number }) =>
+  figure === null || !Number.isFinite(figure) || figure < limit.min || figure > limit.max;
+
+const kcal = (value: number) => Math.round(value).toLocaleString('en-US');
+const typeWord = (type: GoalPhaseType) =>
+  type === 'cut' ? 'cut' : type === 'bulk' ? 'bulk' : 'maintenance phase';
+
+export function GoalPhaseScreen({ me, navigate }: { me: Me; navigate: Navigate }) {
+  const confirmed = useAccount().status === 'confirmed';
+  const phases = useQuery({ ...goalPhasesQuery, enabled: confirmed });
+  const open = phases.data?.find((phase) => phase.endedOn === null);
+  const timeZone = me.profile?.timezone ?? deviceTimezone();
+  const today = planToday(timeZone);
+  const back = () => goBack(navigate, '/');
+
+  return (
+    <main>
+      <AppBar
+        title="Goal phase"
+        subline={open === undefined ? 'STEP 3 OF 4' : phaseLine(open, today).toUpperCase()}
+        slot={<DataState at={phases.dataUpdatedAt} />}
+        back={{ label: 'Back', onClick: back }}
+      />
+      {phases.isError && phases.data === undefined && (
+        <Notice tone="flag" word="Not updated">
+          Couldn’t reach Overload. Try again when you have signal.
+        </Notice>
+      )}
+      {phases.data !== undefined && (
+        <PhaseForm
+          key={open?.id ?? 'new'}
+          open={open}
+          today={today}
+          navigate={navigate}
+          onSaved={() => navigate('/', { replace: true, note: 'plan-saved' })}
+        />
+      )}
+    </main>
+  );
+}
+
+function PhaseForm({
+  open,
+  today,
+  navigate,
+  onSaved,
+}: {
+  open: GoalPhase | undefined;
+  today: string;
+  navigate: Navigate;
+  onSaved: () => void;
+}) {
+  const confirmed = useAccount().status === 'confirmed';
+  const [type, setType] = useState<GoalPhaseType>(open?.type ?? 'cut');
+  // Each field holds what was typed; empty means the default for the type, shown as placeholder.
+  const sameType = open !== undefined && open.type === type;
+  const [typed, setTyped] = useState<Record<GoalPhaseType, Fields>>(() => ({
+    cut: fieldsOf(open?.type === 'cut' ? open : undefined),
+    maintain: fieldsOf(open?.type === 'maintain' ? open : undefined),
+    bulk: fieldsOf(open?.type === 'bulk' ? open : undefined),
+  }));
+  const fields = typed[type];
+  const setField = (key: keyof Fields, value: string) =>
+    setTyped((all) => ({ ...all, [type]: { ...all[type], [key]: value } }));
+  const rateTyped = parseFigure(fields.rate);
+  const rateForCalories =
+    type === 'maintain' ||
+    rateTyped === null ||
+    !Number.isFinite(rateTyped) ||
+    rateTyped < 0.05 ||
+    rateTyped > 2
+      ? undefined
+      : rateTyped;
+  const defaults = useQuery({
+    ...phaseDefaultsQuery(type, rateForCalories),
+    enabled: confirmed,
+    placeholderData: (previous) => (previous?.type === type ? previous : undefined),
+    retry: (count, error) => !(error instanceof ApiError && error.status === 422) && count < 2,
+  });
+  const [id] = useState(newId);
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<SaveProblem>();
+  const form = useFocusRefused(problem);
+  const typeName = useId();
+  const refused = (path: string) =>
+    problem?.kind === 'refused' ? problem.fields.get(path) : undefined;
+
+  if (defaults.error instanceof ApiError && defaults.error.code === 'setup_incomplete') {
+    return (
+      <Notice tone="flag" word="Set up first">
+        The defaults are worked out from your height, weight, age and sex.{' '}
+        <a
+          href="/plan/about"
+          onClick={(event) => {
+            event.preventDefault();
+            navigate('/plan/about', { returns: true });
+          }}
+        >
+          Add your details
+        </a>{' '}
+        first.
+      </Notice>
+    );
+  }
+  const d = defaults.data;
+  if (d === undefined) {
+    return defaults.isError ? (
+      <Notice tone="flag" word="Not updated">
+        Couldn’t reach Overload. Try again when you have signal.
+      </Notice>
+    ) : null;
+  }
+
+  // What each field stands at: the typed figure, else the phase's own, else the default.
+  const value = (key: keyof Fields, fallback: number | null) => {
+    const figure = parseFigure(fields[key]);
+    return figure === null ? fallback : figure;
+  };
+  const rate = type === 'maintain' ? null : value('rate', d.targetRatePctPerWeek?.value ?? null);
+  const protein = value('protein', d.proteinGPerKg.value) ?? d.proteinGPerKg.value;
+  const fat = value('fat', d.fatPctCalories.value) ?? d.fatPctCalories.value;
+  const calories = value('kcal', d.calories.value) ?? d.calories.value;
+  // The open phase's calories keep their basis until changed; a new figure is the formula's or yours.
+  const kept = sameType && open !== undefined && calories === open.calorieTargetKcal;
+  const basis = kept
+    ? open.calorieBasis
+    : calories === d.calories.value
+      ? 'provisional_formula'
+      : 'manual';
+  const provisional = basis === 'provisional_formula';
+  const weightKg = d.bodyweight.weightKg;
+  const proteinG = Math.round(protein * weightKg);
+  const fatG = Math.round((calories * fat) / 100 / 9);
+  const carbG = Math.max(0, Math.round((calories - proteinG * 4 - fatG * 9) / 4));
+  const changingType = open !== undefined && open.type !== type;
+
+  const save = async () => {
+    const onDevice = refusedOnDevice([
+      ...(type !== 'maintain' && outside(rate, LIMITS.rate)
+        ? ([['targetRatePctPerWeek', LIMITS.rate.message]] as [string, string][])
+        : []),
+      ...(outside(protein, LIMITS.protein)
+        ? ([['proteinGPerKg', LIMITS.protein.message]] as [string, string][])
+        : []),
+      ...(outside(fat, LIMITS.fat)
+        ? ([['fatPctCalories', LIMITS.fat.message]] as [string, string][])
+        : []),
+      ...(outside(calories, LIMITS.kcal) || !Number.isInteger(calories)
+        ? ([['calorieTargetKcal', LIMITS.kcal.message]] as [string, string][])
+        : []),
+    ]);
+    if (onDevice !== undefined) {
+      setProblem(onDevice);
+      return;
+    }
+    const targets = {
+      targetRatePctPerWeek: rate === null ? null : Math.round(rate * 100) / 100,
+      proteinGPerKg: Math.round(protein * 100) / 100,
+      fatPctCalories: Math.round(fat * 10) / 10,
+    };
+    setBusy(true);
+    setProblem(undefined);
+    try {
+      await forAccount(async () => {
+        if (open !== undefined && sameType) {
+          // The calories are sent only when they changed, so a measured target keeps its basis.
+          const kcalChanged = calories !== open.calorieTargetKcal;
+          return unwrap(
+            await api.PATCH('/api/goal-phases/{id}', {
+              params: { path: { id: open.id } },
+              body: {
+                ...targets,
+                ...(kcalChanged
+                  ? {
+                      calorieTargetKcal: calories,
+                      calorieBasis: provisional ? 'provisional_formula' : 'manual',
+                    }
+                  : {}),
+              },
+            }),
+          );
+        }
+        return unwrap(
+          await api.POST('/api/goal-phases', {
+            body: {
+              id,
+              type,
+              startedOn: today,
+              ...targets,
+              calorieTargetKcal: calories,
+              calorieBasis: provisional ? 'provisional_formula' : 'manual',
+              endPrevious: open !== undefined,
+            },
+          }),
+        );
+      });
+      await queryClient.invalidateQueries({ queryKey: ['plan'] });
+      await regeneratePlan();
+      onSaved();
+    } catch (error) {
+      setProblem(saveProblem(error));
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <fieldset className="segments segments--three segments--top">
+        <legend className="visually-hidden">Phase</legend>
+        {TYPES.map((each) => (
+          <label key={each.type} className="segments__segment">
+            <input
+              type="radio"
+              name={typeName}
+              checked={type === each.type}
+              onChange={() => {
+                setType(each.type);
+                setProblem(undefined);
+              }}
+            />
+            {each.label}
+          </label>
+        ))}
+      </fieldset>
+      {changingType && (
+        <Notice tone="flag" word={`A ${typeWord(open.type)} is open`}>
+          Saving ends the {typeWord(open.type)} yesterday and starts a {typeWord(type)} from today.
+          The {typeWord(open.type)} is kept, with what it did.
+        </Notice>
+      )}
+      <SaveNotice problem={problem} what="targets" />
+      <form
+        ref={form}
+        className="form"
+        noValidate
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (!busy) void save();
+        }}
+      >
+        {type !== 'maintain' && d.targetRatePctPerWeek !== null && (
+          <>
+            <NumberField
+              label={`Target rate, ${type === 'cut' ? 'loss' : 'gain'} a week`}
+              note={rate === d.targetRatePctPerWeek.value ? 'Default' : 'Yours'}
+              value={fields.rate}
+              onChange={(next) => setField('rate', next)}
+              decimal
+              unit="%"
+              placeholder={String(
+                sameType
+                  ? (open?.targetRatePctPerWeek ?? d.targetRatePctPerWeek.value)
+                  : d.targetRatePctPerWeek.value,
+              )}
+              error={refused('targetRatePctPerWeek')}
+            />
+            {rate !== null && Number.isFinite(rate) && (
+              <p className="m2-derived">
+                That is about <b>{((rate / 100) * weightKg).toFixed(1)} kg a week</b> at{' '}
+                {weightKg.toFixed(1)} kg.
+              </p>
+            )}
+            <div className="m2-source-line">
+              Default {d.targetRatePctPerWeek.value}%, the slow end of{' '}
+              {d.targetRatePctPerWeek.range[0]}–{d.targetRatePctPerWeek.range[1]}% a week.{' '}
+              <EvidenceTag evidence={EVIDENCE[d.targetRatePctPerWeek.sourceKey]} />
+            </div>
+          </>
+        )}
+        <NumberField
+          label="Protein"
+          note={protein === d.proteinGPerKg.value ? 'Default' : 'Yours'}
+          value={fields.protein}
+          onChange={(next) => setField('protein', next)}
+          decimal
+          unit="g/kg"
+          placeholder={String(
+            sameType ? (open?.proteinGPerKg ?? d.proteinGPerKg.value) : d.proteinGPerKg.value,
+          )}
+          error={refused('proteinGPerKg')}
+        />
+        <p className="m2-derived">
+          <b>{proteinG} g a day</b> at {weightKg.toFixed(1)} kg.
+          {type === 'cut' &&
+            ' A cut starts at the top of the range, because needs rise in a deficit. You can go higher.'}
+        </p>
+        <div className="m2-source-line">
+          Range {d.proteinGPerKg.range[0]}–{d.proteinGPerKg.range[1]} g per kg.{' '}
+          <EvidenceTag evidence={EVIDENCE[d.proteinGPerKg.sourceKey]} />
+        </div>
+        <NumberField
+          label="Fat"
+          note={fat === d.fatPctCalories.value ? 'Default' : 'Yours'}
+          value={fields.fat}
+          onChange={(next) => setField('fat', next)}
+          decimal
+          unit="%"
+          placeholder={String(
+            sameType ? (open?.fatPctCalories ?? d.fatPctCalories.value) : d.fatPctCalories.value,
+          )}
+          error={refused('fatPctCalories')}
+        />
+        <p className="m2-derived">
+          <b>{fatG} g a day.</b> Carbohydrate is what remains: <b>{carbG} g</b>.
+        </p>
+        <div className="m2-source-line">
+          Default {d.fatPctCalories.value}%, inside {d.fatPctCalories.range[0]}–
+          {d.fatPctCalories.range[1]}% of calories.{' '}
+          <EvidenceTag evidence={EVIDENCE[d.fatPctCalories.sourceKey]} />
+        </div>
+        <NumberField
+          label="Calories"
+          note={provisional ? 'Provisional' : basis === 'measured' ? 'Measured' : 'Yours'}
+          value={fields.kcal}
+          onChange={(next) => setField('kcal', next)}
+          unit="kcal"
+          placeholder={String(
+            sameType ? (open?.calorieTargetKcal ?? d.calories.value) : d.calories.value,
+          )}
+          error={refused('calorieTargetKcal')}
+        />
+        <Provisional defaults={d} type={type} basis={basis} />
+        <button type="submit" className="button button--primary" disabled={busy}>
+          {busy
+            ? 'Saving…'
+            : changingType
+              ? `End the ${typeWord(open.type)} and start a ${typeWord(type)}`
+              : 'Save targets'}
+        </button>
+      </form>
+    </>
+  );
+}
+
+/** The provisional box: what the calories are, until the maintenance check replaces them. */
+function Provisional({
+  defaults,
+  type,
+  basis,
+}: {
+  defaults: PhaseDefaults;
+  type: GoalPhaseType;
+  basis: GoalPhase['calorieBasis'];
+}) {
+  const { calories } = defaults;
+  if (basis !== 'provisional_formula') {
+    return (
+      <p className="m2-derived">
+        {basis === 'measured' ? 'Set from your maintenance check.' : 'Your own figure.'} The formula
+        gives {kcal(calories.value)} kcal.
+      </p>
+    );
+  }
+  const adjustment =
+    type === 'cut'
+      ? `less ${kcal(-calories.adjustmentKcal)} kcal for your rate`
+      : type === 'bulk'
+        ? `plus ${kcal(calories.adjustmentKcal)} kcal for your rate`
+        : 'with nothing added or taken off';
+  return (
+    <div className="provisional">
+      <span className="provisional__word">Provisional</span>
+      <p>
+        A formula’s estimate from your height, weight, age and sex: resting energy of{' '}
+        {kcal(calories.restingKcal)} kcal, times {calories.activityLevel.toFixed(2)} for{' '}
+        {calories.trainingDaysPerWeek} training{' '}
+        {calories.trainingDaysPerWeek === 1 ? 'day' : 'days'} a week, {adjustment}. It is replaced
+        when you apply the maintenance check, after 14 complete days.
+      </p>
+      <span className="provisional__src">
+        <EvidenceTag evidence={EVIDENCE[calories.sourceKey]} />
+      </span>
+    </div>
+  );
+}
+
+type Fields = { rate: string; protein: string; fat: string; kcal: string };
+
+/** The fields start empty for a new phase, showing the defaults; an open phase's own figures fill them. */
+function fieldsOf(phase: GoalPhase | undefined): Fields {
+  if (phase === undefined) return { rate: '', protein: '', fat: '', kcal: '' };
+  return {
+    rate: phase.targetRatePctPerWeek === null ? '' : String(phase.targetRatePctPerWeek),
+    protein: String(phase.proteinGPerKg),
+    fat: String(phase.fatPctCalories),
+    kcal: String(phase.calorieTargetKcal),
+  };
+}

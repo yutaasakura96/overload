@@ -14,6 +14,9 @@ const SECTIONS = [
   'weighIns',
   'foods',
   'rotationGroups',
+  'phases',
+  'dayRoutines',
+  'planDays',
 ] as const;
 
 type Section = (typeof SECTIONS)[number];
@@ -56,6 +59,9 @@ export async function readExport(
     weighIns: await read('weighIns', 4),
     foods: await read('foods', 5),
     rotationGroups: await read('rotationGroups', 6),
+    phases: await read('phases', 7),
+    dayRoutines: await read('dayRoutines', 8),
+    planDays: await read('planDays', 9),
   };
 }
 

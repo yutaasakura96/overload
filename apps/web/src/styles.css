@@ -3362,3 +3362,537 @@ fieldset.field > legend {
   gap: 12px;
   padding-top: 12px;
 }
+
+/* M2 slice 4 (#79): Today, the whole day (docs/10 §3), and the goal phase and your day (§8.6),
+   from the approved M2 prototype (docs/prototype/m2/src/proto.css). The meal actions and the
+   end-of-day card arrive with slice 5. */
+.m2-lede {
+  margin: 16px var(--gutter) 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+.notice__line {
+  display: block;
+  margin-top: 3px;
+}
+.notice__action {
+  margin-top: 9px;
+}
+
+/* The day's totals stick while the day scrolls under them (Q9): the ground, its hairline. */
+.m2-stick {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface-ground);
+}
+.totals {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 12px var(--gutter);
+  border-top: 1px solid var(--line-hairline);
+  border-bottom: 1px solid var(--line-hairline);
+}
+.totals__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+}
+.totals__kcal {
+  font-family: var(--font-mono);
+  font-size: 26px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+.totals__of {
+  font-size: 13px;
+  color: var(--text-tertiary);
+}
+.totals__off {
+  padding: 3px 7px;
+  border: 1px solid var(--line-done);
+  border-radius: var(--radius);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--done);
+}
+.totals__off--flag {
+  border-color: var(--line-flag);
+  color: var(--flag);
+}
+.totals__eaten {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+.totals__eaten b {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+.macros {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+.macro {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.macro__head {
+  display: grid;
+  gap: 1px;
+}
+.macro__label {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+.macro__value {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.macro__of {
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--text-quaternary);
+}
+.macro__track {
+  height: 3px;
+  background: var(--line-hairline);
+}
+.macro__fill {
+  display: block;
+  height: 100%;
+  background: var(--done);
+}
+.macro__word {
+  font-size: 10px;
+  color: var(--text-quaternary);
+}
+.totals--skeleton {
+  min-height: 108px;
+}
+.skeleton {
+  display: block;
+  height: 12px;
+  border-radius: var(--radius);
+  background: var(--line-hairline);
+}
+.skeleton--figure {
+  width: 140px;
+  height: 26px;
+}
+.skeleton--time {
+  width: 42px;
+}
+.skeleton--card {
+  flex: 1;
+  height: 90px;
+}
+.skeleton-row {
+  display: flex;
+  gap: 10px;
+  margin: 14px var(--gutter) 0;
+}
+.m2-generating {
+  display: block;
+  margin: 14px var(--gutter) 0;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .skeleton {
+    animation: skeleton 1.2s ease-in-out infinite alternate;
+  }
+}
+@keyframes skeleton {
+  to {
+    opacity: 0.45;
+  }
+}
+
+/* The timeline (docs/05 §4.11) and its meal cards (§4.9). */
+.today__section--timeline {
+  padding-top: 18px;
+}
+.timeline {
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.timeline__entry {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 10px;
+}
+.timeline__rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding-top: 11px;
+}
+.timeline__time {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+.timeline__dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1px solid var(--line-field);
+}
+.timeline__dot--done {
+  border-color: var(--done);
+  background: var(--done);
+}
+.timeline__dot--active {
+  border-color: var(--accent);
+}
+.timeline__square {
+  width: 9px;
+  height: 9px;
+  background: var(--accent);
+}
+.timeline__line {
+  flex: 1;
+  width: 1px;
+  min-height: 12px;
+  background: var(--line-hairline);
+}
+.timeline__body {
+  min-width: 0;
+  padding-bottom: 11px;
+}
+.timeline__entry--workout .timeline__rail {
+  padding-top: 14px;
+}
+.meal {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid var(--line-hairline);
+  border-radius: var(--radius);
+  text-align: left;
+}
+.meal--active {
+  border-color: var(--line-accent);
+  background: var(--surface-active);
+}
+.meal__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+}
+.meal__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 400;
+  color: var(--text-primary);
+}
+.meal__macros {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+.meal__sub {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-top: -3px;
+}
+.meal__tag-row {
+  margin-top: -4px;
+  padding: 0 12px 4px;
+}
+.meal__foods {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.meal__food {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.meal__foods--dim .meal__food {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+.meal__qual {
+  color: var(--text-quaternary);
+}
+.meal__grams {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+.meal__foods--dim .meal__grams {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-tertiary);
+}
+.meal__unit {
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--text-quaternary);
+}
+.meal__none {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+.workout-slot {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 11px;
+  padding: 11px 12px;
+  border: 1px solid var(--line-accent);
+  border-left: 2px solid var(--accent);
+  border-radius: var(--radius);
+}
+.workout-slot__label {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.workout-slot__name {
+  display: block;
+  margin-top: 2px;
+  font-size: 15px;
+  color: var(--text-primary);
+}
+.workout-slot__meta {
+  display: block;
+  margin-top: 3px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+.workout-slot__go {
+  width: auto;
+  min-height: var(--target-min);
+  padding: 0 18px;
+}
+
+/* The first-run steps (docs/09 F10). */
+.m2-step {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+}
+.m2-steps {
+  display: grid;
+  gap: 2px;
+  margin: 18px var(--gutter) 0;
+  padding: 0;
+  list-style: none;
+}
+.m2-steps__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 32px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.m2-steps__item--done {
+  color: var(--text-tertiary);
+}
+.m2-steps__ring {
+  width: 9px;
+  height: 9px;
+  margin: 0 2px;
+  border: 1px solid var(--line-field);
+  border-radius: 50%;
+}
+
+/* Goal phase (S14) and your day (S15). */
+.m2-derived {
+  margin: -10px 0 0;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+.m2-derived b {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.m2-source-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  margin: -10px 0 0;
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+.provisional {
+  display: grid;
+  gap: 4px;
+  margin-top: -8px;
+  padding: 10px 11px;
+  border: 1px solid var(--line-flag);
+  border-radius: var(--radius);
+  background: var(--surface-flag);
+}
+.provisional__word {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--flag);
+}
+.provisional p {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+.provisional__src {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-quaternary);
+}
+.weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.weekdays legend {
+  margin-bottom: 6px;
+  padding: 0;
+}
+.weekdays__day {
+  min-height: var(--target-min);
+  border: 1px solid var(--line-hairline);
+  border-radius: var(--radius);
+  font-size: 11px;
+  color: var(--text-quaternary);
+}
+.weekdays__day[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--surface-accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+.stepper {
+  display: grid;
+  grid-template-columns: 44px 84px 44px;
+  align-items: center;
+  border: 1px solid var(--line-field);
+  border-radius: var(--radius);
+}
+.stepper__btn {
+  height: var(--target-min);
+  font-family: var(--font-mono);
+  font-size: 18px;
+  color: var(--text-secondary);
+}
+.stepper__btn:disabled {
+  color: var(--text-quaternary);
+  cursor: not-allowed;
+}
+.stepper__value {
+  font-family: var(--font-mono);
+  font-size: 17px;
+  font-weight: 500;
+  text-align: center;
+}
+.stepper__unit {
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--text-quaternary);
+}
+.recommend {
+  display: grid;
+  gap: 10px;
+  margin: 20px var(--gutter) 0;
+  padding: 14px;
+  border: 1px solid var(--line-accent);
+  border-radius: var(--radius);
+  background: var(--surface-active);
+}
+.recommend__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.recommend__label {
+  margin: 0;
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.recommend__times {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.recommend__times li {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.recommend__time {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.recommend__why,
+.recommend__note,
+.recommend__yours {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+.recommend .m2-source-line {
+  margin: 0;
+}
+.recommend__note {
+  padding-top: 10px;
+  border-top: 1px solid var(--line-hairline);
+}
+.recommend__yours {
+  color: var(--flag);
+}
+.segments--top {
+  margin: 16px var(--gutter) 0;
+}
+.plan__footnote {
+  margin: 4px var(--gutter) 0 calc(var(--gutter) + 52px);
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--text-tertiary);
+}

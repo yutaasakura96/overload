@@ -255,6 +255,11 @@ describe('recommendMeals', () => {
     ).toEqual({ pre: 2, post: 3 });
   });
 
+  it('keeps four meals when protein is 0.55 g/kg a meal but for rounding', () => {
+    // 2.2 g/kg at 82.8 kg is 182.2 g, a hair over four meals of 0.55 g/kg.
+    expect(recommendMeals(rest, 182.2, 82.8).recommendedCount).toBe(4);
+  });
+
   it('takes more meals when protein would pass 0.55 g/kg a meal', () => {
     expect(recommendMeals(rest, 260, 82.4).recommendedCount).toBe(6);
   });

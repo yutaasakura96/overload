@@ -9,7 +9,13 @@ const subscribe = (onChange: () => void) => {
 const snapshot = () => window.location.pathname + window.location.search;
 
 /** What a screen says once on opening, for the screen that sent the user there to choose. */
-export type Note = 'finished' | 'removed' | 'weighed' | 'food-saved' | 'food-archived';
+export type Note =
+  | 'finished'
+  | 'removed'
+  | 'weighed'
+  | 'food-saved'
+  | 'food-archived'
+  | 'plan-saved';
 
 /**
  * What one history entry remembers. `returns`: the entry before it is the screen the user came
@@ -20,7 +26,14 @@ type EntryState = { returns?: boolean | undefined; note?: Note | undefined };
 export type NavigateOptions = { replace?: boolean; returns?: boolean; note?: Note | undefined };
 export type Navigate = (path: string, options?: NavigateOptions) => void;
 
-const NOTES: readonly unknown[] = ['finished', 'removed', 'weighed', 'food-saved', 'food-archived'];
+const NOTES: readonly unknown[] = [
+  'finished',
+  'removed',
+  'weighed',
+  'food-saved',
+  'food-archived',
+  'plan-saved',
+];
 const isNote = (value: unknown): value is Note => NOTES.includes(value);
 
 function entryState(): EntryState {
@@ -108,6 +121,9 @@ export type Route =
   | { screen: 'food-label' }
   | { screen: 'food-check' }
   | { screen: 'rotation-groups' }
+  | { screen: 'about-you' }
+  | { screen: 'goal-phase' }
+  | { screen: 'your-day' }
   | { screen: 'past-workout'; id: string }
   | { screen: 'invites' }
   | { screen: 'account' };
@@ -134,6 +150,10 @@ export function routeOf(pathname: string): Route {
     return { screen: 'today' };
   }
   if (rest.length > 0) return { screen: 'today' };
+  // Plan setup (docs/09 F10): about you, the goal phase and your day.
+  if (first === 'plan' && second === 'about') return { screen: 'about-you' };
+  if (first === 'plan' && second === 'phase') return { screen: 'goal-phase' };
+  if (first === 'plan' && second === 'day') return { screen: 'your-day' };
   // The iPhone Focus guide opens over the workout, which keeps running under it.
   if (first === 'workout' && (second === undefined || second === 'focus'))
     return { screen: 'workout', guide: second === 'focus' };

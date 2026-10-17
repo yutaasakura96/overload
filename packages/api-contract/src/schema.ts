@@ -4957,20 +4957,20 @@ export interface components {
       /** @description Null on maintenance. */
       targetRatePctPerWeek: {
         value: number;
-        /** @description The range it sits in. */
-        range: [number, number];
+        /** @description The range it sits in, low then high. */
+        range: number[];
         sourceKey: components['schemas']['SourceKey'];
       } | null;
       proteinGPerKg: {
         value: number;
-        /** @description The range it sits in. */
-        range: [number, number];
+        /** @description The range it sits in, low then high. */
+        range: number[];
         sourceKey: components['schemas']['SourceKey'];
       };
       fatPctCalories: {
         value: number;
-        /** @description The range it sits in. */
-        range: [number, number];
+        /** @description The range it sits in, low then high. */
+        range: number[];
         sourceKey: components['schemas']['SourceKey'];
       };
       /** @description Provisional until the maintenance check is applied (S14). */
@@ -5036,7 +5036,8 @@ export interface components {
       weightKg: number;
       proteinPerMealG: number;
       proteinPerMealGPerKg: number;
-      perMealRange: [number, number];
+      /** @description g per kg a meal, low then high. */
+      perMealRange: number[];
       /** @enum {string} */
       perMeal: 'inside' | 'above' | 'below';
       sourceKey: components['schemas']['SourceKey'];

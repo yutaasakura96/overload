@@ -64,7 +64,8 @@ export function roomFor(shape: DayShape): number {
  */
 export function recommendedMealCount(shape: DayShape, proteinG: number, weightKg: number): number {
   const [low, high] = PROTEIN_PER_MEAL_G_PER_KG;
-  const fewest = Math.ceil(proteinG / (high * weightKg));
+  // A hair over 0.55 g/kg from rounding the target is still 0.55: it does not take another meal.
+  const fewest = Math.ceil(proteinG / (high * weightKg) - 0.01);
   const most = Math.floor(proteinG / (low * weightKg));
   let count = Math.max(MIN_RECOMMENDED_MEALS, fewest);
   if (shape.dayType === 'training' && shape.trainingTime !== null && count < 5 && most >= 5) {

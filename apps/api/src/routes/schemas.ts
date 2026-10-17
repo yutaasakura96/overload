@@ -1209,7 +1209,10 @@ export const SourceKey = z
 const Default = (value: z.ZodNumber) =>
   z.object({
     value,
-    range: z.tuple([z.number(), z.number()]).openapi({ description: 'The range it sits in.' }),
+    range: z
+      .array(z.number())
+      .length(2)
+      .openapi({ description: 'The range it sits in, low then high.' }),
     sourceKey: SourceKey,
   });
 
@@ -1303,7 +1306,10 @@ export const MealRecommendation = z
     weightKg: z.number(),
     proteinPerMealG: z.number(),
     proteinPerMealGPerKg: z.number(),
-    perMealRange: z.tuple([z.number(), z.number()]),
+    perMealRange: z
+      .array(z.number())
+      .length(2)
+      .openapi({ description: 'g per kg a meal, low then high.' }),
     perMeal: z.enum(['inside', 'above', 'below']),
     sourceKey: SourceKey,
   })

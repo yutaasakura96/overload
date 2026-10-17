@@ -357,6 +357,8 @@ const unitNames: Record<string, string> = {
   g: 'grams',
   kcal: 'kilocalories',
   days: 'days',
+  cm: 'centimetres',
+  'g/kg': 'grams per kilogram of bodyweight',
 };
 
 export function FieldLabel({
