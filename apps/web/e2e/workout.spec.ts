@@ -669,6 +669,35 @@ test('a profile changed elsewhere reaches the open form without undoing an edit 
   expect(me.profile).toMatchObject({ timezone: 'Europe/Paris', weightUnit: 'lb' });
 });
 
+test('an open workout keeps the time zone it started in for last time’s age', async ({ page }) => {
+  const name = `Zone ${Date.now()}`;
+  const lift = 'Dumbbell Lateral Raise';
+  await saveProfile(page, 'Kilograms');
+  await createRoutine(page, name, [lift]);
+  await page.getByRole('button', { name: 'Create routine' }).click();
+  await expect(page).toHaveURL('/routines');
+
+  // Done on the 6th in Tokyo (23:30), then started 24 minutes before midnight on the 7th.
+  await page.clock.install({ time: new Date('2026-10-06T14:30:00Z') });
+  await start(page, name);
+  await completeSet(page, { weight: '10', reps: '12' });
+  await expect(dataState(page)).toContainText('SYNCED');
+  await finish(page);
+  await page.clock.setFixedTime(new Date('2026-10-07T14:36:00Z'));
+  await start(page, name);
+  await expect(brief(page)).toContainText('Tue 6 Oct · yesterday');
+
+  // Kiritimati is already the 8th at this moment. The workout stays in Tokyo's days.
+  const moved = await page.request.patch('/api/me/profile', {
+    headers: { Origin: new URL(page.url()).origin },
+    data: { timezone: 'Pacific/Kiritimati' },
+  });
+  expect(moved.ok()).toBe(true);
+  await page.reload();
+  await expect(brief(page)).toContainText('Tue 6 Oct · yesterday');
+  await expect(brief(page)).not.toContainText('2 days ago');
+});
+
 test('an exercise with no rest starts no rest after a set, and the bar says so', async ({
   page,
 }) => {
