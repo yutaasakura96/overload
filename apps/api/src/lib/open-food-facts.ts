@@ -62,11 +62,13 @@ function nutriment(nutriments: Record<string, unknown>, key: string, suffix: str
 export function candidateOf(record: z.infer<typeof Product>['product']): FoodCandidate {
   const nutriments = record?.nutriments ?? {};
   const servingAmount = record?.serving_quantity;
-  const isVolume = [record?.serving_quantity_unit, record?.product_quantity_unit].some(
-    (unit) => unit?.trim().toLowerCase() === 'ml',
-  );
   const perServing =
     record?.nutrition_data_per === 'serving' && servingAmount !== undefined && servingAmount > 0;
+  const servingUnit = record?.serving_quantity_unit?.trim().toLowerCase();
+  const productUnit = record?.product_quantity_unit?.trim().toLowerCase();
+  const isVolume = perServing
+    ? (servingUnit || productUnit) === 'ml'
+    : record?.nutrition_data_per === '100ml' || (productUnit || servingUnit) === 'ml';
   const suffix = perServing ? '_serving' : '_100g';
   const kj = nutriment(nutriments, 'energy-kj', suffix) ?? nutriment(nutriments, 'energy', suffix);
   const kcal =
