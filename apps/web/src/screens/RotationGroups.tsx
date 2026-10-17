@@ -105,11 +105,11 @@ export function RotationGroups({ navigate }: { navigate: Navigate }) {
         <NewGroup
           busy={busy}
           onCancel={closeNew}
-          onCreate={async (name) => {
+          onCreate={async (id, name) => {
             const made = await run(async () =>
               unwrap(
                 await api.POST('/api/rotation-groups', {
-                  body: { id: newId(), name, foodIds: [] },
+                  body: { id, name, foodIds: [] },
                 }),
               ),
             );
@@ -266,11 +266,12 @@ function NewGroup({
   onCancel,
 }: {
   busy: boolean;
-  onCreate: (name: string) => Promise<void>;
+  onCreate: (id: string, name: string) => Promise<void>;
   onCancel: () => void;
 }) {
   const [name, setName] = useState('');
   const [error, setError] = useState<string>();
+  const pending = useRef<{ id: string; name: string } | null>(null);
   return (
     <form
       className="form"
@@ -283,7 +284,10 @@ function NewGroup({
           return;
         }
         setError(undefined);
-        void onCreate(trimmed);
+        const attempt =
+          pending.current?.name === trimmed ? pending.current : { id: newId(), name: trimmed };
+        pending.current = attempt;
+        void onCreate(attempt.id, trimmed);
       }}
     >
       <TextField

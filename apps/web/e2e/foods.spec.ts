@@ -208,3 +208,42 @@ test('groups two foods as alternatives', async ({ page }) => {
   await expect(page.getByRole('link', { name: /Okra/ })).toContainText('Green vegetable');
   await expect(page.getByRole('link', { name: /Broccoli/ })).toContainText('Green vegetable');
 });
+
+test('retries a group create after its response is lost', async ({ page }) => {
+  const ids: string[] = [];
+  await page.route('**/api/rotation-groups', async (route) => {
+    if (route.request().method() !== 'POST') {
+      await route.continue();
+      return;
+    }
+    const body: { id: string } = route.request().postDataJSON();
+    ids.push(body.id);
+    if (ids.length === 1) {
+      const response = await route.fetch();
+      expect(response.status()).toBe(201);
+      await route.abort('failed');
+      return;
+    }
+    await route.continue();
+  });
+
+  await page.goto('/food/groups');
+  await page.getByRole('button', { name: 'New group' }).click();
+  await page.getByRole('textbox', { name: 'Group name' }).fill('Leafy greens');
+  const make = page.getByRole('button', { name: 'Make the group' });
+  await make.click();
+  await expect(
+    page.getByText(
+      'Couldn’t reach Overload. The group is still here; save again when you have signal.',
+    ),
+  ).toBeVisible();
+  await make.click();
+
+  await expect(page.getByRole('region', { name: /Leafy greens · 0/ })).toBeVisible();
+  expect(ids).toHaveLength(2);
+  expect(ids[1]).toBe(ids[0]);
+  const saved: { items: { name: string }[] } = await (
+    await page.request.get('/api/rotation-groups')
+  ).json();
+  expect(saved.items.filter((group) => group.name === 'Leafy greens')).toHaveLength(1);
+});
