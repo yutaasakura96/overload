@@ -130,6 +130,7 @@ export function Workout({
   const account = useAccount();
   const weighIns = useQuery({
     ...weighInsQuery,
+    staleTime: 0,
     enabled: account.status === 'confirmed' && me.profile !== null,
   });
   const loaded = useWorkoutStore(
@@ -205,7 +206,7 @@ export function Workout({
           key={workout.id}
           workout={workout}
           records={records}
-          weighedDays={weighIns.data?.days}
+          weighed={weighIns.data}
           unit={me.profile?.weightUnit ?? 'kg'}
           timeZone={me.profile?.timezone ?? deviceTimezone()}
           guideOpen={guide}
@@ -275,7 +276,7 @@ function readRest(rest: CountedRest, now: number) {
 function LiveWorkout({
   workout,
   records,
-  weighedDays,
+  weighed,
   unit,
   timeZone,
   guideOpen,
@@ -288,7 +289,7 @@ function LiveWorkout({
 }: {
   workout: WorkoutRecord;
   records: StoreRecord[];
-  weighedDays: WeightDay[] | undefined;
+  weighed: { days: WeightDay[]; requestedAt: number } | undefined;
   unit: WeightUnit;
   timeZone: string;
   guideOpen: boolean;
@@ -304,7 +305,7 @@ function LiveWorkout({
   onFinish: (result: Promise<boolean | undefined>) => void;
 }) {
   const exercises = exercisesOf(records, workout.id).map((exercise) =>
-    countedLastTime(exercise, weighedDays),
+    countedLastTime(exercise, weighed, workout.row.startedAt),
   );
   // Turned on by hand each workout and not remembered (docs/06, 2026-10-12): it lives here, in a
   // component keyed by the workout.

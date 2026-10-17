@@ -421,7 +421,13 @@ export const weighInsQuery = queryOptions({
   queryKey: ['weigh-ins'],
   refetchOnWindowFocus: false,
   refetchOnReconnect: false,
-  queryFn: async ({ signal }) => confirmedAccountData(() => api.GET('/api/weigh-ins', { signal })),
+  queryFn: async ({ signal }) => {
+    const requestedAt = Date.now();
+    return {
+      ...(await confirmedAccountData(() => api.GET('/api/weigh-ins', { signal }))),
+      requestedAt,
+    };
+  },
 });
 
 /**

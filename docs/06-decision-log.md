@@ -3891,7 +3891,8 @@ Checked on invented weigh-ins.
   the counted load for display. These are computed at read time from the stored sets and
   weigh-ins: nothing is written back, so a weigh-in typed or deleted later moves the figures, and
   the screens ask again after one. An open workout keeps its logged Last time sets and suggestion;
-  its displayed count follows the refreshed weighed days.
+  its displayed count follows weighed days fetched after that workout started. Older cached days
+  cannot replace the API's count copied at start.
 - **Which weigh-in is shown.** Every chart point, and the Strength lift, carries `bodyweight`:
   `basis` of `same_day`, `earlier_day`, `later_day` or `none`, with the weight and its local date
   when there is one. The chart's headline and each past-sets row say `Counted at 82 kg · your

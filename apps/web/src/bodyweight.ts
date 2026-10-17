@@ -26,10 +26,18 @@ export function countedAt(count: BodyweightCount, unit: WeightUnit): string {
 
 export function countedLastTime(
   exercise: WorkoutExerciseRecord,
-  days: WeightDay[] | undefined,
+  weighed: { days: WeightDay[]; requestedAt?: number } | undefined,
+  startedAt: string,
 ): WorkoutExerciseRecord {
   const date = exercise.local.lastTimeOn;
-  if (!exercise.local.bodyweight || date == null || days === undefined) return exercise;
+  if (
+    !exercise.local.bodyweight ||
+    date == null ||
+    weighed === undefined ||
+    !(weighed.requestedAt !== undefined && weighed.requestedAt > new Date(startedAt).getTime())
+  )
+    return exercise;
+  const { days } = weighed;
   const same = days.find((day) => day.date === date);
   const earlier = days.find((day) => day.date < date);
   const later = days.findLast((day) => day.date > date);
