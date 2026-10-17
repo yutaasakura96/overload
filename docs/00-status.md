@@ -2,7 +2,7 @@
 
 **Project:** A weight-training progress tracker combining lift logging, meal planning, Apple Watch/iPhone health data, and bodyweight/diet coaching.
 **Phase:** 7 — Build (M1 first). Phase 6 — Review finished 2026-09-23.
-**Updated:** 2026-10-17
+**Updated:** 2026-10-18
 
 ## Done
 - Phase 1 — Brief + PRD: `docs/01-project-brief.md`, `docs/02-product-requirements.md`, `docs/06-decision-log.md`.
@@ -38,6 +38,16 @@ the food list (S12). `food`, `rotation_group`, `reference_food` with the MEXT �
 `/api/rotation-groups`; the export's `foods` and `rotationGroups` sections; and the Food tab, a fifth
 tab, with adding a food four ways, each checked before saving (`06`, 2026-10-17). The label read is
 tested against a stubbed model only, until the API key is set.
+
+**M2 slice 4 is built, 2026-10-18** (`#79`), on `fm/overload-79`, in review against `develop`:
+the goal phase, the day's routine and the generated plan (S14 to S16). `goal_phase`, `day_routine`,
+`meal_slot`, `plan_day`, `plan_meal` and `plan_meal_item` (migration `0019`); `/api/goal-phases`
+with its defaults and their sources, `/api/day-routines` with the meal recommendation,
+`/api/targets/current`, and `GET /api/plan-days` with `POST /api/plan-days/generate`; a
+hand-written planner in `domain/planner.ts`; the export's `phases`, `dayRoutines` and `planDays`
+sections; About you, Goal phase and Your day; Today as the whole day, its meals in a timeline with
+the workout in it; and Weight's `Since` span and phase row (`06`, 2026-10-18). Confirming meals,
+batches and the maintenance check are slices 5 to 7 (`#80`–`#82`).
 
 Building comes first: seeded or fake data is fine until the app is built. Owed, and Yuta's: the two
 weight hardware tests (`06`, 2026-09-19) and an Anthropic API key with a small balance for label

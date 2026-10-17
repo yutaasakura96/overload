@@ -1,4 +1,10 @@
-import type { GoalPhase, GoalPhaseType, Me, PhaseDefaults } from '@overload/api-contract';
+import type {
+  GoalPhase,
+  GoalPhaseType,
+  Me,
+  PhaseDefaults,
+  WeightUnit,
+} from '@overload/api-contract';
 import { useQuery } from '@tanstack/react-query';
 import { useId, useState } from 'react';
 import { api, ApiError, unwrap } from '../api';
@@ -24,6 +30,7 @@ import {
   type SaveProblem,
 } from '../saving';
 import { deviceTimezone } from '../timezones';
+import { fromKg } from '../units';
 
 // Goal phase and targets (S14, docs/10 §8.6): cut, maintain or bulk, and the targets that follow,
 // each default with its source and what it means in plain figures. The calories are a formula's
@@ -75,6 +82,7 @@ export function GoalPhaseScreen({ me, navigate }: { me: Me; navigate: Navigate }
           key={open?.id ?? 'new'}
           open={open}
           today={today}
+          unit={me.profile?.weightUnit ?? 'kg'}
           navigate={navigate}
           onSaved={() => navigate('/', { replace: true, note: 'plan-saved' })}
         />
@@ -86,11 +94,13 @@ export function GoalPhaseScreen({ me, navigate }: { me: Me; navigate: Navigate }
 function PhaseForm({
   open,
   today,
+  unit,
   navigate,
   onSaved,
 }: {
   open: GoalPhase | undefined;
   today: string;
+  unit: WeightUnit;
   navigate: Navigate;
   onSaved: () => void;
 }) {
@@ -129,6 +139,27 @@ function PhaseForm({
   const refused = (path: string) =>
     problem?.kind === 'refused' ? problem.fields.get(path) : undefined;
 
+  // The phase choice stays put while a type's defaults load, so the radio in focus keeps it.
+  const segments = (
+    <fieldset className="segments segments--three segments--top">
+      <legend className="visually-hidden">Phase</legend>
+      {TYPES.map((each) => (
+        <label key={each.type} className="segments__segment">
+          <input
+            type="radio"
+            name={typeName}
+            checked={type === each.type}
+            onChange={() => {
+              setType(each.type);
+              setProblem(undefined);
+            }}
+          />
+          {each.label}
+        </label>
+      ))}
+    </fieldset>
+  );
+
   if (defaults.error instanceof ApiError && defaults.error.code === 'setup_incomplete') {
     return (
       <Notice tone="flag" word="Set up first">
@@ -148,11 +179,16 @@ function PhaseForm({
   }
   const d = defaults.data;
   if (d === undefined) {
-    return defaults.isError ? (
-      <Notice tone="flag" word="Not updated">
-        Couldn’t reach Overload. Try again when you have signal.
-      </Notice>
-    ) : null;
+    return (
+      <>
+        {segments}
+        {defaults.isError && (
+          <Notice tone="flag" word="Not updated">
+            Couldn’t reach Overload. Try again when you have signal.
+          </Notice>
+        )}
+      </>
+    );
   }
 
   // What each field stands at: the typed figure, else the phase's own, else the default.
@@ -174,6 +210,8 @@ function PhaseForm({
   const provisional = basis === 'provisional_formula';
   const weightKg = d.bodyweight.weightKg;
   const proteinG = Math.round(protein * weightKg);
+  // Protein stays per kg, as the sources give it; a weight is said in the user's unit.
+  const weight = (kg: number) => `${fromKg(kg, unit).toFixed(1)} ${unit}`;
   const fatG = Math.round((calories * fat) / 100 / 9);
   const carbG = Math.max(0, Math.round((calories - proteinG * 4 - fatG * 9) / 4));
   const changingType = open !== undefined && open.type !== type;
@@ -249,23 +287,7 @@ function PhaseForm({
 
   return (
     <>
-      <fieldset className="segments segments--three segments--top">
-        <legend className="visually-hidden">Phase</legend>
-        {TYPES.map((each) => (
-          <label key={each.type} className="segments__segment">
-            <input
-              type="radio"
-              name={typeName}
-              checked={type === each.type}
-              onChange={() => {
-                setType(each.type);
-                setProblem(undefined);
-              }}
-            />
-            {each.label}
-          </label>
-        ))}
-      </fieldset>
+      {segments}
       {changingType && (
         <Notice tone="flag" word={`A ${typeWord(open.type)} is open`}>
           Saving ends the {typeWord(open.type)} yesterday and starts a {typeWord(type)} from today.
@@ -300,8 +322,7 @@ function PhaseForm({
             />
             {rate !== null && Number.isFinite(rate) && (
               <p className="m2-derived">
-                That is about <b>{((rate / 100) * weightKg).toFixed(1)} kg a week</b> at{' '}
-                {weightKg.toFixed(1)} kg.
+                That is about <b>{weight((rate / 100) * weightKg)} a week</b> at {weight(weightKg)}.
               </p>
             )}
             <div className="m2-source-line">
@@ -324,7 +345,7 @@ function PhaseForm({
           error={refused('proteinGPerKg')}
         />
         <p className="m2-derived">
-          <b>{proteinG} g a day</b> at {weightKg.toFixed(1)} kg.
+          <b>{proteinG} g a day</b> at {weight(weightKg)}.
           {type === 'cut' &&
             ' A cut starts at the top of the range, because needs rise in a deficit. You can go higher.'}
         </p>

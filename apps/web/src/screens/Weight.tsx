@@ -311,9 +311,9 @@ function WeightBody({
           <span>
             <span className="link-row__name">{phaseLine(phase, planToday(timeZone))}</span>
             <span className="link-row__meta">
-              {phase.targetRatePctPerWeek === null || latest === undefined
+              {phase.type === 'maintain' || phase.targetRatePctPerWeek === null
                 ? 'Target: maintain your weight'
-                : `Target: ${phase.type === 'cut' ? 'lose' : 'gain'} ${phase.targetRatePctPerWeek}% a week, about ${tenth(((latest.trendKg ?? latest.weightKg) * phase.targetRatePctPerWeek) / 100, unit)} ${unitWord(unit)}`}
+                : `Target: ${phase.type === 'cut' ? 'lose' : 'gain'} ${phase.targetRatePctPerWeek}% a week${latest === undefined ? '' : `, about ${tenth(((latest.trendKg ?? latest.weightKg) * phase.targetRatePctPerWeek) / 100, unit)} ${unitWord(unit)}`}`}
             </span>
           </span>
           <Chevron direction="forward" />

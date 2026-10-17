@@ -1,6 +1,6 @@
 import type { PlanDay, PlanItem, PlanMeal, PlanShortfall } from '@overload/api-contract';
-import type { ReactNode } from 'react';
-import { Notice } from './components';
+import { useEffect, useRef, type ReactNode } from 'react';
+import { InfoIcon, Notice } from './components';
 import { EVIDENCE, EvidenceTag } from './evidence';
 import type { Navigate } from './navigation';
 
@@ -38,6 +38,7 @@ function Meter({ label, value, target }: { label: string; value: number; target:
         <span className="macro__value">
           {whole(value)}
           {target !== null && <span className="macro__of"> / {whole(target)}</span>}
+          <span className="visually-hidden"> g</span>
         </span>
       </div>
       <span className="macro__track" aria-hidden="true">
@@ -56,18 +57,36 @@ export function DayTotals({ day }: { day: PlanDay }) {
   const off = ((planned.energyKcal - targets.energyKcal) / targets.energyKcal) * 100;
   const offShown = Math.round(off * 10) / 10;
   const sign = offShown > 0 ? '+' : offShown < 0 ? '−' : '';
+  const flagged = Math.abs(off) > 5;
+  // Today keeps what takes focus clear of the totals by their height (html:has(.m2-stick)).
+  const stick = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const element = stick.current;
+    if (element === null) return undefined;
+    const observer = new ResizeObserver(() =>
+      document.documentElement.style.setProperty('--stick-height', `${element.offsetHeight}px`),
+    );
+    observer.observe(element);
+    return () => {
+      observer.disconnect();
+      document.documentElement.style.removeProperty('--stick-height');
+    };
+  }, []);
   return (
-    <div className="m2-stick">
+    <div ref={stick} className="m2-stick">
       <section className="totals" aria-label="The day’s totals">
         <div className="totals__row">
           <div>
             <span className="totals__kcal">{whole(planned.energyKcal)}</span>
             <span className="totals__of"> of {whole(targets.energyKcal)} kcal planned</span>
           </div>
-          <span className={Math.abs(off) > 5 ? 'totals__off totals__off--flag' : 'totals__off'}>
+          <span className={flagged ? 'totals__off totals__off--flag' : 'totals__off'}>
+            {flagged && <InfoIcon size={11} color="var(--flag)" />}
             {sign}
             {Math.abs(offShown).toFixed(1)}%
-            <span className="visually-hidden"> against the target</span>
+            <span className="visually-hidden">
+              {flagged ? ' against the target, outside the 5% band' : ' against the target'}
+            </span>
           </span>
         </div>
         <div className="totals__eaten">
@@ -152,8 +171,8 @@ function Foods({ meal, dim }: { meal: PlanMeal; dim: boolean }) {
     <ul className={dim ? 'meal__foods meal__foods--dim' : 'meal__foods'}>
       {meal.items.map((item) => (
         <li key={item.id} className="meal__food">
-          <span>
-            {item.name}
+          <span className="meal__name">
+            {item.name}{' '}
             {item.cooked && (
               <span className="meal__qual"> cooked{item.approximate ? ', approx.' : ''}</span>
             )}
@@ -194,7 +213,10 @@ function MealCard({ meal, due }: { meal: PlanMeal; due: boolean }) {
   return (
     <article className="meal meal--active">
       <div className="meal__head">
-        <h3 className="meal__title">{meal.label ?? `Meal ${meal.position}`}</h3>
+        <h3 className="meal__title">
+          {meal.label ?? `Meal ${meal.position}`}
+          <span className="visually-hidden">, next</span>
+        </h3>
       </div>
       <div className="meal__sub">
         {macros}
@@ -274,7 +296,7 @@ export function PlanSkeleton() {
         <span className="skeleton skeleton--figure" />
         <span className="skeleton" />
       </div>
-      <output className="m2-generating">Making today’s plan from your foods…</output>
+      <p className="m2-generating">Making today’s plan from your foods…</p>
       {[1, 2, 3, 4].map((each) => (
         <div key={each} className="skeleton-row">
           <span className="skeleton skeleton--time" />

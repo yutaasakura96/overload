@@ -313,10 +313,34 @@ The error colour is the `error` token (`docs/05` §1.4), always with the word an
 - A batch-cooked food is placed only on days its `keeps_days` covers from the week's at most two
   cook days (`02` S16).
 - Rotation picks from a `rotation_group`, not a chain of pairs.
-- **Whether to use a solver library or hand-written code is decided when M2 starts.** The function's
-  signature and the tolerance tests are written first, so the choice can be swapped.
+- **Hand-written, not a solver library** (`06`, 2026-10-18). The function's signature and the
+  tolerance tests were written first, so the choice can be swapped.
 - If the tolerance cannot be met with the food list, the planner returns the closest plan and names
   which target it missed. It never returns nothing.
+
+**As built, 2026-10-18** (`#79`): `generateDayPlan` in `domain/planner.ts`, with the targets in
+`domain/targets.ts`, the meal count and times in `domain/meals.ts`, and which days need which day
+type in `domain/planning.ts`.
+
+1. Each food takes one role by where its energy comes from: a vegetable (under 60 kcal and at least
+   1.5 g fibre per 100 g), else protein (30 % or more of its energy), carbohydrate (50 %) or fat
+   (60 %). A rotation group gives the day one of its foods, chosen by the date.
+2. Each meal is solved for its share of protein, equal across meals, and of carbohydrate, 1.5×
+   before and after training. A portion past 250 g or 3 pieces shares the role with a second food;
+   a second portion under 30 g goes back to the first. Two meals carry 100 g of a vegetable. Fat
+   fills the day's remaining calories.
+3. Grams round to 5 g, unit foods to whole pieces, then protein and calories are brought back
+   inside ±5 g and ±5 %: calories by carbohydrate then fat, over target by fat, then carbohydrate,
+   then protein. No portion passes 400 g or 800 kcal.
+4. What is left is a shortfall, stored on the day: protein `missingG`, or energy `missingKcal` with
+   `portion_cap` or `foods`. Protein is never padded; calories are still filled from carbohydrate
+   and fat.
+
+Provisional calories are Mifflin–St Jeor × (1.45 + 0.05 per training day) ± the rate × bodyweight ×
+7,700 ÷ 7, to the nearest 10; protein is g/kg of the trend weight (the latest weigh-in before there
+is a trend), fat a share of calories, carbohydrate the rest. A raw batch-cooked food is planned at
+its MEXT cooked counterpart's values and marked approximate until batches (`#81`); the cook-day
+limit above comes with them.
 
 ### 8.3 Weight trend and expenditure (S11, S18a, S21, S23), method `weight_trend_balance_v1`
 

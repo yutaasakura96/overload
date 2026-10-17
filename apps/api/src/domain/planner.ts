@@ -1,6 +1,6 @@
 // S16's daily meal plan (docs/03 §8.2): a pure, deterministic function. The same foods, targets,
 // meals and date always give the same plan. Hand-written rather than a solver library (docs/06,
-// 2026-10-17): each food takes one role by the macro most of its energy comes from, each meal is
+// 2026-10-18): each food takes one role by the macro most of its energy comes from, each meal is
 // solved for its share of protein and carbohydrate, fat fills the rest of the day, and a last pass
 // in whole 5 g steps or whole pieces brings the day within ±5% of calories and ±5 g of protein. What
 // cannot be reached is named, never hidden by padding another food.

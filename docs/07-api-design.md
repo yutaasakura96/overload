@@ -213,7 +213,10 @@ the file in the browser as `overload-export-2026-11-04.json`.
   `routines` and `workouts`. M2 slice 1 adds `weighIns`, newest `measuredAt` then id first, each as
   `GET /api/weigh-ins` lists it. M2 slice 3 adds `foods`, archived ones included, and
   `rotationGroups` with their `foodIds`, each paged by id and shaped as its list returns it;
-  `model_call_count` is bookkeeping and in neither (`06`, 2026-10-17). `profile` is one item, `{ user, profile }`, as `/api/me` without
+  `model_call_count` is bookkeeping and in neither (`06`, 2026-10-17). M2 slice 4 adds `phases`
+  (newest `startedOn` then id first, as `GET /api/goal-phases` lists them), `dayRoutines` (by day
+  type, each with its meals, as `GET /api/day-routines`) and `planDays` (newest date first, each as
+  `GET /api/plan-days` returns a day, meals and items nested) (`06`, 2026-10-18). `profile` is one item, `{ user, profile }`, as `/api/me` without
   `isAdmin`. `exercises` pages by name then id; `routines` pages by position then id; `workouts`
   pages newest `startedAt` then id first, a workout in progress included, each as
   `GET /api/workouts/{id}` returns it.
@@ -727,7 +730,7 @@ GET /api/training/balance?view=4w
 | GET | `/api/foods` | M | The food list, by name (case-folded) then id. Archived ones only with `?includeArchived=true` | 200 | 401 |
 | POST | `/api/foods` | M | Add a confirmed food. The body carries the values **and the basis they were read in**; the API converts to per 100 g | 201 / 200 | 401, 409 `id_conflict` \| `food_exists`, 422 |
 | PATCH | `/api/foods/{id}` | M | Edit name, brand, state, values per 100 g, piece weight, keeping days or rotation group. Past plan days keep their snapshot | 200 | 400, 401, 404, 409 `food_exists`, 422 |
-| DELETE | `/api/foods/{id}` | M | Archive (`archivedAt` set, once). Unconfirmed future plan days are regenerated without it, once plans exist (`#79`) | 204 | 400, 401 |
+| DELETE | `/api/foods/{id}` | M | Archive (`archivedAt` set, once). The server does not touch plans: the client then calls `POST /api/plan-days/generate` for the week from today, which makes every unconfirmed day again without it (`06`, 2026-10-18) | 204 | 400, 401 |
 | GET | `/api/reference-foods?q=` | M | Search the MEXT table (八訂 増補2023). 1 to 80 characters; every word must appear in the English or the Japanese name. 20 results: a name starting with the words first, then raw, then the shorter name. Each carries `existingFoodId` if that code is on the list | 200 | 400, 401 |
 | GET | `/api/barcodes/{code}` | M | Look up Open Food Facts (8 to 14 digits). Returns a **candidate**, not a saved food. A barcode already on the list returns `{ candidate: null, per100g: null, existingFoodId }` and looks nothing up | 200, 404 `not_found` | 400, 401, 429, 502 |
 | POST | `/api/label-reads` | M | Photo of a 栄養成分表示 → candidate values and their basis (multipart) | 200 | 401, 413, 422 `validation_failed` \| `unreadable_label`, 429 `model_cap_reached`, 502 |
@@ -799,13 +802,29 @@ A stored food is always per 100 g. The response has no `basis`.
 | Method | Path | Auth | Purpose | Success | Failures |
 | --- | --- | --- | --- | --- | --- |
 | GET | `/api/goal-phases` | M | Every phase, newest first; the open one has `endedOn: null` | 200 | 401 |
-| POST | `/api/goal-phases` | M | Open a phase. `endPrevious: true` closes the open one on the day before, in the same transaction | 201 / 200 | 401, 409 `phase_already_open`, 422 |
-| PATCH | `/api/goal-phases/{id}` | M | Edit targets, or apply the maintenance check by hand (`calorieTargetKcal` plus `calorieBasis: "measured"`) | 200 | 401, 404, 422 |
-| GET | `/api/goal-phases/defaults?type=cut` | M | The defaults with their sources (S14): rate, protein, fat, provisional calories | 200 | 401, 422 `setup_incomplete` |
-| GET | `/api/day-routines` | M | Both day types with their meal slots | 200 | 401 |
-| PUT | `/api/day-routines/{dayType}` | M | Replace one day type's routine and its meal slots | 200 | 401, 422 |
-| GET | `/api/day-routines/{dayType}/recommendation` | M | The recommended meal count and times, with the explanation and sources (S15) | 200 | 401, 422 `setup_incomplete` |
-| GET | `/api/targets/current` | M | The targets in force today, and where they came from | 200 | 401 |
+| POST | `/api/goal-phases` | M | Open a phase. `endPrevious: true` closes the open one on the day before (on its start day if it started today), in the same transaction | 201 / 200 | 401, 409 `phase_already_open` \| `id_conflict`, 422 |
+| PATCH | `/api/goal-phases/{id}` | M | Edit targets, or apply the maintenance check by hand (`calorieTargetKcal` plus `calorieBasis: "measured"`) | 200 | 400, 401, 404, 422 |
+| GET | `/api/goal-phases/defaults?type=cut&targetRatePctPerWeek=` | M | The defaults with their sources (S14): rate, protein, fat, provisional calories. The rate is the type's default unless given | 200 | 400, 401, 422 `setup_incomplete` |
+| GET | `/api/day-routines` | M | The day types set so far, training first, with their meals | 200 | 401 |
+| PUT | `/api/day-routines/{dayType}` | M | Replace one day type's routine and its meals. `slots` (1 to 8) are the meals in order; their count is the meal count | 200 | 400, 401, 422 |
+| GET | `/api/day-routines/{dayType}/recommendation?wakeTime=&bedTime=&trainingTime=&mealCount=` | M | The recommended meal count and times for the day as given, with the explanation and sources (S15). `mealCount` asks for times at another count | 200 | 400, 401, 422 `setup_incomplete` |
+| GET | `/api/targets/current` | M | The targets in force today, and where they came from | 200 | 401, 422 `setup_incomplete` |
+
+**As built, 2026-10-18** (`#79`, `06`). `setup_incomplete` carries `missing`, in the order
+`profile`, `foods`, `goal_phase`, `day_routine`; `profile` means height, sex, birth date and a
+weigh-in. The defaults' rate is 0.5 %/week on a cut (0.5–1, Helms 2014) and 0.25 on a bulk
+(0.25–0.5, Iraki 2019), none on maintenance; protein 2.2 g/kg on a cut and 1.6 otherwise; fat 25 % of
+calories (15–30). The provisional calories are Mifflin–St Jeor resting energy × an activity level
+of 1.45 + 0.05 per training day, plus or minus the rate's kcal (7,700 per kg), to the nearest 10
+(`03` §8.2). Each default carries `value`, `range` and its `sourceKey`, which the client resolves to
+the claim and sources. The recommendation carries `recommendedCount`, `roomFor`, the `slots` with
+`isPreTraining` and `isPostTraining`, and protein per meal against 0.4–0.55 g/kg (`perMeal` is
+`inside`, `above` or `below`).
+
+`GET /api/targets/current` returns `{ date, goalPhaseId, energyKcal, proteinG, carbG, fatG,
+bodyweightKg, source: { kind } }` from the open phase and the trend weight. **The expenditure
+estimate is M3** (slice 7, `#82`): until it exists `kind` is only `goal_phase` or
+`provisional_formula`, and the inline fallback below is not built.
 
 `GET /api/targets/current` is the **inline fallback** of the daily job (`03` §8.4). If the caller's
 local Monday has begun and that week has no expenditure estimate, it computes one before answering.
@@ -824,8 +843,8 @@ puts the "provisional" label on screen (S14).
 
 | Method | Path | Auth | Purpose | Success | Failures |
 | --- | --- | --- | --- | --- | --- |
-| GET | `/api/plan-days?from=&to=` | M | Plan days in a range (at most 31), meals and items included. **Read-only**: dates with no plan are listed in `missing` | 200 | 401, 422 |
-| POST | `/api/plan-days/generate` | M | Generate `{ from, to }`. Days that have no confirmed meal are generated, or regenerated from current inputs; days with any confirmed meal are left alone | 200 with the days | 401, 422 `setup_incomplete` |
+| GET | `/api/plan-days?from=&to=` | M | Plan days in a range (at most 31), meals and items included. **Read-only**: dates with no plan are listed in `missing` | 200 | 400, 401 |
+| POST | `/api/plan-days/generate` | M | Generate `{ from, to }`. Days that have no confirmed meal are generated, or regenerated from current inputs; days with any confirmed meal, and past days that already have a plan, are left alone | 200 with the days | 401, 422 `setup_incomplete` \| `validation_failed` |
 | POST | `/api/plan-meals/{id}/confirm` | M | Confirm one meal (below). Repeating it replaces the earlier confirmation, never adds to it | 200 with the meal | 401, 404, 409 `day_locked`, 422 |
 | POST | `/api/plan-days/{date}/confirm-all` | M | The end-of-day check: every `planned` meal on that day becomes `as_planned` | 200 with the day | 401, 404, 409 `day_locked` |
 | GET | `/api/prep-plan?weekStart=` | M | Prep plan and grocery list for the week (S17), derived | 200 | 401, 422 |
@@ -834,7 +853,13 @@ puts the "provisional" label on screen (S14).
   plan screen calls `generate` when `missing` is not empty, and the client calls it after the food
   list, routine or phase changes. The daily job also calls it for the new week.
 - **Generation never returns nothing** (`03` §8.2). When a target cannot be met, the day carries
-  `shortfalls`.
+  `shortfalls`, stored with it (`04` `plan_day.shortfalls`).
+- **As built, 2026-10-18** (`#79`): `from` after `to`, or more than 31 days, is a 400 on the read
+  and a 422 `validation_failed` on `generate`. The client generates today through today + 6 when
+  `missing` is not empty, and again after a food or a rotation group changes, or a
+  save on About you, Goal phase or Your day. The daily job is not built. Confirming (below) and the
+  prep plan are slices 5 and 6 (`#80`, `#81`); `batchId` and `estimateId` are not in the item yet,
+  and `cooked` is.
 
 ```json
 GET /api/plan-days?from=2026-11-11&to=2026-11-11  →  200
@@ -851,10 +876,10 @@ GET /api/plan-days?from=2026-11-11&to=2026-11-11  →  200
       "evidence": [ { "claim": "carbohydrate around training", "strength": "moderate", "sourceKey": "carb_timing_training" } ],
       "items": [
         { "id": "0192i071-…", "foodId": "0192f001-…", "name": "鶏むね肉（皮なし、加熱後）", "plannedGrams": 180, "actualGrams": null,
-          "pieceCount": null, "batchId": "0192b004-…", "approximate": false, "estimateId": null,
+          "pieceCount": null, "cooked": true, "batchId": "0192b004-…", "approximate": false, "estimateId": null,
           "per100g": { "energyKcal": 140.0, "proteinG": 31.1, "carbG": 0, "fatG": 2.0, "fiberG": 0 } },
         { "id": "0192i072-…", "foodId": "0192f003-…", "name": "白米（炊飯後）", "plannedGrams": 250, "actualGrams": null,
-          "pieceCount": null, "batchId": null, "approximate": false, "estimateId": null,
+          "pieceCount": null, "cooked": true, "batchId": null, "approximate": false, "estimateId": null,
           "per100g": { "energyKcal": 156.0, "proteinG": 2.5, "carbG": 37.1, "fatG": 0.3, "fiberG": 1.5 } }
       ] } ]
   } ] }
@@ -862,7 +887,13 @@ GET /api/plan-days?from=2026-11-11&to=2026-11-11  →  200
 
 - `complete` is derived (`CONTEXT.md`). `approximate: true` marks a cooked portion with no batch
   yield recorded (PRD empty state).
-- `shortfalls` entries look like `{ "target": "protein", "missingG": 22, "suggestion": "add_protein_source" }`.
+- `shortfalls` entries are `{ "target": "protein", "missingG": 22, "suggestion": "add_protein_source" }`
+  or `{ "target": "energy", "missingKcal": 140, "cause": "portion_cap", "suggestion": null }`. `cause`
+  is `portion_cap` when a portion reached its cap (400 g or 800 kcal) and `foods` when the list has
+  nothing more to give, with `suggestion: "add_food"`. Protein is never padded; a protein shortfall
+  still fills the calories from carbohydrate and fat.
+- `approximate: true` is set, in M2 slice 4, on a raw batch-cooked food planned at the cooked
+  weight of its MEXT cooked counterpart (`06`, 2026-10-18), until slice 6's batch yield.
 
 **Confirming a meal.** The body depends on `status`:
 

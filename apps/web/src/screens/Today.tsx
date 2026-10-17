@@ -238,7 +238,14 @@ export function Today({ me, navigate }: { me: Me; navigate: Navigate }) {
       {plan.step !== undefined && (
         <SetupStep step={plan.step} done={plan.done} navigate={navigate} />
       )}
-      {plan.step === undefined && plan.generating && plan.day === undefined && <PlanSkeleton />}
+      {plan.step === undefined && (plan.generating || plan.reading) && plan.day === undefined && (
+        <PlanSkeleton />
+      )}
+      {/* Mounted throughout, so making the plan and its arrival are both said (a failure is the
+          notice's own). */}
+      <p className="visually-hidden" aria-live="polite">
+        {plan.generating ? 'Making today’s plan.' : plan.made ? 'Today’s plan is ready.' : ''}
+      </p>
       {plan.step === undefined && plan.failed && plan.day === undefined && (
         <Notice tone="flag" word="No plan yet">
           Couldn’t make today’s plan. Try again when you have signal.
@@ -913,6 +920,7 @@ function usePlan(me: Me, confirmed: boolean) {
   const targets = useQuery({ ...currentTargetsQuery, enabled: confirmed && ready });
   const [generating, setGenerating] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [made, setMade] = useState(false);
   const attempted = useRef<string>(undefined);
   const missing = days.data?.missing.length ?? 0;
   useEffect(() => {
@@ -922,7 +930,11 @@ function usePlan(me: Me, confirmed: boolean) {
     setFailed(false);
     void regeneratePlan()
       .then(() => queryClient.fetchQuery({ ...planDaysQuery(today, to), staleTime: 0 }))
-      .then((read) => setFailed(read.days.every((day) => day.date !== today)))
+      .then((read) => {
+        const none = read.days.every((day) => day.date !== today);
+        setFailed(none);
+        setMade(!none);
+      })
       .catch(() => setFailed(true))
       .finally(() => setGenerating(false));
   }, [missing, today, to]);
@@ -933,6 +945,9 @@ function usePlan(me: Me, confirmed: boolean) {
     done,
     day: ready ? days.data?.days.find((day: PlanDay) => day.date === today) : undefined,
     generating,
+    // Ready, with the week still being read: the skeleton holds its place.
+    reading: ready && days.isPending,
+    made,
     failed,
     phase,
     targets: targets.data,
@@ -989,6 +1004,17 @@ function SetupStep({
   );
 }
 
+/** A workout entry's heading, beside the meals' own, so heading navigation reaches it too. */
+function SlotHeading({ name }: { name: string }) {
+  return (
+    <h3 className="workout-slot__heading">
+      <span className="workout-slot__label">Workout</span>
+      <span className="visually-hidden">: </span>
+      <span className="workout-slot__name">{name}</span>
+    </h3>
+  );
+}
+
 /** The workout's place in the timeline: the day's routine to start, or the one in progress or done. */
 function WorkoutSlot({
   routine,
@@ -1011,13 +1037,11 @@ function WorkoutSlot({
   onResume: () => void;
   onCreate: () => void;
 }) {
-  const label = <span className="workout-slot__label">Workout</span>;
   if (done !== undefined) {
     return (
       <div className="workout-slot">
         <div>
-          {label}
-          <span className="workout-slot__name">{done.name}</span>
+          <SlotHeading name={done.name} />
           <span className="workout-slot__meta">Done, started {done.at}</span>
         </div>
       </div>
@@ -1027,8 +1051,7 @@ function WorkoutSlot({
     return (
       <div className="workout-slot">
         <div>
-          {label}
-          <span className="workout-slot__name">{open}</span>
+          <SlotHeading name={open} />
           <span className="workout-slot__meta">In progress</span>
         </div>
         <button
@@ -1045,8 +1068,7 @@ function WorkoutSlot({
     return (
       <div className="workout-slot">
         <div>
-          {label}
-          <span className="workout-slot__name">No routine yet</span>
+          <SlotHeading name="No routine yet" />
           <span className="workout-slot__meta">Make one and start it from here</span>
         </div>
         <button
@@ -1063,8 +1085,7 @@ function WorkoutSlot({
   return (
     <div className="workout-slot">
       <div>
-        {label}
-        <span className="workout-slot__name">{routine.name}</span>
+        <SlotHeading name={routine.name} />
         <span className="workout-slot__meta">
           {routine.exercises.length} {routine.exercises.length === 1 ? 'exercise' : 'exercises'} ·{' '}
           {sets} sets
@@ -1136,11 +1157,12 @@ function YourPlan({
           <span className="link-row__name">Your day</span>
           <span className="link-row__meta">
             {[
-              training === undefined ? undefined : `Training days ${training} meals`,
+              training === undefined ? undefined : `training days ${training} meals`,
               rest === undefined ? undefined : `rest days ${rest} meals`,
             ]
               .filter(Boolean)
-              .join(' · ')}
+              .join(' · ')
+              .replace(/^./, (first) => first.toUpperCase())}
           </span>
         </span>
         <Chevron direction="forward" />

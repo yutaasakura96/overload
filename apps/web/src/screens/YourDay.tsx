@@ -209,9 +209,10 @@ function DayForm({
     key: 'wakeTime' | 'bedTime' | 'workStart' | 'workEnd' | 'trainingTime',
     id: string,
     label: string,
+    note?: string,
   ) => (
     <div className="field">
-      <FieldLabel htmlFor={id} label={label} />
+      <FieldLabel htmlFor={id} label={label} note={note} />
       <input
         id={id}
         type="time"
@@ -279,8 +280,8 @@ function DayForm({
           {time('bedTime', ids.bed, 'Bed')}
         </div>
         <div className="form__pair">
-          {time('workStart', ids.workStart, 'Work starts')}
-          {time('workEnd', ids.workEnd, 'Work ends')}
+          {time('workStart', ids.workStart, 'Work starts', 'Optional')}
+          {time('workEnd', ids.workEnd, 'Work ends', 'Optional')}
         </div>
         {training && time('trainingTime', ids.train, 'Training time')}
       </div>
@@ -301,6 +302,22 @@ function DayForm({
             first.
           </Notice>
         )}
+      {complete &&
+        recommendation.isError &&
+        !(
+          recommendation.error instanceof ApiError &&
+          recommendation.error.code === 'setup_incomplete'
+        ) && (
+          <Notice tone="flag" word="Not updated">
+            Couldn’t work out the meals. Try again when you have signal.
+          </Notice>
+        )}
+      {!complete && (
+        <p className="m2-derived">
+          {training ? 'Add a wake, bed and training time' : 'Add a wake and bed time'} to see the
+          meals.
+        </p>
+      )}
       {r !== undefined && complete && (
         <Recommend
           recommendation={r}
@@ -312,8 +329,11 @@ function DayForm({
         <button
           type="button"
           className="button button--primary"
-          disabled={busy || r === undefined || !complete}
-          onClick={() => void save()}
+          // Not `disabled`: after the training day saves, focus stays here for the rest day.
+          aria-disabled={busy || r === undefined || !complete}
+          onClick={() => {
+            if (!busy && complete) void save();
+          }}
         >
           {busy ? 'Saving…' : 'Use these meals'}
         </button>
@@ -372,8 +392,11 @@ function Recommend({
             type="button"
             className="stepper__btn"
             aria-label="One meal fewer"
-            disabled={r.mealCount <= 1}
-            onClick={() => onCount(r.mealCount - 1)}
+            // Kept focusable at the bound, so focus never drops out of the stepper.
+            aria-disabled={r.mealCount <= 1}
+            onClick={() => {
+              if (r.mealCount > 1) onCount(r.mealCount - 1);
+            }}
           >
             −
           </button>
@@ -385,8 +408,10 @@ function Recommend({
             type="button"
             className="stepper__btn"
             aria-label="One meal more"
-            disabled={r.mealCount >= 8}
-            onClick={() => onCount(r.mealCount + 1)}
+            aria-disabled={r.mealCount >= 8}
+            onClick={() => {
+              if (r.mealCount < 8) onCount(r.mealCount + 1);
+            }}
           >
             +
           </button>
@@ -395,8 +420,7 @@ function Recommend({
       <ol className="recommend__times">
         {r.slots.map((slot) => (
           <li key={slot.position}>
-            <span className="recommend__time">{slot.time}</span>
-            <span>{slot.label}</span>
+            <span className="recommend__time">{slot.time}</span> <span>{slot.label}</span>
           </li>
         ))}
       </ol>

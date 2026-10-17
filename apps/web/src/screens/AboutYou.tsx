@@ -228,8 +228,8 @@ function AboutForm({
         </div>
         <fieldset
           className="segments"
+          role="radiogroup"
           aria-invalid={refused('sex') === undefined ? undefined : true}
-          aria-describedby={refused('sex') === undefined ? undefined : `${sexName}-error`}
         >
           <legend className="field__label">Sex, for the formula only</legend>
           {(['male', 'female'] as const).map((each) => (
@@ -239,6 +239,7 @@ function AboutForm({
                 name={sexName}
                 value={each}
                 checked={sex === each}
+                aria-describedby={refused('sex') === undefined ? undefined : `${sexName}-error`}
                 onChange={() => setSex(each)}
               />
               {each === 'male' ? 'Male' : 'Female'}
