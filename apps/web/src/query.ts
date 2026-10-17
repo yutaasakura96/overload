@@ -21,6 +21,7 @@ import {
 import { useState, useSyncExternalStore } from 'react';
 import { api, ApiError, isUnauthenticated, unwrap } from './api';
 import { deviceStore } from './device-store';
+import { dropCandidate } from './food';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -174,6 +175,7 @@ tabs?.addEventListener('message', (event: MessageEvent<{ userId: string | null }
 
 /** Stops saving and forgets whose copy is open. */
 export function closeAccount() {
+  dropCandidate();
   accountClosed = true;
   accountGeneration += 1;
   stopPersisting?.();
@@ -231,6 +233,7 @@ async function confirm(me: Me, generation: number) {
   const { id } = me.user;
   const switched = account.userId !== id;
   if (switched) {
+    dropCandidate();
     stopPersisting?.();
     stopPersisting = undefined;
     setAccount({ userId: id, status: 'confirmed' });

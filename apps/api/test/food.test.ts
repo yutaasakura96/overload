@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { basisGrams, impossibleValues, toPer100g } from '../src/domain/food';
-import { labelReadOf } from '../src/lib/label-reader';
+import { labelReadOf, labelReader } from '../src/lib/label-reader';
 import { candidateOf } from '../src/lib/open-food-facts';
 
 // S12's conversion (issue #78): whatever basis a source gave, the list keeps per 100 g. Also how a
@@ -116,6 +116,22 @@ describe('labelReadOf', () => {
       grams: null,
     });
   });
+});
+
+it('counts one upstream attempt for a failed label read', async () => {
+  const fetch = vi
+    .spyOn(globalThis, 'fetch')
+    .mockResolvedValue(new Response('Service unavailable', { status: 503 }));
+  try {
+    const result = await labelReader({ apiKey: 'test-key' }).read({
+      data: new Uint8Array([1]),
+      mediaType: 'image/jpeg',
+    });
+    expect(result).toEqual({ kind: 'failed' });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  } finally {
+    fetch.mockRestore();
+  }
 });
 
 describe('candidateOf (Open Food Facts)', () => {

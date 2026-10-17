@@ -44,7 +44,7 @@ Otherwise:
 - state is "cooked" for food sold ready to eat after cooking (サラダチキン, 焼き魚), "raw" for an uncooked ingredient, null when you cannot tell.`;
 
 export function labelReader({ apiKey }: { apiKey: string }): LabelReader {
-  const client = new Anthropic({ apiKey, timeout: TIMEOUT_MS, maxRetries: 1 });
+  const client = new Anthropic({ apiKey, timeout: TIMEOUT_MS, maxRetries: 0 });
   return {
     async read(image: LabelImage): Promise<LabelRead> {
       let answer: z.infer<typeof LabelAnswer> | null;

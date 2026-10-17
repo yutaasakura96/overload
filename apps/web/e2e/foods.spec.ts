@@ -74,6 +74,38 @@ test('adds a food from the MEXT table, checked before saving', async ({ page }) 
   await expect(page.getByText('Nothing was saved: it is on your list already.')).toBeVisible();
 });
 
+test('drops a food candidate when the account changes in the same tab', async ({
+  context,
+  page,
+}) => {
+  const email = 'other-foods@example.test';
+  const other: { userId: string } = JSON.parse(apiFixture('user', email));
+  try {
+    await page.goto('/food');
+    await page.getByRole('button', { name: 'Add a food' }).click();
+    await page
+      .getByRole('searchbox', { name: 'Search the MEXT food table' })
+      .fill('chicken breast');
+    await page.getByRole('button', { name: /meat without skin, raw.*MEXT 11220/ }).click();
+    await expect(page.getByRole('textbox', { name: 'Name' })).not.toBeEmpty();
+    await page.goBack();
+    await page.goBack();
+
+    const cookies: Cookies = JSON.parse(apiFixture('cookies', other.userId, 'localhost'));
+    await context.addCookies(cookies);
+    await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+    await expect(page.getByText(email)).toBeVisible();
+    await page.goForward();
+    await page.goForward();
+
+    await expect(page.getByText('TYPED BY HAND')).toBeVisible();
+    await expect(page.getByRole('textbox', { name: 'Name' })).toBeEmpty();
+    await expect(page.getByRole('textbox', { name: /^Protein/ })).toBeEmpty();
+  } finally {
+    apiFixture('delete', email);
+  }
+});
+
 test('adds a food by hand from its package values, saved per 100 g', async ({ page }) => {
   await page.goto('/food/new');
   await page.getByRole('button', { name: /Enter it by hand/ }).click();
