@@ -347,11 +347,9 @@ const LastFields = {
       z.object({
         workingSet: z.int(),
         weightKg: z.number(),
-        countedWeightKg: z
-          .number()
-          .openapi({
-            description: 'The load counted for display; weightKg remains the logged added load.',
-          }),
+        countedWeightKg: z.number().openapi({
+          description: 'The load counted for display; weightKg remains the logged added load.',
+        }),
         reps: z.int(),
         rir: z.int().nullable().openapi({ description: 'Null when the set recorded none.' }),
       }),
