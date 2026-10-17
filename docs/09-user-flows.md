@@ -278,8 +278,8 @@ The order is the PRD's (S12): search, then barcode, then label photo, then manua
 2. **Barcode:** scan → `GET /api/barcodes/{code}` → a candidate → confirm screen. If the list
    already has that barcode, open the existing food instead.
 3. **Label photo** (when the barcode is not found): photograph the 栄養成分表示 → `POST
-   /api/label-reads` → candidate with its basis (per 100 g, piece, serving or package) → confirm
-   screen.
+   /api/label-reads` → candidate with its basis (per 100 g, per 100 ml, piece, serving or package)
+   → confirm screen.
 4. **Manual:** the same confirm screen, empty.
 5. **Confirm screen:** values, basis, raw or cooked, piece weight, optional rotation group → **Save**
    → `POST /api/foods`. The screen asks for a missing weight, including a barcode's volume basis
