@@ -757,8 +757,8 @@ Content-Type: multipart/form-data; boundary=…
 ```
 
 `basis.kind` is `per_100g`, `per_100ml`, `per_piece`, `per_serving` or `per_package`, with its grams when
-known. A label read per 100 ml returns `per_100ml` with `grams: null` until the user weighs 100 ml;
-`per100g` is null until then. Otherwise `per100g` is the server's conversion. A field
+known. A label read per 100 ml returns `per_100ml` with `grams: null` until the user weighs 100 ml.
+`per100g` is the server's conversion, or null while the basis has no grams. A field
 the label does not print is `null`, never a guess.
 
 ```http
