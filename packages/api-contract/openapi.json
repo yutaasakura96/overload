@@ -495,9 +495,96 @@
               "items",
               "nextCursor"
             ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "section": {
+                "type": "string",
+                "enum": [
+                  "phases"
+                ]
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/GoalPhase"
+                }
+              },
+              "nextCursor": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Opaque. Send it back as `cursor` for the next page."
+              }
+            },
+            "required": [
+              "section",
+              "items",
+              "nextCursor"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "section": {
+                "type": "string",
+                "enum": [
+                  "dayRoutines"
+                ]
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/DayRoutine"
+                }
+              },
+              "nextCursor": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Opaque. Send it back as `cursor` for the next page."
+              }
+            },
+            "required": [
+              "section",
+              "items",
+              "nextCursor"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "section": {
+                "type": "string",
+                "enum": [
+                  "planDays"
+                ]
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PlanDay"
+                }
+              },
+              "nextCursor": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Opaque. Send it back as `cursor` for the next page."
+              }
+            },
+            "required": [
+              "section",
+              "items",
+              "nextCursor"
+            ]
           }
         ],
-        "description": "One page of one section. `profile` has one item; `exercises`, `routines`, `workouts`, `weighIns`, `foods` and `rotationGroups` are cursor-paged. Workouts include ones in progress, and `foods` archived ones."
+        "description": "One page of one section. `profile` has one item; `exercises`, `routines`, `workouts`, `weighIns`, `foods`, `rotationGroups`, `phases`, `dayRoutines` and `planDays` are cursor-paged. Workouts include ones in progress, and `foods` archived ones."
       },
       "ExportProfile": {
         "type": "object",
@@ -1195,6 +1282,591 @@
           "foodIds"
         ]
       },
+      "GoalPhase": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+          },
+          "type": {
+            "$ref": "#/components/schemas/GoalPhaseType"
+          },
+          "startedOn": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-10-16"
+          },
+          "endedOn": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date",
+            "example": "2026-10-16",
+            "description": "Null on the open phase."
+          },
+          "targetRatePctPerWeek": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0.05,
+            "maximum": 2,
+            "example": 0.5,
+            "description": "% of bodyweight a week, lost on a cut or gained on a bulk. Null on maintenance."
+          },
+          "proteinGPerKg": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 4,
+            "example": 2.2
+          },
+          "fatPctCalories": {
+            "type": "number",
+            "minimum": 10,
+            "maximum": 60,
+            "example": 25
+          },
+          "calorieTargetKcal": {
+            "type": "integer",
+            "minimum": 1000,
+            "maximum": 6000,
+            "example": 2350
+          },
+          "calorieBasis": {
+            "$ref": "#/components/schemas/CalorieBasis"
+          },
+          "calorieTargetSetAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-11-11T09:01:40.000Z",
+            "description": "When the calories were last set."
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "startedOn",
+          "endedOn",
+          "targetRatePctPerWeek",
+          "proteinGPerKg",
+          "fatPctCalories",
+          "calorieTargetKcal",
+          "calorieBasis",
+          "calorieTargetSetAt"
+        ]
+      },
+      "GoalPhaseType": {
+        "type": "string",
+        "enum": [
+          "cut",
+          "bulk",
+          "maintain"
+        ]
+      },
+      "CalorieBasis": {
+        "type": "string",
+        "enum": [
+          "provisional_formula",
+          "measured",
+          "manual"
+        ],
+        "description": "`provisional_formula` puts the provisional label on screen until the maintenance check is applied (S14)."
+      },
+      "DayRoutine": {
+        "type": "object",
+        "properties": {
+          "dayType": {
+            "$ref": "#/components/schemas/DayType"
+          },
+          "wakeTime": {
+            "type": "string",
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "example": "18:30"
+          },
+          "workStart": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "example": "18:30"
+          },
+          "workEnd": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "example": "18:30"
+          },
+          "trainingTime": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "example": "18:30",
+            "description": "Null on a rest day."
+          },
+          "bedTime": {
+            "type": "string",
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "example": "18:30"
+          },
+          "mealCount": {
+            "type": "integer"
+          },
+          "slots": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MealSlot"
+            },
+            "description": "The meals, in order."
+          }
+        },
+        "required": [
+          "dayType",
+          "wakeTime",
+          "workStart",
+          "workEnd",
+          "trainingTime",
+          "bedTime",
+          "mealCount",
+          "slots"
+        ]
+      },
+      "DayType": {
+        "type": "string",
+        "enum": [
+          "training",
+          "rest"
+        ]
+      },
+      "MealSlot": {
+        "type": "object",
+        "properties": {
+          "position": {
+            "type": "integer"
+          },
+          "time": {
+            "type": "string",
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "example": "18:30"
+          },
+          "label": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "position",
+          "time",
+          "label"
+        ]
+      },
+      "PlanDay": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-10-16"
+          },
+          "dayType": {
+            "$ref": "#/components/schemas/DayType"
+          },
+          "goalPhaseId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+          },
+          "complete": {
+            "type": "boolean",
+            "description": "No meal left at `planned`."
+          },
+          "targets": {
+            "type": "object",
+            "properties": {
+              "energyKcal": {
+                "type": "number"
+              },
+              "proteinG": {
+                "type": "number"
+              },
+              "carbG": {
+                "type": "number"
+              },
+              "fatG": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "energyKcal",
+              "proteinG",
+              "carbG",
+              "fatG"
+            ],
+            "description": "Copied from the targets in force when generated."
+          },
+          "planned": {
+            "type": "object",
+            "properties": {
+              "energyKcal": {
+                "type": "number"
+              },
+              "proteinG": {
+                "type": "number"
+              },
+              "carbG": {
+                "type": "number"
+              },
+              "fatG": {
+                "type": "number"
+              },
+              "fiberG": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "energyKcal",
+              "proteinG",
+              "carbG",
+              "fatG",
+              "fiberG"
+            ]
+          },
+          "confirmed": {
+            "type": "object",
+            "properties": {
+              "energyKcal": {
+                "type": "number"
+              },
+              "proteinG": {
+                "type": "number"
+              },
+              "carbG": {
+                "type": "number"
+              },
+              "fatG": {
+                "type": "number"
+              },
+              "fiberG": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "energyKcal",
+              "proteinG",
+              "carbG",
+              "fatG",
+              "fiberG"
+            ]
+          },
+          "shortfalls": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlanShortfall"
+            }
+          },
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-11-11T09:01:40.000Z"
+          },
+          "meals": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlanMeal"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "date",
+          "dayType",
+          "goalPhaseId",
+          "complete",
+          "targets",
+          "planned",
+          "confirmed",
+          "shortfalls",
+          "generatedAt",
+          "meals"
+        ]
+      },
+      "PlanShortfall": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "target": {
+                "type": "string",
+                "enum": [
+                  "protein"
+                ]
+              },
+              "missingG": {
+                "type": "integer"
+              },
+              "suggestion": {
+                "type": "string",
+                "enum": [
+                  "add_protein_source"
+                ]
+              }
+            },
+            "required": [
+              "target",
+              "missingG",
+              "suggestion"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "target": {
+                "type": "string",
+                "enum": [
+                  "energy"
+                ]
+              },
+              "missingKcal": {
+                "type": "integer"
+              },
+              "cause": {
+                "type": "string",
+                "enum": [
+                  "portion_cap",
+                  "foods"
+                ],
+                "description": "`portion_cap`: a portion reached its cap; `foods`: the list has no more to give."
+              },
+              "suggestion": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "enum": [
+                  "add_food"
+                ]
+              }
+            },
+            "required": [
+              "target",
+              "missingKcal",
+              "cause",
+              "suggestion"
+            ]
+          }
+        ],
+        "description": "A target the plan could not reach, never padded."
+      },
+      "PlanMeal": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+          },
+          "position": {
+            "type": "integer"
+          },
+          "plannedTime": {
+            "type": "string",
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "example": "18:30"
+          },
+          "label": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "isPreTraining": {
+            "type": "boolean"
+          },
+          "isPostTraining": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "planned",
+              "as_planned",
+              "adjusted",
+              "replaced",
+              "skipped"
+            ]
+          },
+          "confirmedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "example": "2026-11-11T09:01:40.000Z"
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "claim": {
+                  "type": "string"
+                },
+                "strength": {
+                  "type": "string",
+                  "enum": [
+                    "strong",
+                    "moderate",
+                    "contested"
+                  ]
+                },
+                "sourceKey": {
+                  "$ref": "#/components/schemas/SourceKey"
+                }
+              },
+              "required": [
+                "claim",
+                "strength",
+                "sourceKey"
+              ]
+            }
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlanItem"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "position",
+          "plannedTime",
+          "label",
+          "isPreTraining",
+          "isPostTraining",
+          "status",
+          "confirmedAt",
+          "evidence",
+          "items"
+        ]
+      },
+      "SourceKey": {
+        "type": "string",
+        "enum": [
+          "rate_cut",
+          "rate_bulk",
+          "protein_g_per_kg",
+          "fat_pct_calories",
+          "provisional_calories",
+          "protein_per_meal",
+          "carb_timing_training"
+        ],
+        "description": "The evidence a default or a recommendation rests on, its claim and sources."
+      },
+      "PlanItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+          },
+          "foodId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+          },
+          "name": {
+            "type": "string"
+          },
+          "plannedGrams": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "actualGrams": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "pieceCount": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Whole pieces of a unit food."
+          },
+          "cooked": {
+            "type": "boolean",
+            "description": "The grams are a cooked weight."
+          },
+          "approximate": {
+            "type": "boolean",
+            "description": "A cooked weight with no batch yield recorded: the values are approximate."
+          },
+          "per100g": {
+            "type": "object",
+            "properties": {
+              "energyKcal": {
+                "type": "number"
+              },
+              "proteinG": {
+                "type": "number"
+              },
+              "carbG": {
+                "type": "number"
+              },
+              "fatG": {
+                "type": "number"
+              },
+              "fiberG": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "energyKcal",
+              "proteinG",
+              "carbG",
+              "fatG",
+              "fiberG"
+            ],
+            "description": "The food’s values as the plan used them."
+          }
+        },
+        "required": [
+          "id",
+          "foodId",
+          "name",
+          "plannedGrams",
+          "actualGrams",
+          "pieceCount",
+          "cooked",
+          "approximate",
+          "per100g"
+        ]
+      },
       "ExportSection": {
         "type": "string",
         "enum": [
@@ -1204,7 +1876,10 @@
           "workouts",
           "weighIns",
           "foods",
-          "rotationGroups"
+          "rotationGroups",
+          "phases",
+          "dayRoutines",
+          "planDays"
         ],
         "description": "The sections built so far. Later milestones add theirs (docs/07 §2)."
       },
@@ -3709,6 +4384,598 @@
             "description": "The whole membership. A food left out stays on the list, ungrouped."
           }
         }
+      },
+      "GoalPhaseList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GoalPhase"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "GoalPhaseCreate": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11",
+            "description": "Made on the device (UUIDv7). A repeat returns the phase."
+          },
+          "type": {
+            "$ref": "#/components/schemas/GoalPhaseType"
+          },
+          "startedOn": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-10-16"
+          },
+          "targetRatePctPerWeek": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0.05,
+            "maximum": 2,
+            "example": 0.5
+          },
+          "proteinGPerKg": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 4,
+            "example": 2.2
+          },
+          "fatPctCalories": {
+            "type": "number",
+            "minimum": 10,
+            "maximum": 60,
+            "example": 25
+          },
+          "calorieTargetKcal": {
+            "type": "integer",
+            "minimum": 1000,
+            "maximum": 6000,
+            "example": 2350
+          },
+          "calorieBasis": {
+            "type": "string",
+            "enum": [
+              "provisional_formula",
+              "manual"
+            ],
+            "description": "`provisional_formula` when the calories are the defaults’ estimate, unchanged."
+          },
+          "endPrevious": {
+            "type": "boolean",
+            "description": "Ends the open phase on the day before. Without it an open phase is a 409."
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "startedOn",
+          "targetRatePctPerWeek",
+          "proteinGPerKg",
+          "fatPctCalories",
+          "calorieTargetKcal",
+          "calorieBasis"
+        ]
+      },
+      "GoalPhasePatch": {
+        "type": "object",
+        "properties": {
+          "targetRatePctPerWeek": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0.05,
+            "maximum": 2,
+            "example": 0.5
+          },
+          "proteinGPerKg": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 4,
+            "example": 2.2
+          },
+          "fatPctCalories": {
+            "type": "number",
+            "minimum": 10,
+            "maximum": 60,
+            "example": 25
+          },
+          "calorieTargetKcal": {
+            "type": "integer",
+            "minimum": 1000,
+            "maximum": 6000,
+            "example": 2350
+          },
+          "calorieBasis": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CalorieBasis"
+              },
+              {
+                "description": "`measured` applies the maintenance check by hand (docs/09 F13)."
+              }
+            ]
+          }
+        },
+        "description": "An omitted field is unchanged."
+      },
+      "PhaseDefaults": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "$ref": "#/components/schemas/GoalPhaseType"
+          },
+          "bodyweight": {
+            "type": "object",
+            "properties": {
+              "weightKg": {
+                "type": "number"
+              },
+              "date": {
+                "type": "string",
+                "format": "date",
+                "example": "2026-10-16"
+              }
+            },
+            "required": [
+              "weightKg",
+              "date"
+            ],
+            "description": "The trend weight, or the latest weigh-in before there is a trend."
+          },
+          "targetRatePctPerWeek": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "value": {
+                "type": "number"
+              },
+              "range": {
+                "type": "array",
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "description": "The range it sits in."
+              },
+              "sourceKey": {
+                "$ref": "#/components/schemas/SourceKey"
+              }
+            },
+            "required": [
+              "value",
+              "range",
+              "sourceKey"
+            ],
+            "description": "Null on maintenance."
+          },
+          "proteinGPerKg": {
+            "type": "object",
+            "properties": {
+              "value": {
+                "type": "number"
+              },
+              "range": {
+                "type": "array",
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "description": "The range it sits in."
+              },
+              "sourceKey": {
+                "$ref": "#/components/schemas/SourceKey"
+              }
+            },
+            "required": [
+              "value",
+              "range",
+              "sourceKey"
+            ]
+          },
+          "fatPctCalories": {
+            "type": "object",
+            "properties": {
+              "value": {
+                "type": "number"
+              },
+              "range": {
+                "type": "array",
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "description": "The range it sits in."
+              },
+              "sourceKey": {
+                "$ref": "#/components/schemas/SourceKey"
+              }
+            },
+            "required": [
+              "value",
+              "range",
+              "sourceKey"
+            ]
+          },
+          "calories": {
+            "type": "object",
+            "properties": {
+              "value": {
+                "type": "integer",
+                "description": "kcal a day, to the nearest 10."
+              },
+              "basis": {
+                "type": "string",
+                "enum": [
+                  "provisional_formula"
+                ]
+              },
+              "formula": {
+                "type": "string",
+                "enum": [
+                  "mifflin_st_jeor"
+                ]
+              },
+              "restingKcal": {
+                "type": "integer"
+              },
+              "activityLevel": {
+                "type": "number"
+              },
+              "trainingDaysPerWeek": {
+                "type": "integer"
+              },
+              "adjustmentKcal": {
+                "type": "integer",
+                "description": "The deficit (negative) or surplus a day."
+              },
+              "age": {
+                "type": "integer"
+              },
+              "sourceKey": {
+                "$ref": "#/components/schemas/SourceKey"
+              }
+            },
+            "required": [
+              "value",
+              "basis",
+              "formula",
+              "restingKcal",
+              "activityLevel",
+              "trainingDaysPerWeek",
+              "adjustmentKcal",
+              "age",
+              "sourceKey"
+            ],
+            "description": "Provisional until the maintenance check is applied (S14)."
+          }
+        },
+        "required": [
+          "type",
+          "bodyweight",
+          "targetRatePctPerWeek",
+          "proteinGPerKg",
+          "fatPctCalories",
+          "calories"
+        ]
+      },
+      "DayRoutineList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DayRoutine"
+            },
+            "description": "Training first. A day type not set is absent."
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "DayRoutinePut": {
+        "type": "object",
+        "properties": {
+          "wakeTime": {
+            "type": "string",
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "example": "18:30"
+          },
+          "workStart": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "example": "18:30"
+          },
+          "workEnd": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "example": "18:30"
+          },
+          "trainingTime": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "example": "18:30",
+            "description": "Required on a training day."
+          },
+          "bedTime": {
+            "type": "string",
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "example": "18:30"
+          },
+          "slots": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "time": {
+                  "type": "string",
+                  "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+                  "example": "18:30"
+                },
+                "label": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "minLength": 1,
+                  "maxLength": 40
+                }
+              },
+              "required": [
+                "time",
+                "label"
+              ]
+            },
+            "minItems": 1,
+            "maxItems": 8,
+            "description": "The meals, in order: their count is the meal count."
+          }
+        },
+        "required": [
+          "wakeTime",
+          "workStart",
+          "workEnd",
+          "trainingTime",
+          "bedTime",
+          "slots"
+        ]
+      },
+      "MealRecommendation": {
+        "type": "object",
+        "properties": {
+          "dayType": {
+            "$ref": "#/components/schemas/DayType"
+          },
+          "recommendedCount": {
+            "type": "integer"
+          },
+          "mealCount": {
+            "type": "integer",
+            "description": "The count asked about, or the recommendation."
+          },
+          "roomFor": {
+            "type": "integer",
+            "description": "The most meals the waking day has room for."
+          },
+          "slots": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "position": {
+                  "type": "integer"
+                },
+                "time": {
+                  "type": "string",
+                  "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+                  "example": "18:30"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "isPreTraining": {
+                  "type": "boolean"
+                },
+                "isPostTraining": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "position",
+                "time",
+                "label",
+                "isPreTraining",
+                "isPostTraining"
+              ]
+            }
+          },
+          "proteinG": {
+            "type": "number",
+            "description": "The day’s protein target."
+          },
+          "weightKg": {
+            "type": "number"
+          },
+          "proteinPerMealG": {
+            "type": "number"
+          },
+          "proteinPerMealGPerKg": {
+            "type": "number"
+          },
+          "perMealRange": {
+            "type": "array",
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "perMeal": {
+            "type": "string",
+            "enum": [
+              "inside",
+              "above",
+              "below"
+            ]
+          },
+          "sourceKey": {
+            "$ref": "#/components/schemas/SourceKey"
+          }
+        },
+        "required": [
+          "dayType",
+          "recommendedCount",
+          "mealCount",
+          "roomFor",
+          "slots",
+          "proteinG",
+          "weightKg",
+          "proteinPerMealG",
+          "proteinPerMealGPerKg",
+          "perMealRange",
+          "perMeal",
+          "sourceKey"
+        ],
+        "description": "S15: the count and times, and the protein each meal carries."
+      },
+      "CurrentTargets": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-10-16"
+          },
+          "goalPhaseId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+          },
+          "energyKcal": {
+            "type": "number"
+          },
+          "proteinG": {
+            "type": "number"
+          },
+          "carbG": {
+            "type": "number"
+          },
+          "fatG": {
+            "type": "number"
+          },
+          "bodyweightKg": {
+            "type": "number"
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "provisional_formula",
+                  "goal_phase"
+                ],
+                "description": "`provisional_formula` is what puts the provisional label on screen."
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        },
+        "required": [
+          "date",
+          "goalPhaseId",
+          "energyKcal",
+          "proteinG",
+          "carbG",
+          "fatG",
+          "bodyweightKg",
+          "source"
+        ]
+      },
+      "PlanDays": {
+        "type": "object",
+        "properties": {
+          "missing": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "date",
+              "example": "2026-10-16"
+            },
+            "description": "Dates in the range with no plan."
+          },
+          "days": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlanDay"
+            },
+            "description": "Oldest first."
+          }
+        },
+        "required": [
+          "missing",
+          "days"
+        ]
+      },
+      "PlanRange": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-10-16"
+          },
+          "to": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-10-16"
+          }
+        },
+        "required": [
+          "from",
+          "to"
+        ],
+        "description": "Local dates, both included, at most 31 days."
       },
       "InviteList": {
         "type": "object",
@@ -6365,6 +7632,705 @@
           },
           "401": {
             "description": "No session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/goal-phases": {
+      "get": {
+        "summary": "Every goal phase, newest first",
+        "responses": {
+          "200": {
+            "description": "The open one has `endedOn: null`",
+            "headers": {
+              "Overload-User": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "The id of the user whose session answered. Keep the body for that account only."
+                },
+                "required": true,
+                "description": "The id of the user whose session answered. Keep the body for that account only."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoalPhaseList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Open a goal phase",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GoalPhaseCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "A repeat of the same create: the stored phase",
+            "headers": {
+              "Overload-User": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "The id of the user whose session answered. Keep the body for that account only."
+                },
+                "required": true,
+                "description": "The id of the user whose session answered. Keep the body for that account only."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoalPhase"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Opened",
+            "headers": {
+              "Overload-User": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "The id of the user whose session answered. Keep the body for that account only."
+                },
+                "required": true,
+                "description": "The id of the user whose session answered. Keep the body for that account only."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoalPhase"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`phase_already_open` without `endPrevious`; `id_conflict`: the id is in use with other content",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`validation_failed`",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/goal-phases/{id}": {
+      "patch": {
+        "summary": "Edit a phase’s targets, or apply the maintenance check by hand",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GoalPhasePatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The phase",
+            "headers": {
+              "Overload-User": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "The id of the user whose session answered. Keep the body for that account only."
+                },
+                "required": true,
+                "description": "The id of the user whose session answered. Keep the body for that account only."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoalPhase"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A malformed id",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such phase of the caller’s",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`validation_failed`, including a rate on maintenance or none on a cut",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/goal-phases/defaults": {
+      "get": {
+        "summary": "The defaults of a new phase, each with its source (S14)",
+        "parameters": [
+          {
+            "schema": {
+              "$ref": "#/components/schemas/GoalPhaseType"
+            },
+            "required": true,
+            "name": "type",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "number",
+              "minimum": 0.05,
+              "maximum": 2,
+              "description": "The rate the calories are worked out for. Default: the type’s."
+            },
+            "required": false,
+            "description": "The rate the calories are worked out for. Default: the type’s.",
+            "name": "targetRatePctPerWeek",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Rate, protein, fat and provisional calories",
+            "headers": {
+              "Overload-User": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "The id of the user whose session answered. Keep the body for that account only."
+                },
+                "required": true,
+                "description": "The id of the user whose session answered. Keep the body for that account only."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PhaseDefaults"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "An unknown type or a rate out of range",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`setup_incomplete` with `missing: [\"profile\"]`: height, sex, birth date and a weigh-in first",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/day-routines": {
+      "get": {
+        "summary": "Both day types with their meals",
+        "responses": {
+          "200": {
+            "description": "The day types set so far, training first",
+            "headers": {
+              "Overload-User": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "The id of the user whose session answered. Keep the body for that account only."
+                },
+                "required": true,
+                "description": "The id of the user whose session answered. Keep the body for that account only."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DayRoutineList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/day-routines/{dayType}": {
+      "put": {
+        "summary": "Replace one day type’s routine and its meals",
+        "parameters": [
+          {
+            "schema": {
+              "$ref": "#/components/schemas/DayType"
+            },
+            "required": true,
+            "name": "dayType",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DayRoutinePut"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The routine as stored",
+            "headers": {
+              "Overload-User": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "The id of the user whose session answered. Keep the body for that account only."
+                },
+                "required": true,
+                "description": "The id of the user whose session answered. Keep the body for that account only."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DayRoutine"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "An unknown day type",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`validation_failed`, including a training day without a training time or a rest day with one",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/day-routines/{dayType}/recommendation": {
+      "get": {
+        "summary": "The recommended meal count and times for a day, with the protein each meal carries (S15)",
+        "parameters": [
+          {
+            "schema": {
+              "$ref": "#/components/schemas/DayType"
+            },
+            "required": true,
+            "name": "dayType",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+              "example": "18:30"
+            },
+            "required": true,
+            "name": "wakeTime",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+              "example": "18:30"
+            },
+            "required": true,
+            "name": "bedTime",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+              "example": "18:30",
+              "description": "A training day’s."
+            },
+            "required": false,
+            "description": "A training day’s.",
+            "name": "trainingTime",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 8,
+              "description": "The count to give times for. Default: the recommendation."
+            },
+            "required": false,
+            "description": "The count to give times for. Default: the recommendation.",
+            "name": "mealCount",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The recommendation, for the day as given",
+            "headers": {
+              "Overload-User": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "The id of the user whose session answered. Keep the body for that account only."
+                },
+                "required": true,
+                "description": "The id of the user whose session answered. Keep the body for that account only."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MealRecommendation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A malformed time or count",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`setup_incomplete` with `missing`: protein per meal needs the profile and the goal phase",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/targets/current": {
+      "get": {
+        "summary": "The targets in force today, and where they came from",
+        "responses": {
+          "200": {
+            "description": "Today’s targets",
+            "headers": {
+              "Overload-User": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "The id of the user whose session answered. Keep the body for that account only."
+                },
+                "required": true,
+                "description": "The id of the user whose session answered. Keep the body for that account only."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CurrentTargets"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`setup_incomplete` with `missing`: the profile or the goal phase",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/plan-days": {
+      "get": {
+        "summary": "The plan days in a range, meals and items included. Read-only",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "example": "2026-10-16"
+            },
+            "required": true,
+            "name": "from",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "example": "2026-10-16"
+            },
+            "required": true,
+            "name": "to",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The days, and the dates with no plan in `missing`",
+            "headers": {
+              "Overload-User": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "The id of the user whose session answered. Keep the body for that account only."
+                },
+                "required": true,
+                "description": "The id of the user whose session answered. Keep the body for that account only."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanDays"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A malformed date, `from` after `to`, or more than 31 days",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/plan-days/generate": {
+      "post": {
+        "summary": "Generate a range: each day with no confirmed meal is made again from current inputs. Past days already planned are left",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanRange"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The range’s days after generating",
+            "headers": {
+              "Overload-User": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "The id of the user whose session answered. Keep the body for that account only."
+                },
+                "required": true,
+                "description": "The id of the user whose session answered. Keep the body for that account only."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanDays"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`setup_incomplete` with `missing`; `validation_failed` for `from` after `to` or more than 31 days",
             "content": {
               "application/problem+json": {
                 "schema": {

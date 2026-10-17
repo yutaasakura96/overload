@@ -1105,6 +1105,320 @@ export const RotationGroupPatch = z
   })
   .openapi('RotationGroupPatch');
 
+// Goal phase, routine and targets (S14, S15, docs/07 §4). Local dates are `YYYY-MM-DD`, local
+// times `HH:MM`, both in the profile's time zone.
+
+const LocalDate = z.iso.date().openapi({ example: '2026-10-16' });
+export const LocalTime = z
+  .string()
+  .regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'A time as HH:MM')
+  .openapi({ example: '18:30' });
+
+export const GoalPhaseType = z.enum(['cut', 'bulk', 'maintain']).openapi('GoalPhaseType');
+export const CalorieBasis = z
+  .enum(['provisional_formula', 'measured', 'manual'])
+  .openapi('CalorieBasis', {
+    description:
+      '`provisional_formula` puts the provisional label on screen until the maintenance check is applied (S14).',
+  });
+
+const RatePct = z.number().min(0.05).max(2).multipleOf(0.01).openapi({ example: 0.5 });
+const ProteinGPerKg = z.number().min(1).max(4).multipleOf(0.01).openapi({ example: 2.2 });
+const FatPct = z.number().min(10).max(60).multipleOf(0.1).openapi({ example: 25 });
+const CalorieTarget = z.int().min(1000).max(6000).openapi({ example: 2350 });
+
+export const GoalPhase = z
+  .object({
+    id: Uuid,
+    type: GoalPhaseType,
+    startedOn: LocalDate,
+    endedOn: LocalDate.nullable().openapi({ description: 'Null on the open phase.' }),
+    targetRatePctPerWeek: RatePct.nullable().openapi({
+      description:
+        '% of bodyweight a week, lost on a cut or gained on a bulk. Null on maintenance.',
+    }),
+    proteinGPerKg: ProteinGPerKg,
+    fatPctCalories: FatPct,
+    calorieTargetKcal: CalorieTarget,
+    calorieBasis: CalorieBasis,
+    calorieTargetSetAt: Instant.openapi({ description: 'When the calories were last set.' }),
+  })
+  .openapi('GoalPhase');
+
+export const GoalPhaseList = z.object({ items: z.array(GoalPhase) }).openapi('GoalPhaseList');
+
+const ratePerType = (
+  phase: { type: 'cut' | 'bulk' | 'maintain'; targetRatePctPerWeek?: number | null | undefined },
+  ctx: z.RefinementCtx,
+) => {
+  const hasRate = phase.targetRatePctPerWeek != null;
+  if (hasRate === (phase.type === 'maintain')) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['targetRatePctPerWeek'],
+      message: phase.type === 'maintain' ? 'Maintenance has no rate' : 'A cut or bulk needs a rate',
+    });
+  }
+};
+
+export const GoalPhaseCreate = z
+  .object({
+    id: Uuid.openapi({ description: 'Made on the device (UUIDv7). A repeat returns the phase.' }),
+    type: GoalPhaseType,
+    startedOn: LocalDate,
+    targetRatePctPerWeek: RatePct.nullable(),
+    proteinGPerKg: ProteinGPerKg,
+    fatPctCalories: FatPct,
+    calorieTargetKcal: CalorieTarget,
+    calorieBasis: z.enum(['provisional_formula', 'manual']).openapi({
+      description: '`provisional_formula` when the calories are the defaults’ estimate, unchanged.',
+    }),
+    endPrevious: z.boolean().optional().openapi({
+      description: 'Ends the open phase on the day before. Without it an open phase is a 409.',
+    }),
+  })
+  .superRefine(ratePerType)
+  .openapi('GoalPhaseCreate');
+
+export const GoalPhasePatch = z
+  .object({
+    targetRatePctPerWeek: RatePct.nullable().optional(),
+    proteinGPerKg: ProteinGPerKg.optional(),
+    fatPctCalories: FatPct.optional(),
+    calorieTargetKcal: CalorieTarget.optional(),
+    calorieBasis: CalorieBasis.optional().openapi({
+      description: '`measured` applies the maintenance check by hand (docs/09 F13).',
+    }),
+  })
+  .openapi('GoalPhasePatch', { description: 'An omitted field is unchanged.' });
+
+export const SourceKey = z
+  .enum([
+    'rate_cut',
+    'rate_bulk',
+    'protein_g_per_kg',
+    'fat_pct_calories',
+    'provisional_calories',
+    'protein_per_meal',
+    'carb_timing_training',
+  ])
+  .openapi('SourceKey', {
+    description: 'The evidence a default or a recommendation rests on, its claim and sources.',
+  });
+
+const Default = (value: z.ZodNumber) =>
+  z.object({
+    value,
+    range: z.tuple([z.number(), z.number()]).openapi({ description: 'The range it sits in.' }),
+    sourceKey: SourceKey,
+  });
+
+export const PhaseDefaults = z
+  .object({
+    type: GoalPhaseType,
+    bodyweight: z.object({ weightKg: z.number(), date: LocalDate }).openapi({
+      description: 'The trend weight, or the latest weigh-in before there is a trend.',
+    }),
+    targetRatePctPerWeek: Default(z.number())
+      .nullable()
+      .openapi({ description: 'Null on maintenance.' }),
+    proteinGPerKg: Default(z.number()),
+    fatPctCalories: Default(z.number()),
+    calories: z
+      .object({
+        value: z.int().openapi({ description: 'kcal a day, to the nearest 10.' }),
+        basis: z.literal('provisional_formula'),
+        formula: z.literal('mifflin_st_jeor'),
+        restingKcal: z.int(),
+        activityLevel: z.number(),
+        trainingDaysPerWeek: z.int(),
+        adjustmentKcal: z
+          .int()
+          .openapi({ description: 'The deficit (negative) or surplus a day.' }),
+        age: z.int(),
+        sourceKey: SourceKey,
+      })
+      .openapi({ description: 'Provisional until the maintenance check is applied (S14).' }),
+  })
+  .openapi('PhaseDefaults');
+
+export const DayType = z.enum(['training', 'rest']).openapi('DayType');
+
+export const MealSlot = z
+  .object({ position: z.int(), time: LocalTime, label: z.string().nullable() })
+  .openapi('MealSlot');
+
+export const DayRoutine = z
+  .object({
+    dayType: DayType,
+    wakeTime: LocalTime,
+    workStart: LocalTime.nullable(),
+    workEnd: LocalTime.nullable(),
+    trainingTime: LocalTime.nullable().openapi({ description: 'Null on a rest day.' }),
+    bedTime: LocalTime,
+    mealCount: z.int(),
+    slots: z.array(MealSlot).openapi({ description: 'The meals, in order.' }),
+  })
+  .openapi('DayRoutine');
+
+export const DayRoutineList = z
+  .object({
+    items: z
+      .array(DayRoutine)
+      .openapi({ description: 'Training first. A day type not set is absent.' }),
+  })
+  .openapi('DayRoutineList');
+
+export const DayRoutinePut = z
+  .object({
+    wakeTime: LocalTime,
+    workStart: LocalTime.nullable(),
+    workEnd: LocalTime.nullable(),
+    trainingTime: LocalTime.nullable().openapi({ description: 'Required on a training day.' }),
+    bedTime: LocalTime,
+    slots: z
+      .array(z.object({ time: LocalTime, label: z.string().trim().min(1).max(40).nullable() }))
+      .min(1)
+      .max(8)
+      .openapi({ description: 'The meals, in order: their count is the meal count.' }),
+  })
+  .openapi('DayRoutinePut');
+
+export const MealRecommendation = z
+  .object({
+    dayType: DayType,
+    recommendedCount: z.int(),
+    mealCount: z.int().openapi({ description: 'The count asked about, or the recommendation.' }),
+    roomFor: z.int().openapi({ description: 'The most meals the waking day has room for.' }),
+    slots: z.array(
+      z.object({
+        position: z.int(),
+        time: LocalTime,
+        label: z.string(),
+        isPreTraining: z.boolean(),
+        isPostTraining: z.boolean(),
+      }),
+    ),
+    proteinG: z.number().openapi({ description: 'The day’s protein target.' }),
+    weightKg: z.number(),
+    proteinPerMealG: z.number(),
+    proteinPerMealGPerKg: z.number(),
+    perMealRange: z.tuple([z.number(), z.number()]),
+    perMeal: z.enum(['inside', 'above', 'below']),
+    sourceKey: SourceKey,
+  })
+  .openapi('MealRecommendation', {
+    description: 'S15: the count and times, and the protein each meal carries.',
+  });
+
+const Macros = z.object({
+  energyKcal: z.number(),
+  proteinG: z.number(),
+  carbG: z.number(),
+  fatG: z.number(),
+});
+
+export const CurrentTargets = z
+  .object({
+    date: LocalDate,
+    goalPhaseId: Uuid,
+    ...Macros.shape,
+    bodyweightKg: z.number(),
+    source: z.object({
+      kind: z.enum(['provisional_formula', 'goal_phase']).openapi({
+        description: '`provisional_formula` is what puts the provisional label on screen.',
+      }),
+    }),
+  })
+  .openapi('CurrentTargets');
+
+// Plan days (S16, docs/07 §4).
+
+const PlanPer100g = z.object({ ...Macros.shape, fiberG: z.number() });
+
+export const PlanShortfall = z
+  .discriminatedUnion('target', [
+    z.object({
+      target: z.literal('protein'),
+      missingG: z.int(),
+      suggestion: z.literal('add_protein_source'),
+    }),
+    z.object({
+      target: z.literal('energy'),
+      missingKcal: z.int(),
+      cause: z.enum(['portion_cap', 'foods']).openapi({
+        description:
+          '`portion_cap`: a portion reached its cap; `foods`: the list has no more to give.',
+      }),
+      suggestion: z.literal('add_food').nullable(),
+    }),
+  ])
+  .openapi('PlanShortfall', { description: 'A target the plan could not reach, never padded.' });
+
+export const PlanItem = z
+  .object({
+    id: Uuid,
+    foodId: Uuid.nullable(),
+    name: z.string(),
+    plannedGrams: z.number().nullable(),
+    actualGrams: z.number().nullable(),
+    pieceCount: z.number().nullable().openapi({ description: 'Whole pieces of a unit food.' }),
+    cooked: z.boolean().openapi({ description: 'The grams are a cooked weight.' }),
+    approximate: z.boolean().openapi({
+      description: 'A cooked weight with no batch yield recorded: the values are approximate.',
+    }),
+    per100g: PlanPer100g.openapi({ description: 'The food’s values as the plan used them.' }),
+  })
+  .openapi('PlanItem');
+
+export const PlanMeal = z
+  .object({
+    id: Uuid,
+    position: z.int(),
+    plannedTime: LocalTime,
+    label: z.string().nullable(),
+    isPreTraining: z.boolean(),
+    isPostTraining: z.boolean(),
+    status: z.enum(['planned', 'as_planned', 'adjusted', 'replaced', 'skipped']),
+    confirmedAt: Instant.nullable(),
+    evidence: z.array(
+      z.object({
+        claim: z.string(),
+        strength: z.enum(['strong', 'moderate', 'contested']),
+        sourceKey: SourceKey,
+      }),
+    ),
+    items: z.array(PlanItem),
+  })
+  .openapi('PlanMeal');
+
+export const PlanDay = z
+  .object({
+    id: Uuid,
+    date: LocalDate,
+    dayType: DayType,
+    goalPhaseId: Uuid.nullable(),
+    complete: z.boolean().openapi({ description: 'No meal left at `planned`.' }),
+    targets: Macros.openapi({ description: 'Copied from the targets in force when generated.' }),
+    planned: PlanPer100g,
+    confirmed: PlanPer100g,
+    shortfalls: z.array(PlanShortfall),
+    generatedAt: Instant,
+    meals: z.array(PlanMeal),
+  })
+  .openapi('PlanDay');
+
+export const PlanDays = z
+  .object({
+    missing: z.array(LocalDate).openapi({ description: 'Dates in the range with no plan.' }),
+    days: z.array(PlanDay).openapi({ description: 'Oldest first.' }),
+  })
+  .openapi('PlanDays');
+
+export const PlanRange = z
+  .object({ from: LocalDate, to: LocalDate })
+  .openapi('PlanRange', { description: 'Local dates, both included, at most 31 days.' });
+
 // The export (S10, docs/07 §2): one section a call, each item as the API's normal read returns it.
 
 export const EXPORT_SECTIONS = [
@@ -1115,6 +1429,9 @@ export const EXPORT_SECTIONS = [
   'weighIns',
   'foods',
   'rotationGroups',
+  'phases',
+  'dayRoutines',
+  'planDays',
 ] as const;
 
 export const ExportSection = z.enum(EXPORT_SECTIONS).openapi('ExportSection', {
@@ -1146,10 +1463,13 @@ export const ExportPage = z
     exportPage('weighIns', WeighIn),
     exportPage('foods', Food),
     exportPage('rotationGroups', RotationGroup),
+    exportPage('phases', GoalPhase),
+    exportPage('dayRoutines', DayRoutine),
+    exportPage('planDays', PlanDay),
   ])
   .openapi('ExportPage', {
     description:
       'One page of one section. `profile` has one item; `exercises`, `routines`, `workouts`, ' +
-      '`weighIns`, `foods` and `rotationGroups` are cursor-paged. Workouts include ones in ' +
-      'progress, and `foods` archived ones.',
+      '`weighIns`, `foods`, `rotationGroups`, `phases`, `dayRoutines` and `planDays` are ' +
+      'cursor-paged. Workouts include ones in progress, and `foods` archived ones.',
   });

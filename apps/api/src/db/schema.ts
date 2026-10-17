@@ -7,6 +7,7 @@ import {
   boolean,
   check,
   date,
+  foreignKey,
   index,
   inet,
   integer,
@@ -16,8 +17,10 @@ import {
   primaryKey,
   smallint,
   text,
+  time,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
 import { user } from './auth-schema.js';
@@ -507,4 +510,220 @@ export const modelCallCount = pgTable(
     ...timestamps,
   },
   (t) => [primaryKey({ name: 'model_call_count_pkey', columns: [t.userId, t.day] })],
+);
+
+export const goalPhaseTypeValues = ['cut', 'bulk', 'maintain'] as const;
+export const calorieBasisValues = ['provisional_formula', 'measured', 'manual'] as const;
+export const dayTypeValues = ['training', 'rest'] as const;
+
+/**
+ * One cut, bulk or maintenance block (S14). Phases are kept, not overwritten: the open one has no
+ * `ended_on`, and there is at most one. Its id is made on the device.
+ */
+export const goalPhase = pgTable(
+  'goal_phase',
+  {
+    id: id(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    type: text('type', { enum: goalPhaseTypeValues }).notNull(),
+    // Local dates, read as their 'YYYY-MM-DD' text.
+    startedOn: date('started_on', { mode: 'string' }).notNull(),
+    endedOn: date('ended_on', { mode: 'string' }),
+    targetRatePctPerWeek: numeric('target_rate_pct_per_week', {
+      precision: 4,
+      scale: 2,
+      mode: 'number',
+    }),
+    proteinGPerKg: numeric('protein_g_per_kg', {
+      precision: 4,
+      scale: 2,
+      mode: 'number',
+    }).notNull(),
+    fatPctCalories: numeric('fat_pct_calories', {
+      precision: 4,
+      scale: 1,
+      mode: 'number',
+    }).notNull(),
+    calorieTargetKcal: integer('calorie_target_kcal').notNull(),
+    calorieBasis: text('calorie_basis', { enum: calorieBasisValues }).notNull(),
+    calorieTargetSetAt: instant('calorie_target_set_at').notNull().defaultNow(),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex('goal_phase_user_id_open_key')
+      .on(t.userId)
+      .where(sql`${t.endedOn} IS NULL`),
+    index('goal_phase_user_id_started_on_idx').on(t.userId, t.startedOn.desc()),
+    check('goal_phase_type_check', sql`${t.type} IN ('cut', 'bulk', 'maintain')`),
+    check(
+      'goal_phase_calorie_basis_check',
+      sql`${t.calorieBasis} IN ('provisional_formula', 'measured', 'manual')`,
+    ),
+    check('goal_phase_dates_check', sql`${t.endedOn} IS NULL OR ${t.endedOn} >= ${t.startedOn}`),
+  ],
+);
+
+/** The user's day for one day type (S15): when they wake, work, train and sleep. */
+export const dayRoutine = pgTable(
+  'day_routine',
+  {
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    dayType: text('day_type', { enum: dayTypeValues }).notNull(),
+    // Local wall-clock times, 'HH:MM:SS' text.
+    wakeTime: time('wake_time').notNull(),
+    workStart: time('work_start'),
+    workEnd: time('work_end'),
+    trainingTime: time('training_time'),
+    bedTime: time('bed_time').notNull(),
+    mealCount: smallint('meal_count').notNull().default(4),
+    ...timestamps,
+  },
+  (t) => [
+    primaryKey({ name: 'day_routine_pkey', columns: [t.userId, t.dayType] }),
+    check('day_routine_day_type_check', sql`${t.dayType} IN ('training', 'rest')`),
+    check('day_routine_meal_count_check', sql`${t.mealCount} BETWEEN 1 AND 8`),
+    check(
+      'day_routine_training_time_check',
+      sql`${t.dayType} = 'training' OR ${t.trainingTime} IS NULL`,
+    ),
+  ],
+);
+
+/** One meal in a day type's shape: "meal 3, 15:30, before training" (S15). */
+export const mealSlot = pgTable(
+  'meal_slot',
+  {
+    id: id(),
+    userId: uuid('user_id').notNull(),
+    dayType: text('day_type', { enum: dayTypeValues }).notNull(),
+    position: smallint('position').notNull(),
+    targetTime: time('target_time').notNull(),
+    label: text('label'),
+    ...timestamps,
+  },
+  (t) => [
+    foreignKey({
+      name: 'meal_slot_day_routine_fkey',
+      columns: [t.userId, t.dayType],
+      foreignColumns: [dayRoutine.userId, dayRoutine.dayType],
+    }).onDelete('cascade'),
+    index('meal_slot_user_id_day_type_position_idx').on(t.userId, t.dayType, t.position),
+    check('meal_slot_day_type_check', sql`${t.dayType} IN ('training', 'rest')`),
+  ],
+);
+
+/**
+ * One calendar day's plan (S16), with the targets in force when it was generated copied onto it, so
+ * a later change of phase never rewrites what the day was aiming for.
+ */
+export const planDay = pgTable(
+  'plan_day',
+  {
+    id: id(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    planDate: date('plan_date', { mode: 'string' }).notNull(),
+    dayType: text('day_type', { enum: dayTypeValues }).notNull(),
+    goalPhaseId: uuid('goal_phase_id').references(() => goalPhase.id, { onDelete: 'set null' }),
+    targetKcal: integer('target_kcal').notNull(),
+    targetProteinG: numeric('target_protein_g', {
+      precision: 6,
+      scale: 1,
+      mode: 'number',
+    }).notNull(),
+    targetCarbG: numeric('target_carb_g', { precision: 6, scale: 1, mode: 'number' }).notNull(),
+    targetFatG: numeric('target_fat_g', { precision: 6, scale: 1, mode: 'number' }).notNull(),
+    // What the planner could not reach, as the API returns it (docs/07 §4).
+    shortfalls: jsonb('shortfalls')
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    generatedAt: instant('generated_at').notNull().defaultNow(),
+    ...timestamps,
+  },
+  (t) => [
+    unique('plan_day_user_id_plan_date_key').on(t.userId, t.planDate),
+    index('plan_day_goal_phase_id_idx').on(t.goalPhaseId),
+    check('plan_day_day_type_check', sql`${t.dayType} IN ('training', 'rest')`),
+  ],
+);
+
+export const planMealStatusValues = [
+  'planned',
+  'as_planned',
+  'adjusted',
+  'replaced',
+  'skipped',
+] as const;
+
+/** One meal in one day's plan, and what became of it (S18). */
+export const planMeal = pgTable(
+  'plan_meal',
+  {
+    id: id(),
+    planDayId: uuid('plan_day_id')
+      .notNull()
+      .references(() => planDay.id, { onDelete: 'cascade' }),
+    position: smallint('position').notNull(),
+    plannedTime: time('planned_time').notNull(),
+    label: text('label'),
+    status: text('status', { enum: planMealStatusValues }).notNull().default('planned'),
+    confirmedAt: instant('confirmed_at'),
+    isPreTraining: boolean('is_pre_training').notNull().default(false),
+    isPostTraining: boolean('is_post_training').notNull().default(false),
+    ...timestamps,
+  },
+  (t) => [
+    index('plan_meal_plan_day_id_position_idx').on(t.planDayId, t.position),
+    check(
+      'plan_meal_status_check',
+      sql`${t.status} IN ('planned', 'as_planned', 'adjusted', 'replaced', 'skipped')`,
+    ),
+  ],
+);
+
+/**
+ * One food in one meal, planned and as eaten (S16, S18). The food's values per 100 g are copied as
+ * they were used, so correcting a food later never changes what a past day says was eaten.
+ */
+export const planMealItem = pgTable(
+  'plan_meal_item',
+  {
+    id: id(),
+    planMealId: uuid('plan_meal_id')
+      .notNull()
+      .references(() => planMeal.id, { onDelete: 'cascade' }),
+    foodId: uuid('food_id').references(() => food.id, { onDelete: 'set null' }),
+    name: text('name').notNull(),
+    plannedGrams: numeric('planned_grams', { precision: 7, scale: 2, mode: 'number' }),
+    actualGrams: numeric('actual_grams', { precision: 7, scale: 2, mode: 'number' }),
+    pieceCount: numeric('piece_count', { precision: 5, scale: 2, mode: 'number' }),
+    // The grams are a cooked weight (S16), and with no batch yield to convert by, approximate.
+    cooked: boolean('cooked').notNull().default(false),
+    approximate: boolean('approximate').notNull().default(false),
+    energyKcalPer100g: numeric('energy_kcal_per_100g', {
+      precision: 7,
+      scale: 2,
+      mode: 'number',
+    }).notNull(),
+    proteinGPer100g: numeric('protein_g_per_100g', {
+      precision: 6,
+      scale: 2,
+      mode: 'number',
+    }).notNull(),
+    carbGPer100g: numeric('carb_g_per_100g', { precision: 6, scale: 2, mode: 'number' }).notNull(),
+    fatGPer100g: numeric('fat_g_per_100g', { precision: 6, scale: 2, mode: 'number' }).notNull(),
+    fiberGPer100g: numeric('fiber_g_per_100g', { precision: 6, scale: 2, mode: 'number' })
+      .notNull()
+      .default(0),
+    ...timestamps,
+  },
+  (t) => [
+    index('plan_meal_item_plan_meal_id_idx').on(t.planMealId),
+    index('plan_meal_item_food_id_idx').on(t.foodId),
+  ],
 );
