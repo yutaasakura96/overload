@@ -11,7 +11,7 @@ export const BASIS_KINDS = [
 ] as const;
 export type BasisKind = (typeof BASIS_KINDS)[number];
 
-/** The amount the values were given for: per 100 g, or per a piece, serving or package of `grams`. */
+/** The amount the values were given for; `grams` is the weight of that amount, if known. */
 export type Basis = { kind: BasisKind; grams: number | null };
 
 export const NUTRIENTS = ['energyKcal', 'proteinG', 'carbG', 'fatG', 'fiberG'] as const;

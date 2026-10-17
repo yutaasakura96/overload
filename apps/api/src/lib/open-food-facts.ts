@@ -13,6 +13,8 @@ const FIELDS = [
   'nutriments',
   'nutrition_data_per',
   'serving_quantity',
+  'serving_quantity_unit',
+  'product_quantity_unit',
 ].join(',');
 
 const TIMEOUT_MS = 8000;
@@ -33,6 +35,8 @@ const Product = z.object({
       brands: optional(z.string()),
       nutrition_data_per: optional(z.string()),
       serving_quantity: optional(figure),
+      serving_quantity_unit: optional(z.string()),
+      product_quantity_unit: optional(z.string()),
       nutriments: optional(z.record(z.string(), z.unknown())),
     }),
   ),
@@ -51,13 +55,20 @@ function nutriment(nutriments: Record<string, unknown>, key: string, suffix: str
 
 /**
  * The candidate in a record. Values are taken on the basis the product's label gave them, per
- * serving when the record says so and knows the serving's grams, else per 100 g.
+ * serving when the record says so and knows the serving's amount, else per 100 g. A record whose
+ * amounts are in ml gives its values per ml, not per gram: a serving then has no grams and the
+ * per-100 basis becomes per 100 ml, so the member weighs it, as for a label (docs/09 F9).
  */
 export function candidateOf(record: z.infer<typeof Product>['product']): FoodCandidate {
   const nutriments = record?.nutriments ?? {};
-  const servingGrams = record?.serving_quantity;
+  const servingAmount = record?.serving_quantity;
   const perServing =
-    record?.nutrition_data_per === 'serving' && servingGrams !== undefined && servingGrams > 0;
+    record?.nutrition_data_per === 'serving' && servingAmount !== undefined && servingAmount > 0;
+  const servingUnit = record?.serving_quantity_unit?.trim().toLowerCase();
+  const productUnit = record?.product_quantity_unit?.trim().toLowerCase();
+  const isVolume = perServing
+    ? (servingUnit || productUnit) === 'ml'
+    : record?.nutrition_data_per === '100ml' || (productUnit || servingUnit) === 'ml';
   const suffix = perServing ? '_serving' : '_100g';
   const kj = nutriment(nutriments, 'energy-kj', suffix) ?? nutriment(nutriments, 'energy', suffix);
   const kcal =
@@ -68,8 +79,10 @@ export function candidateOf(record: z.infer<typeof Product>['product']): FoodCan
     brand: text(record?.brands?.split(',')[0]),
     state: null,
     basis: perServing
-      ? { kind: 'per_serving', grams: servingGrams ?? null }
-      : { kind: 'per_100g', grams: 100 },
+      ? { kind: 'per_serving', grams: isVolume ? null : (servingAmount ?? null) }
+      : isVolume
+        ? { kind: 'per_100ml', grams: null }
+        : { kind: 'per_100g', grams: 100 },
     energyKcal: kcal,
     proteinG: nutriment(nutriments, 'proteins', suffix),
     carbG: nutriment(nutriments, 'carbohydrates', suffix),

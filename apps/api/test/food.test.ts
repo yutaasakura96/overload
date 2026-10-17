@@ -193,6 +193,53 @@ describe('candidateOf (Open Food Facts)', () => {
     expect(candidate.proteinG).toBe(15);
   });
 
+  it('asks for the weight of a per 100 ml record, as for a label', () => {
+    const candidate = candidateOf({
+      product_name: 'Cola',
+      nutrition_data_per: '100g',
+      serving_quantity: 330,
+      serving_quantity_unit: 'ml',
+      product_quantity_unit: 'ml',
+      nutriments: { 'energy-kcal_100g': 42.4, carbohydrates_100g: 10.6 },
+    });
+    expect(candidate.basis).toEqual({ kind: 'per_100ml', grams: null });
+    expect(candidate.energyKcal).toBe(42.4);
+    expect(candidate.carbG).toBe(10.6);
+  });
+
+  it('uses the declared 100 ml basis without quantity units', () => {
+    const candidate = candidateOf({
+      nutrition_data_per: '100ml',
+      nutriments: { 'energy-kcal_100g': 42.4 },
+    });
+    expect(candidate.basis).toEqual({ kind: 'per_100ml', grams: null });
+    expect(candidate.energyKcal).toBe(42.4);
+  });
+
+  it('does not take a serving in ml for grams', () => {
+    const candidate = candidateOf({
+      product_name: 'Milk',
+      nutrition_data_per: 'serving',
+      serving_quantity: 200,
+      serving_quantity_unit: 'ml',
+      nutriments: { 'energy-kcal_serving': 130 },
+    });
+    expect(candidate.basis).toEqual({ kind: 'per_serving', grams: null });
+    expect(candidate.energyKcal).toBe(130);
+  });
+
+  it('keeps a serving in g as grams', () => {
+    const candidate = candidateOf({
+      product_name: 'Bar',
+      nutrition_data_per: 'serving',
+      serving_quantity: 45,
+      serving_quantity_unit: 'g',
+      product_quantity_unit: 'ml',
+      nutriments: { 'energy-kcal_serving': 190 },
+    });
+    expect(candidate.basis).toEqual({ kind: 'per_serving', grams: 45 });
+  });
+
   it('works out kcal from kJ only when kcal is missing, and leaves the rest null', () => {
     const candidate = candidateOf({ product_name: 'Water', nutriments: { energy_100g: 418.4 } });
     expect(candidate.energyKcal).toBe(100);

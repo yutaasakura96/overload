@@ -199,6 +199,60 @@ test.describe('with no service worker', () => {
   // page.route cannot hold a request a service worker forwards (WebKit).
   test.use({ serviceWorkers: 'block' });
 
+  test('weighs a liquid barcode before saving its per 100 ml values', async ({
+    page,
+  }, testInfo) => {
+    await page.route('**/api/barcodes/4901234567894', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          candidate: {
+            name: 'Dense drink',
+            brand: null,
+            state: null,
+            basis: { kind: 'per_100ml', grams: null },
+            energyKcal: 100,
+            proteinG: 11,
+            carbG: 10,
+            fatG: 2,
+            fiberG: null,
+          },
+          per100g: null,
+          existingFoodId: null,
+        }),
+      });
+    });
+    await page.goto('/food/new/barcode');
+    await page.getByRole('textbox', { name: 'Or type the number' }).fill('4901234567894');
+    await page.getByRole('button', { name: 'Look it up' }).click();
+    await expect(page.getByRole('heading', { name: 'Check before saving' })).toBeVisible();
+    await expect(page.getByText('Per 100 ml', { exact: true })).toBeVisible();
+    await expect(page.getByRole('textbox', { name: /^That amount weighs/ })).toBeVisible();
+    const evidenceDir = process.env.EVIDENCE_DIR;
+    if (evidenceDir) {
+      await page.screenshot({
+        path: `${evidenceDir}/barcode-volume-${testInfo.project.name}.png`,
+        fullPage: true,
+      });
+    }
+    await page.getByRole('button', { name: 'Save to my foods' }).click();
+    await expect(page.getByText('Give the weight of the piece, serving or package')).toBeVisible();
+    await page.getByRole('textbox', { name: /^That amount weighs/ }).fill('110');
+    await expect(
+      page.getByRole('region', { name: 'Per 100 g, as it will be saved' }),
+    ).toContainText('Calories91 kcal');
+    await page.getByRole('button', { name: 'Save to my foods' }).click();
+    await expect(page.getByText('Saved to your foods, per 100 g.')).toBeVisible();
+    const foods: { items: { name: string; energyKcal: number; proteinG: number }[] } = await (
+      await page.request.get('/api/foods')
+    ).json();
+    expect(foods.items.find((food) => food.name === 'Dense drink')).toMatchObject({
+      energyKcal: 90.91,
+      proteinG: 10,
+    });
+  });
+
   test('adds a label food whose package weight was not printed', async ({ page }) => {
     await page.route('**/api/label-reads', async (route) => {
       await route.fulfill({
