@@ -517,7 +517,11 @@ describe('GET /api/barcodes/{code}', () => {
     expect(serving.candidate.basis).toEqual({ kind: 'per_serving', grams: null });
     expect(serving.per100g).toBeNull();
 
-    upstreamProduct = { ...upstreamProduct, serving_quantity_unit: 'g', product_quantity_unit: 'ml' };
+    upstreamProduct = {
+      ...upstreamProduct,
+      serving_quantity_unit: 'g',
+      product_quantity_unit: 'ml',
+    };
     const weighed = await (await send('GET', '/api/barcodes/4901234567896')).json();
     expect(weighed.candidate.basis).toEqual({ kind: 'per_serving', grams: 200 });
     expect(weighed.per100g.energyKcal).toBe(65);
