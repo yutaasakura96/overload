@@ -27,7 +27,8 @@ manager's `pnpm` shim refuses). Each is a CI job (`.github/workflows/ci.yml`):
 - `pnpm contract`: regenerates `packages/api-contract` from the route schemas. CI fails on a diff.
 - Local Postgres 18: `docker compose up -d`. Local never touches Neon. `pnpm e2e` migrates and uses
   its `overload_test` database itself. `pnpm test` starts and removes a throwaway Postgres on a free
-  port (`apps/api/scripts/with-test-database.sh`) unless `TEST_DATABASE_URL` is set; wrap `pnpm e2e`
+  port (`apps/api/scripts/with-test-database.sh`) unless both `TEST_DATABASE_URL` and
+  `TEST_DATABASE_URL_DIRECT` are set; wrap `pnpm e2e`
   in it to do the same. A volume made before 2026-09-25 lacks `bootstrap.sql`'s
   database grant: `docker compose down -v` to start over.
 - Schema: Drizzle tables in `apps/api/src/db/schema.ts` (Better Auth's in `auth-schema.ts`).

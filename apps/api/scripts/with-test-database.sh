@@ -1,13 +1,13 @@
 #!/bin/sh
 # Runs a command against a Postgres 18 of its own: started here on a free port with the same init
 # scripts as docker-compose.yml, and removed, with its anonymous volume, when the command ends. It
-# never reuses or removes a container it did not start. With TEST_DATABASE_URL already set (CI's
-# service container, or a database you chose), it runs the command unchanged.
+# never reuses or removes a container it did not start. With both test database URLs already set
+# (CI's service container, or a database you chose), it runs the command unchanged.
 #
 #   sh apps/api/scripts/with-test-database.sh pnpm --filter @overload/api test
 set -eu
 
-if [ -n "${TEST_DATABASE_URL:-}" ]; then
+if [ -n "${TEST_DATABASE_URL:-}" ] && [ -n "${TEST_DATABASE_URL_DIRECT:-}" ]; then
   exec "$@"
 fi
 
