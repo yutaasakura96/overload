@@ -19,6 +19,7 @@ type Inputs = {
   exportedEnv: Record<string, string | undefined>;
   stateDirectory: string;
   databaseName?: string;
+  databasePort?: string;
 };
 
 // The open mode applies only on create, so an existing file is restricted before the token lands.
@@ -34,7 +35,12 @@ function writePrivate(path: string, content: string) {
 }
 
 export async function createDevSession(inputs: Inputs) {
-  const refusals = localOnlyRefusals(inputs.fileValues, inputs.exportedEnv, inputs.databaseName);
+  const refusals = localOnlyRefusals(
+    inputs.fileValues,
+    inputs.exportedEnv,
+    inputs.databaseName,
+    inputs.databasePort,
+  );
   if (refusals.length > 0) {
     throw new Error(`dev:session refused:\n${refusals.map((reason) => `- ${reason}`).join('\n')}`);
   }

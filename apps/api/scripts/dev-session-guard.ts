@@ -26,6 +26,7 @@ export function localOnlyRefusals(
   fileValues: Record<string, string | undefined>,
   exportedEnv: Record<string, string | undefined>,
   databaseName = 'overload',
+  databasePort = '5434',
 ): string[] {
   const refusals: string[] = [];
 
@@ -48,12 +49,12 @@ export function localOnlyRefusals(
   } else if (
     !['postgres:', 'postgresql:'].includes(database.protocol) ||
     !LOCAL_HOSTS.has(database.hostname) ||
-    database.port !== '5434' ||
+    database.port !== databasePort ||
     database.pathname !== `/${databaseName}` ||
     database.search !== ''
   ) {
     refusals.push(
-      `DATABASE_URL must target local Postgres on port 5434, database ${databaseName}, without query overrides.`,
+      `DATABASE_URL must target local Postgres on port ${databasePort}, database ${databaseName}, without query overrides.`,
     );
   }
 

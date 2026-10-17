@@ -8,7 +8,7 @@ reasoning; each row names its source. Decisions are in `06` (2026-09-21, testing
 | Layer | Tool | Runs against |
 | --- | --- | --- |
 | Domain (`apps/api/src/domain/`) | Vitest | Nothing. Pure functions |
-| API, auth, ingest | Vitest, calling the Hono app in process (`app.request`) | Postgres 18 in Docker: `docker compose` locally, a service container in GitHub Actions. `infra/db/bootstrap.sql` then the migrations, once per run; each test runs in a transaction that is rolled back |
+| API, auth, ingest | Vitest, calling the Hono app in process (`app.request`) | Postgres 18 in Docker: a throwaway container locally (`apps/api/scripts/with-test-database.sh`), a service container in GitHub Actions. `infra/db/bootstrap.sql` then the migrations, once per run; each test runs in a transaction that is rolled back |
 | Offline and sync | Playwright, Chromium **and** WebKit, `browserContext.setOffline` | The built web app, the API and the same Postgres |
 | Browser sign-in | Better Auth's `testUtils()` plugin: `test.getCookies({ userId })` → `browserContext.addCookies()` | A **test-only** auth instance. The plugin exposes privileged helpers and stays out of the production config |
 | Contract | `oasdiff/oasdiff-action/breaking` | `packages/api-contract/openapi.json` on the PR vs `main`. Supports OpenAPI 3.1 (checked 2026-09-21) |
