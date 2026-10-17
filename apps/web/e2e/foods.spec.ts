@@ -200,6 +200,52 @@ test('adds a label food whose package weight was not printed', async ({ page }) 
   await expect(values).toContainText('Protein0.1 g');
 });
 
+test('weighs 100 ml of a label food before converting its values', async ({ page }) => {
+  await page.route('**/api/label-reads', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        candidate: {
+          name: 'Dense drink',
+          brand: null,
+          state: 'raw',
+          basis: { kind: 'per_100ml', grams: null },
+          energyKcal: 100,
+          proteinG: 11,
+          carbG: 10,
+          fatG: 2,
+          fiberG: null,
+        },
+        per100g: null,
+        model: 'stub',
+      }),
+    });
+  });
+  await page.goto('/food/new/label');
+  await page.locator('input[type="file"]').setInputFiles({
+    name: 'label.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg==',
+      'base64',
+    ),
+  });
+
+  await expect(page.getByRole('heading', { name: 'Check before saving' })).toBeVisible();
+  await expect(page.getByText('Per 100 ml', { exact: true })).toBeVisible();
+  await page.getByRole('textbox', { name: /^That amount weighs/ }).fill('110');
+  await page.getByRole('button', { name: 'Save to my foods' }).click();
+  await expect(page.getByText('Saved to your foods, per 100 g.')).toBeVisible();
+  const foods: { items: { name: string; energyKcal: number; proteinG: number }[] } = await (
+    await page.request.get('/api/foods')
+  ).json();
+  expect(foods.items.find((food) => food.name === 'Dense drink')).toMatchObject({
+    energyKcal: 90.91,
+    proteinG: 10,
+  });
+});
+
 test('groups two foods as alternatives', async ({ page }) => {
   for (const name of ['Okra', 'Broccoli']) {
     const res = await page.request.post('/api/foods', {

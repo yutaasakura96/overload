@@ -3909,8 +3909,8 @@ export interface components {
     /** @description The amount a set of values is for (docs/07 §4). */
     Basis: {
       /** @enum {string} */
-      kind: 'per_100g' | 'per_piece' | 'per_serving' | 'per_package';
-      /** @description The weight of the piece, serving or package, when known. `per_100g` is 100 whatever is sent. */
+      kind: 'per_100g' | 'per_100ml' | 'per_piece' | 'per_serving' | 'per_package';
+      /** @description The weight of the stated amount, when known. `per_100g` is 100 whatever is sent; `per_100ml` needs the weight of 100 ml. */
       grams: number | null;
     };
     /** @description Values per 100 g. An omitted field is unchanged. */

@@ -2,7 +2,13 @@
 // gave (per piece, per serving, per package), the list keeps one: per 100 g of the state named, so
 // everything downstream does one kind of arithmetic. Pure, for the API and its tests.
 
-export const BASIS_KINDS = ['per_100g', 'per_piece', 'per_serving', 'per_package'] as const;
+export const BASIS_KINDS = [
+  'per_100g',
+  'per_100ml',
+  'per_piece',
+  'per_serving',
+  'per_package',
+] as const;
 export type BasisKind = (typeof BASIS_KINDS)[number];
 
 /** The amount the values were given for: per 100 g, or per a piece, serving or package of `grams`. */

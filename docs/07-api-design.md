@@ -756,8 +756,9 @@ Content-Type: multipart/form-data; boundary=…
   "model": "claude-haiku-4-5" }
 ```
 
-`basis.kind` is `per_100g`, `per_piece`, `per_serving` or `per_package`, with its grams when
-printed. `per100g` is the server's conversion, shown so the user sees what will be saved. A field
+`basis.kind` is `per_100g`, `per_100ml`, `per_piece`, `per_serving` or `per_package`, with its grams when
+known. A label read per 100 ml returns `per_100ml` with `grams: null` until the user weighs 100 ml;
+`per100g` is null until then. Otherwise `per100g` is the server's conversion. A field
 the label does not print is `null`, never a guess.
 
 ```http

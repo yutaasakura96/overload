@@ -36,7 +36,7 @@ const INSTRUCTIONS = `You read the nutrition facts table (栄養成分表示) on
 Answer with readable: false, and every other field null (basisKind "per_100g"), when the photo shows no nutrition facts table you can read.
 
 Otherwise:
-- basisKind is the amount the table's values are for: "per_100g" for 100 g当たり (or 100 ml当たり), "per_piece" for one piece (1個, 1本, 1枚), "per_serving" for one serving (1食, 1杯), "per_package" for one package (1袋, 1箱, 1パック). basisGrams is the weight of that amount in grams when the label prints it, as in 1袋(113g)当たり, else null. For per_100g it is 100.
+- basisKind is the amount the table's values are for: "per_100g" for 100 g当たり, "per_100ml" for 100 ml当たり, "per_piece" for one piece (1個, 1本, 1枚), "per_serving" for one serving (1食, 1杯), "per_package" for one package (1袋, 1箱, 1パック). basisGrams is the weight of that amount in grams when the label prints it, as in 1袋(113g)当たり, else null. For per_100g it is 100; for per_100ml it is null so the user can weigh 100 ml before saving.
 - energyKcal is エネルギー in kcal. proteinG is たんぱく質, fatG is 脂質, both in grams.
 - carbG is 糖質 when the label prints 糖質, else 炭水化物, in grams. fiberG is 食物繊維 in grams.
 - Copy each number exactly as printed. A value the label does not print is null: never estimate, never compute one from others. A value printed as a range or as "微量" or "Tr" is 0 only for 微量 or Tr; a range is null.
@@ -96,9 +96,11 @@ export function labelReadOf(answer: unknown): LabelRead {
   const grams =
     read.basisKind === 'per_100g'
       ? 100
-      : read.basisGrams !== null && read.basisGrams > 0
-        ? read.basisGrams
-        : null;
+      : read.basisKind === 'per_100ml'
+        ? null
+        : read.basisGrams !== null && read.basisGrams > 0
+          ? read.basisGrams
+          : null;
   return {
     kind: 'read',
     model: LABEL_MODEL,

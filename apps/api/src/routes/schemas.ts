@@ -891,7 +891,7 @@ export const Basis = z
     kind: z.enum(BASIS_KINDS),
     grams: z.number().positive().max(10000).nullable().openapi({
       description:
-        'The weight of the piece, serving or package, when known. `per_100g` is 100 whatever is sent.',
+        'The weight of the stated amount, when known. `per_100g` is 100 whatever is sent; `per_100ml` needs the weight of 100 ml.',
     }),
   })
   .openapi('Basis', { description: 'The amount a set of values is for (docs/07 §4).' });

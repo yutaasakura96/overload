@@ -116,6 +116,25 @@ describe('labelReadOf', () => {
       grams: null,
     });
   });
+
+  it('keeps 100 ml as volume until the user gives its weight', () => {
+    const read = labelReadOf({ ...answer, basisKind: 'per_100ml', basisGrams: 100 });
+    expect(read.kind).toBe('read');
+    if (read.kind !== 'read') return;
+    expect(read.candidate.basis).toEqual({ kind: 'per_100ml', grams: null });
+    const values = {
+      energyKcal: read.candidate.energyKcal,
+      proteinG: read.candidate.proteinG,
+      carbG: read.candidate.carbG,
+      fatG: read.candidate.fatG,
+      fiberG: read.candidate.fiberG,
+    };
+    expect(toPer100g(values, read.candidate.basis)).toBeNull();
+    expect(toPer100g(values, { kind: 'per_100ml', grams: 110 })).toMatchObject({
+      energyKcal: 110,
+      proteinG: 24,
+    });
+  });
 });
 
 it('counts one upstream attempt for a failed label read', async () => {

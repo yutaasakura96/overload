@@ -3969,6 +3969,8 @@ invented foods; the label read is tested against a stubbed model until the Anthr
   screen asks for the missing weight, starts its editable fields from the printed figures, and
   previews the converted values. The API receives the original precision and rounds only after
   conversion, for label, barcode and hand entry alike.
+- **A label per 100 ml is a volume basis.** The reader keeps `per_100ml` with no grams, even if its
+  answer supplies a number; the check screen asks what 100 ml weighs before converting to per 100 g.
 - **Archiving asks first** with the delete confirmation (`Keep` / `Archive`): it takes the food out
   of new plans. Regenerating unconfirmed plan days without it waits for plans (`#79`).
 - **Display:** calories print whole on the list, the picks, a food's page and the preview, as every

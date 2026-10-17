@@ -980,6 +980,8 @@ When a label or barcode gives values per piece, serving or package without its w
 weighs` appears under `AS PRINTED`. The editable fields start with the source's figures on that
 basis, and the converted per-100 g preview appears below them. Saving requires the weight and
 sends those figures on the printed basis for conversion by the API.
+For a label printed per 100 ml, the box says `Per 100 ml` and asks what 100 ml weighs; the preview
+then converts the printed values using that weight.
 
 **Rotation groups.** A lede (the planner varies the week within a group; Adjust offers the others as
 swaps), then a section per group, `STARCH · 2`, with its foods as 48px rows and a tertiary `Remove`,

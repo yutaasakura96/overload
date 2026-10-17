@@ -64,7 +64,10 @@ export const BASES = [
 
 /** `Per package (113 g)`, the basis a source gave its values on. */
 export function basisLabel(basis: Basis) {
-  const label = BASES.find((each) => each.kind === basis.kind)?.label ?? 'Per 100 g';
+  const label =
+    basis.kind === 'per_100ml'
+      ? 'Per 100 ml'
+      : (BASES.find((each) => each.kind === basis.kind)?.label ?? 'Per 100 g');
   if (basis.kind === 'per_100g' || basis.grams === null) return label;
   return `${label} (${figure(basis.grams)} g)`;
 }

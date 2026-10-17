@@ -3233,6 +3233,7 @@
             "type": "string",
             "enum": [
               "per_100g",
+              "per_100ml",
               "per_piece",
               "per_serving",
               "per_package"
@@ -3245,7 +3246,7 @@
             ],
             "exclusiveMinimum": 0,
             "maximum": 10000,
-            "description": "The weight of the piece, serving or package, when known. `per_100g` is 100 whatever is sent."
+            "description": "The weight of the stated amount, when known. `per_100g` is 100 whatever is sent; `per_100ml` needs the weight of 100 ml."
           }
         },
         "required": [
