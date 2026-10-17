@@ -172,7 +172,10 @@ export function Brief({
           {lastTimeOn != null && <span className="brief__when">{when(lastTimeOn, timeZone)}</span>}
         </div>
         <div className="brief__figures">
-          {bodyweight && sameWeight && lastKg === 0 && lastTimeBodyweight?.basis === 'none' ? (
+          {bodyweight &&
+          sameWeight &&
+          lastKg === 0 &&
+          (lastTimeBodyweight == null || lastTimeBodyweight.basis === 'none') ? (
             <>
               Bodyweight <span className="brief__unit">×</span>{' '}
               {lastTime.map((set) => set.reps).join(' · ')}
@@ -186,7 +189,9 @@ export function Brief({
           ) : (
             lastTime
               .map((set) =>
-                bodyweight && set.weightKg === 0 && lastTimeBodyweight?.basis === 'none'
+                bodyweight &&
+                set.weightKg === 0 &&
+                (lastTimeBodyweight == null || lastTimeBodyweight.basis === 'none')
                   ? `Bodyweight × ${set.reps}`
                   : `${formatWeight(set.countedWeightKg ?? set.weightKg, unit)}×${set.reps}`,
               )

@@ -1,4 +1,4 @@
-import type { Exercise, Me, WeightDay, WeightUnit } from '@overload/api-contract';
+import type { Exercise, LastTime, Me, WeightUnit } from '@overload/api-contract';
 import { useQuery } from '@tanstack/react-query';
 import {
   Fragment,
@@ -10,7 +10,7 @@ import {
   type RefObject,
 } from 'react';
 import { Brief } from '../brief';
-import { countedAt, countedLastTime } from '../bodyweight';
+import { countedAt, recountedLastTime } from '../bodyweight';
 import {
   AppBar,
   CheckIcon,
@@ -24,13 +24,7 @@ import {
 import { readFigures, type FigureRefusal } from '../figures';
 import { useFocusGuide } from '../focus-guide';
 import type { Navigate } from '../navigation';
-import {
-  allExercisesQuery,
-  lastTimeQuery,
-  queryClient,
-  useAccount,
-  weighInsQuery,
-} from '../query';
+import { allExercisesQuery, lastTimeQuery, queryClient, useAccount } from '../query';
 import { RefusedSet } from '../refused';
 import { keepAwake, playTone, unlockTone } from '../rest-alert';
 import { SetEditor } from '../set-editor';
@@ -127,12 +121,6 @@ export function Workout({
   guide?: boolean;
 }) {
   const userId = me.user.id;
-  const account = useAccount();
-  const weighIns = useQuery({
-    ...weighInsQuery,
-    staleTime: 0,
-    enabled: account.status === 'confirmed' && me.profile !== null,
-  });
   const loaded = useWorkoutStore(
     (state) => recordsLoadedFor(state, userId) || readFailedFor(state, userId),
   );
@@ -154,7 +142,7 @@ export function Workout({
   const confirmed = account.status === 'confirmed';
   const library = useQuery({ ...allExercisesQuery, enabled: confirmed });
   // Kept warm here too, so an exercise added offline opens with last time (docs/09 F3 step 1).
-  useQuery({ ...lastTimeQuery, enabled: confirmed && me.profile !== null });
+  const lastTimes = useQuery({ ...lastTimeQuery, enabled: confirmed && me.profile !== null });
   const [adding, setAdding] = useState<'pick' | 'new-exercise'>();
   const [addFailed, setAddFailed] = useState(false);
   // Said to a screen reader on the way back, where focus alone would say nothing changed.
@@ -180,12 +168,12 @@ export function Workout({
   if (workout === undefined) return <AppBar title="Workout" slot={<DataState at={0} />} />;
 
   const add = async (picked: Exercise[]) => {
-    const lastTimes = queryClient.getQueryData(lastTimeQuery.queryKey);
+    const cached = queryClient.getQueryData(lastTimeQuery.queryKey);
     try {
       const applied = await addExercises({
         workoutId: workout.id,
         exercises: picked,
-        lastTimes: lastTimes && new Map(lastTimes.map((last) => [last.exerciseId, last])),
+        lastTimes: cached && new Map(cached.map((last) => [last.exerciseId, last])),
       });
       if (!applied) throw new Error('workout was not changed');
       setAddFailed(false);
@@ -206,7 +194,9 @@ export function Workout({
           key={workout.id}
           workout={workout}
           records={records}
-          weighed={weighIns.data}
+          lastTimes={
+            lastTimes.data && { exercises: lastTimes.data, updatedAt: lastTimes.dataUpdatedAt }
+          }
           unit={me.profile?.weightUnit ?? 'kg'}
           timeZone={me.profile?.timezone ?? deviceTimezone()}
           guideOpen={guide}
@@ -276,7 +266,7 @@ function readRest(rest: CountedRest, now: number) {
 function LiveWorkout({
   workout,
   records,
-  weighed,
+  lastTimes,
   unit,
   timeZone,
   guideOpen,
@@ -289,7 +279,7 @@ function LiveWorkout({
 }: {
   workout: WorkoutRecord;
   records: StoreRecord[];
-  weighed: { days: WeightDay[]; requestedAt: number } | undefined;
+  lastTimes: { exercises: LastTime[]; updatedAt: number } | undefined;
   unit: WeightUnit;
   timeZone: string;
   guideOpen: boolean;
@@ -305,7 +295,7 @@ function LiveWorkout({
   onFinish: (result: Promise<boolean | undefined>) => void;
 }) {
   const exercises = exercisesOf(records, workout.id).map((exercise) =>
-    countedLastTime(exercise, weighed, workout.row.startedAt),
+    recountedLastTime(exercise, lastTimes, { id: workout.id, startedAt: workout.row.startedAt }),
   );
   // Turned on by hand each workout and not remembered (docs/06, 2026-10-12): it lives here, in a
   // component keyed by the workout.

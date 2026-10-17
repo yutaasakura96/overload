@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
-import type { WeightDay } from '@overload/api-contract';
-import { countedLastTime } from '../src/bodyweight';
+import type { LastTime } from '@overload/api-contract';
+import { recountedLastTime } from '../src/bodyweight';
 import type { WorkoutExerciseRecord } from '../src/set-store';
 
 const startedAt = '2026-10-11T10:00:00.000Z';
@@ -33,40 +33,69 @@ const lastTime: WorkoutExerciseRecord = {
   },
 };
 
-const day = (weightKg: number): WeightDay => ({
-  date: '2026-10-10',
-  weighInId: 'weigh-in',
-  weightKg,
-  morning: true,
-  trendKg: null,
+const answer = (
+  countedKg: number,
+  bodyweight: LastTime['bodyweight'],
+  changes: Partial<LastTime> = {},
+): LastTime => ({
+  exerciseId: 'pull-up',
+  workoutId: 'last-workout',
+  performedOn: '2026-10-10',
+  sets: [{ workingSet: 1, weightKg: 10, countedWeightKg: countedKg, reps: 8, rir: null }],
+  bodyweight,
+  suggestion: { weightKg: 10, rule: 'repeat', reason: 'set 1 stopped at 8 of 10 last time' },
+  slots: [],
+  ...changes,
 });
+const workout = { id: 'workout', startedAt };
+const after = Date.parse(startedAt) + 1;
 
-test('an older weigh-in cache cannot replace the API count in an open workout', () => {
-  const restored = countedLastTime(lastTime, { days: [day(80)] }, startedAt);
-  expect(restored.local.lastTime[0]?.countedWeightKg).toBe(92);
-
-  const stale = countedLastTime(
+test('an open workout takes last time’s counts only from an answer newer than the workout', () => {
+  const older = recountedLastTime(
     lastTime,
-    { days: [day(80)], requestedAt: Date.parse(startedAt) - 1 },
-    startedAt,
+    {
+      exercises: [answer(90, { basis: 'same_day', weightKg: 80, weighedOn: '2026-10-10' })],
+      updatedAt: Date.parse(startedAt) - 1,
+    },
+    workout,
   );
-  expect(stale.local.lastTime[0]?.countedWeightKg).toBe(92);
-  expect(stale.local.lastTimeBodyweight).toMatchObject({ weightKg: 82 });
+  expect(older).toBe(lastTime);
 
-  const fresh = countedLastTime(
+  const weighed = recountedLastTime(
     lastTime,
-    { days: [day(90)], requestedAt: Date.parse(startedAt) + 1 },
-    startedAt,
+    {
+      exercises: [answer(100, { basis: 'same_day', weightKg: 90, weighedOn: '2026-10-10' })],
+      updatedAt: after,
+    },
+    workout,
   );
-  expect(fresh.local.lastTime[0]).toMatchObject({ weightKg: 10, countedWeightKg: 100 });
-  expect(fresh.local.lastTimeBodyweight).toMatchObject({ weightKg: 90 });
-  expect(fresh.local.suggestion?.weightKg).toBe(10);
+  expect(weighed.local.lastTime[0]).toMatchObject({ weightKg: 10, countedWeightKg: 100 });
+  expect(weighed.local.lastTimeBodyweight).toMatchObject({ weightKg: 90 });
+  expect(weighed.local.suggestion?.weightKg).toBe(10);
 
-  const deleted = countedLastTime(
+  const deleted = recountedLastTime(
     lastTime,
-    { days: [], requestedAt: Date.parse(startedAt) + 2 },
-    startedAt,
+    { exercises: [answer(10, { basis: 'none' })], updatedAt: after },
+    workout,
   );
   expect(deleted.local.lastTime[0]?.countedWeightKg).toBe(10);
   expect(deleted.local.lastTimeBodyweight).toEqual({ basis: 'none' });
+});
+
+test('an answer about another workout leaves the open workout’s copy as it is', () => {
+  const synced = recountedLastTime(
+    lastTime,
+    {
+      exercises: [
+        answer(
+          100,
+          { basis: 'same_day', weightKg: 90, weighedOn: '2026-10-11' },
+          { workoutId: 'workout', performedOn: '2026-10-11' },
+        ),
+      ],
+      updatedAt: after,
+    },
+    workout,
+  );
+  expect(synced).toBe(lastTime);
 });

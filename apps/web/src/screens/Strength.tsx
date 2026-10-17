@@ -289,7 +289,7 @@ function Lifts({
                       </>
                     )}
                   </span>
-                  {lift.bodyweight !== null && (
+                  {lift.bodyweight != null && (
                     <span className="lifts__counted">{countedAt(lift.bodyweight, unit)}</span>
                   )}
                 </span>

@@ -1,4 +1,4 @@
-import type { BodyweightCount, WeightDay, WeightUnit } from '@overload/api-contract';
+import type { BodyweightCount, LastTime, WeightUnit } from '@overload/api-contract';
 import type { WorkoutExerciseRecord } from './set-store';
 import { formatWeight } from './units';
 
@@ -24,44 +24,38 @@ export function countedAt(count: BodyweightCount, unit: WeightUnit): string {
   return `Counted at ${weight} · your first weigh-in, ${shortDate(count.weighedOn)}`;
 }
 
-export function countedLastTime(
+/**
+ * An open workout's copy of last time, with the counts the API gives in an answer newer than the
+ * workout: a weigh-in typed since then moves them. The copy is kept when that answer names another
+ * workout, as it does once this one is synced.
+ */
+export function recountedLastTime(
   exercise: WorkoutExerciseRecord,
-  weighed: { days: WeightDay[]; requestedAt?: number } | undefined,
-  startedAt: string,
+  lastTimes: { exercises: LastTime[]; updatedAt: number } | undefined,
+  workout: { id: string; startedAt: string },
 ): WorkoutExerciseRecord {
-  const date = exercise.local.lastTimeOn;
+  const { bodyweight, lastTime, lastTimeOn } = exercise.local;
+  if (!bodyweight || lastTimeOn == null || lastTimes === undefined) return exercise;
+  if (lastTimes.updatedAt <= new Date(workout.startedAt).getTime()) return exercise;
+  const logged = lastTimes.exercises.find((last) => last.exerciseId === exercise.row.exerciseId);
+  const last =
+    logged?.slots.find((own) => own.routineExerciseId === exercise.row.routineExerciseId) ?? logged;
   if (
-    !exercise.local.bodyweight ||
-    date == null ||
-    weighed === undefined ||
-    !(weighed.requestedAt !== undefined && weighed.requestedAt > new Date(startedAt).getTime())
+    last === undefined ||
+    last.workoutId === workout.id ||
+    last.performedOn !== lastTimeOn ||
+    last.sets.length !== lastTime.length ||
+    last.sets.some((set, index) => set.weightKg !== lastTime[index]?.weightKg)
   )
     return exercise;
-  const { days } = weighed;
-  const same = days.find((day) => day.date === date);
-  const earlier = days.find((day) => day.date < date);
-  const later = days.findLast((day) => day.date > date);
-  const chosen = same ?? earlier ?? later;
-  const count: BodyweightCount =
-    chosen === undefined
-      ? { basis: 'none' }
-      : {
-          basis:
-            same !== undefined ? 'same_day' : earlier !== undefined ? 'earlier_day' : 'later_day',
-          weightKg: chosen.weightKg,
-          weighedOn: chosen.date,
-        };
   return {
     ...exercise,
     local: {
       ...exercise.local,
-      lastTimeBodyweight: count,
-      lastTime: exercise.local.lastTime.map((set) => ({
+      lastTimeBodyweight: last.bodyweight,
+      lastTime: lastTime.map((set, index) => ({
         ...set,
-        countedWeightKg:
-          count.basis === 'none'
-            ? set.weightKg
-            : Math.round((count.weightKg + set.weightKg) * 100) / 100,
+        countedWeightKg: last.sets[index]?.countedWeightKg ?? set.weightKg,
       })),
     },
   };
