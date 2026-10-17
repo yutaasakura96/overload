@@ -1971,6 +1971,13 @@ main:focus {
   min-height: 38px;
   margin: 0;
 }
+.progress__counted {
+  margin: 6px 0 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  color: var(--text-quaternary);
+}
 .progress__e1rm-figure {
   font-family: var(--font-mono);
   font-size: 42px;
@@ -2180,6 +2187,11 @@ main:focus {
   font-variant-numeric: tabular-nums;
   color: var(--text-primary);
 }
+.past__counted {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-quaternary);
+}
 .past__e1rm {
   grid-row: 1 / span 2;
   grid-column: 2;
@@ -2350,6 +2362,13 @@ a.segments__segment {
 .lifts__now {
   display: block;
   margin-top: 4px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-quaternary);
+}
+.lifts__counted {
+  display: block;
+  margin-top: 2px;
   font-family: var(--font-mono);
   font-size: 10px;
   color: var(--text-quaternary);

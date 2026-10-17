@@ -6,6 +6,7 @@ import type {
   WeightUnit,
 } from '@overload/api-contract';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { countedAt } from '../bodyweight';
 import { AccountFooter, AppBar, DataState, Notice, ScreenTabs } from '../components';
 import type { Navigate } from '../navigation';
 import { strengthQuery, useAccount } from '../query';
@@ -288,6 +289,9 @@ function Lifts({
                       </>
                     )}
                   </span>
+                  {lift.bodyweight != null && (
+                    <span className="lifts__counted">{countedAt(lift.bodyweight, unit)}</span>
+                  )}
                 </span>
                 {lift.status === 'no_weight' || lift.status === 'no_trend' ? null : lift.points
                     .length > 1 ? (

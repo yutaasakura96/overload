@@ -2,6 +2,8 @@ import { sql } from 'drizzle-orm';
 import type { LoggedExercise, MuscleGroup } from '../domain/balance.js';
 import type { LoggedWorkout } from '../domain/progress.js';
 import { suggest, type Suggestion } from '../domain/progression.js';
+import { bodyweightOn, countedLoad, type BodyweightCount } from '../domain/bodyweight.js';
+import type { DailyWeight } from '../domain/weight.js';
 import type { LoggedLift } from '../domain/strength.js';
 import type { Database } from './connection.js';
 import { listExercises } from './exercises.js';
@@ -10,7 +12,14 @@ type Last = {
   workoutId: string;
   /** The workout's local date, read in the user's time zone. */
   performedOn: string;
-  sets: { workingSet: number; weightKg: number; reps: number; rir: number | null }[];
+  sets: {
+    workingSet: number;
+    weightKg: number;
+    countedWeightKg: number;
+    reps: number;
+    rir: number | null;
+  }[];
+  bodyweight: BodyweightCount | null;
   suggestion: Suggestion;
 };
 
@@ -46,19 +55,23 @@ function groupBy<T>(rows: T[], key: (row: T) => string): Map<string, T[]> {
  * For every exercise the user has logged a working set of: the most recent such workout's working
  * sets, numbered 1…n in `position` order with warm-ups left out (docs/04 `set`), and the suggestion.
  * The rule reads the rep range that workout ran with and the increment the user has today. Each
- * routine slot that still exists also answers from the last workout that ran that slot.
+ * routine slot that still exists also answers from the last workout that ran that slot. An
+ * `exclude`d workout is left out: the open workout's own sets are not its last time.
  */
 export async function lastTimes(
   db: Database,
   userId: string,
   timezone: string,
+  weighedDays: DailyWeight[],
+  exclude?: string,
 ): Promise<LastTime[]> {
+  const excluded = exclude === undefined ? sql`` : sql`AND w.id <> ${exclude}`;
   const { rows } = await db.execute<Row>(sql`
     WITH latest AS (
       SELECT DISTINCT ON (we.exercise_id) we.exercise_id, w.id AS workout_id, w.started_at
       FROM workout w
       JOIN workout_exercise we ON we.workout_id = w.id
-      WHERE w.user_id = ${userId}
+      WHERE w.user_id = ${userId} ${excluded}
         AND EXISTS (
           SELECT 1 FROM "set" s WHERE s.workout_exercise_id = we.id AND NOT s.is_warmup
         )
@@ -82,7 +95,7 @@ export async function lastTimes(
       JOIN routine_exercise re
         ON re.id = we.routine_exercise_id AND re.exercise_id = we.exercise_id
       JOIN routine r ON r.id = re.routine_id AND r.user_id = ${userId}
-      WHERE w.user_id = ${userId}
+      WHERE w.user_id = ${userId} ${excluded}
         AND EXISTS (
           SELECT 1 FROM "set" s WHERE s.workout_exercise_id = we.id AND NOT s.is_warmup
         )
@@ -112,11 +125,19 @@ export async function lastTimes(
       equipment: settings.equipment,
     });
     if (suggestion === undefined) return [];
+    const performedOn = localDate(new Date(first.started_at));
+    const bodyweight =
+      settings.equipment === 'bodyweight' ? bodyweightOn(weighedDays, performedOn) : null;
     return [
       {
         workoutId: first.workout_id,
-        performedOn: localDate(new Date(first.started_at)),
-        sets: working.map((s, index) => ({ workingSet: index + 1, ...s })),
+        performedOn,
+        sets: working.map((s, index) => ({
+          workingSet: index + 1,
+          ...s,
+          countedWeightKg: bodyweight === null ? s.weightKg : countedLoad(s.weightKg, bodyweight),
+        })),
+        bodyweight,
         suggestion,
       },
     ];
@@ -187,7 +208,7 @@ export async function loggedWorkouts(
   }));
 }
 
-type LiftRow = LoggedRow & { exercise_id: string; exercise_name: string };
+type LiftRow = LoggedRow & { exercise_id: string; exercise_name: string; equipment: string };
 
 /**
  * Every exercise the user has logged, each with its workouts oldest first and every set of it,
@@ -201,8 +222,8 @@ export async function loggedLifts(
   since?: string,
 ): Promise<LoggedLift[]> {
   const { rows } = await db.execute<LiftRow>(sql`
-    SELECT we.exercise_id, e.name AS exercise_name, w.id AS workout_id, w.name, w.started_at,
-           s.weight_kg::float8 AS weight_kg, s.reps, s.is_warmup
+    SELECT we.exercise_id, e.name AS exercise_name, e.equipment, w.id AS workout_id, w.name,
+           w.started_at, s.weight_kg::float8 AS weight_kg, s.reps, s.is_warmup
     FROM workout w
     JOIN workout_exercise we ON we.workout_id = w.id
     JOIN exercise e ON e.id = we.exercise_id
@@ -216,6 +237,7 @@ export async function loggedLifts(
   return [...groupBy(rows, (row) => row.exercise_id)].map(([exerciseId, logged]) => ({
     exerciseId,
     name: logged[0]?.exercise_name ?? '',
+    bodyweight: logged[0]?.equipment === 'bodyweight',
     workouts: [...groupBy(logged, (row) => row.workout_id).values()].map((sets) => ({
       date: localDate(new Date(sets[0]?.started_at ?? 0)),
       sets: sets.map((set) => ({

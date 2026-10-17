@@ -366,6 +366,23 @@ export const lastTimeQuery = queryOptions({
 });
 
 /**
+ * Last time as the open workout reads it: from the workout before it, never its own synced sets.
+ * Asked again after a weigh-in, which moves the bodyweight counted on it (issue #69).
+ */
+export const openLastTimeQuery = (workoutId: string) =>
+  queryOptions({
+    queryKey: ['last-time', workoutId],
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    queryFn: async ({ signal }) =>
+      (
+        await confirmedAccountData(() =>
+          api.GET('/api/training/last-time', { params: { query: { exclude: workoutId } }, signal }),
+        )
+      ).exercises,
+  });
+
+/**
  * One exercise's chart over a span (S7, docs/07 §3). Enable it only once the profile exists:
  * without one the API answers `setup_incomplete`.
  */
@@ -505,8 +522,18 @@ export const refreshExercises = () =>
   });
 export const refreshRoutines = () => queryClient.invalidateQueries({ queryKey: ['routines'] });
 export const refreshInvites = () => queryClient.invalidateQueries({ queryKey: ['invites'] });
-/** After a weigh-in is typed or deleted: the daily weights and the trend move with it. */
-export const refreshWeighIns = () => queryClient.invalidateQueries({ queryKey: ['weigh-ins'] });
+/**
+ * After a weigh-in is typed or deleted: the daily weights and the trend move with it, and so does
+ * the weight a bodyweight lift is counted at on a chart or the strength overview (issue #69).
+ */
+export const refreshWeighIns = () =>
+  queryClient.invalidateQueries({
+    predicate: (query) =>
+      query.queryKey[0] === 'weigh-ins' ||
+      query.queryKey[0] === 'progress' ||
+      query.queryKey[0] === 'strength' ||
+      query.queryKey[0] === 'last-time',
+  });
 /**
  * After an acknowledged sync batch: a chart on screen is asked again, the rest when next opened.
  * The strength overview and the balance view read the same sets, so they go with them.
@@ -529,7 +556,7 @@ export const refreshHistory = () => queryClient.invalidateQueries({ queryKey: ['
  */
 export async function refreshLastTime(): Promise<void> {
   if (queryClient.getQueryData<Me>(ME_KEY)?.profile == null) return;
-  await queryClient.cancelQueries({ queryKey: lastTimeQuery.queryKey });
+  await queryClient.cancelQueries({ queryKey: lastTimeQuery.queryKey, exact: true });
   await queryClient.fetchQuery({ ...lastTimeQuery, staleTime: 0 }).catch(() => undefined);
 }
 

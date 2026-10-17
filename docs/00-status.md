@@ -31,7 +31,8 @@ sets, after asking), and Today starts an empty workout, named or `Workout` (`06`
 F2, F3; `10` §1, §8.2). No server change.
 Building comes first: seeded or fake data is fine until the app is built. Owed, and Yuta's: the two
 weight hardware tests (`06`, 2026-09-19) and an Anthropic API key with a small balance for label
-reads. #69 follows the weight slice with its rules decided; #52 is M3, in S23's catalogue; #53 stays
+reads. #69 is built on `fm/overload-69b` (`06`, 2026-10-17): bodyweight lifts count the
+lifter's weight in e1RM, the Strength trend, Last time and the chart; #52 is M3, in S23's catalogue; #53 stays
 last.
 
 **Phase 7 — Build, after slice 7.** Slice 7, export and delete (S10), is built on `fm/overload-7`,

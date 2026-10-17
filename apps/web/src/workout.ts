@@ -346,9 +346,11 @@ function exerciseRecord(input: {
       restSeconds: exercise.restSeconds,
       lastTime: (last?.sets ?? []).map((set) => ({
         weightKg: set.weightKg,
+        countedWeightKg: set.countedWeightKg,
         reps: set.reps,
         rir: set.rir,
       })),
+      lastTimeBodyweight: last?.bodyweight ?? null,
       lastTimeOn: last?.performedOn ?? null,
       lastTimeKnown: input.lastTimes !== undefined,
       suggestion: last?.suggestion ?? null,

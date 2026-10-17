@@ -1,4 +1,6 @@
+import { bodyweightOn, withBodyweight, type BodyweightCount } from './bodyweight.js';
 import { bestE1rmKg, topSet, type LoggedSet } from './e1rm.js';
+import type { DailyWeight } from './weight.js';
 
 // S7's chart (docs/07 §3): one point per workout, and the stats of the span chosen. Local dates
 // are `YYYY-MM-DD` strings, which compare in date order.
@@ -20,8 +22,10 @@ export type ProgressPoint = {
   topSetReps: number;
   /** Volume load: weight × reps, summed over the working sets. */
   volumeKg: number;
-  /** The working sets as logged, in order: the exercise's past sets. */
+  /** The working sets as counted, in order: the exercise's past sets. */
   sets: { weightKg: number; reps: number }[];
+  /** On a bodyweight lift, the weigh-in the workout was counted at; null on any other. */
+  bodyweight: BodyweightCount | null;
 };
 
 export type Progress = {
@@ -67,13 +71,19 @@ export function spanStart(span: Span, today: string): string | undefined {
 
 /**
  * A workout's point, from its working sets alone (S6), with its e1RM before rounding. A workout
- * of warm-ups has none.
+ * of warm-ups has none. On a bodyweight lift, `weighedDays` are the weighed days and the sets
+ * count at the bodyweight of the workout's date plus their logged load (issue #69).
  */
-function pointOf(workout: LoggedWorkout): { point: ProgressPoint; e1rmKg: number }[] {
-  const e1rmKg = bestE1rmKg(workout.sets);
-  const top = topSet(workout.sets);
+function pointOf(
+  workout: LoggedWorkout,
+  weighedDays: DailyWeight[] | undefined,
+): { point: ProgressPoint; e1rmKg: number }[] {
+  const bodyweight = weighedDays === undefined ? null : bodyweightOn(weighedDays, workout.date);
+  const counted = bodyweight === null ? workout.sets : withBodyweight(workout.sets, bodyweight);
+  const e1rmKg = bestE1rmKg(counted);
+  const top = topSet(counted);
   if (e1rmKg === undefined || top === undefined) return [];
-  const working = workout.sets.filter((set) => !set.isWarmup);
+  const working = counted.filter((set) => !set.isWarmup);
   return [
     {
       point: {
@@ -88,6 +98,7 @@ function pointOf(workout: LoggedWorkout): { point: ProgressPoint; e1rmKg: number
           2,
         ),
         sets: working.map((set) => ({ weightKg: set.weightKg, reps: set.reps })),
+        bodyweight,
       },
       e1rmKg,
     },
@@ -96,13 +107,19 @@ function pointOf(workout: LoggedWorkout): { point: ProgressPoint; e1rmKg: number
 
 /**
  * The chart of one exercise over a span ending on `today`, from the workouts that logged it, in
- * the order given (oldest first). A workout dated after today is outside every span.
+ * the order given (oldest first). A workout dated after today is outside every span. Give the
+ * weighed days (oldest first) for a bodyweight exercise, whose workouts count the lifter's weight.
  */
-export function exerciseProgress(span: Span, today: string, workouts: LoggedWorkout[]): Progress {
+export function exerciseProgress(
+  span: Span,
+  today: string,
+  workouts: LoggedWorkout[],
+  weighedDays?: DailyWeight[],
+): Progress {
   const start = spanStart(span, today);
   const plotted = workouts
     .filter((workout) => (start === undefined || workout.date >= start) && workout.date <= today)
-    .flatMap(pointOf);
+    .flatMap((workout) => pointOf(workout, weighedDays));
   const points = plotted.map((each) => each.point);
   const top = points.reduce<ProgressPoint | undefined>(
     (best, point) =>

@@ -79,6 +79,8 @@ completion control is enabled regardless; a missing weight or reps is refused on
   exercise opens with the two-row block of `05` §4.19, in place of the `SUGGESTED` chip the card
   carried and the coded range in the header. The suggestion is labelled `TODAY'S TARGET` on screen
   only (`CONTEXT.md`). The weight and its rule are the API's; the screen words them:
+  A bodyweight lift shows the counted load and which weigh-in supplied it, or says there was no
+  weigh-in. The target and entered weight still use the logged added load.
   - Weight up: `You reached 10 reps on every set last time, so the weight goes up by 2.5 kg. Aim
     for 6 or more.` The step named is the one the suggestion took, so a dumbbell that goes 30 to 32
     says 2 kg.
@@ -240,6 +242,12 @@ Read seated. Four independently toggleable overlays are the reason the whole app
   headline, span selector and overlays have no defined empty treatment.
 - **Data points are r=2.5.** If a point is tappable to reach that workout, it needs a 44px target
   (`docs/05` §3.2).
+- **A bodyweight exercise counts the lifter's weight** (#69, `06` 2026-10-17). Under the
+  headline's e1RM, `Counted at 82 kg · your weigh-in of 10 Sep` in 10px mono (`text/quaternary`)
+  for the latest workout, or the picked one; `that day’s weigh-in` when the workout's own day was
+  weighed, `your first weigh-in, 12 Nov` for a workout older than the first, and `No weigh-in ·
+  counted as logged` with none at all. Each past-sets row says it again under its sets, and the
+  sets, top set and volume are of the counted load.
 
 **As built, 2026-10-10** (slice 5, `06`), with what the artboard does not draw:
 
@@ -1080,7 +1088,12 @@ verdict is the API's (`07` §3); the screen groups the lifts by the status they 
 - **Pounds.** The latest e1RM and the change in weight are in the profile's unit, `LB` and `lb`.
   The percentage is the same in either.
 - **A lift never loaded**, logged at 0 kg throughout, is listed with its workout count and
-  `No weight logged · no trend` in place of a verdict. It is not averaged (`07` §3).
+  `No weight logged · no trend` in place of a verdict. It is not averaged (`07` §3). A bodyweight
+  lift with a weigh-in is not that: it counts the lifter's weight (#69, `06` 2026-10-17) and has an
+  e1RM, a trend and a verdict like any other.
+- **A bodyweight lift names its weigh-in.** Under the e1RM line, `Counted at 82 kg · your weigh-in
+  of 10 Sep` (`that day’s weigh-in`, `your first weigh-in, 12 Nov`, or `No weigh-in · counted as
+  logged`), 10px mono in `text/quaternary`, for the lift's latest workout in the span.
 
 ### Balance (`/progress/balance`, issue #50)
 

@@ -807,10 +807,11 @@ describe('GET /api/training/last-time (S2, S3)', () => {
         workoutId: latest.workout.id,
         performedOn: '2026-11-05',
         sets: [
-          { workingSet: 1, weightKg: 80, reps: 10, rir: 2 },
-          { workingSet: 2, weightKg: 80, reps: 10, rir: 2 },
-          { workingSet: 3, weightKg: 80, reps: 10, rir: 2 },
+          { workingSet: 1, weightKg: 80, countedWeightKg: 80, reps: 10, rir: 2 },
+          { workingSet: 2, weightKg: 80, countedWeightKg: 80, reps: 10, rir: 2 },
+          { workingSet: 3, weightKg: 80, countedWeightKg: 80, reps: 10, rir: 2 },
         ],
+        bodyweight: null,
         suggestion: {
           weightKg: 82.5,
           rule: 'top_of_range_hit',
@@ -899,9 +900,10 @@ describe('GET /api/training/last-time (S2, S3)', () => {
       workoutId: w.id,
       performedOn: '2026-11-04',
       sets: [
-        { workingSet: 1, weightKg: 80, reps: 8, rir: 2 },
-        { workingSet: 2, weightKg: 80, reps: 8, rir: 2 },
+        { workingSet: 1, weightKg: 80, countedWeightKg: 80, reps: 8, rir: 2 },
+        { workingSet: 2, weightKg: 80, countedWeightKg: 80, reps: 8, rir: 2 },
       ],
+      bodyweight: null,
       suggestion: {
         weightKg: 82.5,
         rule: 'top_of_range_hit',
@@ -912,7 +914,8 @@ describe('GET /api/training/last-time (S2, S3)', () => {
       routineExerciseId: lightSlot.id,
       workoutId: w.id,
       performedOn: '2026-11-04',
-      sets: [{ workingSet: 1, weightKg: 60, reps: 10, rir: 2 }],
+      sets: [{ workingSet: 1, weightKg: 60, countedWeightKg: 60, reps: 10, rir: 2 }],
+      bodyweight: null,
       suggestion: {
         weightKg: 60,
         rule: 'repeat',

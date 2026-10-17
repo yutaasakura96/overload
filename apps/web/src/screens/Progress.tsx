@@ -12,6 +12,7 @@ import {
   valueScale,
   valueY,
 } from '../chart';
+import { countedAt } from '../bodyweight';
 import { AppBar, DataState, Notice } from '../components';
 import { dayLabel } from '../dates';
 import { goBack, type Navigate } from '../navigation';
@@ -277,6 +278,9 @@ function Headline({
             </>
           )}
         </p>
+        {latest?.bodyweight != null && (
+          <p className="progress__counted">{countedAt(latest.bodyweight, unit)}</p>
+        )}
       </div>
       {picked !== undefined && (
         <p className="progress__change" aria-hidden="true">
@@ -530,6 +534,9 @@ function PastSets({
                 {/* A chart saved by a build before points carried their sets is drawn without them
                     until the answer asked for on opening replaces it. */}
                 <span className="past__sets">{setsLine(point.sets ?? [], unit)}</span>
+                {point.bodyweight != null && (
+                  <span className="past__counted">{countedAt(point.bodyweight, unit)}</span>
+                )}
               </a>
             </li>
           ))}

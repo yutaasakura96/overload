@@ -1126,7 +1126,10 @@ export interface paths {
     /** Last time and today’s suggestion for every exercise the caller has logged */
     get: {
       parameters: {
-        query?: never;
+        query?: {
+          /** @description A workout to leave out: the open workout reads the workout before it, not its own sets. */
+          exclude?: string;
+        };
         header?: never;
         path?: never;
         cookie?: never;
@@ -2371,11 +2374,35 @@ export interface components {
        * @example 2400
        */
       volumeKg: number;
-      /** @description The working sets as logged, in order: the exercise’s past sets. */
+      /** @description The working sets in order: the exercise’s past sets. A bodyweight lift’s are as counted. */
       sets: {
         weightKg: number;
         reps: number;
       }[];
+      /** @description Which weigh-in a bodyweight lift was counted at (issue #69): all of that weight plus the kg logged on the set. */
+      bodyweight:
+        | {
+            /**
+             * @description `same_day`: the day’s own weight. `earlier_day`: no reading that day, so the latest earlier day’s. `later_day`: the workout is older than the first weigh-in, so the first later one.
+             * @enum {string}
+             */
+            basis: 'same_day' | 'earlier_day' | 'later_day';
+            /** @example 82.4 */
+            weightKg: number;
+            /**
+             * Format: date
+             * @description The local date of the weigh-in counted.
+             */
+            weighedOn: string;
+          }
+        | {
+            /**
+             * @description No weigh-in at all: sets as logged.
+             * @enum {string}
+             */
+            basis: 'none';
+          }
+        | null;
     };
     RoutineList: {
       items: components['schemas']['Routine'][];
@@ -2519,11 +2546,37 @@ export interface components {
       sets: {
         workingSet: number;
         weightKg: number;
+        /** @description The load counted for display; weightKg remains the logged added load. */
+        countedWeightKg: number;
         reps: number;
         /** @description Null when the set recorded none. */
         rir: number | null;
       }[];
       suggestion: components['schemas']['Suggestion'];
+      /** @description Which weigh-in a bodyweight lift was counted at (issue #69): all of that weight plus the kg logged on the set. */
+      bodyweight:
+        | {
+            /**
+             * @description `same_day`: the day’s own weight. `earlier_day`: no reading that day, so the latest earlier day’s. `later_day`: the workout is older than the first weigh-in, so the first later one.
+             * @enum {string}
+             */
+            basis: 'same_day' | 'earlier_day' | 'later_day';
+            /** @example 82.4 */
+            weightKg: number;
+            /**
+             * Format: date
+             * @description The local date of the weigh-in counted.
+             */
+            weighedOn: string;
+          }
+        | {
+            /**
+             * @description No weigh-in at all: sets as logged.
+             * @enum {string}
+             */
+            basis: 'none';
+          }
+        | null;
       /** @description Last time for each of the caller’s routine slots that has logged the exercise. */
       slots: components['schemas']['LastTimeSlot'][];
     };
@@ -2558,11 +2611,37 @@ export interface components {
       sets: {
         workingSet: number;
         weightKg: number;
+        /** @description The load counted for display; weightKg remains the logged added load. */
+        countedWeightKg: number;
         reps: number;
         /** @description Null when the set recorded none. */
         rir: number | null;
       }[];
       suggestion: components['schemas']['Suggestion'];
+      /** @description Which weigh-in a bodyweight lift was counted at (issue #69): all of that weight plus the kg logged on the set. */
+      bodyweight:
+        | {
+            /**
+             * @description `same_day`: the day’s own weight. `earlier_day`: no reading that day, so the latest earlier day’s. `later_day`: the workout is older than the first weigh-in, so the first later one.
+             * @enum {string}
+             */
+            basis: 'same_day' | 'earlier_day' | 'later_day';
+            /** @example 82.4 */
+            weightKg: number;
+            /**
+             * Format: date
+             * @description The local date of the weigh-in counted.
+             */
+            weighedOn: string;
+          }
+        | {
+            /**
+             * @description No weigh-in at all: sets as logged.
+             * @enum {string}
+             */
+            basis: 'none';
+          }
+        | null;
     };
     /** @description Every lift the caller logged with a working set in the span, with the trend of its e1RM. Warm-ups are left out (S6). */
     StrengthOverview: {
@@ -2638,6 +2717,30 @@ export interface components {
          */
         changePct: number;
       } | null;
+      /** @description Which weigh-in a bodyweight lift was counted at (issue #69): all of that weight plus the kg logged on the set. */
+      bodyweight:
+        | {
+            /**
+             * @description `same_day`: the day’s own weight. `earlier_day`: no reading that day, so the latest earlier day’s. `later_day`: the workout is older than the first weigh-in, so the first later one.
+             * @enum {string}
+             */
+            basis: 'same_day' | 'earlier_day' | 'later_day';
+            /** @example 82.4 */
+            weightKg: number;
+            /**
+             * Format: date
+             * @description The local date of the weigh-in counted.
+             */
+            weighedOn: string;
+          }
+        | {
+            /**
+             * @description No weigh-in at all: sets as logged.
+             * @enum {string}
+             */
+            basis: 'none';
+          }
+        | null;
     };
     /** @description Working sets a week for each muscle group: whole for the group an exercise is filed under, half for each it also trains. Warm-ups are left out (S6). */
     Balance: {

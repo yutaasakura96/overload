@@ -1326,7 +1326,58 @@
                 "reps"
               ]
             },
-            "description": "The working sets as logged, in order: the exercise’s past sets."
+            "description": "The working sets in order: the exercise’s past sets. A bodyweight lift’s are as counted."
+          },
+          "bodyweight": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "basis": {
+                    "type": "string",
+                    "enum": [
+                      "same_day",
+                      "earlier_day",
+                      "later_day"
+                    ],
+                    "description": "`same_day`: the day’s own weight. `earlier_day`: no reading that day, so the latest earlier day’s. `later_day`: the workout is older than the first weigh-in, so the first later one."
+                  },
+                  "weightKg": {
+                    "type": "number",
+                    "example": 82.4
+                  },
+                  "weighedOn": {
+                    "type": "string",
+                    "format": "date",
+                    "description": "The local date of the weigh-in counted."
+                  }
+                },
+                "required": [
+                  "basis",
+                  "weightKg",
+                  "weighedOn"
+                ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "basis": {
+                    "type": "string",
+                    "enum": [
+                      "none"
+                    ],
+                    "description": "No weigh-in at all: sets as logged."
+                  }
+                },
+                "required": [
+                  "basis"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Which weigh-in a bodyweight lift was counted at (issue #69): all of that weight plus the kg logged on the set."
           }
         },
         "required": [
@@ -1337,7 +1388,8 @@
           "topSetKg",
           "topSetReps",
           "volumeKg",
-          "sets"
+          "sets",
+          "bodyweight"
         ]
       },
       "RoutineList": {
@@ -1645,6 +1697,10 @@
                 "weightKg": {
                   "type": "number"
                 },
+                "countedWeightKg": {
+                  "type": "number",
+                  "description": "The load counted for display; weightKg remains the logged added load."
+                },
                 "reps": {
                   "type": "integer"
                 },
@@ -1659,6 +1715,7 @@
               "required": [
                 "workingSet",
                 "weightKg",
+                "countedWeightKg",
                 "reps",
                 "rir"
               ]
@@ -1667,6 +1724,57 @@
           },
           "suggestion": {
             "$ref": "#/components/schemas/Suggestion"
+          },
+          "bodyweight": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "basis": {
+                    "type": "string",
+                    "enum": [
+                      "same_day",
+                      "earlier_day",
+                      "later_day"
+                    ],
+                    "description": "`same_day`: the day’s own weight. `earlier_day`: no reading that day, so the latest earlier day’s. `later_day`: the workout is older than the first weigh-in, so the first later one."
+                  },
+                  "weightKg": {
+                    "type": "number",
+                    "example": 82.4
+                  },
+                  "weighedOn": {
+                    "type": "string",
+                    "format": "date",
+                    "description": "The local date of the weigh-in counted."
+                  }
+                },
+                "required": [
+                  "basis",
+                  "weightKg",
+                  "weighedOn"
+                ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "basis": {
+                    "type": "string",
+                    "enum": [
+                      "none"
+                    ],
+                    "description": "No weigh-in at all: sets as logged."
+                  }
+                },
+                "required": [
+                  "basis"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Which weigh-in a bodyweight lift was counted at (issue #69): all of that weight plus the kg logged on the set."
           },
           "slots": {
             "type": "array",
@@ -1682,6 +1790,7 @@
           "performedOn",
           "sets",
           "suggestion",
+          "bodyweight",
           "slots"
         ]
       },
@@ -1741,6 +1850,10 @@
                 "weightKg": {
                   "type": "number"
                 },
+                "countedWeightKg": {
+                  "type": "number",
+                  "description": "The load counted for display; weightKg remains the logged added load."
+                },
                 "reps": {
                   "type": "integer"
                 },
@@ -1755,6 +1868,7 @@
               "required": [
                 "workingSet",
                 "weightKg",
+                "countedWeightKg",
                 "reps",
                 "rir"
               ]
@@ -1763,6 +1877,57 @@
           },
           "suggestion": {
             "$ref": "#/components/schemas/Suggestion"
+          },
+          "bodyweight": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "basis": {
+                    "type": "string",
+                    "enum": [
+                      "same_day",
+                      "earlier_day",
+                      "later_day"
+                    ],
+                    "description": "`same_day`: the day’s own weight. `earlier_day`: no reading that day, so the latest earlier day’s. `later_day`: the workout is older than the first weigh-in, so the first later one."
+                  },
+                  "weightKg": {
+                    "type": "number",
+                    "example": 82.4
+                  },
+                  "weighedOn": {
+                    "type": "string",
+                    "format": "date",
+                    "description": "The local date of the weigh-in counted."
+                  }
+                },
+                "required": [
+                  "basis",
+                  "weightKg",
+                  "weighedOn"
+                ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "basis": {
+                    "type": "string",
+                    "enum": [
+                      "none"
+                    ],
+                    "description": "No weigh-in at all: sets as logged."
+                  }
+                },
+                "required": [
+                  "basis"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Which weigh-in a bodyweight lift was counted at (issue #69): all of that weight plus the kg logged on the set."
           }
         },
         "required": [
@@ -1770,7 +1935,8 @@
           "workoutId",
           "performedOn",
           "sets",
-          "suggestion"
+          "suggestion",
+          "bodyweight"
         ],
         "description": "One routine slot’s own sets and suggestion, from the last workout that ran it."
       },
@@ -1924,6 +2090,57 @@
               "changePct"
             ],
             "description": "Null without a verdict."
+          },
+          "bodyweight": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "basis": {
+                    "type": "string",
+                    "enum": [
+                      "same_day",
+                      "earlier_day",
+                      "later_day"
+                    ],
+                    "description": "`same_day`: the day’s own weight. `earlier_day`: no reading that day, so the latest earlier day’s. `later_day`: the workout is older than the first weigh-in, so the first later one."
+                  },
+                  "weightKg": {
+                    "type": "number",
+                    "example": 82.4
+                  },
+                  "weighedOn": {
+                    "type": "string",
+                    "format": "date",
+                    "description": "The local date of the weigh-in counted."
+                  }
+                },
+                "required": [
+                  "basis",
+                  "weightKg",
+                  "weighedOn"
+                ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "basis": {
+                    "type": "string",
+                    "enum": [
+                      "none"
+                    ],
+                    "description": "No weigh-in at all: sets as logged."
+                  }
+                },
+                "required": [
+                  "basis"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Which weigh-in a bodyweight lift was counted at (issue #69): all of that weight plus the kg logged on the set."
           }
         },
         "required": [
@@ -1932,7 +2149,8 @@
           "points",
           "workoutCount",
           "status",
-          "trend"
+          "trend",
+          "bodyweight"
         ]
       },
       "Balance": {
@@ -3980,6 +4198,19 @@
     "/api/training/last-time": {
       "get": {
         "summary": "Last time and today’s suggestion for every exercise the caller has logged",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "A workout to leave out: the open workout reads the workout before it, not its own sets."
+            },
+            "required": false,
+            "description": "A workout to leave out: the open workout reads the workout before it, not its own sets.",
+            "name": "exclude",
+            "in": "query"
+          }
+        ],
         "responses": {
           "200": {
             "description": "One entry per logged exercise",

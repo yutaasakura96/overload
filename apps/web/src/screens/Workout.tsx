@@ -1,4 +1,4 @@
-import type { Exercise, Me, WeightUnit } from '@overload/api-contract';
+import type { Exercise, LastTime, Me, WeightUnit } from '@overload/api-contract';
 import { useQuery } from '@tanstack/react-query';
 import {
   Fragment,
@@ -10,6 +10,7 @@ import {
   type RefObject,
 } from 'react';
 import { Brief } from '../brief';
+import { countedAt, recountedLastTime } from '../bodyweight';
 import {
   AppBar,
   CheckIcon,
@@ -23,7 +24,13 @@ import {
 import { readFigures, type FigureRefusal } from '../figures';
 import { useFocusGuide } from '../focus-guide';
 import type { Navigate } from '../navigation';
-import { allExercisesQuery, lastTimeQuery, queryClient, useAccount } from '../query';
+import {
+  allExercisesQuery,
+  lastTimeQuery,
+  openLastTimeQuery,
+  queryClient,
+  useAccount,
+} from '../query';
 import { RefusedSet } from '../refused';
 import { keepAwake, playTone, unlockTone } from '../rest-alert';
 import { SetEditor } from '../set-editor';
@@ -142,6 +149,10 @@ export function Workout({
   const library = useQuery({ ...allExercisesQuery, enabled: confirmed });
   // Kept warm here too, so an exercise added offline opens with last time (docs/09 F3 step 1).
   useQuery({ ...lastTimeQuery, enabled: confirmed && me.profile !== null });
+  const lastTimes = useQuery({
+    ...openLastTimeQuery(workout?.id ?? ''),
+    enabled: confirmed && me.profile !== null && workout !== undefined,
+  });
   const [adding, setAdding] = useState<'pick' | 'new-exercise'>();
   const [addFailed, setAddFailed] = useState(false);
   // Said to a screen reader on the way back, where focus alone would say nothing changed.
@@ -167,12 +178,12 @@ export function Workout({
   if (workout === undefined) return <AppBar title="Workout" slot={<DataState at={0} />} />;
 
   const add = async (picked: Exercise[]) => {
-    const lastTimes = queryClient.getQueryData(lastTimeQuery.queryKey);
+    const cached = queryClient.getQueryData(lastTimeQuery.queryKey);
     try {
       const applied = await addExercises({
         workoutId: workout.id,
         exercises: picked,
-        lastTimes: lastTimes && new Map(lastTimes.map((last) => [last.exerciseId, last])),
+        lastTimes: cached && new Map(cached.map((last) => [last.exerciseId, last])),
       });
       if (!applied) throw new Error('workout was not changed');
       setAddFailed(false);
@@ -193,6 +204,9 @@ export function Workout({
           key={workout.id}
           workout={workout}
           records={records}
+          lastTimes={
+            lastTimes.data && { exercises: lastTimes.data, updatedAt: lastTimes.dataUpdatedAt }
+          }
           unit={me.profile?.weightUnit ?? 'kg'}
           timeZone={me.profile?.timezone ?? deviceTimezone()}
           guideOpen={guide}
@@ -262,6 +276,7 @@ function readRest(rest: CountedRest, now: number) {
 function LiveWorkout({
   workout,
   records,
+  lastTimes,
   unit,
   timeZone,
   guideOpen,
@@ -274,6 +289,7 @@ function LiveWorkout({
 }: {
   workout: WorkoutRecord;
   records: StoreRecord[];
+  lastTimes: { exercises: LastTime[]; updatedAt: number } | undefined;
   unit: WeightUnit;
   timeZone: string;
   guideOpen: boolean;
@@ -288,7 +304,9 @@ function LiveWorkout({
   /** Finish was tapped: whether the workout was kept, once known; `undefined` when it failed. */
   onFinish: (result: Promise<boolean | undefined>) => void;
 }) {
-  const exercises = exercisesOf(records, workout.id);
+  const exercises = exercisesOf(records, workout.id).map((exercise) =>
+    recountedLastTime(exercise, lastTimes, workout.row.startedAt),
+  );
   // Turned on by hand each workout and not remembered (docs/06, 2026-10-12): it lives here, in a
   // component keyed by the workout.
   const [full, setFull] = useState(false);
@@ -682,7 +700,14 @@ function ExerciseBlock({
                       index + 1
                     )}
                   </td>
-                  <td className="sets__last">{last === undefined ? '' : figures(last)}</td>
+                  <td className="sets__last">
+                    {last === undefined
+                      ? ''
+                      : figures({
+                          weightKg: last.countedWeightKg ?? last.weightKg,
+                          reps: last.reps,
+                        })}
+                  </td>
                   <td className="sets__figure">{formatWeight(set.row.weightKg, unit)}</td>
                   <td className="sets__figure">{set.row.reps}</td>
                   <td className="sets__number">{set.row.rir ?? '—'}</td>
@@ -958,7 +983,7 @@ function ActiveSet({
           </div>
           <div className="brief__when">
             {last !== undefined
-              ? `Last time ${formatWeight(last.weightKg, unit)} × ${last.reps}`
+              ? `Last time ${formatWeight(last.countedWeightKg ?? last.weightKg, unit)} × ${last.reps}${exercise.local.lastTimeBodyweight == null ? '' : ` · ${countedAt(exercise.local.lastTimeBodyweight, unit)}`}`
               : lastTime.length > 0
                 ? 'No matching set last time'
                 : lastTimeKnown && 'First workout of this exercise'}
@@ -979,7 +1004,12 @@ function ActiveSet({
           {last !== undefined && !warm && (
             <span className="active-set__last">
               <span className="active-set__last-word">LAST TIME</span>
-              {formatWeight(last.weightKg, unit)} × {last.reps}
+              {formatWeight(last.countedWeightKg ?? last.weightKg, unit)} × {last.reps}
+            </span>
+          )}
+          {last !== undefined && !warm && exercise.local.lastTimeBodyweight != null && (
+            <span className="active-set__last-word">
+              {countedAt(exercise.local.lastTimeBodyweight, unit)}
             </span>
           )}
           {lastTime.length === 0 && lastTimeKnown && (

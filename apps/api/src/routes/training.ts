@@ -4,9 +4,11 @@ import { getWorkout, lastDone, listWorkouts } from '../db/history.js';
 import { getProfile } from '../db/profile.js';
 import { lastTimes, localDateIn, loggedExercises, loggedLifts } from '../db/training.js';
 import { BALANCE_VIEWS, balanceWindow, weeklySets } from '../domain/balance.js';
+import { listWeighIns } from '../db/weigh-ins.js';
 import { syncWorkouts } from '../db/workouts.js';
 import { spanStart } from '../domain/progress.js';
 import { STRENGTH_SPANS, strengthOverview } from '../domain/strength.js';
+import { dailyWeights } from '../domain/weight.js';
 import { accountHeaders } from '../lib/account.js';
 import { problem, problemResponse, validationErrors } from '../lib/problem.js';
 import { decodeCursor, encodeCursor, pageQuery } from './paging.js';
@@ -51,6 +53,14 @@ const getLastTime = createRoute({
   method: 'get',
   path: '/api/training/last-time',
   summary: 'Last time and today’s suggestion for every exercise the caller has logged',
+  request: {
+    query: z.object({
+      exclude: z.uuid().optional().openapi({
+        description:
+          'A workout to leave out: the open workout reads the workout before it, not its own sets.',
+      }),
+    }),
+  },
   responses: {
     200: {
       description: 'One entry per logged exercise',
@@ -224,7 +234,13 @@ export function trainingRoutes({ db }: RouteDeps) {
         return c.json(
           {
             asOf: new Date().toISOString(),
-            exercises: await lastTimes(db, userId, profile.timezone),
+            exercises: await lastTimes(
+              db,
+              userId,
+              profile.timezone,
+              dailyWeights(await listWeighIns(db, userId), profile.timezone),
+              c.req.valid('query').exclude,
+            ),
           },
           200,
         );
@@ -239,7 +255,8 @@ export function trainingRoutes({ db }: RouteDeps) {
         if (profile === null) return problem(c, 'setup_incomplete', { missing: ['profile'] });
         const today = localDateIn(profile.timezone)(new Date());
         const lifts = await loggedLifts(db, userId, profile.timezone, spanStart(span, today));
-        return c.json(strengthOverview(span, today, lifts), 200);
+        const weighedDays = dailyWeights(await listWeighIns(db, userId), profile.timezone);
+        return c.json(strengthOverview(span, today, lifts, weighedDays), 200);
       },
     }),
     defineOpenAPIRoute<typeof getBalance, AppEnv>({

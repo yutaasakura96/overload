@@ -338,16 +338,19 @@ GET /api/training/last-time  →  200
 { "asOf": "2026-11-04T10:15:02.000Z",
   "exercises": [
     { "exerciseId": "0192a001-…", "workoutId": "0192w001-…", "performedOn": "2026-11-04",
-      "sets": [ { "workingSet": 1, "weightKg": 80, "reps": 10, "rir": 2 }, { "workingSet": 2, "weightKg": 80, "reps": 10, "rir": 2 }, { "workingSet": 3, "weightKg": 80, "reps": 10, "rir": null } ],
+      "sets": [ { "workingSet": 1, "weightKg": 80, "countedWeightKg": 80, "reps": 10, "rir": 2 }, { "workingSet": 2, "weightKg": 80, "countedWeightKg": 80, "reps": 10, "rir": 2 }, { "workingSet": 3, "weightKg": 80, "countedWeightKg": 80, "reps": 10, "rir": null } ],
+      "bodyweight": null,
       "suggestion": { "weightKg": 82.5, "rule": "top_of_range_hit", "reason": "hit 10 on every set last time" },
       "slots": [] }
   ] }
 ```
 
-`sets` holds working sets only; `workingSet` is derived, 1…n in `position` order (`04`). `rir` is `null` where the set recorded none. `suggestion.rule` is `top_of_range_hit` or `repeat`. An exercise never logged is absent from a successful response; the workout's first-time and unknown-history states are specified in `10` §1.
+`sets` holds working sets only; `workingSet` is derived, 1…n in `position` order (`04`). Each set has `weightKg` as logged and `countedWeightKg` for display. Each exercise and slot has `bodyweight`, the counted weigh-in basis or `null` for other equipment. `rir` is `null` where the set recorded none. `suggestion.rule` is `top_of_range_hit` or `repeat`. An exercise never logged is absent from a successful response; the workout's first-time and unknown-history states are specified in `10` §1.
 
 - **Which workout is last time:** the caller's most recent workout, by `started_at`, with at least
   one working set of the exercise. A workout where it only had warm-ups is passed over.
+  `?exclude=<workout id>` leaves that workout out: the open workout asks with its own id, so a
+  weigh-in typed mid-workout recounts the workout before it, not its own synced sets.
 - **The suggestion** takes that workout's heaviest working weight, the `rep_high` copied into its
   `workout_exercise`, and the exercise's increment and equipment as they are today, so a changed
   increment applies at once. The weight is rounded up to one the equipment can make (S3).
@@ -635,6 +638,14 @@ GET /api/training/strength?span=12w
   either itself.
 - **The status** reads the unrounded percentage: `gaining` at 2% or more, `losing` at −2% or
   less, `holding` between. A displayed `+2.0%` can therefore be holding.
+- **A bodyweight lift** (`equipment = bodyweight`) counts the caller's weight plus the kg logged on
+  each set (`06`, 2026-10-17; `04` `body_measurement`): its points and trend are of that load, and
+  the lift carries `bodyweight`, the weigh-in its latest workout in the span was counted at:
+  `{ "basis": "earlier_day", "weightKg": 82.4, "weighedOn": "2026-10-10" }`. `basis` is
+  `same_day`, `earlier_day`, `later_day` (a workout older than the first weigh-in) or `none`
+  (no weigh-in at all: the sets stay as logged, so a lift logged at 0 kg is `no_weight`). Null on
+  any other lift. The chart (`GET /api/exercises/{id}/progress`) says the same on every point, and
+  its `topSetKg`, `volumeKg` and `sets` are of the counted load.
 - **`too_few`** with `trend: null`: fewer than three workouts with a working set in the span,
   where at least one has a positive e1RM. A lift with none is `no_weight` instead.
   Its displayed count includes zero-weight workouts.

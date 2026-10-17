@@ -424,6 +424,7 @@ One reading from the scale, or one typed by hand (S11).
   written back.
 - **A bodyweight lift counts that day's weight** (#69, `06` 2026-10-16): with no reading that day,
   the latest earlier day's; before the first weigh-in, the first later one, labelled as such.
+  Built 2026-10-17 in `domain/bodyweight.ts`; read at request time, never stored on the set.
 
 ---
 

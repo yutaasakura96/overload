@@ -1,5 +1,6 @@
 import type { WeightUnit } from '@overload/api-contract';
 import type { WorkoutExerciseRecord } from './set-store';
+import { countedAt } from './bodyweight';
 import { formatWeight, unitLabel } from './units';
 
 // The two lines an exercise opens with on the workout screen (docs/05 §4.19, docs/10 §1): what was
@@ -100,7 +101,8 @@ export function Brief({
   /** Full screen's form (docs/05 §4.22): tighter rows, and no sentence where figures say it. */
   compact?: boolean;
 }) {
-  const { name, bodyweight, lastTime, lastTimeOn, lastTimeKnown, suggestion } = exercise.local;
+  const { name, bodyweight, lastTime, lastTimeBodyweight, lastTimeOn, lastTimeKnown, suggestion } =
+    exercise.local;
   const reps = range(exercise);
   const unitWord = unitLabel(unit).toLowerCase();
   const block = compact ? 'brief brief--compact' : 'brief';
@@ -153,7 +155,11 @@ export function Brief({
     );
   }
 
-  const sameWeight = lastTime.every((set) => set.weightKg === lastTime[0]?.weightKg);
+  const sameWeight = lastTime.every(
+    (set) =>
+      (set.countedWeightKg ?? set.weightKg) ===
+      (lastTime[0]?.countedWeightKg ?? lastTime[0]?.weightKg),
+  );
   const lastKg = Math.max(...lastTime.map((set) => set.weightKg));
   const riseKg = suggestion === null ? 0 : Math.round((suggestion.weightKg - lastKg) * 100) / 100;
   const up = riseKg > 0;
@@ -166,27 +172,35 @@ export function Brief({
           {lastTimeOn != null && <span className="brief__when">{when(lastTimeOn, timeZone)}</span>}
         </div>
         <div className="brief__figures">
-          {bodyweight && sameWeight && lastKg === 0 ? (
+          {bodyweight &&
+          sameWeight &&
+          lastKg === 0 &&
+          (lastTimeBodyweight == null || lastTimeBodyweight.basis === 'none') ? (
             <>
               Bodyweight <span className="brief__unit">×</span>{' '}
               {lastTime.map((set) => set.reps).join(' · ')}
             </>
           ) : sameWeight ? (
             <>
-              {formatWeight(lastTime[0]?.weightKg ?? 0, unit)}{' '}
+              {formatWeight(lastTime[0]?.countedWeightKg ?? lastTime[0]?.weightKg ?? 0, unit)}{' '}
               <span className="brief__unit">{unitWord} ×</span>{' '}
               {lastTime.map((set) => set.reps).join(' · ')}
             </>
           ) : (
             lastTime
               .map((set) =>
-                bodyweight && set.weightKg === 0
+                bodyweight &&
+                set.weightKg === 0 &&
+                (lastTimeBodyweight == null || lastTimeBodyweight.basis === 'none')
                   ? `Bodyweight × ${set.reps}`
-                  : `${formatWeight(set.weightKg, unit)}×${set.reps}`,
+                  : `${formatWeight(set.countedWeightKg ?? set.weightKg, unit)}×${set.reps}`,
               )
               .join(' · ')
           )}
         </div>
+        {lastTimeBodyweight != null && (
+          <p className="brief__why">{countedAt(lastTimeBodyweight, unit)}</p>
+        )}
       </div>
       {suggestion !== null && (
         <div className="brief__row brief__row--target">

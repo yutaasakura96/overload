@@ -1,5 +1,7 @@
+import { bodyweightOn, withBodyweight, type BodyweightCount } from './bodyweight.js';
 import { bestE1rmKg, type LoggedSet } from './e1rm.js';
 import { spanStart } from './progress.js';
+import type { DailyWeight } from './weight.js';
 
 // The strength overview (docs/07 §3, docs/06 2026-10-10 Q12): whether each lift is gaining,
 // holding or losing over a span, and all of them together. One measure, e1RM, so more reps at the
@@ -80,6 +82,8 @@ export function strengthTrend(points: TrendPoint[]): StrengthTrend | undefined {
 export type LoggedLift = {
   exerciseId: string;
   name: string;
+  /** Equipment `bodyweight`: its sets count the lifter's weight (issue #69). */
+  bodyweight?: boolean | undefined;
   workouts: { date: string; sets: LoggedSet[] }[];
 };
 
@@ -92,6 +96,8 @@ export type StrengthLift = {
   status: LiftStatus;
   /** Null without a verdict. */
   trend: { changeKg: number; changePct: number } | null;
+  /** On a bodyweight lift, the weigh-in its latest workout in the span was counted at. */
+  bodyweight: BodyweightCount | null;
 };
 
 export type StrengthOverview = {
@@ -111,12 +117,14 @@ const byName = (a: StrengthLift, b: StrengthLift) =>
 
 /**
  * Every lift's trend over a span ending on `today`, and their plain average. A workout counts by
- * its working sets alone (S6). A lift logged only at zero weight has no e1RM trend.
+ * its working sets alone (S6). A lift logged only at zero weight has no e1RM trend. A bodyweight
+ * lift counts the weight of `weighedDays` (oldest first) plus its logged load.
  */
 export function strengthOverview(
   span: StrengthSpan,
   today: string,
   logged: LoggedLift[],
+  weighedDays: DailyWeight[] = [],
 ): StrengthOverview {
   const start = spanStart(span, today)!;
   const measured = logged.flatMap((lift): (StrengthLift & { rawChangePct: number | null })[] => {
@@ -125,8 +133,16 @@ export function strengthOverview(
     );
     const working = workouts.filter((workout) => workout.sets.some((set) => !set.isWarmup));
     if (working.length === 0) return [];
+    const latest = working.at(-1);
+    const bodyweight =
+      lift.bodyweight === true && latest !== undefined
+        ? bodyweightOn(weighedDays, latest.date)
+        : null;
     const plotted = working.flatMap((workout) => {
-      const e1rmKg = bestE1rmKg(workout.sets);
+      const count = lift.bodyweight === true ? bodyweightOn(weighedDays, workout.date) : null;
+      const e1rmKg = bestE1rmKg(
+        count === null ? workout.sets : withBodyweight(workout.sets, count),
+      );
       return e1rmKg === undefined || e1rmKg <= 0 ? [] : [{ date: workout.date, e1rmKg }];
     });
     const raw = rawTrend(plotted);
@@ -148,6 +164,7 @@ export function strengthOverview(
           raw === undefined
             ? null
             : { changeKg: round(raw.changeKg, 3), changePct: round(raw.changePct, 1) },
+        bodyweight,
         rawChangePct: raw?.changePct ?? null,
       },
     ];
@@ -175,6 +192,7 @@ export function strengthOverview(
       workoutCount: lift.workoutCount,
       status: lift.status,
       trend: lift.trend,
+      bodyweight: lift.bodyweight,
     })),
   };
 }
