@@ -169,7 +169,7 @@ design/  docs/  CONTEXT.md
 | API data | TanStack Query, persisted to IndexedDB, one copy per account (`docs/08` §5) | Screens render the last loaded data offline, with its age |
 | Pending and refused sets, and the workout rows they belong to | The set store: our IndexedDB store, one record per `workout`, `workout_exercise` or `set` row keyed by its id, `durability: "strict"` | Written the moment the row is created or changed. Deleted only after the server acknowledges it. **Rows of the open workout stay, marked acknowledged, until the workout ends** (Finish, or the 3-hour rule in `docs/09` F3) |
 | Active workout, open on the device | One Zustand store, in memory, **rebuilt from the set store on every launch** | The rest timer stores when rest *started* (the last set's timestamp), never a countdown |
-| Last time, the suggestion, the exercise's name and rest, as they were when the workout started | With each `workout_exercise` record in the set store, beside the row and never uploaded | Copied at start, so an acknowledged batch cannot turn today's sets into "last time" (`06`, 2026-10-03) |
+| Last time, the suggestion, the exercise's name and rest, as they were when the exercise joined the workout | With each `workout_exercise` record in the set store, beside the row and never uploaded | Copied when the exercise is added, including at workout start, so an acknowledged batch cannot turn today's sets into "last time" (`06`, 2026-10-03; 2026-10-17) |
 | Days left incomplete at the end-of-day check | IndexedDB, device only | A list of dates, cleared by the sign-out wipe (`docs/08` §7), so the evening and "Yesterday" cards do not ask twice (`docs/09` F11). Not sent to the server, which derives incomplete days itself |
 | One screen's inputs, open tab | React state, plus the URL for anything worth linking | — |
 | Server truth | Postgres | — |
@@ -182,6 +182,31 @@ rebuild the open workout, show Resume (`docs/09` F3) and restart the rest timer 
 `performed_at`, offline included. Acknowledged rows kept there count as neither pending nor refused,
 so the data-state slot is unaffected. The TanStack cache is not a substitute: its persister writes
 at most once a second (`06`, 2026-09-19, client state). *Added 2026-09-22.*
+
+**A past workout comes back to the set store to be changed.** *Added 2026-10-11 (`06`).* History
+(`docs/10` §9) is API data: the list and each workout are TanStack queries. Editing or deleting a
+set of a workout the device has let go writes the whole workout back into the set store from the
+query's copy, every row marked acknowledged, in the same IndexedDB transaction that queues the
+change; `GET /api/workouts/{id}` returns the rows exactly as the sync batch holds them so that this
+is a copy, not a conversion (`docs/07` §3). From there the change is an ordinary pending row: it
+uploads through `/api/workouts/sync`, is retried, and can be refused like any other. A workout
+that has not ended and that the device does not hold is never written back: it is in progress on
+another device, and held here it would become this device's open workout to resume and to end.
+With two tabs open, the tab that uploads a change may not be the one that made it: a tab whose
+pending rows another tab's upload answered tells its own cache what they said, as the uploading tab
+does, and every tab asks the server again whenever another tab changes the records, since a change
+may be made and uploaded before a tab in the background has read anything. Two rules keep
+the screens honest while it waits:
+
+- **The device's rows win on screen.** A workout's page reads an ended workout from the set store
+  whenever it holds one, over the query's copy. History and Today's last workout lay those rows
+  over a loaded or cached list; without a list page, neither shows a row offline. Where that list
+  exists, a finish, an edit and a delete show at once, offline included, and survive a reload.
+  The server's answer is the history, and the set store holds only what it has not yet been told.
+- **The cache is told before the rows go.** An acknowledged batch lets an ended workout's rows
+  leave the device. Just before that, the uploader writes what those rows say into the cached list
+  and workout, then asks the server for History, last time and the charts again. The screen never
+  falls back to a copy older than the change.
 
 ---
 
@@ -197,7 +222,7 @@ at most once a second (`06`, 2026-09-19, client state). *Added 2026-09-22.*
    marked refused in the error colour, and can be edited or discarded. **A set is never dropped
    silently.**
 
-The error colour is `error` `#F2555A` (`docs/05` §1.4, added 2026-09-22), always with the word and an icon.
+The error colour is the `error` token (`docs/05` §1.4), always with the word and an icon.
 
 ### API
 
@@ -228,27 +253,42 @@ The error colour is `error` `#F2555A` (`docs/05` §1.4, added 2026-09-22), alway
    Background Sync, which is unverified on Safari.
 3. The server upserts with `INSERT … ON CONFLICT (id) DO UPDATE … WHERE stored.client_updated_at <
    incoming.client_updated_at` and returns a result per row (`docs/07` §3.4). A retry after a lost
-   response, or a stale copy, changes nothing. Slice 3 syncs workout deletion; editing or deleting
-   logged sets waits for slice 4 (`docs/07` §3.4). *Changed 2026-09-21* from `DO NOTHING`, which
-   could not carry an offline edit.
-   - **Slice 4: a deletion leaves a tombstone.** The guard only works while a row exists, and
+   response, or a stale copy, changes nothing. A set, a workout exercise or a workout is deleted
+   the same way, by `{ id, deletedAt }` in its array, and an edit made offline travels as the
+   whole row under a newer `client_updated_at` (`docs/07` §3.4). *Changed 2026-09-21* from
+   `DO NOTHING`, which could not carry an offline edit.
+   - **A deletion leaves a tombstone.** The guard only works while a row exists, and
      deletes are hard, so a stale copy arriving after a delete would otherwise be inserted again.
      Each sync delete writes the id to `sync_tombstone` (`docs/04`) in the same transaction, along with the ids
      it cascades to. The insert skips any row whose id or parent id has a tombstone, and reports it
-     as `deleted`. Tombstones are purged after 30 days by the daily job (§8.4). *Added 2026-09-22.*
+     as `deleted`. The 30-day purge belongs to the unbuilt daily job (§8.4). *Added 2026-09-22,
+     sync guard built 2026-10-08 (slice 4).*
+   - **One request at a time works on an id.** Each row's transaction first takes
+     `pg_advisory_xact_lock` on the row's id. Without it a stale copy and its delete, sent at the
+     same moment from two tabs, can each miss the other: the copy is read before the tombstone is
+     committed and inserted after the delete has run. A delete of a row the server never had is
+     buried too, since its copy may still be on its way. *Added 2026-10-08.*
 4. **The local record is deleted only after the server acknowledges the set.** A refusal (kind 3)
    marks it refused and keeps it. While its workout is open, an acknowledged record is marked
    acknowledged instead, and deleted when the workout ends (§6).
-5. **One tab uploads at a time.** Use the Web Locks API (`navigator.locks.request`) around the
-   upload loop. *Slice 4.* Slice 3's uploader runs one upload at a time within a tab, on every
-   change to the set store, on reconnect, on return to the app and every 30 s while rows wait. After
-   a launch with no signal it asks `/api/me` again on reconnect, since nothing uploads under an
-   unconfirmed account (`docs/08` §5).
+5. **The upload loop attempts one origin lock.** It runs inside `navigator.locks.request`, on one
+   lock for the origin. Within a tab one upload runs at a time, on every change to the set store,
+   on reconnect, on return to the app and every 30 s while rows wait. After a launch with no signal
+   it asks `/api/me` again on reconnect, since nothing uploads under an unconfirmed account
+   (`docs/08` §5).
+   - **The lock saves requests; it is not what keeps uploads correct.** The guard stores a row
+     once whoever sends it, and a tombstone keeps a deleted one gone. So where the browser has no
+     Web Locks, refuses the request, or another tab has held the lock for 10 s (a tab the browser
+     froze mid-request never lets go), the upload goes ahead without it. *Built 2026-10-08.*
+   - **Each tab works from the device, not from what it last saw.** A change to the set store
+     reads the records and writes in one IndexedDB transaction, and the tab that made it tells the
+     others over a `BroadcastChannel`, which read the records again. A tab granted the lock reads
+     them once more before choosing what to send, so what another tab uploaded meanwhile is not
+     sent twice. *Added 2026-10-08.*
    - **Supported** in Safari and iOS Safari since 15.4 (MDN browser-compat, checked 2026-09-24).
-     **Still unverified:** behaviour inside a standalone home-screen app, and whether a lock is shared
-     between the installed app and the same origin open in Safari. `11` §3 item 4 checks both.
-   - Once tombstones are built, a second tab uploading anyway is safe against resurrection; the
-     lock also prevents wasted requests.
+     **Still unverified:** behaviour inside a standalone home-screen app, and whether a lock, or
+     the channel, is shared between the installed app and the same origin open in Safari. `11` §3
+     item 4 checks both.
 6. `workout` and `workout_exercise` are created on the phone the same way, and uploaded before
    their sets.
 
@@ -270,6 +310,8 @@ The error colour is `error` `#F2555A` (`docs/05` §1.4, added 2026-09-22), alway
   - portions rounded to 5 g, eggs and other `piece_weight_g` foods whole
   - protein spread at 0.4–0.55 g/kg per meal across the meal count
   - carbohydrate timed around the training slot on training days
+- A batch-cooked food is placed only on days its `keeps_days` covers from the week's at most two
+  cook days (`02` S16).
 - Rotation picks from a `rotation_group`, not a chain of pairs.
 - **Whether to use a solver library or hand-written code is decided when M2 starts.** The function's
   signature and the tolerance tests are written first, so the choice can be swapped.
@@ -485,7 +527,8 @@ Sources and reasoning in `06` (2026-09-24, platform facts).
 
 Established here because it constrains a product decision. **Decided 2026-10-03: a sound** (`06`).
 The `COMPLETE SET` tap resumes the audio context, a short tone plays when rest reaches zero, and
-the wake lock is held while rest counts, where it is granted. No push. MDN browser-compat and
+the wake lock is held while rest counts, where it is granted. With full screen on it is held for
+the whole workout (`06`, 2026-10-12). No push. MDN browser-compat and
 WebKit, checked 2026-09-24:
 
 | | State on iOS |

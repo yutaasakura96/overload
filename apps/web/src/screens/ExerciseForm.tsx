@@ -1,9 +1,10 @@
-import type { Equipment, Exercise, WeightUnit } from '@overload/api-contract';
+import type { Equipment, Exercise, MuscleGroup, WeightUnit } from '@overload/api-contract';
 import { useQuery } from '@tanstack/react-query';
 import { useId, useState, type ReactNode } from 'react';
 import { api, expectOk, unwrap } from '../api';
 import {
   AppBar,
+  Chevron,
   DeleteConfirm,
   Notice,
   NumberField,
@@ -12,6 +13,7 @@ import {
   parseFigure,
 } from '../components';
 import { classIncrementKg, equipmentLabels, newExerciseDefaults } from '../equipment';
+import { muscleGroupLabels } from '../exercise-list';
 import { newId } from '../ids';
 import {
   allExercisesQuery,
@@ -61,12 +63,15 @@ export function ExerciseForm({
   exercise,
   slot,
   back,
+  progress,
   onDone,
 }: {
   /** Absent for a new custom exercise. */
   exercise: Exercise | undefined;
   slot: ReactNode;
   back: { label: string; onClick: () => void };
+  /** The way to the exercise's chart (S7). Absent inside the picker, where leaving loses the routine. */
+  progress?: { href: string; onOpen: () => void };
   /** After a save, with the exercise as it now is; after a delete, with nothing. */
   onDone: (saved: Exercise | undefined) => void;
 }) {
@@ -75,6 +80,16 @@ export function ExerciseForm({
   const [id] = useState(() => exercise?.id ?? newId());
   const [name, setName] = useState(exercise?.name ?? '');
   const [equipment, setEquipment] = useState<Equipment>(exercise?.equipment ?? 'barbell');
+  // Empty for none: the library then lists it apart from the groups.
+  const [muscleGroup, setMuscleGroup] = useState<MuscleGroup | ''>(exercise?.muscleGroup ?? '');
+  // The groups it also trains, where a set counts half in Balance (issue #50). A copy saved by an
+  // older build has none.
+  const [secondaryMuscleGroups, setSecondaryMuscleGroups] = useState<MuscleGroup[]>(
+    // oxlint-disable-next-line typescript/no-unnecessary-condition -- absent in a copy saved by an older build
+    exercise?.secondaryMuscleGroups ?? [],
+  );
+  // The group it is filed under counts whole, so it is never offered here.
+  const secondaries = secondaryMuscleGroups.filter((group) => group !== muscleGroup);
   // The increment is shown and typed in the user's unit, and stored in kilograms.
   const [unit] = useState(currentWeightUnit);
   const [figures, setFigures] = useState<Figures>(
@@ -92,6 +107,7 @@ export function ExerciseForm({
   const [problem, setProblem] = useState<SaveProblem>();
   const formRef = useFocusRefused(problem);
   const equipmentId = useId();
+  const muscleGroupId = useId();
 
   const fieldError = (path: string) =>
     problem?.kind === 'refused' ? problem.fields.get(path) : undefined;
@@ -144,6 +160,8 @@ export function ExerciseForm({
               id,
               name,
               equipment,
+              muscleGroup: muscleGroup === '' ? null : muscleGroup,
+              secondaryMuscleGroups: secondaries,
               incrementKg: incrementKg() ?? undefined,
               restSeconds: figureOrOmit(figures.restSeconds),
               repLow: figureOrOmit(figures.repLow),
@@ -159,6 +177,8 @@ export function ExerciseForm({
             body: {
               name,
               equipment,
+              muscleGroup: muscleGroup === '' ? null : muscleGroup,
+              secondaryMuscleGroups: secondaries,
               incrementKg: incrementKg() ?? undefined,
               restSeconds: figureOrOmit(figures.restSeconds),
               repLow: figureOrOmit(figures.repLow),
@@ -216,6 +236,22 @@ export function ExerciseForm({
         back={back}
       />
       <SaveNotice problem={problem} what="exercise" />
+      {progress !== undefined && (
+        <a
+          href={progress.href}
+          className="link-row"
+          onClick={(event) => {
+            event.preventDefault();
+            progress.onOpen();
+          }}
+        >
+          <span>
+            <span className="link-row__name">Progress</span>
+            <span className="link-row__meta">Estimated 1RM over time</span>
+          </span>
+          <Chevron direction="forward" />
+        </a>
+      )}
       <form
         ref={formRef}
         className="form"
@@ -232,7 +268,7 @@ export function ExerciseForm({
               value={name}
               onChange={setName}
               error={fieldError('name')}
-              placeholder="Incline Cable Fly…"
+              placeholder="Cable Y-Raise…"
               focusOnOpen={creating}
             />
             <div className="field">
@@ -265,6 +301,59 @@ export function ExerciseForm({
                 ))}
               </select>
             </div>
+            <div className="field">
+              <div className="field__label-row">
+                <label htmlFor={muscleGroupId} className="field__label">
+                  Muscle group
+                </label>
+              </div>
+              <select
+                id={muscleGroupId}
+                className="field__input field__select"
+                value={muscleGroup}
+                onChange={(event) => {
+                  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the options are the MuscleGroup values and none
+                  setMuscleGroup(event.target.value as MuscleGroup | '');
+                }}
+              >
+                <option value="">None</option>
+                {Object.entries(muscleGroupLabels).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <fieldset className="field">
+              <legend className="field__label-row">
+                <span className="field__label">Also trains</span>
+                <span className="field__note">Half a set each</span>
+              </legend>
+              <div className="group-chips">
+                {Object.entries(muscleGroupLabels)
+                  .filter(
+                    (entry): entry is [MuscleGroup, string] =>
+                      entry[0] in muscleGroupLabels && entry[0] !== muscleGroup,
+                  )
+                  .map(([value, label]) => (
+                    <label key={value} className="segments__segment">
+                      <input
+                        type="checkbox"
+                        checked={secondaries.includes(value)}
+                        onChange={(event) => {
+                          const { checked } = event.target;
+                          setSecondaryMuscleGroups((current) =>
+                            checked
+                              ? [...current, value]
+                              : current.filter((group) => group !== value),
+                          );
+                        }}
+                      />
+                      {label}
+                    </label>
+                  ))}
+              </div>
+            </fieldset>
           </>
         )}
 
@@ -396,7 +485,15 @@ export function ExerciseScreen({
       </main>
     );
   }
+  const progressPath = `/exercises/${exercise.id}/progress`;
   return (
-    <ExerciseForm key={exercise.id} exercise={exercise} slot={slot} back={back} onDone={done} />
+    <ExerciseForm
+      key={exercise.id}
+      exercise={exercise}
+      slot={slot}
+      back={back}
+      progress={{ href: progressPath, onOpen: () => navigate(progressPath) }}
+      onDone={done}
+    />
   );
 }

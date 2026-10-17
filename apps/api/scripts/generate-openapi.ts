@@ -13,6 +13,7 @@ const config = {
   googleClientId: 'contract-generation',
   googleClientSecret: 'contract-generation',
   adminEmail: 'contract-generation@example.com',
+  anthropicApiKey: null,
 };
 const pool = createPool(config.databaseUrl);
 const db = createDatabase(pool);

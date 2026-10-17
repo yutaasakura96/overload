@@ -27,5 +27,5 @@
       }
     ]
   },
-  "ignorePatterns": ["packages/api-contract/src/schema.ts", "**/dist/**"]
+  "ignorePatterns": ["packages/api-contract/src/schema.ts", "**/dist/**", "docs/prototype/**"]
 }

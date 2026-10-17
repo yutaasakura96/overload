@@ -7,3 +7,6 @@ export const testDatabaseUrl =
 export const testDatabaseOwnerUrl =
   process.env.TEST_DATABASE_URL_DIRECT ??
   'postgres://overload_owner:overload_owner_dev@localhost:5434/overload_test?sslmode=disable';
+
+// The port the test database listens on: 5434 for Docker, or the one with-test-database.sh chose.
+export const testDatabasePort = new URL(testDatabaseUrl).port;

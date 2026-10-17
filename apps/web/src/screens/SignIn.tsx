@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { authClient } from '../auth-client';
 import { AppBar, Notice } from '../components';
+import { deviceStore } from '../device-store';
 import { safeNext } from '../navigation';
 import { markSigningIn, takeSigningIn } from '../query';
+import { refuseRevokedSets } from '../workout';
 
 // The gate's refusals, as docs/08 §1 words them. Better Auth redirects a refused sign-in back here
 // with `?error=<code>` (read from its callback source, 1.7.5).
@@ -17,6 +19,7 @@ export function SignIn({ searchParams }: { searchParams: URLSearchParams }) {
   const [failed, setFailed] = useState(false);
   const error = searchParams.get('error');
   const next = safeNext(searchParams.get('next'));
+  const revokedSets = useRevokedSets(error === 'access_revoked');
 
   const signIn = async () => {
     setStarting(true);
@@ -42,6 +45,11 @@ export function SignIn({ searchParams }: { searchParams: URLSearchParams }) {
         <p className="sign-in__lede">
           Invite only. Sign in with the Google account you were invited with.
         </p>
+        {searchParams.get('deleted') === '1' && (
+          <Notice tone="flag" word="Deleted">
+            Your account was deleted.
+          </Notice>
+        )}
         {searchParams.get('wipe') === 'failed' && (
           <Notice tone="flag" word="Saved data">
             Saved data couldn't be cleared from this device.
@@ -50,6 +58,10 @@ export function SignIn({ searchParams }: { searchParams: URLSearchParams }) {
         {refusal !== undefined && (
           <Notice tone="error" word="Refused">
             {refusal}
+            {revokedSets === 1 &&
+              ' 1 set logged on this device wasn’t saved. It stays on this device until you discard it.'}
+            {revokedSets > 1 &&
+              ` ${revokedSets} sets logged on this device weren’t saved. They stay on this device until you discard them.`}
           </Notice>
         )}
         {(failed || (error !== null && refusal === undefined)) && (
@@ -68,4 +80,28 @@ export function SignIn({ searchParams }: { searchParams: URLSearchParams }) {
       </div>
     </main>
   );
+}
+
+/**
+ * On a refusal for revoked access, the last account signed in on this device has its unsaved sets
+ * marked refused, access revoked (docs/08 §5, docs/09 F4). Answers how many there are.
+ */
+function useRevokedSets(revoked: boolean): number {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    if (!revoked) return undefined;
+    let current = true;
+    void deviceStore
+      .signedInUser()
+      .then((user) => (user === undefined ? 0 : refuseRevokedSets(user.id)))
+      .then((refused) => {
+        if (current) setCount(refused);
+      })
+      // A device whose set store cannot be read keeps the sets pending, as they were.
+      .catch(() => undefined);
+    return () => {
+      current = false;
+    };
+  }, [revoked]);
+  return count;
 }

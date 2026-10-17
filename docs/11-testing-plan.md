@@ -8,10 +8,14 @@ reasoning; each row names its source. Decisions are in `06` (2026-09-21, testing
 | Layer | Tool | Runs against |
 | --- | --- | --- |
 | Domain (`apps/api/src/domain/`) | Vitest | Nothing. Pure functions |
-| API, auth, ingest | Vitest, calling the Hono app in process (`app.request`) | Postgres 18 in Docker: `docker compose` locally, a service container in GitHub Actions. `infra/db/bootstrap.sql` then the migrations, once per run; each test runs in a transaction that is rolled back |
+| API, auth, ingest | Vitest, calling the Hono app in process (`app.request`) | Postgres 18 in Docker: `pnpm test` starts a throwaway container on a free port locally, while GitHub Actions supplies a service container. `infra/db/bootstrap.sql` then the migrations, once per run; each test runs in a transaction that is rolled back |
 | Offline and sync | Playwright, Chromium **and** WebKit, `browserContext.setOffline` | The built web app, the API and the same Postgres |
 | Browser sign-in | Better Auth's `testUtils()` plugin: `test.getCookies({ userId })` → `browserContext.addCookies()` | A **test-only** auth instance. The plugin exposes privileged helpers and stays out of the production config |
 | Contract | `oasdiff/oasdiff-action/breaking` | `packages/api-contract/openapi.json` on the PR vs `main`. Supports OpenAPI 3.1 (checked 2026-09-21) |
+
+For an isolated local browser run, use `sh apps/api/scripts/with-test-database.sh pnpm e2e`.
+The wrapper uses caller-supplied test databases only when both `TEST_DATABASE_URL` and
+`TEST_DATABASE_URL_DIRECT` are set; otherwise it starts and removes its own container.
 
 ### Isolation, and the two tests it cannot do
 
@@ -21,7 +25,7 @@ Rollback-per-test is the default. Two kinds of test opt out, or they pass withou
 | Kind | Why rollback fails it | How it runs |
 | --- | --- | --- |
 | Anything asserting on a **deferred** foreign key — account deletion with a custom exercise used in a routine and in a logged workout (`04`, group 4) | `NO ACTION DEFERRABLE INITIALLY DEFERRED` is checked at **commit**. A transaction that is rolled back never reaches one, so a broken delete order still goes green | `SET CONSTRAINTS ALL IMMEDIATE` before the assertions, inside the transaction. The check fires there; the rollback still cleans up |
-| **Race** tests — two tabs uploading, the same set sent twice | Two requests inside one test transaction share a connection and serialize. The unique-violation and `ON CONFLICT` paths are never exercised | **Committed**, against a database truncated between tests, in its own Vitest file so the two modes never interleave |
+| **Race** tests — two tabs uploading, the same set sent twice | Two requests inside one test transaction share a connection and serialize. The unique-violation and `ON CONFLICT` paths are never exercised | **Committed**, in its own Vitest file so the two modes never interleave (`workouts-race.test.ts`, `useTestApp({ committed: true })`). Each test's users are deleted after it, which takes their rows with them; the app role cannot `TRUNCATE` |
 
 - **Third parties are stubbed at the HTTP boundary**: Open Food Facts, Anthropic. The ingest
   tests post recorded Health Auto Export payloads.
@@ -36,6 +40,11 @@ Rollback-per-test is the default. Two kinds of test opt out, or they pass withou
 - **Rejected:** a Neon branch per CI run (network-dependent, Free-tier limits, slower) and PGlite (not
   Postgres 18, so no `uuidv7()`; the auth tests need a real Postgres).
 - Playwright's WebKit is not iOS Safari. It catches engine differences early; it does not replace §3.
+- Under the service worker, Playwright's WebKit does not route a page's requests, so a test cannot
+  drop or stub one response there: a test that uses `page.route` runs with
+  `serviceWorkers: 'block'`. `setOffline` works on both engines. *Found 2026-10-08.*
+- `E2E_WEB_PORT` and `E2E_API_PORT` move the browser tests' two servers, so two checkouts on one
+  machine do not reuse each other's. *Added 2026-10-08.*
 
 ## 2. Must be automated
 
@@ -48,6 +57,7 @@ Rollback-per-test is the default. Two kinds of test opt out, or they pass withou
 | **Ingest** | A repeated or late sample replaces the earlier copy and is never added twice. An unknown metric or bad point is skipped and counted, never a 4xx. Workout matching picks the greatest overlap | `03` §9, `07` §6.1 |
 | **Contract** | A breaking change to `openapi.json` fails CI unless the PR carries the breaking-change label | `07` §1.6 |
 | **Flows** | Until the phone writes it, a workout idle for 3 h still reads `endedAt: null` — the server derives nothing (the client half is in the offline row). Finishing with zero ticked sets deletes the workout. Confirming a plan day more than 7 days old returns 409 `day_locked`. A hand-set target newer than the applied estimate is the one in force, and the next estimate clamps ±150 kcal from it. A day left incomplete is not re-asked by the evening card or the "Yesterday" card; the flag is in IndexedDB only, so signing out and back in asks that day again | `09` F3, F11, F13 |
+| **Theme** | Both themes give every colour token a browser-computed value, and the loaded stylesheet's CSSOM has no colour outside the two token blocks. The manifest's `background_color` and `theme_color` are the dark `surface/ground`. Every text tone and unlabelled control reaches its WCAG AA ratio on each surface it may sit on, computed from browser styles with each theme applied. With no choice the app opens in the device's theme; a choice made in the profile section applies at once, is in place before the first paint after a reload, and wins over the device; `System` follows the device again as it changes. *Built 2026-10-10*: `e2e/theme.spec.ts` | `05` §1.5, §1.7 |
 | **Model calls** | One per-user daily counter covers label reads and meal estimates together: calls of both kinds count against it, and the one past the cap returns `429 model_cap_reached`. Lands with the cap itself, which is set before the first invitee (`13` §9) | `09` F15, `07` §1.3 |
 
 The planner's tolerance tests are written before the planner, so the solver choice in `03` §8.2 can be
@@ -63,11 +73,17 @@ implication that the whole table is written at once.*
 | **1** — skeleton, auth, exercise library | The gate's three refusals · the admin bootstrap on an empty database · cross-user read on `exercise` · cookie and bearer swapped between routes · 401 with no session · the sign-out wipe · one browser test: a signed-in user sees the seeded list |
 | **2** — routines | Hono's `csrf()` against the first write route · cross-user write and delete on `exercise`, `exercise_setting` and `routine` · a routine referring to another user's exercise |
 | **3** — screen 1 | The S1 happy path · progression, e1RM and the resolved-at-start defaults · the 3-hour rule (`09` F3) · cross-user sync and last time · sign-out with sets waiting, before the set store is read, and when it cannot be cleared (`08` §7). *Built 2026-10-03*: `progression.test.ts`, `workouts.test.ts`, `e2e/workout.spec.ts` |
-| **4** — the hard edges | Everything else under **Set upload (S1)** · two tabs · tombstones · the refused set |
-| **5** — progress chart | Epley with warm-ups excluded, across spans |
-| **6** — invite administration | Revoke → cookie, bearer and ingest token each 401 · member on `/api/admin/*` → 404 · restore leaves ingest tokens revoked |
-| **7** — export and delete | Export completeness · stale-session delete · deletion with a custom exercise in a routine and a workout (the deferred-FK case) |
-| **M2 / M3** | Planner, trend and expenditure · ingest · model-call cap · the remaining flows |
+| **4** — the hard edges | Everything else under **Set upload (S1)** · two tabs · tombstones · the refused set. *Built 2026-10-08*: `workouts.test.ts` (deletes, tombstones, a row refused inside a 200), `workouts-race.test.ts` (committed: the same set twice, two tabs, a stale copy racing its delete), `e2e/sync-edges.spec.ts` |
+| **5** — progress chart | Epley with warm-ups excluded, across spans. *Built 2026-10-10*: `progress.test.ts` (the pure functions, then the route with its cross-user cases), `e2e/progress.spec.ts` |
+| **History** (`#48`) — the read routes, and a past set corrected | Cross-user read on `GET /api/workouts` and `/api/workouts/{id}` · paging by cursor with none shown twice · an edited and a deleted past set reach the workout, last time, the suggestion and the chart · deleting the last set removes the workout · another user's past set is refused as not found. *Built 2026-10-11*: `history.test.ts`, `e2e/history.spec.ts` (the list and a workout's page, Finish landing on it, a set corrected from its tick, and an edit and a delete made with no signal that survive a relaunch and arrive once) |
+| **Last done** (`#61`) | Cross-user read on `GET /api/workouts/last-done` · each routine's newest finished workout however far back, none for one never done or deleted · the list's `routineId`, null once the routine is deleted. *Built 2026-10-14*: `history.test.ts`, `e2e/today.spec.ts` (a routine past History's first page and one never done, from one last-done request; a routine's newest workout deleted on the device not given as its last done) |
+| **Strength overview** (`#49`) | The trend line against last-less-first · the ±2% threshold on unrounded percentages, per lift and overall · the three-workout minimum · zero-weight lifts and mixed-weight workout counts · three workouts on one date or a line starting at or below zero without a verdict · only the three Strength spans · cross-user read on `GET /api/training/strength`. *Built 2026-10-14*: `strength.test.ts` (the pure functions, then the route with its cross-user cases), `e2e/strength.spec.ts` (each status, zero weight, no calculable trend, too few workouts, the span, a lift's chart and back, pounds, nothing logged) |
+| **Muscle balance** (`#50`) | The whole and half count · warm-ups and an unfiled exercise · both views' windows · rounding before the status, and the range's edges · every seeded exercise's reviewed secondary groups · secondary groups kept once, in order, without the filed group · cross-user read on `GET /api/training/balance`. *Built 2026-10-14*: `balance.test.ts` (the pure function, then the route with its cross-user cases), `seed.test.ts`, `exercise-writes.test.ts`, `e2e/balance.spec.ts` (the tallies and rows, triceps from presses alone, a row's sources, the sources sheet and its focus, this week in the address, a set counted this week as soon as it is logged and once when it reaches the server, a custom exercise's secondary groups) |
+| **6** — invite administration | Revoke → cookie and bearer each 401 · member on `/api/admin/*` → 404. *Built 2026-10-15*: `invites.test.ts` (the four routes, `invite_exists`, `admin_account`, idempotent revoke and restore, data kept, the audit rows), `e2e/invites.spec.ts` (add, revoke and restore from the screen; a member's not-found screen). **Moved to M3 with `ingest_token`** (`06`, 2026-10-15): revoke → ingest token 401 · restore leaves ingest tokens revoked |
+| **7** — export and delete | Export completeness · stale-session delete · deletion with a custom exercise in a routine and a workout (the deferred-FK case). *Built 2026-10-15*: `export.test.ts` (completeness, every section, paging, cross-user), `account-deletion.test.ts` (the deferred-FK case under `SET CONSTRAINTS ALL IMMEDIATE`, no row left but `audit_event`, stale session, the admin), `e2e/account.spec.ts` (export file, a deletion, the admin's refusal) |
+| **M2 slice 1** — typed weight and the trend (`#76`) | The day's weight at the 10:00 boundary, in the profile's time zone, across a DST change, with several readings in a day and none before 10:00 · the trend's EWMA, a gap by `Δd`, fewer than 3 days · the week's change · a typed weigh-in's retry and conflicts · deleting a typed one, refusing one from Apple Health · cross-user read, write and delete on `body_measurement`. *Built 2026-10-16*: `weight.test.ts` (the pure functions), `weigh-ins.test.ts` (the routes with their cross-user cases), `export.test.ts` (the `weighIns` section), `e2e/weight.spec.ts` (type a weight, see it on the section, delete it; a day's second reading stored and the trend from the third day; pounds; no week's movement when the latest weigh-in is older than a week; the days counted again after the profile's time zone changes) |
+| **M2 slice 3** — the food list (`#78`) | Per-100 g conversion from each basis, and a basis without its grams refused · the MEXT seed's values and states · the search, its word matching and order · a barcode or MEXT code already on the list returning `existingFoodId`, and a name, brand and state refused as `food_exists` · the label read against a stubbed model: read, unreadable, failed, the daily cap of model calls in the profile's time zone, the 4 MB limit and the image types · archiving keeping a food, out of the list · rotation groups and moving a food between them · cross-user read, write and delete on `food` and `rotation_group` · no food value in a log line. *Built 2026-10-17*: `food.test.ts` (the pure functions, the label answer and the Open Food Facts record), `foods.test.ts` and `rotation-groups.test.ts` (the routes, with their cross-user cases and stubbed sources), `mext-seed.test.ts`, `export.test.ts` (the `foods` and `rotationGroups` sections), `e2e/foods.spec.ts` (add a food from the MEXT table and refuse it again; by hand per package, saved per 100 g; a package without its weight refused on the device; a label without its package weight, and one per 100 ml, weighed before converting; a candidate dropped when the account changes; group two foods as alternatives, and retry a create whose response was lost) |
+| **M2 / M3** | Planner, expenditure · ingest · model-call cap · the remaining flows · from slice 6: revoke → ingest token 401, and restore leaves ingest tokens revoked |
 
 The cron-secret test lands with the daily job, and the contract check (oasdiff) runs from slice 1 —
 a no-op against an absent baseline on the first PR, real from the second.
@@ -84,6 +100,8 @@ uploader**. The result goes in the PR as pass/fail per item.
    sets present and the timer right. Reconnect: pending reaches 0 and history has no duplicates.
    **The rest tone** (`06`, 2026-10-03): it plays at zero with the app open, with the ring switch on
    and on silent, and over music; the screen stays awake while rest counts (iOS 18.4 and later).
+   **Full screen** (`06`, 2026-10-12): with it on, the screen stays awake between sets too, for
+   the whole workout, and dims again as usual after `Exit full screen` once no rest counts.
 4. **Two tabs and Web Locks.** Whether Safari has `navigator.locks` (`03` §11). Uploads stay
    duplicate-free either way.
 5. **Camera.** Barcode scan and label photo (M2).
@@ -91,6 +109,9 @@ uploader**. The result goes in the PR as pass/fail per item.
    if that source is chosen, everything in M3).
 7. **401 mid-workout.** "Sign out everywhere" on another device, keep logging on the phone: the prompt
    opens over the screen, and the sets upload after signing in again.
+8. **The light theme in the installed app** (`05` §1.7). The clock and battery stay readable on
+   their dark strip, on Today and with a sheet open; the strip is absent in the dark theme. With
+   `System` chosen, changing the iPhone's appearance changes the app without a reload.
 
 ## 4. Deliberately untested in v1
 

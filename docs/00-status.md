@@ -2,7 +2,7 @@
 
 **Project:** A weight-training progress tracker combining lift logging, meal planning, Apple Watch/iPhone health data, and bodyweight/diet coaching.
 **Phase:** 7 — Build (M1 first). Phase 6 — Review finished 2026-09-23.
-**Updated:** 2026-10-05
+**Updated:** 2026-10-17
 
 ## Done
 - Phase 1 — Brief + PRD: `docs/01-project-brief.md`, `docs/02-product-requirements.md`, `docs/06-decision-log.md`.
@@ -13,8 +13,42 @@
 - 2026-09-16: Phase 3 — `docs/05-design-system.md` and `docs/10-screen-specifications.md` written from the six `.dc.html` files. Every hex code, size, tracking value and grid measurement lifted from source; contrast ratios computed, not estimated. The canvas's "THE SYSTEM" sticky note was found inaccurate and is superseded by `docs/05`.
 
 ## Next
-**Phase 7 — Build, slice 4.** Slice 3 is built on `fm/overload-3`; slice 4 follows its review and
-merge. The slice boundaries and deferred work are recorded in `06` (2026-10-03).
+**Planned 2026-10-16: M2 next, built now** (`06`, 2026-10-16). The owner answered thirteen planning
+questions. M2, meal plan + weight, is built in seven slices on milestone `M2` (`#76`–`#82`), weight
+first, during M1's 4 weeks of logging. M1's two unbuilt pieces, changing a live workout's exercises
+and starting an empty workout, are one close-out issue (`#74`) built alongside it, an exception to
+`02`'s milestone rule. A clickable prototype of every M2 screen (`#75`) was reviewed in one sitting
+and approved on 2026-10-16 with five tabs, every other question as drawn (`06`; `docs/prototype/m2/`);
+the screen slices are built to it. Today becomes the whole day, with a Food tab and weight in
+Progress.
+**M2 slice 1 is built, 2026-10-16** (`#76`), on `fm/overload-76`, in review against `develop`:
+`body_measurement` (migration `0015`), `GET`, `POST` and `DELETE /api/weigh-ins`, the day's weight
+and the trend in `domain/weight.ts`, the export's `weighIns` section, and Weight as Progress's
+fourth section with `Type a weight` (`06`, 2026-10-16). Checked on generated weigh-ins.
+
+**M1's MUSTs are complete, 2026-10-17** (`#74`), on `fm/overload-74`, in review against
+`develop`: a live workout's exercises are added from the picker, reordered and removed (with their
+sets, after asking), and Today starts an empty workout, named or `Workout` (`06`, 2026-10-17; `09`
+F2, F3; `10` §1, §8.2). No server change.
+
+**M2 slice 3 is built, 2026-10-17** (`#78`), on `fm/overload-78`, in review against `develop`:
+the food list (S12). `food`, `rotation_group`, `reference_food` with the MEXT 八訂 増補2023 seed and
+`model_call_count` (migrations `0016`–`0018`); `/api/foods`, `/api/reference-foods`,
+`/api/barcodes/{code}` (Open Food Facts), `/api/label-reads` (Haiku 4.5, the daily cap of 20) and
+`/api/rotation-groups`; the export's `foods` and `rotationGroups` sections; and the Food tab, a fifth
+tab, with adding a food four ways, each checked before saving (`06`, 2026-10-17). The label read is
+tested against a stubbed model only, until the API key is set.
+
+Building comes first: seeded or fake data is fine until the app is built. Owed, and Yuta's: the two
+weight hardware tests (`06`, 2026-09-19) and an Anthropic API key with a small balance for label
+reads. #69 is built on `fm/overload-69b` (`06`, 2026-10-17): bodyweight lifts count the
+lifter's weight in e1RM, the Strength trend, Last time and the chart; #52 is M3, in S23's catalogue; #53 stays
+last.
+
+**Phase 7 — Build, after slice 7.** Slice 7, export and delete (S10), is built on `fm/overload-7`,
+in review against `develop`; it is the last of M1's slices. The slice boundaries and deferred work
+are recorded in `06` (2026-10-03, 2026-10-15). **M3 carries from slice 6:** revoking ingest tokens on
+an invite's revoke, and its two tests (`06`, 2026-10-15; `11` §2).
 
 **Planning record.** Two grills have run. `/grill-with-docs` on **2026-09-23** settled
 fourteen questions and cut M1 into slices; `/grill-with-docs` on **2026-09-24** settled twelve more —
@@ -86,6 +120,111 @@ cases; a Playwright test logs a workout offline and back on Chromium and WebKit,
 the 3-hour rule and sign-out. Left for slice 4 or later, listed in `06`: per-row validation
 refusals, tombstones, Start empty, changing a live workout, editing a logged set, RPE entry, the
 finish summary. For the iPhone checklist: whether the rest tone plays on silent (`11` §3).
+
+**The seeded exercise list grew from 50 to 185, 2026-10-08** (`#39`, branch `fm/overload-39-build`),
+hand-written, with a muscle group and aliases on every seeded row. The library and the picker are
+filed under muscle groups and search matches aliases (`06`, 2026-10-08; `10` §8.1).
+
+**Slice 4 is built, 2026-10-08**, on branch `fm/overload-4` against `develop` (`#4`). In the repo:
+`sync_tombstone`, sync deletes for all three tables, a row refused on its own inside a 200, the
+upload loop under a Web Lock with each tab reading the set store before it sends, and the refused
+set on screen 1 and on Today, to edit or discard (`06`, 2026-10-08). Vitest covers the deletes, the
+tombstones and two requests at once, in a file that commits; `e2e/sync-edges.spec.ts` covers the
+same set sent twice, a refused set inside a 200, an edit and a delete made offline, a stale copy
+after a delete, two tabs and resume, on Chromium and WebKit. Owed, and Yuta's: `11` §3 items 3, 4
+and 7 on a real iPhone, which is also where Web Locks inside the installed app gets its answer.
+Not built: a screen for editing a set the server took or changing a live workout, and the 30-day
+tombstone purge, which waits for the daily job.
+
+**Slice 5 is built, 2026-10-10**, on branch `fm/overload-5` against `develop` (`#5`). In the repo:
+`GET /api/exercises/{id}/progress`, with Epley and the span as pure functions in
+`domain/progress.ts`, and screen 2 at `/exercises/{id}/progress`, opened from the exercise's own
+screen (`06`, 2026-10-10; `10` §2). The screen cleared the polish gate. Vitest covers the
+functions, the route and its cross-user cases; `e2e/progress.spec.ts` covers the chart, the spans,
+reading a workout from the keyboard, the empty state and pounds, on Chromium and WebKit. Not built:
+the S20 overlays, which wait for M2 and M3. Owed, and Yuta's: the chart on a real iPhone, where
+dragging a finger across it has only been tried in an emulated browser.
+
+**Slice 7 is built, 2026-10-15**, on branch `fm/overload-7` against `develop` (`#7`). In the repo:
+`GET /api/me/export` with M1's four sections, `profile`, `exercises`, `routines` and `workouts`, and
+account deletion through Better Auth's `delete-user`, whose `beforeDelete` refuses the admin and
+deletes the account in one transaction with its `account_deleted` audit row (`06`, 2026-10-15). The
+`Your data` screen at `/account`, reached from the footer, saves the export and deletes after a
+fresh sign-in and a typed `DELETE` (`10` §8.5). No migration. Vitest covers export completeness,
+paging and the cross-user case, the stale-session and admin refusals, and deletion with the
+deferred-FK case; `e2e/account.spec.ts` covers the export, a deletion and the admin's refusal on
+Chromium and WebKit.
+
+**Slice 6 is built, 2026-10-15**, on branch `fm/overload-6` against `develop` (`#6`). In the repo:
+the four `/api/admin/invites` routes behind an admin check that answers a member 404, revoke
+deleting the member's sessions with their data kept, the invite screen, a member's not-found
+screen, and `access_revoked` refusing the last account's pending sets (`06`, 2026-10-15; `10`
+§8.4). No migration. Vitest covers the routes, the cookie and bearer 401 after revoke and the audit
+rows; `e2e/invites.spec.ts` covers the screen on Chromium and WebKit. Moved to M3 with
+`ingest_token`: revoking ingest tokens and its two tests.
+
+**The workout screen says last time, today's target and rest in words, 2026-10-10** (`#47`), on
+branch `fm/overload-47` against `develop`, web only. Each exercise opens with the two-row block of
+`05` §4.19, the first workout of an exercise says why it has neither, and the rest bar is on screen
+for the whole workout with a 42px countdown (`06`, 2026-10-10; `10` §1). The reviewed prototype
+that `#47` to `#51` are built against is in `docs/prototype/`. `e2e/workout.spec.ts` covers the
+sentences, the first-workout state and the bar before, during and after a rest, on Chromium and
+WebKit. Not built here, and in the prototype's workout screen: `FULL SCREEN` on the rest bar
+(`#51`), a logged set edited from its tick and the way from last time to past sets (`#48`).
+**History and the Progress tab are built, 2026-10-11**, on branch `fm/overload-48` against `develop`
+(`#48`). In the repo: `GET /api/workouts` and `GET /api/workouts/{id}`, a fourth tab, Progress, with
+History at `/progress` and a workout's page at `/workouts/{id}`, the exercise's past sets under its
+chart, and one editor for a logged set, opened from a row in History and from a set's tick during
+the workout. Finish lands on the workout's page. Edits and deletes go through the existing sync; a
+past workout is put back in the set store to be changed (`06`, 2026-10-11; `03` §6; `09` F3a;
+`10` §9). The screens
+were compared with the approved prototype at 390px, element by element, and cleared the polish
+gate. Vitest covers the two routes, their cross-user cases and a correction through sync;
+`e2e/history.spec.ts` covers the list, paging, the editor online and offline, the last set's delete
+and the tick, on Chromium and WebKit. Today's line under each routine saying when it was last done
+(`#61`) is built too, read from `GET /api/workouts/last-done` in one call (`06`, 2026-10-14).
+**The strength overview is built, 2026-10-14**, on branch `fm/overload-49` against `develop`
+(`#49`). In the repo: `domain/strength.ts`, `GET /api/training/strength`, and the Strength
+section of the Progress tab at `/progress/strength` (`06`, 2026-10-14; `07` §3; `10` §9; `05`
+§4.23). It was compared with the approved prototype at 390px, element by element, in dark and
+light. `strength.test.ts` covers the trend, its threshold edges and the route's cross-user cases;
+`e2e/strength.spec.ts` covers the screen on Chromium and WebKit.
+**Muscle balance is built, 2026-10-14**, on branch `fm/overload-50` against `develop` (`#50`).
+In the repo: secondary muscle groups on every exercise (migrations `0013`, the column, and
+`0014`, the reviewed groups of all 185 seeded exercises, generated by `seed/exercises.ts`), a field
+for them on the custom exercise form, `domain/balance.ts`, `GET /api/training/balance`, and the
+Balance section of the Progress tab at `/progress/balance` with the first evidence tag and sources
+sheet (`06`, 2026-10-14; `04`; `07` §3; `10` §9; `05` §4.12, §4.16, §4.24; `CONTEXT.md`). It was
+compared with the approved prototype at 390px, element by element, in dark and light.
+`balance.test.ts` covers the weekly sets, the half count, both views, the range's edges and the
+route's cross-user cases; `e2e/balance.spec.ts` covers the screen, the sheet and the form on
+Chromium and WebKit. Owed, and Yuta's: the two migrations reach production with the next release
+to `main`. The second step, suggestions that change a routine, is not built (`#50` step 2).
+
+**A light theme is built, 2026-10-11**, on branch `fm/overload-59` against `develop` (`#59`). In
+the repo: light values for every colour token under the same names, `data-theme` on `<html>` set
+before the first paint, and `System` / `Light` / `Dark` in the profile section, kept on the device
+(`05` §1.7; `06`, 2026-10-10; `10` §8.2). No dark value changed. It cleared the polish gate.
+`e2e/theme.spec.ts` computes the contrast pairs from browser-computed token values in both themes,
+checks loaded CSSOM rules for colours outside the two token blocks, and covers the choice, on Chromium and WebKit. Checked
+in a browser at 390px in both themes: every built screen, the rest bar, the chart and the status
+colours, and the twelve prototype screens of `#47`–`#51` with the light values applied. For `#50`:
+the prototype's meter band is `line/control` at 16% written as a literal, which the token test
+will refuse; it wants `color-mix` over the token, or a token of its own. `#50` built it as
+`color-mix` over `line/control` (`05` §4.24). Owed, and Yuta's: `11` §3
+item 8 on a real iPhone, where the status bar's strip has only been reasoned about.
+
+**Full screen and the iPhone Focus guide are built, 2026-10-12** (`#51`), on branch
+`fm/overload-51` against `develop`, web only. `FULL SCREEN` on the rest bar switches the workout
+screen to a layout with one exercise and one set, where a rest is a 56px countdown, the exception
+to `05` §2.6 that `06` records (2026-10-12). It is turned on by hand in each workout, loses nothing
+typed or logged on the way in or out, and requests the screen wake lock for the whole workout while
+it is on, where the browser grants it (`03` §11). From it, a static guide at `/workout/focus`
+gives the four steps that set up an iPhone Focus, with its ticks and "done" kept on the phone
+(`10` §1, §8.3; `05` §4.22). Compared with the prototype in a browser at 390px, and cleared the
+polish gate. `e2e/workout.spec.ts` covers entering and leaving with a set half typed, the rest in
+full screen, the wake lock and the guide,
+on Chromium and WebKit. Owed, and Yuta's: the wake lock on a real iPhone (`11` §3 item 3).
 
 **Issues are open.** Milestone `M1`, one issue per slice, `#1`–`#7`, each chained to the one before
 with GitHub's native dependencies. `#3`'s three questions were settled in `06` (2026-10-03).
@@ -220,7 +359,8 @@ Findings Yuta leaves as they are go under **Reviewed, kept** below, one line eac
 _(nothing — both group 6 items landed in `11` §2 on 2026-09-23.)_
 
 ### Reviewed, kept
-- `10` §7.3 scroll and sticky for screens 3–6: left open for each screen's M2 `/grill-with-docs` (2026-09-22).
+- ~~`10` §7.3 scroll and sticky for screens 3–6: left open for each screen's M2 `/grill-with-docs` (2026-09-22).~~
+  **Decided 2026-10-16** at the M2 prototype review (`06`, Q9).
 
 ### Phase 5 — done 2026-09-21
 Written: `CLAUDE.md`, `.claude/settings.json`, `.claude/hooks/pre-edit-branch-guard.sh`,
@@ -243,8 +383,8 @@ Written: `03`, `04`, `CONTEXT.md`, `07`, `08`, `09`, `11`, `12`, `13`, and
 - no custom domain (the AWS move will cost every user a Health Auto Export reconfiguration)
 - **compliance deferred to "before the first invitee"** (`13` §9 holds the checklist and findings)
 
-- **Parked for M2 (decide before M2 starts):** morning weight source. Two hardware tests are defined
-  in `06` (2026-09-19 entry); run them, then apply the decision rule there.
+- **Morning weight source, owed this week (`06`, 2026-10-16):** run the two hardware tests in `06`
+  (2026-09-19 entry), then apply the decision rule there. Typed weight is built first either way.
 
 ## Blocked
 _(nothing)_
@@ -256,7 +396,7 @@ Contrast, error colour, overlay colours and the four extraction deviations. See 
 
 ### The four deliberate Phase 2 gaps — decided in review 2026-09-22
 Evidence tag, data-state slot and warm-up expand are decided in `10` §7 and drawn in 2b. Scroll and
-sticky are kept open for M2 (see *Reviewed, kept*).
+sticky were decided at the M2 prototype review on 2026-10-16 (`10` §7.3).
 
 ### Check when built — raised by Phase 4
 `docs/03` §11 lists the unverified items. The ones that bite first:
@@ -304,10 +444,9 @@ written (the short food list: S12, S16, S18; batch prep: S13, S17). Three gaps, 
 - ~~**Nothing announces that rest has ended.**~~ **Decided 2026-10-03** (`06`): a sound, not a push,
   with the rest bar counting over and a wake lock while resting where the browser grants one. Built
   in slice 3. A locked phone stays silent; that is the accepted limit.
-- **No shelf life, and a batch never runs out.** `04` `batch` is the newest row for a food, with no
-  depleting portion count and no keeps-for-N-days, so the prep plan cannot say "cook the fish again
-  on Wednesday" — the very reason those foods were chosen. Candidate: `keeps_days` on `food` plus a
-  second cook day in S17. **S13/S17 grill, M2.**
+- ~~**No shelf life, and a batch never runs out.**~~ **Decided 2026-10-16** (`06`): `keeps_days`
+  on `food`; S16 plans food only on days covered by at most two cook days, and S17 names the second
+  cook day when used. Built in M2's prep slice.
 
 ### Standing
 - Design risk on record: if the real failure mode turns out to be not logging at all because the app reads as a spreadsheet, Quiet was the better bet. Revisit after M1 is in daily use. Phase 3 did not soften Instrument — the contrast cost is recorded as a measured deviation and left for Yuta.

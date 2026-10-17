@@ -13,10 +13,19 @@ export const problemCodes = {
   id_conflict: { status: 409, title: 'Id already used for something else' },
   exercise_in_routine: { status: 409, title: 'Exercise is used by a routine' },
   exercise_has_history: { status: 409, title: 'Exercise has logged workouts' },
-  payload_too_large: { status: 413, title: 'Too many rows in one request' },
+  invite_exists: { status: 409, title: 'Email already invited' },
+  admin_account: { status: 409, title: 'The admin account cannot be revoked' },
+  managed_by_apple_health: { status: 409, title: 'The weigh-in came from Apple Health' },
+  weigh_in_exists: { status: 409, title: 'A typed weigh-in at that time exists' },
+  food_exists: { status: 409, title: 'The food is on the list already' },
+  payload_too_large: { status: 413, title: 'Request too large' },
   validation_failed: { status: 422, title: 'Request body failed validation' },
   setup_incomplete: { status: 422, title: 'A prerequisite is missing' },
+  unreadable_label: { status: 422, title: 'No nutrition table could be read' },
+  rate_limited: { status: 429, title: 'Open Food Facts is limiting reads' },
+  model_cap_reached: { status: 429, title: 'Model calls used up for today' },
   internal: { status: 500, title: 'Internal error' },
+  upstream_failed: { status: 502, title: 'An outside service failed' },
 } as const satisfies Record<string, { status: ContentfulStatusCode; title: string }>;
 
 export type ProblemCode = keyof typeof problemCodes;
@@ -43,10 +52,18 @@ export const Problem = z
       .array(z.enum(['profile', 'foods', 'day_routine', 'goal_phase']))
       .optional()
       .openapi({ description: 'Present only for `setup_incomplete`: the steps to finish first.' }),
+    existingFoodId: z
+      .uuid()
+      .optional()
+      .openapi({ description: 'Present only for `food_exists`: the food already on the list.' }),
   })
   .openapi('Problem');
 
 export type ProblemBody = z.infer<typeof Problem>;
+
+/** What a schema refused, as `errors` carries it: the field and the reason, never the value sent. */
+export const validationErrors = (error: z.ZodError) =>
+  error.issues.map((issue) => ({ path: issue.path.map(String).join('.'), message: issue.message }));
 
 /** An OpenAPI response entry for a problem, for a route's `responses`. */
 export function problemResponse(description: string) {
@@ -60,7 +77,7 @@ export function problemResponse(description: string) {
 export function problem<C extends ProblemCode>(
   c: Context,
   code: C,
-  extra: Pick<ProblemBody, 'detail' | 'errors' | 'routines' | 'missing'> = {},
+  extra: Pick<ProblemBody, 'detail' | 'errors' | 'routines' | 'missing' | 'existingFoodId'> = {},
 ) {
   const { title } = problemCodes[code];
   const status: (typeof problemCodes)[C]['status'] = problemCodes[code].status;

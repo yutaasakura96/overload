@@ -79,7 +79,7 @@ function fieldMessage(path: string, serverMessage: string): string {
   if (field === 'incrementKg') return 'Kilograms from 0 to 100, to two decimals';
   if (field === 'restSeconds') return 'Whole seconds, 0 to 3600';
   if (field === 'exerciseId') return 'Hidden or no longer in your library. Remove it';
-  if (field === 'timezone') return 'Not a time zone. Use a name like Asia/Tokyo';
+  if (field === 'timezone') return 'Not a time zone. Choose one from the list';
   return serverMessage;
 }
 

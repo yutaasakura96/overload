@@ -20,7 +20,7 @@ Vocabulary is `CONTEXT.md`'s: **workout** (not session), **confirm**, **pending*
    colour, to edit or discard.
 4. **A 401 is not a refusal.** It opens a sign-in prompt over the current screen and keeps pending
    work pending (`08` §5).
-5. Every refused state below uses `error` `#F2555A` (`05` §1.4), always with the word `REFUSED` and
+5. Every refused state below uses the `error` token (`05` §1.4), always with the word `REFUSED` and
    the info icon, never colour alone.
 
 ---
@@ -46,13 +46,13 @@ Vocabulary is `CONTEXT.md`'s: **workout** (not session), **confirm**, **pending*
 ### F2. First run
 
 1. First sign-in lands on Today. With no routines, Today's training card offers **Create a
-   routine**. Today also holds the profile form (time zone and weight unit), reading "Set up your
-   profile" until it is first saved (`10` §8.2). **Start an empty workout** is planned but not
-   built yet (`06`, 2026-10-03).
+   routine** and **Start an empty workout**. Today also holds the profile form (time zone and weight
+   unit), reading "Set up your profile" until it is first saved (`10` §8.2).
 2. **Create a routine:** name → add exercises from the picker (F5) → per slot, target sets and rep
    range (default 6–10) → save.
-3. **Planned — Start an empty workout:** goes straight to F3 with no exercises; the user adds them
-   from the picker.
+3. **Start an empty workout** (built 2026-10-17, `06`): a name in place, `Workout` when left
+   empty, then F3 with no routine and no exercises; the user adds them from the picker (step 4).
+   With routines it is the last row of Today's start list. The one-workout rule of F3 applies.
 
 | Step | Goes wrong | User sees |
 | --- | --- | --- |
@@ -66,25 +66,42 @@ Vocabulary is `CONTEXT.md`'s: **workout** (not session), **confirm**, **pending*
 Works identically offline. Every write below goes to the IndexedDB set store first and uploads later
 (`03` §8.1).
 
-1. **Start.** Tap a routine on Today. The phone creates the `workout` and its
-   `workout_exercise` rows with UUIDv7 ids, copying rep range, increment and target sets (`04`):
+1. **Start.** Tap a routine on Today, or start an empty workout (F2 step 3). The phone creates the
+   `workout` with a UUIDv7 id; a routine also creates its `workout_exercise` rows with UUIDv7 ids,
+   copying rep range, increment and target sets (`04`):
    the routine slot's range if it has one, else the user's own, else the exercise's default.
-   Last time and suggestions come from the offline cache (`07` §3, "Last time and suggestions")
-   and are kept with the workout from then on.
-2. **Log a set.** The active set row is pre-filled with the suggestion, or last time's numbers
-   (S2, S3). Edit weight or reps if needed, optionally RIR and the warm-up flag (S6), tap the
-   tick. RPE entry waits for a later slice (`06`, 2026-10-03). The set is written locally before
-   the screen updates.
+   Last time and suggestions come from the offline cache when available (`07` §3, "Last time and
+   suggestions") and are kept with each exercise from when it joins the workout. Without that data,
+   last time is unknown (`10` §1).
+2. **Log a set.** The active set card opens with weight, reps and RIR as specified in `10` §1.
+   Edit or clear the figures, optionally mark a warm-up (S6), then tap the tick. RPE entry waits
+   for a later slice (`06`, 2026-10-03). The set is written locally before the screen updates.
 3. **Rest.** The timer starts from the exercise's default rest, or 120 s (S5). Skip or +30 s. It
    counts from the set's `performed_at`, so a locked phone does not stop it. At zero a tone plays
    and the bar counts over until dismissed or the next set (`06`, 2026-10-03). A rest of 0 seconds
    starts no timer.
+   **Full screen** (`06`, 2026-10-12): `FULL SCREEN` on the rest bar leaves one exercise and one
+   set on the screen and requests a wake lock for the whole workout where the browser allows
+   (`03` §11); `Exit full screen` brings the rest back. Nothing typed or logged is lost either way,
+   and it is off again at the next workout. From it, a guide says how to set up an iPhone Focus
+   (`10` §1, §8.3).
 4. **Change the workout.** Add, remove or reorder exercises; edit or delete a ticked set. None of it
-   touches the routine (S4). Edits and deletes travel in the same sync batch (`07` §3.4). *Not built
-   yet; it needs slice 4's tombstones.* Any exercise of the workout can be opened from **Up next**
-   or **Done**, in any order.
-5. **Finish.** Tap **Finish workout**, confirm → `ended_at` is set to now → Today. *The summary is
-   not built yet.*
+   touches the routine (S4). Edits and deletes travel in the same sync batch (`07` §3.4). *Sync
+   carries them since slice 4 (2026-10-08), and the screen edits or discards a refused set (F4).*
+   **A ticked set is corrected from its tick** (built 2026-10-11, `06`): the tick opens the set
+   editor of F3a under the row, which changes the weight, reps and RIR or deletes the set, uploaded
+   or not. The card under the table is then made again from the corrected set. **The exercises are
+   changed under `Change exercises`** (built 2026-10-17, `06`; `10` §1): `Add exercises` opens the
+   picker over the workout, and each added exercise opens as one from a routine does, with last
+   time and the suggestion from the offline cache (step 1), 3 target sets and the exercise's rep
+   range. `Reorder or remove` lists them in place to move up or down or remove; an exercise with
+   ticked sets asks first, and its sets go with it, deleted through sync with tombstones. The open
+   exercise stays open through a reorder. Any exercise of the workout can be opened from **Up
+   next** or **Done**, in any order.
+5. **Finish.** Tap **Finish workout**, confirm → `ended_at` is set to now → the workout's own page
+   in History (F3a), which says `Workout finished. It is in History from now on.` once and serves
+   as the summary (built 2026-10-11, `06`). Back from it goes to History. A workout finished with
+   no set is deleted, and lands on Today.
 
 **Ending a workout that was not finished cleanly** (decided 2026-09-21):
 
@@ -98,7 +115,8 @@ Planned sets that were never ticked are not stored. Only ticked sets become `set
 
 | Step | Goes wrong | User sees |
 | --- | --- | --- |
-| 1 | No cached last time (first run offline, or a new exercise) | The row shows "first workout" (PRD empty state) |
+| 1 | Last-time data is unknown on start or resume | The exercise shows the unknown-history state (`10` §1) |
+| 1 | Cached last time confirms no history for an exercise | The exercise opens on "None yet" and "Find your weight", each with a sentence saying why (`10` §1, PRD empty state) |
 | 2 | No signal | Nothing different. The data-state slot shows the pending count (`10` §7.4) |
 | 2 | Double tap on the tick | One set: the tick is disabled until the local write returns, and the id makes a repeat harmless anyway |
 | 2 | Tab killed or phone locked with sets pending | Nothing lost; they upload on the next open (S1) |
@@ -108,6 +126,57 @@ Planned sets that were never ticked are not stored. Only ticked sets become `set
 
 **Abandon:** every ticked set is kept. The open workout ends by the 3-hour rule.
 
+### F3a. Look back at a workout, and correct it
+
+Built 2026-10-11 (`06`). Screens are `10` §9. A finished workout the device has already loaded
+can be corrected offline: the change is written to the set store first and uploads later, like a
+set logged in the gym (`03` §8.1).
+
+1. **Open History.** The **Progress** tab opens on History: the finished workouts by month, newest
+   first (`GET /api/workouts`, a page of 30 at a time; **Show earlier workouts** asks for the
+   next). Today's **Last workout** row opens the newest one directly.
+2. **Open a workout.** Its page lists every exercise with every set as logged, warm-ups included
+   (`GET /api/workouts/{id}`). An exercise's name opens its chart, whose **Past sets** list each
+   workout that trained it; a row there opens that workout.
+3. **Correct a set.** Tap the set. It opens into three fields, weight, reps and RIR, over **Cancel**
+   and **Save set**, with **Delete set** under them. Save queues the whole row again under a new
+   `client_updated_at`; the page says `Set saved. Charts, last time and the target use the new
+   figures.`
+4. **Delete a set.** **Delete set** asks once, in place: `Delete set 2? It leaves this workout, your
+   charts and last time.` — **Keep** / **Delete**. The set goes as a tombstone in the sync batch.
+   **Deleting a workout's last set deletes the workout with it**, and lands on History with `That
+   was its last set, so the workout was removed.`
+5. **It reaches everything derived from the set.** Once the server has answered, last time, the
+   suggestion and the charts are asked again, so the next workout's target and the exercise's e1RM
+   follow the corrected figures. While an edit is pending, the phone updates History's set count
+   and top sets and the workout page's volume from its stored rows (`03` §6).
+
+Not offered, by decision (`06`, 2026-10-11): adding a set to a past workout, moving a set, changing
+a workout's date or name, deleting a whole workout in one action, and any "edited" mark.
+
+**How a past set gets back on the device.** The set store let the workout go when it ended and
+uploaded (`03` §6). The first change to it puts the whole workout back from the page's copy, every
+row marked acknowledged, in the same write that queues the change. The rows stay until the server
+has answered every one of them, then go again.
+
+**A workout in progress on another device is read-only here.** One that has not ended and that
+this device does not hold shows as `IN PROGRESS` with its sets and no editor, and is never put
+back in the set store: the device that holds it is the one that changes it and ends it. The
+device's own workout in progress is corrected as any other.
+
+| Step | Goes wrong | User sees |
+| --- | --- | --- |
+| 1, 2 | No signal | The last loaded copy, with its age in the data-state slot. A workout never opened on this device says `Couldn’t reach Overload. Try again when you have signal.` |
+| 2 | The workout is not the caller's, or was deleted elsewhere | `This workout is not in your history.` |
+| 3 | A figure the server would refuse | Refused in the editor before anything is written, as on the active set card (`10` §1) |
+| 3, 4 | No signal | Nothing different. The change shows at once, survives a reload, and is counted as pending in the data-state slot |
+| 3, 4 | The device cannot write the change | `Not saved` in the editor, which stays open. Nothing was changed |
+| 3 | The server refuses the edited set | F4: the set is listed on Today under **Refused sets**, to edit or discard |
+| 3, 4 | The workout was deleted on another device meanwhile | The server answers `deleted`; the rows leave this device and the workout leaves History |
+
+**Abandon:** an editor left open changes nothing. A saved change waits on the device until it
+uploads.
+
 ### F4. Sync recovery
 
 The uploader runs whenever the app is open and has signal (`03` §8.1). This flow is what the user
@@ -116,12 +185,20 @@ sees when it does not simply succeed.
 1. **Pending.** The data-state slot shows *N* pending. No action needed.
 2. **Uploaded.** The count drops; at zero the slot returns to its synced state.
 3. **Refused (kind 3, e.g. 422).** The set stays in the store, marked refused, on the workout screen
-   and in the slot. Tap it → **Edit** (re-queued with a new `client_updated_at`) or **Discard**
-   (removed after a confirm). Never dropped silently.
+   and in the slot, with the reason. **Edit** opens its figures in place and queues it again with a
+   new `client_updated_at`; **Discard** asks once, then removes it: from the screen at once, and
+   from the device when the server has answered its deletion, which leaves a tombstone. Never
+   dropped silently. *Built 2026-10-08.*
+   - **Its workout has ended** (the whole workout was logged with no signal): the set is listed on
+     Today under **Refused sets**, with the same two actions. The workout stays on the device
+     until its last refused set is edited or discarded.
+   - **Only its exercise's absence refused it** (`parent_missing`: a custom exercise deleted
+     elsewhere mid-workout): no edit can fix that, so it offers Discard alone.
 4. **401.** A sign-in prompt opens over the current screen (`08` §5). Pending stays pending.
    - Same user signs in → upload resumes.
    - `access_revoked` → every pending set becomes **refused, access revoked**, and the sign-in page
-     says "Your access was revoked." They can only be discarded.
+     says "Your access was revoked." They can only be discarded. *Built 2026-10-15*, for the last
+     account signed in on the device.
    - A different Google account → F8's rule applies to the first user's sets before anything else.
 
 | Step | Goes wrong | User sees |
@@ -133,8 +210,8 @@ sees when it does not simply succeed.
 
 ### F5. Exercise library
 
-1. From the picker (F2, F3) or Settings → Exercises: search the seeded ~50 plus the user's own (S8).
-2. **Create custom:** name, equipment, default rest, increment → save. Visible only to this user.
+1. From the picker (F2, F3) or Settings → Exercises: browse, filter or search the seeded ~180 plus the user's own (`10` §8.1).
+2. **Create custom:** name, equipment, optional muscle group, default rest, increment → save. Visible only to this user.
 3. **Remove:** a seeded exercise, or a custom one with history, is hidden (`exercise_setting`), never
    deleted — the API refuses with 409 `exercise_has_history` (`07` §3). It leaves the picker and stays
    in history (PRD edge case). A custom exercise with no sets and in no routine is deleted outright;
@@ -153,7 +230,7 @@ sees when it does not simply succeed.
 2. **Invite:** type a Google email → add. Lowercased on save. Tell the person out of band; the app
    sends no email.
 3. **Revoke:** tap an invite → confirm. The four steps in `08` §8 run: `revoked_at` set, sessions
-   deleted, ingest tokens revoked, data kept.
+   deleted, ingest tokens revoked (from M3, which creates them), data kept.
 4. **Re-invite:** a revoked row offers **Restore**, which clears `revoked_at`. Their data is back on
    their next sign-in. Their ingest tokens stay revoked, so Health Auto Export needs a new one (`08` §8).
 
@@ -167,16 +244,18 @@ sees when it does not simply succeed.
 
 ### F7. Export, then delete account
 
-1. Account screen → **Export** → the client pages through every section and saves `overload-export-<date>.json` (S10, `07` §2).
+1. `Your data` (`/account`, from the footer) → **Export** → the client pages through every section and saves `overload-export-<date>.json` (S10, `07` §2).
 2. **Delete account** → if the session is older than 1 day, sign in with Google again (`08` §6).
 3. The screen lists what goes and offers export again. The user types `DELETE`.
-4. Deleted → the device runs the sign-out wipe (F8) → `/sign-in`.
+4. Deleted → the device runs the sign-out wipe (F8) → `/sign-in`, which says `Your account was deleted.`
 
 | Step | Goes wrong | User sees |
 | --- | --- | --- |
 | 1 | Export fails | Inline message, retry |
 | 3 | The admin account | Refused, `admin_account` (`08` §6) |
-| 3 | Pending sets on the device | F8's dialog first. Deletion never uploads them |
+| 3 | Pending sets on the device | In-place choices to upload or discard (`10` §8.5); deletion never uploads them |
+| 3 | Session names another account or is gone | No deletion; reload the page |
+| 3 | Delete response is lost | Outcome unknown; reload to check whether the account remains |
 
 **Abandon:** nothing happens until `DELETE` is confirmed. The fresh sign-in in step 2 is harmless.
 
@@ -286,7 +365,8 @@ incomplete until it is confirmed or locks.
 ### F12. Weekly prep
 
 1. Prep screen → the prep plan for the coming week: raw grams per food, from the plan and the current
-   batch yield (S17).
+   batch yield (S17). It lists the plan's at most two cook days, naming the second when used; planned
+   servings fall only on days covered by each food's `keeps_days` (`02` S16–S17).
 2. **Grocery list** → the same, summed per food to buy.
 3. After cooking → **Record batch**: food, raw weight, cooked weight, date → save. Future plan items
    use the new yield; past ones keep their snapshot.
@@ -313,7 +393,9 @@ values, marked approximate (PRD empty state).
      COMPLETE`, `10` §6). Fewer than 5 complete days in the newest 7 adds a "too little recent
      logging" label.
 2. **Apply to targets** (`ready` only) → `PATCH /api/goal-phases/{id}` with `calorieBasis: "measured"` → the client
-   regenerates the unconfirmed plan days. Never automatic.
+   regenerates the unconfirmed plan days. Never automatic. It asks once first, showing the current and
+   the new calorie target (`10` §6). On a cut the new target is the maintenance estimate less the
+   deficit for the phase's rate, rate × bodyweight × 7,700 ÷ 7 (`06`, 2026-10-16, Q17).
 
 **A target set by hand wins until next Monday** (decided 2026-09-21, and applies equally to plain
 manual edits in F10): `plan_day` takes the newer of the newest applied `expenditure_estimate` and

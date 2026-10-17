@@ -1,5 +1,6 @@
 /* docs/05 §8, the token export, exactly as extracted. Nothing here is invented: a value missing from
-   docs/05 is a question for the design system, not a new token. */
+   docs/05 is a question for the design system, not a new token. These are the dark theme's values
+   and the default; the light theme's follow, under the same names (docs/05 §1.7). */
 :root {
   --surface-ground: #0b0d0f;
   --surface-raised: #12161a;
@@ -8,6 +9,7 @@
   --surface-done: #15241e;
   --surface-flag: #15110a;
   --surface-error: #170b0c;
+  --surface-status-bar: #0b0d0f; /* the same in both themes */
   --scrim: rgba(11, 13, 15, 0.72);
 
   --line-row: #14191e;
@@ -44,6 +46,45 @@
   color-scheme: dark;
 }
 
+/* The light theme (docs/05 §1.7). `data-theme` is set on <html> before the first paint by the
+   script in index.html, and afterwards by theme.ts. Every colour is a token, so nothing below this
+   block names a theme, apart from the status bar's strip. */
+:root[data-theme='light'] {
+  --surface-ground: #f4f6f8;
+  --surface-raised: #ffffff;
+  --surface-active: #ebf4f7;
+  --surface-accent: #d6edf4;
+  --surface-done: #dcf1e7;
+  --surface-flag: #faf0da;
+  --surface-error: #fbe9e9;
+  --scrim: rgba(15, 20, 24, 0.48);
+
+  --line-row: #e8ecf0;
+  --line-hairline: #dee3e8;
+  --line-border: #ced5dc;
+  --line-field: #bac4ce;
+  --line-control: #75838f;
+  --line-accent: #96cbda;
+  --line-done: #9fd2b9;
+  --line-flag: #dcc289;
+  --line-error: #eaaeb0;
+
+  --text-primary: #0f1418;
+  --text-secondary: #3b4753;
+  --text-tertiary: #505e6b;
+  --text-quaternary: #5c6a77;
+  --text-placeholder: #7b8894; /* >= 24px only */
+
+  --accent: #025c71;
+  --accent-pressed: #013f4e;
+  --done: #08785c;
+  --flag: #995600;
+  --flag-dim: #846424;
+  --error: #901117;
+
+  color-scheme: light;
+}
+
 *,
 *::before,
 *::after {
@@ -68,6 +109,17 @@ body {
   padding-bottom: env(safe-area-inset-bottom);
 }
 
+/* That status bar's text is always white, whatever is behind it. The light ground would hide it,
+   so the light theme keeps the dark ground behind it (docs/05 §1.7). */
+:root[data-theme='light'] body::before {
+  content: '';
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 3;
+  height: env(safe-area-inset-top);
+  background: var(--surface-status-bar);
+}
+
 button {
   font: inherit;
   color: inherit;
@@ -82,6 +134,11 @@ button {
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+/* `hidden` holds whatever the element's own rule says about `display`. */
+[hidden] {
+  display: none !important;
 }
 
 .visually-hidden {
@@ -215,11 +272,13 @@ button {
 .tabs__tab {
   display: grid;
   place-items: center;
+  min-width: 0;
   min-height: var(--target-min);
   border: 1px solid var(--line-hairline);
   border-radius: var(--radius);
   font-size: 11px;
-  letter-spacing: 0.08em;
+  /* Five tabs at 390pt (Q1, docs/06 2026-10-16): EXERCISES fits its fifth with this spacing. */
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--text-quaternary);
   text-decoration: none;
@@ -234,10 +293,13 @@ button {
 .section-label--gutter {
   margin: 18px var(--gutter) 8px;
 }
+.group-label {
+  color: var(--text-tertiary);
+}
 
 /* 4.4 Data table: the exercise library */
-.library {
-  padding-top: 18px;
+.library .library__list {
+  border-top: 1px solid var(--line-hairline);
 }
 .library__head,
 .library__row {
@@ -250,7 +312,7 @@ button {
 .library__head {
   padding-top: 0;
   padding-bottom: 6px;
-  margin: 0 var(--gutter);
+  margin: 18px var(--gutter) 0;
   padding-left: 0;
   padding-right: 0;
   border-bottom: 1px solid var(--line-hairline);
@@ -407,6 +469,10 @@ button {
   margin-top: 22px;
   padding: 18px var(--gutter) 30px;
   border-top: 1px solid var(--line-hairline);
+}
+/* A second block straight after one: the first's bottom padding is already the break. */
+.form--after {
+  margin-top: 0;
 }
 .form__pair {
   display: grid;
@@ -680,7 +746,8 @@ button {
   flex-direction: column;
   min-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
 }
-.picker__tools {
+/* Search and `New exercise`, above the picker's list and the library's. */
+.exercise-tools {
   display: grid;
   grid-template-columns: 1fr auto;
   align-items: end;
@@ -756,6 +823,9 @@ button {
   border-color: var(--line-done);
   background: var(--surface-done);
 }
+.check-cell--refused {
+  border-color: var(--line-error);
+}
 
 /* Sign-in */
 .sign-in {
@@ -790,6 +860,18 @@ button {
   padding: 12px var(--gutter) 18px;
   border-top: 1px solid var(--line-hairline);
 }
+.footer__link {
+  margin-left: auto;
+  text-decoration: none;
+}
+.footer__link + .footer__link {
+  margin-left: 0;
+}
+/* The links keep their one line; the email gives way, as it ellipsizes. */
+.footer .button {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
 .footer__account {
   min-width: 0;
   overflow: hidden;
@@ -798,6 +880,70 @@ button {
   font-family: var(--font-mono);
   font-size: 10px;
   color: var(--text-quaternary);
+}
+
+/* Export and delete (S10, docs/09 F7): where a stopped delete says why. Focus is moved here and
+   drawn only for the keyboard: the notice inside is what is read out. */
+.delete-answer {
+  display: grid;
+  gap: 10px;
+}
+.delete-answer:empty {
+  display: none;
+}
+.delete-answer:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Invite administration (S9, docs/09 F6): rows built like the routine list's */
+.invites-section {
+  margin-top: 26px;
+}
+.invites {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line-hairline);
+}
+.invites__row {
+  display: grid;
+  gap: 10px;
+  padding: 11px var(--gutter) 12px;
+  border-bottom: 1px solid var(--line-row);
+}
+.invites__row .notice {
+  margin: 0;
+}
+.invites__text {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.invites__email {
+  font-size: 15px;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+.invites__meta {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  color: var(--text-quaternary);
+}
+.invites__revoked {
+  font-family: var(--font-sans);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--flag);
+}
+.invites__note {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  overflow-wrap: anywhere;
+}
+.invites__action {
+  display: grid;
 }
 
 /* Today (docs/09 F1–F3): the workout in progress, or the routines to start one from */
@@ -861,7 +1007,7 @@ button {
   color: var(--accent);
 }
 
-/* 4.8 Segmented control, as a choice between two values */
+/* 4.8 Segmented control, as a choice between two values, or three */
 .segments {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -870,6 +1016,9 @@ button {
   margin: 0;
   padding: 0;
   border: 0;
+}
+.segments--three {
+  grid-template-columns: repeat(3, 1fr);
 }
 .segments legend {
   margin-bottom: 6px;
@@ -916,13 +1065,13 @@ button {
 
 /* What takes focus on screen 1 comes to rest clear of the stuck app bar and the rest bar. */
 html:has(.workout) {
-  scroll-padding: calc(70px + env(safe-area-inset-top)) 0 calc(104px + env(safe-area-inset-bottom));
+  scroll-padding: calc(70px + env(safe-area-inset-top)) 0 calc(108px + env(safe-area-inset-bottom));
 }
 
 /* Screen 1, the live workout (docs/10 §1). The document scrolls; the app bar sticks and the rest
    bar is fixed, so the screen keeps room under itself for the bar (docs/10 §7.3). */
 .workout {
-  padding-bottom: 96px;
+  padding-bottom: max(124px, calc(96px + env(safe-area-inset-bottom)));
 }
 .exercise-head {
   display: flex;
@@ -946,6 +1095,88 @@ html:has(.workout) {
   letter-spacing: 0.04em;
   color: var(--text-quaternary);
   white-space: nowrap;
+}
+
+/* 4.19 Last time and today's target, in words, on top of each exercise */
+.brief {
+  display: grid;
+  margin: 0 var(--gutter);
+  border: 1px solid var(--line-hairline);
+  border-radius: var(--radius);
+  overflow-wrap: anywhere;
+}
+.brief__row {
+  display: grid;
+  gap: 5px;
+  padding: 10px 12px 11px;
+}
+.brief__row + .brief__row {
+  border-top: 1px solid var(--line-hairline);
+}
+.brief__row--target {
+  background: var(--surface-active);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.brief__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+.brief__label {
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-quaternary);
+}
+.brief__row--target .brief__label {
+  color: var(--accent);
+}
+.brief__when {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text-quaternary);
+}
+.brief__figures {
+  font-family: var(--font-mono);
+  font-size: 17px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+.brief__row--target .brief__figures {
+  color: var(--text-primary);
+}
+.brief__unit {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-quaternary);
+}
+.brief__tag {
+  padding: 3px 7px;
+  border: 1px solid var(--line-accent);
+  border-radius: var(--radius);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+  white-space: nowrap;
+}
+.brief__why {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+/* Full screen's form: tighter rows (4.22). */
+.brief--compact .brief__row {
+  padding: 8px 11px 9px;
+}
+.brief + .warmups {
+  margin-top: 8px;
 }
 
 /* Warm-up summary, expanding in place (docs/10 §7.2) */
@@ -1062,6 +1293,111 @@ html:has(.workout) {
   color: var(--text-primary);
 }
 
+/* 4.17 Refused set row: the figures on a surface/error band, then the word, the reason and the two
+   actions, indented to the LAST column. The rule above the band is a shadow, since a collapsed
+   border would lose to the row before it. */
+.sets__row--refused td,
+.sets__row--refusal td {
+  background: var(--surface-error);
+}
+.sets__row--refused td {
+  border-bottom: 0;
+  box-shadow: inset 0 1px 0 var(--line-error);
+}
+.sets .sets__row--refusal td {
+  padding-top: 0;
+  padding-left: calc(var(--gutter) + 30px);
+  border-bottom-color: var(--line-error);
+}
+.refused {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+.refused__text {
+  flex: 1 1 96px;
+  min-width: 0;
+}
+.refused__word {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 9px;
+  line-height: 15px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--error);
+}
+.refused__reason {
+  font-size: 10px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+.refused__actions {
+  display: flex;
+  gap: 8px;
+}
+.refused__edit {
+  width: 62px;
+  padding: 0;
+}
+.refused__discard {
+  width: 78px;
+  padding: 0;
+}
+.refused__form,
+.refused__confirm {
+  display: grid;
+  gap: 10px;
+  flex: 1 1 100%;
+  min-width: 0;
+}
+/* Weight is the long figure: at 320px an even split cuts `102.5` short. */
+.refused__fields {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr) minmax(0, 2fr);
+  gap: 8px;
+}
+.refused .notice {
+  margin: 0;
+}
+
+/* Refused sets of a workout that is no longer open, on Today. */
+/* The screen takes focus only when the last of them has gone, and a ring round all of it says nothing. */
+main:focus {
+  outline: none;
+}
+.refused-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.refused-list__item {
+  display: grid;
+  gap: 8px;
+  padding: 11px 12px;
+  border: 1px solid var(--line-error);
+  border-radius: var(--radius);
+  background: var(--surface-error);
+}
+.refused-list__name {
+  font-size: 13px;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+.refused-list__meta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
 /* 4.5 Active card, with screen 1's 2px accent edge and the 56px figures (docs/05 §2.6) */
 .active-set {
   display: flex;
@@ -1142,24 +1478,56 @@ html:has(.workout) {
   color: var(--text-placeholder);
   opacity: 1;
 }
-.active-set__suggestion {
+.rir-help {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 9px;
-  padding-top: 1px;
+  flex-direction: column;
+  gap: 8px;
 }
-.active-set__chip {
-  padding: 4px 7px;
-  border: 1px solid var(--line-accent);
-  border-radius: var(--radius);
+.rir-help__line,
+.rir-help__ask {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-tertiary);
+}
+.rir-help__term {
   font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--accent);
+  color: var(--text-secondary);
 }
-.active-set__reason {
-  font-size: 10px;
-  color: var(--text-quaternary);
+.rir-help__toggle {
+  min-height: 44px;
+  margin: -12px 0 -12px 4px;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.rir-help__guide {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--line-hairline);
+  border-radius: var(--radius);
+}
+.rir-help__scale {
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  gap: 6px 8px;
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+.rir-help__scale dt {
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+}
+.rir-help__scale dd {
+  margin: 0;
 }
 .active-set__actions {
   display: flex;
@@ -1177,6 +1545,7 @@ html:has(.workout) {
 }
 .active-set__warm:active,
 .rest-bar__extend:active,
+.rest-bar__full:active,
 .up-next__row:active,
 .warmups__summary:active {
   border-color: var(--line-control);
@@ -1230,6 +1599,16 @@ html:has(.workout) {
   color: var(--text-secondary);
   overflow-wrap: anywhere;
 }
+.up-next__refused {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--error);
+}
 .up-next__target {
   font-family: var(--font-mono);
   font-size: 11px;
@@ -1245,7 +1624,42 @@ html:has(.workout) {
   margin: 0;
 }
 
-/* 4.14 Rest bar: fixed to the bottom edge, over the home indicator's inset */
+/* Changing the workout's exercises (docs/10 §1): the routine editor's slot rows, without figures */
+.workout__changes {
+  display: grid;
+  gap: 10px;
+  padding: 22px var(--gutter) 0;
+}
+.workout__changes .section-label,
+.workout__changes .notice {
+  margin: 0;
+}
+.workout__change-actions {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+.workout__change-actions > :only-child {
+  grid-column: 1 / -1;
+}
+.slot__foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-left: 30px;
+}
+.slot__meta {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  color: var(--text-quaternary);
+}
+.slot__confirm {
+  margin-left: 30px;
+}
+
+/* 4.14 Rest bar: fixed to the bottom edge, over the home indicator's inset, for the whole workout */
 .rest-bar {
   position: fixed;
   right: 0;
@@ -1270,7 +1684,9 @@ html:has(.workout) {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 13px var(--gutter) calc(17px + env(safe-area-inset-bottom));
+  /* As tall as its 46px controls with none showing, so the bar keeps its height before a rest. */
+  min-height: calc(72px + env(safe-area-inset-bottom));
+  padding: 12px var(--gutter) calc(14px + env(safe-area-inset-bottom));
 }
 .rest-bar__label {
   margin-bottom: 2px;
@@ -1280,11 +1696,22 @@ html:has(.workout) {
 }
 .rest-bar__timer {
   font-family: var(--font-mono);
-  font-size: 30px;
+  font-size: 42px;
   font-weight: 500;
-  line-height: 1;
-  letter-spacing: -0.01em;
+  line-height: 0.9;
+  letter-spacing: -0.03em;
   font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+/* No rest counting: the bar says the timer starts by itself. */
+.rest-bar__idle {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+.rest-bar__idle b {
+  font-family: var(--font-mono);
+  font-weight: 500;
   color: var(--text-primary);
 }
 /* Rest is over: the bar turns to the accent and counts up (docs/06, 2026-10-03). */
@@ -1302,14 +1729,14 @@ html:has(.workout) {
   border-radius: var(--radius);
 }
 .rest-bar__extend {
-  min-width: 62px;
+  min-width: 56px;
   border: 1px solid var(--line-field);
   font-family: var(--font-mono);
   font-size: 12px;
   color: var(--text-secondary);
 }
 .rest-bar__skip {
-  min-width: 72px;
+  min-width: 64px;
   padding: 0 12px;
   border: 1px solid var(--accent);
   background: var(--surface-accent);
@@ -1318,7 +1745,1620 @@ html:has(.workout) {
   color: var(--accent);
 }
 
+/* `FULL SCREEN`, on the bar for the whole workout: two lines beside the countdown, one without. */
+.rest-bar__full {
+  width: 58px;
+  height: 46px;
+  border: 1px solid var(--line-field);
+  border-radius: var(--radius);
+  font-size: 9px;
+  line-height: 1.35;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.rest-bar__full--wide {
+  width: auto;
+  padding: 0 12px;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+/* 4.22 Full screen: the workout screen with one exercise and one set on it, a viewport tall, the
+   way to the Focus guide at its foot. */
+.full {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  padding-bottom: 16px;
+}
+.full__bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 14px var(--gutter) 12px;
+  border-bottom: 1px solid var(--line-hairline);
+}
+.full__lead {
+  min-width: 0;
+}
+/* A column, so the margins between its blocks add up as drawn and do not collapse. */
+.full > section {
+  display: flex;
+  flex-direction: column;
+}
+.full__bar .button {
+  flex: none;
+}
+.full__count {
+  margin: 0 var(--gutter) 10px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-quaternary);
+}
+.full .exercise-head {
+  padding-top: 18px;
+  padding-bottom: 4px;
+}
+/* The rest, as the one large figure on the screen: the 56px countdown (docs/05 §2.6). */
+.rest-hero {
+  display: grid;
+  gap: 14px;
+  margin: 14px var(--gutter) 0;
+  padding: 16px 14px;
+  border: 1px solid var(--line-border);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+}
+/* Focus lands here only from the set just completed, as on the card it stands in for. */
+.rest-hero:focus {
+  outline: none;
+}
+.rest-hero__timer {
+  font-family: var(--font-mono);
+  font-size: 56px;
+  font-weight: 500;
+  line-height: 0.86;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+.rest-hero--over .rest-hero__timer,
+.rest-hero--over .rest-bar__label {
+  color: var(--accent);
+}
+.rest-hero__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.rest-hero__actions .button {
+  min-height: 52px;
+}
+.rest-hero__actions--one {
+  grid-template-columns: 1fr;
+}
+.rest-hero__actions--one .button {
+  min-height: 64px;
+  font-size: 14px;
+}
+.next-set {
+  display: grid;
+  gap: 6px;
+  margin: 14px var(--gutter) 0;
+  padding: 11px 12px;
+  border: 1px solid var(--line-hairline);
+  border-radius: var(--radius);
+}
+.next-set .section-label {
+  margin: 0;
+}
+.next-set__figures {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 500;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+.full__foot {
+  margin-top: auto;
+  padding: 14px 0 18px;
+}
+.full__foot .link-row {
+  margin-top: 0;
+}
+
+/* The iPhone Focus guide (docs/10 §8.3): four steps, each ticked off on its check cell. */
+.guide {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 14px var(--gutter) 0;
+  list-style: none;
+}
+.guide__step {
+  display: grid;
+  grid-template-columns: 46px 1fr;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--line-hairline);
+  border-radius: var(--radius);
+}
+.guide__title {
+  margin: 0 0 5px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.guide__path {
+  margin: 0 0 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--accent);
+}
+.guide__text {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+.guide-screen .section-actions {
+  padding-bottom: 10px;
+}
+/* It follows the steps, as the last of them, and is not pushed to the foot of the screen. */
+.guide-screen .footnote {
+  margin-top: 14px;
+}
+
+/* A row that opens another screen of the same thing: the exercise's chart, from its form. */
+.link-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: var(--target-min);
+  margin: 18px var(--gutter) 0;
+  padding: 11px 12px;
+  border: 1px solid var(--line-hairline);
+  border-radius: var(--radius);
+  color: var(--text-tertiary);
+  text-decoration: none;
+}
+.link-row:active {
+  border-color: var(--line-field);
+}
+.link-row__name {
+  display: block;
+  font-size: 12px;
+  letter-spacing: 0.03em;
+  color: var(--text-secondary);
+}
+.link-row__meta {
+  display: block;
+  margin-top: 4px;
+  font-size: 10px;
+  color: var(--text-quaternary);
+}
+
+/* Screen 2: exercise progress (docs/10 §2). One viewport tall, with the footnote at its foot. */
+.progress {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+}
+.progress .app-bar {
+  padding-bottom: 14px;
+}
+.progress .notice a {
+  color: var(--accent);
+}
+.progress__headline {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px var(--gutter) 0;
+}
+.progress__headline .section-label {
+  margin-bottom: 6px;
+}
+.progress__e1rm {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-height: 38px;
+  margin: 0;
+}
+.progress__counted {
+  margin: 6px 0 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  color: var(--text-quaternary);
+}
+.progress__e1rm-figure {
+  font-family: var(--font-mono);
+  font-size: 42px;
+  font-weight: 500;
+  line-height: 0.9;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+.progress__e1rm-unit {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--text-quaternary);
+}
+.progress__change {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+  margin: 0;
+  padding-bottom: 3px;
+}
+.progress__change-figure {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-tertiary);
+}
+.progress__change-figure--up {
+  color: var(--done);
+}
+.progress__change-figure--set {
+  color: var(--text-secondary);
+}
+.progress__change-span {
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-quaternary);
+}
+
+/* 4.8, the span selector: five segments, their labels mono (docs/05 §2.2). */
+.segments--spans {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  margin: 16px var(--gutter) 0;
+}
+.segments--spans .segments__segment {
+  font-family: var(--font-mono);
+  letter-spacing: 0;
+}
+
+.progress__body {
+  padding-bottom: 20px;
+  transition: opacity 120ms ease-out;
+}
+/* Another span is loading: the last one holds the frame, set back. */
+.progress__body--stale {
+  opacity: 0.5;
+}
+.progress__empty {
+  display: grid;
+  align-content: center;
+  gap: 10px;
+  min-height: 192px;
+  margin: 20px var(--gutter) 0;
+}
+.progress__empty .empty-state__body {
+  margin: 0;
+}
+
+/* 5 Charts: the e1RM chart */
+.chart {
+  position: relative;
+  margin: 20px var(--gutter) 0;
+}
+.chart:has(.chart__scrub:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.chart__canvas {
+  display: block;
+  /* A sideways drag picks out a workout; an up-and-down one still scrolls the screen. */
+  touch-action: pan-y;
+  -webkit-tap-highlight-color: transparent;
+}
+.chart__gridline {
+  stroke: var(--line-hairline);
+}
+.chart__baseline {
+  stroke: var(--line-border);
+}
+.chart__crosshair {
+  stroke: var(--line-control);
+}
+.chart__label {
+  fill: var(--text-quaternary);
+  font-family: var(--font-mono);
+  font-size: 9px;
+}
+.chart__line {
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.chart__ring {
+  fill: var(--surface-ground);
+  stroke: var(--accent);
+  stroke-width: 1.5;
+}
+.chart__latest {
+  fill: var(--accent);
+}
+.chart__picked {
+  fill: var(--accent);
+  stroke: var(--surface-ground);
+  stroke-width: 2;
+}
+/* The keyboard's and a screen reader's way to pick a workout: there, and drawn as the chart. */
+.chart__scrub {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.progress__stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 6px var(--gutter) 0;
+}
+.progress__stat {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid var(--line-hairline);
+  border-radius: var(--radius);
+}
+.progress__stat-label {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-quaternary);
+}
+.progress__stat-value {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-height: 26px;
+  margin: 0;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.progress__stat-figure {
+  font-size: 20px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.progress__stat-unit {
+  font-size: 11px;
+  color: var(--text-quaternary);
+}
+
+/* The exercise's past sets, under its chart (docs/10 §2): one row a workout, opening it in History. */
+.past-label {
+  margin-top: 22px;
+}
+.past {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line-hairline);
+}
+.past > li {
+  border-bottom: 1px solid var(--line-row);
+}
+.past__row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 12px;
+  align-items: center;
+  min-height: 56px;
+  padding: 9px var(--gutter);
+  color: inherit;
+  text-decoration: none;
+}
+.past__row:active {
+  background: var(--surface-active);
+}
+.past__date {
+  overflow-wrap: anywhere;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text-quaternary);
+}
+.past__sets {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+.past__counted {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-quaternary);
+}
+.past__e1rm {
+  grid-row: 1 / span 2;
+  grid-column: 2;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+}
+.past__e1rm small {
+  display: block;
+  font-family: var(--font-sans);
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  color: var(--text-quaternary);
+}
+
+/* 4.15 Footnote rule: at the foot of the screen, under whatever the screen holds. */
+.footnote {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 12px;
+  margin: auto var(--gutter) 0;
+  padding: 12px 0 18px;
+  border-top: 1px solid var(--line-hairline);
+  font-size: 10px;
+  color: var(--text-quaternary);
+}
+.footnote__formula {
+  font-family: var(--font-mono);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progress__body {
+    transition: none;
+  }
+}
+
 .app {
   max-width: 480px;
   margin: 0 auto;
+}
+.combobox__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 224px;
+  overflow-y: auto;
+  border: 1px solid var(--line-control);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+}
+.combobox__option,
+.combobox__empty {
+  display: flex;
+  align-items: center;
+  min-height: var(--target-min);
+  padding: 0 10px;
+  font-size: 16px;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--line-row);
+}
+.combobox__option[aria-selected='true'] {
+  background: var(--surface-accent);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.combobox__option[data-current] span:first-child {
+  color: var(--accent);
+}
+.combobox__empty {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+/* The split and muscle group filter, a row of its own under the search. */
+.exercise-filter {
+  padding: 8px var(--gutter) 0;
+}
+
+/* The Progress tab (docs/10 §9): History, Strength, Balance and Weight behind one tab. */
+.segments--three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 14px var(--gutter) 0;
+}
+.segments--sections {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 14px var(--gutter) 0;
+}
+.segments--sections .segments__segment {
+  font-size: 10px;
+}
+a.segments__segment {
+  text-decoration: none;
+}
+.segments__segment[aria-current='page'] {
+  border-color: var(--accent);
+  background: var(--surface-accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* The strength overview (docs/10 §9): the span, the three tallies, then a list a status. */
+.segments--mono .segments__segment {
+  font-family: var(--font-mono);
+  letter-spacing: 0;
+}
+.tally {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 16px var(--gutter) 0;
+}
+.tally__cell {
+  display: grid;
+  gap: 6px;
+  padding: 10px 11px;
+  border: 1px solid var(--line-hairline);
+  border-radius: var(--radius);
+}
+.tally__figure {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.tally__cell--gaining .tally__figure {
+  color: var(--done);
+}
+.tally__cell--losing .tally__figure {
+  color: var(--flag);
+}
+.lifts {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line-hairline);
+}
+.lifts > li {
+  border-bottom: 1px solid var(--line-row);
+}
+.lifts__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 64px 76px;
+  gap: 10px;
+  align-items: center;
+  min-height: 58px;
+  padding: 8px var(--gutter);
+  color: inherit;
+  text-decoration: none;
+}
+.lifts__row:active {
+  background: var(--surface-active);
+}
+.lifts__row--no_weight,
+.lifts__row--no_trend {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+.lifts__name {
+  display: block;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--text-secondary);
+}
+.lifts__now {
+  display: block;
+  margin-top: 4px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-quaternary);
+}
+.lifts__counted {
+  display: block;
+  margin-top: 2px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-quaternary);
+}
+.lifts__change {
+  text-align: right;
+}
+.lifts__pct {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-tertiary);
+}
+.lifts__kg {
+  display: block;
+  margin-top: 3px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-quaternary);
+}
+.lifts__row--gaining .lifts__pct {
+  color: var(--done);
+}
+.lifts__row--losing .lifts__pct {
+  color: var(--flag);
+}
+.spark {
+  display: block;
+}
+.spark__line {
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.spark__latest {
+  fill: var(--accent);
+}
+/* The footnote under a list that ends the screen, not pushed to its foot. */
+.progress__body--flush {
+  padding-bottom: 0;
+}
+.footnote--after {
+  margin-top: 22px;
+}
+
+/* History: the finished workouts, a list a month. */
+.month-label {
+  margin: 20px var(--gutter) 0;
+}
+.routines--flush {
+  margin-top: 8px;
+}
+a.routines__row:active {
+  background: var(--surface-active);
+}
+
+/* 4.21 Said-once line: what a change just made did, under the app bar. */
+.saved-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px var(--gutter) 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+.saved-line svg {
+  flex: none;
+}
+
+/* A row that opens another screen, inside a section that already has the gutter. */
+.link-row--flush {
+  margin: 0;
+}
+.today__section .link-row + .link-row {
+  margin-top: 8px;
+}
+
+/* One workout from History: its three figures, then each exercise's sets. */
+.stat-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 16px var(--gutter) 0;
+}
+.stat-strip .progress__stat {
+  padding: 10px 11px;
+}
+.hx {
+  margin-top: 20px;
+}
+.hx__title {
+  margin: 0;
+  font: inherit;
+}
+.hx__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  min-height: var(--target-min);
+  padding: 0 var(--gutter);
+  color: var(--text-tertiary);
+  text-decoration: none;
+}
+.hx__name {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+.hsets {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line-hairline);
+}
+.hsets > li {
+  border-bottom: 1px solid var(--line-row);
+}
+.hsets__head,
+.hsets__row {
+  display: grid;
+  grid-template-columns: 30px 1fr 56px 44px 44px;
+  gap: 6px;
+  align-items: center;
+  width: 100%;
+  padding: 0 var(--gutter);
+  text-align: left;
+}
+.hsets__head {
+  padding-bottom: 6px;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-quaternary);
+}
+.hsets__row {
+  min-height: var(--target-min);
+}
+button.hsets__row:active {
+  background: var(--surface-active);
+}
+.hsets__edit {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-align: right;
+  color: var(--text-tertiary);
+}
+.hsets__row--warm .sets__figure {
+  font-size: 13px;
+  color: var(--text-tertiary);
+}
+.hsets .set-edit {
+  margin: 2px var(--gutter) 12px;
+}
+
+/* 4.20 Set editor: what a logged set opens into, under its tick in the workout and its row in History. */
+.sets__edit {
+  display: grid;
+  place-items: center;
+}
+.sets .sets__row--editor td {
+  padding: 2px var(--gutter) 14px calc(var(--gutter) + 30px);
+}
+.set-edit {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line-accent);
+  border-radius: var(--radius);
+  background: var(--surface-active);
+}
+.set-edit .button {
+  width: 100%;
+}
+.set-edit .button--primary {
+  min-height: var(--target-min);
+  font-size: 11px;
+}
+.set-edit__delete {
+  justify-self: start;
+}
+.set-edit .notice {
+  margin: 0;
+}
+
+/* Muscle balance (docs/10 §9): the two views, the range and its evidence, then a meter a group. */
+.segments--view {
+  margin: 14px var(--gutter) 0;
+}
+.range-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  margin: 14px var(--gutter) 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+.muscles {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line-hairline);
+}
+.muscles > li {
+  border-bottom: 1px solid var(--line-row);
+}
+.muscles__row {
+  display: grid;
+  gap: 7px;
+  width: 100%;
+  min-height: 52px;
+  padding: 9px var(--gutter) 10px;
+  text-align: left;
+}
+.muscles__row:active {
+  background: var(--surface-active);
+}
+.muscles__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+.muscles__name {
+  font-size: 12px;
+  letter-spacing: 0.03em;
+  color: var(--text-secondary);
+}
+.muscles__value {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+.muscles__status {
+  margin-left: 8px;
+  font-family: var(--font-sans);
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-quaternary);
+}
+.muscles__row--low .muscles__status,
+.muscles__row--none .muscles__status {
+  color: var(--flag);
+}
+.muscles__row--in_range .muscles__status {
+  color: var(--done);
+}
+/* Where the sets came from, under its open row: the row's 7px gap, inside its 10px foot. */
+.muscles__from {
+  margin: -3px 0 0;
+  padding: 0 var(--gutter) 10px;
+  font-size: 10px;
+  line-height: 1.55;
+  color: var(--text-quaternary);
+}
+/* The 10–20 band: line/control at 16%, as the prototype drew it, over the token. */
+.meter {
+  position: relative;
+  height: 8px;
+  background: var(--line-hairline);
+}
+.meter__band,
+.legend__swatch.legend__swatch--band {
+  border-left: 1px solid var(--line-control);
+  border-right: 1px solid var(--line-control);
+  background: color-mix(in srgb, var(--line-control) 16%, transparent);
+}
+.meter__band {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+}
+.meter__direct,
+.meter__indirect {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+}
+.meter__direct {
+  left: 0;
+  background: var(--done);
+}
+.meter__indirect,
+.legend__swatch.legend__swatch--half {
+  background: repeating-linear-gradient(135deg, var(--done) 0 2px, transparent 2px 5px);
+}
+.muscles__row--low .meter__direct {
+  background: var(--flag);
+}
+.muscles__row--low .meter__indirect {
+  background: repeating-linear-gradient(135deg, var(--flag) 0 2px, transparent 2px 5px);
+}
+.scale {
+  position: relative;
+  height: 14px;
+  margin: 4px var(--gutter) 0;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-quaternary);
+}
+.scale span {
+  position: absolute;
+  transform: translateX(-50%);
+}
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 10px var(--gutter) 0;
+  font-size: 10px;
+  color: var(--text-quaternary);
+}
+.legend__item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.legend__swatch {
+  width: 14px;
+  height: 6px;
+  background: var(--done);
+}
+.legend__swatch--band {
+  height: 10px;
+}
+
+/* 4.12 Evidence tag. 13px tall; its 44px target is taken from the space round it. */
+.evidence {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 6px;
+  border: 1px solid var(--line-flag);
+  border-radius: var(--radius);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--flag);
+}
+button.evidence::after {
+  content: '';
+  position: absolute;
+  inset: -16px -6px;
+}
+.evidence__divider {
+  width: 1px;
+  height: 9px;
+  background: var(--line-flag);
+}
+.evidence__strength {
+  font-family: var(--font-sans);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--flag-dim);
+}
+.evidence--strong {
+  border-color: var(--line-done);
+  color: var(--done);
+}
+.evidence--strong .evidence__divider {
+  background: var(--line-done);
+}
+.evidence--strong .evidence__strength {
+  color: var(--done);
+}
+.evidence--contested {
+  border-color: var(--line-field);
+  color: var(--text-tertiary);
+}
+.evidence--contested .evidence__divider {
+  background: var(--line-field);
+}
+.evidence--contested .evidence__strength {
+  color: var(--text-quaternary);
+}
+
+/* 4.16 Sheet, as the sources sheet: a modal <dialog> over the scrim, the sheet on its foot. */
+.sheet-scrim {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: var(--scrim);
+  color: var(--text-primary);
+}
+.sheet-scrim[open] {
+  display: flex;
+  align-items: flex-end;
+}
+.sheet-scrim::backdrop {
+  background: transparent;
+}
+.sheet {
+  display: grid;
+  gap: 14px;
+  width: 100%;
+  max-width: 480px;
+  max-height: 86%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin: 0 auto;
+  padding: 6px var(--gutter) calc(30px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line-border);
+  border-radius: 2px 2px 0 0;
+  background: var(--surface-raised);
+}
+.sheet__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.sheet__head .section-label {
+  margin: 0;
+}
+.sheet__close {
+  min-height: var(--target-min);
+  padding: 0 0 0 16px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.sheet__claim {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--text-primary);
+}
+.sheet__means {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+.sheet__sources {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.sheet__sources li {
+  border-top: 1px solid var(--line-hairline);
+}
+.sheet__sources a {
+  display: grid;
+  gap: 3px;
+  min-height: var(--target-min);
+  padding: 8px 0;
+  text-decoration: none;
+}
+.sheet__source-title {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+.sheet__source-meta {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1.5;
+  color: var(--text-quaternary);
+}
+
+/* The groups a custom exercise also trains: one chip a group, any number on. */
+fieldset.field {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+fieldset.field > legend {
+  width: 100%;
+  margin-bottom: 6px;
+  padding: 0;
+}
+.group-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.group-chips .segments__segment {
+  padding: 0 12px;
+}
+
+/* Weight, a section of Progress (docs/10 §6, S11). */
+.whead {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 12px;
+  padding: 18px var(--gutter) 0;
+}
+.whead__label {
+  display: block;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-quaternary);
+}
+.whead__fig {
+  font-family: var(--font-mono);
+  font-size: 42px;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  line-height: 0.9;
+  color: var(--text-primary);
+}
+.whead__unit {
+  font-size: 14px;
+  letter-spacing: 0;
+  color: var(--text-quaternary);
+}
+.whead__rate {
+  max-width: 180px;
+  margin: 0;
+  text-align: right;
+}
+.whead__rate-fig {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.whead__rate-words {
+  display: block;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-tertiary);
+}
+.wchart {
+  margin-top: 14px;
+}
+.wchart svg {
+  display: block;
+  overflow: visible;
+}
+.wchart .chart__gridline {
+  stroke: var(--line-row);
+}
+.wchart__trend {
+  fill: none;
+}
+.wchart__dot {
+  fill: var(--line-control);
+}
+.wchart__ring {
+  fill: none;
+  stroke: var(--line-control);
+  stroke-width: 1.5;
+}
+.wchart__none {
+  margin: 14px var(--gutter) 0;
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--text-tertiary);
+}
+.wlegend__trend {
+  height: 2px;
+  background: var(--accent);
+}
+.wlegend__dot,
+.wlegend__ring {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--line-control);
+}
+.wlegend__ring {
+  background: none;
+  border: 1.5px solid var(--line-control);
+}
+.weighins {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line-hairline);
+}
+.weighins__row {
+  display: grid;
+  grid-template-columns: 82px 1fr auto 70px;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--target-min);
+  border-bottom: 1px solid var(--line-row);
+}
+.weighins__date {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.weighins__time {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-quaternary);
+}
+.weighins__kg {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.weighins__unit {
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--text-quaternary);
+}
+.weighins__src {
+  justify-self: end;
+  font-size: 11px;
+  color: var(--text-quaternary);
+}
+.weighins__del {
+  min-height: var(--target-min);
+  padding: 0 8px;
+  font-size: 10px;
+}
+.weigh__hint {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--text-tertiary);
+}
+.weigh__hint--gutter {
+  margin: 12px var(--gutter) 0;
+}
+.field__input--when {
+  font-size: 16px;
+}
+
+/* The Food tab's food list and adding a food (S12; docs/10 §8.6, the M2 prototype's screens 15 to
+   23). Every value is per 100 g of the state named. */
+.foods,
+.pick,
+.ways,
+.group {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.food-field {
+  padding: 16px var(--gutter) 0;
+}
+.food-lede {
+  margin: 16px var(--gutter) 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+.food-hint {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--text-tertiary);
+}
+.food-hint--gutter {
+  margin: 12px var(--gutter) 0;
+}
+.food-status {
+  display: block;
+  margin: 14px var(--gutter) 0;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+.section-actions--tight {
+  padding-top: 12px;
+}
+.section-actions--flush {
+  padding: 0;
+}
+.inline-link {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.foods {
+  margin-top: 16px;
+  border-top: 1px solid var(--line-hairline);
+}
+.foods__row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 60px;
+  padding: 10px var(--gutter);
+  border-bottom: 1px solid var(--line-row);
+  color: var(--text-tertiary);
+  text-decoration: none;
+}
+.foods__row > span {
+  min-width: 0;
+}
+.foods__name {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 15px;
+  color: var(--text-primary);
+}
+.foods__brand {
+  color: var(--text-tertiary);
+}
+.foods__macros {
+  display: block;
+  margin-top: 3px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+.foods__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 5px;
+}
+.foods__tag {
+  padding: 2px 6px;
+  border: 1px solid var(--line-field);
+  border-radius: var(--radius);
+  font-size: 10px;
+  color: var(--text-tertiary);
+}
+.foods__none {
+  margin: 0;
+  padding: 14px var(--gutter);
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+.values {
+  margin: 0;
+  border-top: 1px solid var(--line-hairline);
+}
+.values__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line-row);
+}
+.values dt {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.values dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.values dd.values__word {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 400;
+}
+.values__unit {
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--text-quaternary);
+}
+.pick {
+  margin-top: 12px;
+  border-top: 1px solid var(--line-hairline);
+}
+.pick__row {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  min-height: 56px;
+  padding: 9px var(--gutter);
+  border: 0;
+  border-bottom: 1px solid var(--line-row);
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.pick__name {
+  overflow-wrap: anywhere;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+.pick__jp {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.pick__meta {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-quaternary);
+}
+.ways {
+  border-top: 1px solid var(--line-hairline);
+}
+.ways__row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 3px 12px;
+  align-items: center;
+  width: 100%;
+  min-height: 60px;
+  padding: 10px 0;
+  border: 0;
+  border-bottom: 1px solid var(--line-row);
+  background: none;
+  font: inherit;
+  text-align: left;
+  color: var(--text-tertiary);
+  cursor: pointer;
+}
+.ways__name {
+  font-size: 15px;
+  color: var(--text-primary);
+}
+.ways__meta {
+  grid-column: 1;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-tertiary);
+}
+.ways__row svg {
+  grid-row: 1 / span 2;
+  grid-column: 2;
+}
+/* The camera box stays dark in both themes: it frames a picture, not the page. */
+.viewfinder {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 260px;
+  margin: 16px var(--gutter) 0;
+  overflow: hidden;
+  border-radius: var(--radius);
+  /* A camera's ground, dark in both themes: the one token that does not change. On the dark
+     ground it is the ground's own colour, so the border bounds it. */
+  border: 1px solid var(--line-border);
+  background: var(--surface-status-bar);
+}
+.viewfinder__video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.viewfinder__frame {
+  position: relative;
+  width: 230px;
+  height: 120px;
+  border: 2px solid var(--accent);
+  border-radius: var(--radius);
+}
+.viewfinder--label .viewfinder__frame {
+  width: 180px;
+  height: 180px;
+}
+.viewfinder__caption {
+  /* Under the box, not over it: on the page's ground its contrast holds whatever the camera sees. */
+  display: block;
+  margin: 8px var(--gutter) 0;
+  font-size: 12px;
+  text-align: center;
+  color: var(--text-tertiary);
+}
+.printed {
+  margin: 16px var(--gutter) 0;
+  padding: 11px 12px;
+  border: 1px solid var(--line-hairline);
+  border-radius: var(--radius);
+}
+.form > .printed {
+  margin: 0;
+}
+.printed--inline {
+  margin: 0;
+}
+.printed__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.printed__head .section-label {
+  margin: 0;
+}
+.printed__basis {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.printed__grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+  margin: 10px 0 0;
+}
+.printed__grid dt {
+  font-size: 10px;
+  color: var(--text-quaternary);
+}
+.printed__grid dd {
+  margin: 2px 0 0;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.printed__none {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--flag);
+}
+.food-subhead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: -10px;
+}
+.food-subhead .section-label {
+  margin: 0;
+}
+.food-subhead__note {
+  font-size: 10px;
+  color: var(--text-quaternary);
+}
+.segments--four {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.segments--four .segments__segment {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-align: center;
+}
+.group {
+  border-top: 1px solid var(--line-hairline);
+}
+.group__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  border-bottom: 1px solid var(--line-row);
+  font-size: 14px;
+  color: var(--text-primary);
+}
+.group__row > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.group__row--empty {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+.group__add {
+  min-height: var(--target-min);
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 12px;
+  color: var(--accent);
+  cursor: pointer;
+}
+.group__add-form {
+  display: grid;
+  gap: 12px;
+  padding-top: 12px;
 }

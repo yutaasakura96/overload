@@ -2,14 +2,23 @@ import type { Exercise } from '@overload/api-contract';
 import { useMemo, useState, type ReactNode } from 'react';
 import { AppBar, CheckIcon, Notice, TextField } from '../components';
 import { equipmentLabels } from '../equipment';
+import {
+  ExerciseFilterField,
+  ExerciseGroups,
+  filterExercises,
+  searchExercises,
+  type ExerciseFilter,
+} from '../exercise-list';
 
-// S8's picker, opened from the routine editor (docs/09 F2 step 2, F5 step 1; docs/10 §8.1). Several
-// exercises can be ticked at once, and they join the routine in the order they were ticked.
+// S8's picker, opened from the routine editor (docs/09 F2 step 2, F5 step 1; docs/10 §8.1) and from a
+// live workout (F3 step 4). Several exercises can be ticked at once, and they join the routine or the
+// workout in the order they were ticked.
 
 export function ExercisePicker({
   exercises,
   failed,
   slot,
+  backLabel = 'Back to the routine',
   onCancel,
   onAdd,
   onCreate,
@@ -18,20 +27,22 @@ export function ExercisePicker({
   exercises: Exercise[] | undefined;
   failed: boolean;
   slot: ReactNode;
+  /** Where back goes: the screen the picker opened over. */
+  backLabel?: string;
   onCancel: () => void;
   onAdd: (exerciseIds: string[]) => void;
   onCreate: () => void;
 }) {
   const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState<ExerciseFilter>('all');
   const [picked, setPicked] = useState<string[]>([]);
 
-  const shown = useMemo(() => {
-    const words = search.toLowerCase().split(/\s+/).filter(Boolean);
-    return (exercises ?? []).filter((exercise) => {
-      const name = exercise.name.toLowerCase();
-      return words.every((word) => name.includes(word));
-    });
-  }, [exercises, search]);
+  const shown = useMemo(
+    () => searchExercises(filterExercises(exercises ?? [], filter), search),
+    [exercises, filter, search],
+  );
+
+  const narrowed = search !== '' || filter !== 'all';
 
   const toggle = (id: string) =>
     setPicked((current) =>
@@ -44,7 +55,7 @@ export function ExercisePicker({
         title="Add exercises"
         subline={picked.length === 0 ? undefined : `${picked.length} TICKED`}
         slot={slot}
-        back={{ label: 'Back to the routine', onClick: onCancel }}
+        back={{ label: backLabel, onClick: onCancel }}
       />
 
       {failed && (
@@ -54,31 +65,37 @@ export function ExercisePicker({
         </Notice>
       )}
 
-      <div className="picker__tools">
+      <div className="exercise-tools">
         <TextField
           label="Search"
           type="search"
           value={search}
           onChange={setSearch}
-          placeholder="Bench, row, cable…"
+          placeholder="Bench, RDL, pec deck…"
         />
         <button type="button" className="button button--secondary" onClick={onCreate}>
           New exercise
         </button>
       </div>
+      <ExerciseFilterField value={filter} onChange={setFilter} />
 
       {exercises !== undefined && (
         <section aria-labelledby="picker-heading">
-          <h2 id="picker-heading" className="section-label section-label--gutter">
-            {search === '' ? 'Library' : `${shown.length} matching`}
+          <h2
+            id="picker-heading"
+            className="section-label section-label--gutter"
+            aria-live="polite"
+          >
+            {narrowed ? `${shown.length} matching` : 'Library'}
           </h2>
           {shown.length === 0 ? (
             <p className="empty">
-              Nothing matches. Check the spelling, or make it with <em>New exercise</em>.
+              Nothing matches. Check the spelling or the filter, or make it with{' '}
+              <em>New exercise</em>.
             </p>
           ) : (
-            <ul className="picker__list">
-              {shown.map((exercise) => {
+            <ExerciseGroups exercises={shown} listClassName="picker__list">
+              {(exercise) => {
                 const ticked = picked.includes(exercise.id);
                 return (
                   <li key={exercise.id}>
@@ -108,8 +125,8 @@ export function ExercisePicker({
                     </label>
                   </li>
                 );
-              })}
-            </ul>
+              }}
+            </ExerciseGroups>
           )}
         </section>
       )}

@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import type { Page } from '@playwright/test';
 import { WEB_ORIGIN } from '../playwright.config';
 
 // The browser tests reach the database only through apps/api's fixture script, run as a process:
@@ -7,6 +8,8 @@ import { WEB_ORIGIN } from '../playwright.config';
 const apiRoot = fileURLToPath(new URL('../../api/', import.meta.url));
 
 export const E2E_EMAIL = 'playwright@example.test';
+/** The API's ADMIN_EMAIL in the browser tests (playwright.config.ts). */
+export const E2E_ADMIN_EMAIL = 'admin@example.test';
 
 export function apiFixture(...args: string[]): string {
   return execFileSync('node_modules/.bin/tsx', ['test/e2e/session.ts', ...args], {
@@ -33,4 +36,10 @@ export function devSession(stateDirectory: string): string {
     encoding: 'utf8',
     env: { ...process.env, E2E_WEB_ORIGIN: WEB_ORIGIN },
   });
+}
+
+/** Picks a zone in the profile form's time zone list: search for it, then choose the option. */
+export async function chooseTimezone(page: Page, zone: string) {
+  await page.getByRole('combobox', { name: 'Time zone' }).fill(zone);
+  await page.getByRole('option', { name: zone, exact: false }).first().click();
 }

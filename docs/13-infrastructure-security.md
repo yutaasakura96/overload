@@ -116,7 +116,7 @@ This is step one of the migration notes, whenever they are written.
 | --- | --- | --- |
 | Vercel WAF, web project, `/api/*` | 300 requests / 60 s per IP, fixed window (Hobby allows one rate-limit rule per project; checked 2026-09-21) | Vercel returns `429` before the function runs |
 | Anthropic workspace | $10/month hard limit (§4) | Anthropic returns `400 invalid_request_error`; the manual form opens (`03` §4) |
-| Model calls — label reads and meal estimates together — per user per day | **Not in v1.** Added before the first invitee (§9) | `429 model_cap_reached`; the manual form opens (`09` F15). *Widened 2026-09-22* |
+| Model calls — label reads and meal estimates together — per user per day | **20 a day**, the profile's local day, in `model_call_count` (`04`). *Built 2026-10-17* with the label read (`06`) | `429 model_cap_reached`; the manual form opens (`09` F15). *Widened 2026-09-22* |
 | Open Food Facts | Their 15 reads/min per IP (`03` §4) | Inline message |
 
 - 300/min is well above one person's use: a sync batch is one request, and the heaviest screen fires
@@ -260,12 +260,14 @@ past it.**
 
 Nothing below is needed while Yuta is the only user. All of it is needed before a friend signs in.
 
-- [ ] **Per-user daily model-call cap** in the API (proposed: 20/day), counting label reads and
+- [x] **Per-user daily model-call cap** in the API (proposed: 20/day), counting label reads and
       meal estimates together, with a `429 model_cap_reached` problem response that opens the manual
       form. **One store counts both kinds.** A meal estimate leaves a `meal_estimate` row and a label
       read leaves no row at all (`04`), so counting rows would silently miss the label reads; the
       counter is its own store, decided with the cap. *Widened 2026-09-22* from label reads only
-      (`09` F15).
+      (`09` F15). **Built 2026-10-17** with the label read, at 20 a day: `model_call_count`, one row
+      per user and local day, taken by one conditional upsert before the model is asked (`04`,
+      `06`). Meal estimates (M3) count in the same row.
 - [ ] **Compliance.** Invitees would be mostly in Japan and the Philippines. Deferred by Yuta
       2026-09-21 as too early; what verification already found, so the work starts from here:
   - APPI covers non-profit activity; whether a private app for friends is 事業 is a grey zone the

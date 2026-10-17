@@ -1,0 +1,1233 @@
+/* ---- The page round the phone. Same tokens as the app (docs/05); nothing here ships. ---- */
+body {
+  padding: 0;
+  min-height: 100vh;
+}
+.page {
+  display: grid;
+  grid-template-columns: minmax(0, 390px) minmax(0, 1fr);
+  gap: 40px;
+  align-items: start;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 24px 24px 80px;
+}
+.page__phone {
+  position: sticky;
+  top: 16px;
+  min-width: 0;
+}
+.page__side {
+  min-width: 0;
+  display: grid;
+  gap: 34px;
+}
+@media (max-width: 880px) {
+  .page {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+    padding: 12px 12px 60px;
+  }
+  .page__phone {
+    position: static;
+    justify-self: center;
+    width: 100%;
+    max-width: 390px;
+  }
+}
+.phone-caption {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--text-quaternary);
+}
+.phone {
+  position: relative;
+  /* A transform makes this the box the app's fixed bars are fixed to. */
+  transform: translateZ(0);
+  width: 100%;
+  height: min(844px, calc(100vh - 62px));
+  min-height: 520px;
+  overflow: hidden;
+  border: 1px solid var(--line-border);
+  border-radius: 14px;
+  background: var(--surface-ground);
+}
+.phone__scroll {
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+.phone__scroll::-webkit-scrollbar {
+  display: none;
+}
+.phone .rest-bar,
+.phone .sheet-scrim {
+  max-width: none;
+}
+.phone .progress,
+.phone .picker,
+.phone .full {
+  min-height: 100%;
+}
+.phone__scroll > main {
+  min-height: 100%;
+}
+
+.side h1 {
+  margin: 0 0 10px;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.side h2 {
+  margin: 0 0 12px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+}
+.side p,
+.side li {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+.side p + p {
+  margin-top: 8px;
+}
+.side strong {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.side code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.side a {
+  color: var(--accent);
+}
+.lede {
+  max-width: 68ch;
+}
+.screen-map {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 8px;
+}
+.screen-map__item {
+  display: grid;
+  gap: 4px;
+  align-content: start;
+  min-height: 62px;
+  padding: 10px 12px;
+  border: 1px solid var(--line-hairline);
+  border-radius: var(--radius);
+  text-align: left;
+}
+.screen-map__item[aria-current='true'] {
+  border-color: var(--accent);
+  background: var(--surface-accent);
+}
+.screen-map__issue {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--text-quaternary);
+}
+.screen-map__item[aria-current='true'] .screen-map__issue {
+  color: var(--accent);
+}
+.screen-map__name {
+  font-size: 13px;
+  color: var(--text-primary);
+}
+.now {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--line-accent);
+  border-left: 2px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--surface-active);
+}
+.now__label {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.now h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.now ul {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+}
+.now__try {
+  padding-top: 10px;
+  border-top: 1px solid var(--line-hairline);
+}
+.now__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.questions {
+  display: grid;
+  gap: 10px;
+}
+.question {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--line-hairline);
+  border-radius: var(--radius);
+}
+.question__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+}
+.question__key {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--accent);
+}
+.question__title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.question__applied {
+  padding: 9px 11px;
+  border: 1px solid var(--line-done);
+  border-radius: var(--radius);
+  background: var(--surface-done);
+}
+.question__applied-word {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--done);
+}
+.question__options {
+  display: grid;
+  gap: 2px;
+}
+.question__option {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  min-height: 32px;
+  padding: 5px 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.question__option input {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin: 2px 0 0;
+  accent-color: var(--accent);
+}
+.question__note {
+  width: 100%;
+  min-height: 44px;
+  padding: 9px 10px;
+  border: 1px solid var(--line-control);
+  border-radius: var(--radius);
+  background: none;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 13px;
+  resize: vertical;
+}
+.question__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.question__status {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--done);
+}
+.build {
+  width: 100%;
+  border-collapse: collapse;
+}
+.build th,
+.build td {
+  padding: 10px 12px 10px 0;
+  border-bottom: 1px solid var(--line-row);
+  text-align: left;
+  vertical-align: top;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+.build thead th {
+  padding-bottom: 7px;
+  border-bottom-color: var(--line-hairline);
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-quaternary);
+}
+.build td:first-child {
+  width: 150px;
+  color: var(--text-primary);
+}
+.build ul {
+  margin: 0;
+  padding-left: 16px;
+}
+.build__size {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  white-space: nowrap;
+  color: var(--text-tertiary);
+}
+.table-scroll {
+  overflow-x: auto;
+}
+.sources {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 18px;
+}
+
+/* ---- New parts of the app, drawn from docs/05's tokens. Each names the issue it belongs to. ---- */
+
+/* Four tabs (#48): the three there are, and Progress. */
+.tabs__tab {
+  width: 100%;
+}
+
+/* #47: Last time and Today's target, on top of each exercise. */
+.brief {
+  display: grid;
+  margin: 0 var(--gutter);
+  border: 1px solid var(--line-hairline);
+  border-radius: var(--radius);
+}
+.brief__row {
+  display: grid;
+  gap: 5px;
+  padding: 10px 12px 11px;
+}
+.brief__row + .brief__row {
+  border-top: 1px solid var(--line-hairline);
+}
+button.brief__row {
+  width: 100%;
+  min-height: var(--target-min);
+  text-align: left;
+}
+.brief__row--target {
+  background: var(--surface-active);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.brief__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+.brief__label {
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-quaternary);
+}
+.brief__row--target .brief__label {
+  color: var(--accent);
+}
+.brief__when {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  color: var(--text-quaternary);
+}
+.brief__figures {
+  font-family: var(--font-mono);
+  font-size: 17px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+.brief__row--target .brief__figures {
+  color: var(--text-primary);
+}
+.brief__unit {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-quaternary);
+}
+.brief__tag {
+  padding: 3px 7px;
+  border: 1px solid var(--line-accent);
+  border-radius: var(--radius);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  white-space: nowrap;
+}
+.brief__why {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+.brief__more {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--text-tertiary);
+}
+.brief--compact .brief__row {
+  padding: 8px 11px 9px;
+}
+
+/* #47: the rest bar, always there, with the countdown at the next size up (42px). */
+.workout {
+  padding-bottom: 124px;
+}
+.dock .rest-bar__body {
+  padding-top: 12px;
+  padding-bottom: 14px;
+}
+.dock__timer {
+  font-size: 42px;
+  line-height: 0.9;
+  letter-spacing: -0.03em;
+}
+.dock__idle {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+.dock__idle b {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.dock__full {
+  width: 58px;
+  height: 46px;
+  border: 1px solid var(--line-field);
+  border-radius: var(--radius);
+  font-size: 9px;
+  line-height: 1.35;
+  letter-spacing: 0.08em;
+  color: var(--text-tertiary);
+}
+.dock__full--wide {
+  width: auto;
+  padding: 0 12px;
+  font-size: 10px;
+}
+.rest-bar__extend {
+  min-width: 56px;
+}
+.rest-bar__skip {
+  min-width: 64px;
+}
+.sets__edit {
+  display: grid;
+  place-items: center;
+}
+.sets .sets__row--editor td {
+  padding: 2px var(--gutter) 14px calc(var(--gutter) + 30px);
+}
+
+/* #48: the editor a logged set opens into, in the workout and in history. */
+.set-edit {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line-accent);
+  border-radius: var(--radius);
+  background: var(--surface-active);
+}
+.set-edit .button {
+  width: 100%;
+}
+.set-edit .button--primary {
+  min-height: var(--target-min);
+  font-size: 11px;
+}
+.set-edit__delete {
+  justify-self: start;
+}
+.saved-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px var(--gutter) 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+/* #51: full-screen workout mode. */
+.full {
+  display: flex;
+  flex-direction: column;
+}
+.full__bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 14px var(--gutter) 12px;
+  border-bottom: 1px solid var(--line-hairline);
+}
+.full__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 16px;
+}
+.full__count {
+  margin: 0 var(--gutter) 10px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--text-quaternary);
+}
+.full .exercise-head {
+  padding-top: 18px;
+  padding-bottom: 4px;
+}
+.rest-hero {
+  display: grid;
+  gap: 14px;
+  margin: 14px var(--gutter) 0;
+  padding: 16px 14px 16px;
+  border: 1px solid var(--line-border);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+}
+.rest-hero__timer {
+  font-family: var(--font-mono);
+  font-size: 56px;
+  font-weight: 500;
+  line-height: 0.86;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+.rest-hero--over .rest-hero__timer,
+.rest-hero--over .rest-bar__label {
+  color: var(--accent);
+}
+.rest-hero__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.rest-hero__actions .button {
+  min-height: 52px;
+}
+.rest-hero__actions--one {
+  grid-template-columns: 1fr;
+}
+.rest-hero__actions--one .button {
+  min-height: 64px;
+  font-size: 14px;
+}
+.next-up {
+  display: grid;
+  gap: 6px;
+  margin: 14px var(--gutter) 0;
+  padding: 11px 12px;
+  border: 1px solid var(--line-hairline);
+  border-radius: var(--radius);
+}
+.next-up__figures {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.full__foot {
+  margin-top: auto;
+  padding: 14px 0 18px;
+}
+.full__foot .link-row {
+  margin-top: 0;
+}
+.link-row {
+  width: calc(100% - 2 * var(--gutter));
+  text-align: left;
+}
+.link-row--flush {
+  width: 100%;
+  margin: 0;
+}
+
+/* #51: the iPhone Focus guide. */
+.guide {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 14px var(--gutter) 0;
+  list-style: none;
+}
+.guide__step {
+  display: grid;
+  grid-template-columns: 46px 1fr;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--line-hairline);
+  border-radius: var(--radius);
+}
+.guide__step .check-cell {
+  cursor: pointer;
+}
+.guide__title {
+  margin: 0 0 5px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.guide__path {
+  margin: 0 0 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--accent);
+}
+.guide__text {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+/* #48: history. */
+.month-label {
+  margin: 20px var(--gutter) 0;
+}
+.routines--flush {
+  margin-top: 8px;
+}
+button.routines__row {
+  width: 100%;
+  text-align: left;
+}
+.stat-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 16px var(--gutter) 0;
+}
+.stat-strip .progress__stat {
+  padding: 10px 11px;
+}
+.hx {
+  margin-top: 20px;
+}
+.hx__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: var(--target-min);
+  padding: 0 var(--gutter);
+  text-align: left;
+  color: var(--text-tertiary);
+}
+.hx__name {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+}
+.hsets {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line-hairline);
+}
+.hsets > li {
+  border-bottom: 1px solid var(--line-row);
+}
+.hsets__head,
+.hsets__row {
+  display: grid;
+  grid-template-columns: 30px 1fr 56px 44px 44px;
+  gap: 6px;
+  align-items: center;
+  width: 100%;
+  padding: 0 var(--gutter);
+  text-align: left;
+}
+.hsets__head {
+  padding-bottom: 6px;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-quaternary);
+}
+.hsets__row {
+  min-height: var(--target-min);
+}
+.hsets__row:active {
+  background: var(--surface-active);
+}
+.hsets__edit {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-align: right;
+  color: var(--text-tertiary);
+}
+.hsets__row--warm .sets__figure {
+  font-size: 13px;
+  color: var(--text-tertiary);
+}
+.hsets .set-edit {
+  margin: 2px var(--gutter) 12px;
+}
+
+/* #48: an exercise's past sets, under its chart. */
+.past {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line-hairline);
+}
+.past > li {
+  border-bottom: 1px solid var(--line-row);
+}
+.past__row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 12px;
+  align-items: center;
+  width: 100%;
+  min-height: 56px;
+  padding: 9px var(--gutter);
+  text-align: left;
+}
+.past__date {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  color: var(--text-quaternary);
+}
+.past__sets {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+.past__e1rm {
+  grid-row: 1 / span 2;
+  grid-column: 2;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+}
+.past__e1rm small {
+  display: block;
+  font-family: var(--font-sans);
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  color: var(--text-quaternary);
+}
+
+/* #49: strength overview. */
+.segments--three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 14px var(--gutter) 0;
+}
+.segments--sub .segments__segment {
+  min-height: var(--target-min);
+}
+.segments--mono .segments__segment {
+  font-family: var(--font-mono);
+  letter-spacing: 0;
+}
+.segments__segment[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--surface-accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+button.segments__segment {
+  width: 100%;
+}
+.tally {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 16px var(--gutter) 0;
+}
+.tally__cell {
+  display: grid;
+  gap: 6px;
+  padding: 10px 11px;
+  border: 1px solid var(--line-hairline);
+  border-radius: var(--radius);
+}
+.tally__figure {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.tally__cell--gaining .tally__figure {
+  color: var(--done);
+}
+.tally__cell--losing .tally__figure {
+  color: var(--flag);
+}
+.lifts {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line-hairline);
+}
+.lifts > li {
+  border-bottom: 1px solid var(--line-row);
+}
+.lifts__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 64px 76px;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  min-height: 58px;
+  padding: 8px var(--gutter);
+  text-align: left;
+}
+.lifts__name {
+  display: block;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--text-secondary);
+}
+.lifts__now {
+  display: block;
+  margin-top: 4px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-quaternary);
+}
+.lifts__change {
+  text-align: right;
+}
+.lifts__pct {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-tertiary);
+}
+.lifts__kg {
+  display: block;
+  margin-top: 3px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-quaternary);
+}
+.lifts__row--gaining .lifts__pct {
+  color: var(--done);
+}
+.lifts__row--losing .lifts__pct {
+  color: var(--flag);
+}
+.spark {
+  display: block;
+}
+
+/* #50: muscle balance. */
+.range-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  margin: 14px var(--gutter) 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+.evidence {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 6px;
+  border: 1px solid var(--line-flag);
+  border-radius: var(--radius);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--flag);
+}
+/* The tag is 13px tall; its target is 44px, taken from the space round it (docs/05 §4.12). */
+.evidence::after {
+  content: '';
+  position: absolute;
+  inset: -16px -6px;
+}
+.evidence__divider {
+  width: 1px;
+  height: 9px;
+  background: var(--line-flag);
+}
+.evidence__strength {
+  font-family: var(--font-sans);
+  letter-spacing: 0.06em;
+  color: var(--flag-dim);
+}
+.muscles {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line-hairline);
+}
+.muscles > li {
+  border-bottom: 1px solid var(--line-row);
+}
+.muscles__row {
+  display: grid;
+  gap: 7px;
+  width: 100%;
+  min-height: 52px;
+  padding: 9px var(--gutter) 10px;
+  text-align: left;
+}
+.muscles__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+.muscles__name {
+  font-size: 12px;
+  letter-spacing: 0.03em;
+  text-transform: capitalize;
+  color: var(--text-secondary);
+}
+.muscles__value {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+.muscles__status {
+  margin-left: 8px;
+  font-family: var(--font-sans);
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  color: var(--text-quaternary);
+}
+.muscles__row--low .muscles__status,
+.muscles__row--none .muscles__status {
+  color: var(--flag);
+}
+.muscles__row--in .muscles__status {
+  color: var(--done);
+}
+.meter {
+  position: relative;
+  height: 8px;
+  background: var(--line-hairline);
+}
+.meter__band {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  border-left: 1px solid var(--line-control);
+  border-right: 1px solid var(--line-control);
+  background: rgba(85, 104, 122, 0.16);
+}
+.meter__direct,
+.meter__indirect {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+}
+.meter__direct {
+  left: 0;
+  background: var(--done);
+}
+.meter__indirect {
+  background: repeating-linear-gradient(135deg, var(--done) 0 2px, transparent 2px 5px);
+}
+.muscles__row--low .meter__direct {
+  background: var(--flag);
+}
+.muscles__row--low .meter__indirect {
+  background: repeating-linear-gradient(135deg, var(--flag) 0 2px, transparent 2px 5px);
+}
+.muscles__from {
+  margin: 0;
+  font-size: 10px;
+  line-height: 1.55;
+  color: var(--text-quaternary);
+}
+.scale {
+  position: relative;
+  height: 14px;
+  margin: 4px var(--gutter) 0;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-quaternary);
+}
+.scale span {
+  position: absolute;
+  transform: translateX(-50%);
+}
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 10px var(--gutter) 0;
+  font-size: 10px;
+  color: var(--text-quaternary);
+}
+.legend__item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.legend__swatch {
+  width: 14px;
+  height: 6px;
+  background: var(--done);
+}
+.legend__swatch--half {
+  background: repeating-linear-gradient(135deg, var(--done) 0 2px, transparent 2px 5px);
+}
+.legend__swatch--band {
+  height: 10px;
+  border-left: 1px solid var(--line-control);
+  border-right: 1px solid var(--line-control);
+  background: rgba(85, 104, 122, 0.16);
+}
+.step-two {
+  margin: 30px 0 0;
+  padding: 16px var(--gutter) 4px;
+  border-top: 1px dashed var(--line-control);
+}
+.step-two__mark {
+  display: inline-block;
+  padding: 3px 7px;
+  border: 1px dashed var(--line-control);
+  border-radius: var(--radius);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+}
+.step-two__lede {
+  margin: 10px 0 0;
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+.suggest {
+  display: grid;
+  gap: 11px;
+  margin: 12px var(--gutter) 0;
+  padding: 13px 12px 12px;
+  border: 1px solid var(--line-border);
+  border-radius: var(--radius);
+}
+.suggest__why {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+.suggest__name {
+  font-size: 15px;
+  color: var(--text-primary);
+}
+.suggest__list {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.suggest__list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.suggest__list span:last-child {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  white-space: nowrap;
+  color: var(--text-quaternary);
+}
+.suggest__swap {
+  color: var(--accent);
+}
+.suggest__effect {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1.7;
+  color: var(--text-tertiary);
+}
+.suggest__done {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--done);
+}
+
+/* 4.16 Sheet, as the sources sheet (docs/10 §7.1). */
+.sheet-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: flex-end;
+  background: var(--scrim);
+}
+.sheet {
+  display: grid;
+  gap: 14px;
+  width: 100%;
+  max-height: 86%;
+  overflow-y: auto;
+  padding: 6px var(--gutter) 30px;
+  border-top: 1px solid var(--line-border);
+  border-radius: 2px 2px 0 0;
+  background: var(--surface-raised);
+}
+.sheet__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.sheet__head .section-label {
+  margin: 0;
+}
+.sheet__close {
+  min-height: var(--target-min);
+  padding: 0 0 0 16px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--text-tertiary);
+}
+.sheet__claim {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--text-primary);
+}
+.sheet__means {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+.sheet__sources {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.sheet__sources li {
+  display: grid;
+  gap: 3px;
+  min-height: var(--target-min);
+  padding: 8px 0;
+  border-top: 1px solid var(--line-hairline);
+}
+.sheet__source-title {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+.sheet__source-meta {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1.5;
+  color: var(--text-quaternary);
+}
+
+/* #41: the split and muscle-group filter. */
+.filter {
+  display: grid;
+  gap: 8px;
+  padding: 12px var(--gutter) 0;
+}
+.filter .segments {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.chips .segments__segment {
+  width: auto;
+  padding: 0 12px;
+  text-transform: capitalize;
+}
+.proto-note {
+  margin: 16px var(--gutter) 0;
+  padding: 9px 11px;
+  border: 1px dashed var(--line-field);
+  border-radius: var(--radius);
+  font-size: 10px;
+  line-height: 1.55;
+  color: var(--text-quaternary);
+}
+.today__section .link-row + .link-row {
+  margin-top: 8px;
+}
+.link-row__flag {
+  color: var(--flag);
+}
+.link-row__done {
+  color: var(--done);
+}
+.brief + .warmups {
+  margin-top: 8px;
+}

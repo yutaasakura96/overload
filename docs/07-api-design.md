@@ -94,15 +94,17 @@ that shape. Its rate limiter's 429 and our `beforeDelete` refusal arrive in that
 | 409 | `admin_account` | Revoking the invite of `ADMIN_EMAIL`. On account deletion the same refusal is a Better Auth `APIError` thrown in `beforeDelete`, in Better Auth's format |
 | 409 | `invite_exists` | Inviting an email that already has a row. Restore it instead |
 | 409 | `managed_by_apple_health` | Deleting a weigh-in that came from Apple Health |
+| 409 | `food_exists` | Adding a food, or renaming one, that the list already has: the same barcode or MEXT code, or the same name, brand and state, archived foods not counted. The body carries `existingFoodId`, so the screen opens that food. *Added 2026-10-17* (`06`) |
+| 409 | `weigh_in_exists` | Typing a weigh-in at the same instant as another typed one (`UNIQUE (user_id, source, measured_at)`) |
 | 409 | `day_locked` | Confirming a plan meal or day more than 7 days after its date (§4) |
 | 409 | `already_answered` | Answering a protocol suggestion that already has a different response |
-| 413 | `payload_too_large` | Over our own photo limit (§1.5). Vercel's own 4.5 MB cap answers with its own 413 before our code runs |
+| 413 | `payload_too_large` | Over our own photo limit (§1.5), titled `Request too large`. Vercel's own 4.5 MB cap answers with its own 413 before our code runs |
 | 422 | `validation_failed` | The Zod schema refused the body |
 | 422 | `setup_incomplete` | A prerequisite is missing. The body lists `missing: ["profile" \| "foods" \| "day_routine" \| "goal_phase"]`, so the screen links to that step |
 | 422 | `unreadable_label` | The label photo had no nutrition table the model could read |
 | 429 | `rate_limited` | Open Food Facts' 15 reads a minute passed through. Better Auth's limiter answers `/api/auth/*` in its own format |
 | 429 | `model_cap_reached` | The per-user daily cap on model calls, label reads and meal estimates counted together (`03` §10; set before the first invitee). *Renamed 2026-09-22* from `label_cap_reached` |
-| 502 | `upstream_failed` | Open Food Facts or Anthropic returned an error |
+| 502 | `upstream_failed` | Open Food Facts or Anthropic returned an error, or no label reader is set up (no `ANTHROPIC_API_KEY`) |
 | 503 | `database_unavailable` | Neon still unreachable after the one retry (`03` §4) |
 | 500 | `internal` | Anything else. Logged with a stack trace and sent to Sentry |
 
@@ -112,9 +114,9 @@ not the caller's.
 
 ### 1.4 Lists, filtering and sorting
 
-- **Small, bounded lists are returned whole**, with no pagination: exercises, routines, foods,
-  rotation groups, phases, day routines, invites, ingest tokens and sync state. Each is tens of rows
-  for one user.
+- **Ordinary reads of small, bounded lists are returned whole**, with no pagination: exercises,
+  routines, foods, rotation groups, phases, day routines, invites, ingest tokens and sync state. Each
+  is tens of rows for one user. Export pages its sections separately (§2).
 - **Growing lists use cursor pagination:** workouts, weigh-ins, expenditure estimates and meal
   estimates.
   - Request: `?limit=` (default 30, maximum 100) and `?cursor=`, taken from the previous page.
@@ -129,12 +131,15 @@ not the caller's.
 
 ### 1.5 Photos
 
-- `multipart/form-data` with one `image` part. `image/jpeg`, `image/png`, `image/webp` and
-  `image/heic` are accepted.
+- `multipart/form-data` with one `image` part. `image/jpeg`, `image/png` and `image/webp` are
+  accepted; anything else, HEIC included, is 422 `validation_failed` on `image`. *Changed
+  2026-10-17* (`06`): Anthropic's vision input takes no HEIC, and the client's resize already
+  re-encodes every photo as JPEG.
 - **The client resizes before upload**, to at most 1568 px on the long edge as JPEG. The API refuses
   anything over 4 MB with `payload_too_large`. That keeps well under Vercel's 4.5 MB request cap
   (Vercel functions limits, checked 2026-09-21).
-- The image goes to Anthropic in memory and is never written anywhere (`03` §10).
+- The image goes to Anthropic in memory and is never written anywhere (`03` §10). The limit is
+  Hono's `bodyLimit` on `/api/label-reads`, so an oversized body is refused before it is parsed.
 
 ### 1.6 Compatibility
 
@@ -161,9 +166,9 @@ only.
 | `*` | `/api/auth/*` | — | Better Auth: Google sign-in, callback, `get-session`, `sign-out`, `list-sessions`, `revoke-other-sessions`, `revoke-sessions` (sign out everywhere, `08` §7), `delete-user` | Better Auth's | Better Auth's |
 | GET | `/api/me` | M | The signed-in user, their profile, and `isAdmin` | 200 | 401 |
 | PATCH | `/api/me/profile` | M | Timezone, weight unit, height, sex, birth date, training weekdays. Omitted fields are unchanged; the first save creates the profile. An unknown IANA zone is a 422 on `timezone` | 200 profile | 401, 422 |
-| GET | `/api/me/export` | M | One section of the export (S10), paged | 200 | 401, 422 |
+| GET | `/api/me/export` | M | One section of the export (S10), paged | 200 | 400, 401 |
 | GET | `/api/admin/invites` | A | Every invite, newest first | 200 | 401, 404 |
-| POST | `/api/admin/invites` | A | Invite an email | 201 | 401, 404, 409 `invite_exists`, 422 |
+| POST | `/api/admin/invites` | A | Invite an email. A repeat of the same create returns the stored invite | 201 / 200 | 401, 404, 409 `invite_exists`, 409 `id_conflict`, 422 |
 | POST | `/api/admin/invites/{id}/revoke` | A | Revoke (`08` §8). Idempotent: revoking a revoked invite returns it unchanged | 200 | 401, 404, 409 `admin_account` |
 | POST | `/api/admin/invites/{id}/restore` | A | Clear `revoked_at`. Ingest tokens stay revoked; the member makes a new one (`08` §8) | 200 | 401, 404 |
 
@@ -204,6 +209,17 @@ the file in the browser as `overload-export-2026-11-04.json`.
   `mealEstimates`, `protocolSuggestions`, `ingestTokens` (labels and dates only, never hashes).
 - Paged as in §1.4. Each item is the row as the API's normal read returns it, with its children
   nested (a workout carries its exercises and sets).
+- **As built in slice 7** (`06`, 2026-10-15): M1's four sections, `profile`, `exercises`,
+  `routines` and `workouts`. M2 slice 1 adds `weighIns`, newest `measuredAt` then id first, each as
+  `GET /api/weigh-ins` lists it. M2 slice 3 adds `foods`, archived ones included, and
+  `rotationGroups` with their `foodIds`, each paged by id and shaped as its list returns it;
+  `model_call_count` is bookkeeping and in neither (`06`, 2026-10-17). `profile` is one item, `{ user, profile }`, as `/api/me` without
+  `isAdmin`. `exercises` pages by name then id; `routines` pages by position then id; `workouts`
+  pages newest `startedAt` then id first, a workout in progress included, each as
+  `GET /api/workouts/{id}` returns it.
+  A section not built yet, a `limit` outside 1 to 100, or a cursor that does not decode to this
+  section's sort key and id is a 400. `profile` accepts no cursor. The cursor is opaque and
+  unsigned; each query remains scoped to the caller's user id.
 - `exercises` returns what `GET /api/exercises?includeHidden=true` returns: hidden ones included,
   each with the caller's settings and `overrides`.
 - **Every table that holds a user's rows is in some section**, directly or nested. The exceptions
@@ -217,7 +233,7 @@ the file in the browser as `overload-export-2026-11-04.json`.
 GET /api/me/export?section=workouts&limit=100
 ```
 ```json
-{ "section": "workouts", "items": [{ "id": "0192w001-…", "name": "Push A", "startedAt": "2026-11-04T09:02:11.000Z", "exercises": [ … ] }], "nextCursor": "eyJ0IjoiMjAyNi0xMC0yOCIsImlkIjoiMDE5MnYwMDEifQ" }
+{ "section": "workouts", "items": [{ "id": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11", "name": "Push A", "startedAt": "2026-11-04T09:02:11.000Z", "exercises": [ … ] }], "nextCursor": "eyJzZWN0aW9uIjoid29ya291dHMiLCJzdGFydGVkQXQiOiIyMDI2LTExLTA0VDA5OjAyOjExLjAwMFoiLCJpZCI6IjAxOTJhMDAxLTdjMWUtN2EzMy05YzJkLTRiNmYxZTBhOWQxMSJ9" }
 ```
 
 ### `POST /api/admin/invites`
@@ -244,20 +260,32 @@ yet or what they have logged (`08` §4).
 | --- | --- | --- | --- | --- | --- |
 | GET | `/api/exercises` | M | Seeded plus custom, each with the caller's effective settings. Hidden ones only with `?includeHidden=true`. Sorted by name | 200 | 401 |
 | POST | `/api/exercises` | M | Create a custom exercise | 201 / 200 | 401, 409 `id_conflict`, 422 (duplicate name or inverted rep range included) |
-| PATCH | `/api/exercises/{id}` | M | Edit a custom exercise's name, equipment or defaults. Seeded ones return 404 | 200 | 401, 404, 422 |
+| PATCH | `/api/exercises/{id}` | M | Edit a custom exercise's name, equipment, muscle group or defaults. Seeded ones return 404 | 200 | 401, 404, 422 |
 | DELETE | `/api/exercises/{id}` | M | Delete a custom exercise with no sets | 204 | 401, 409 `exercise_has_history`, 409 `exercise_in_routine` |
 | PUT | `/api/exercises/{id}/setting` | M | The caller's increment, rest, rep range and `hidden` for any exercise. `null` restores the default | 200 | 401, 404, 422 |
 
 ```json
 GET /api/exercises  →  200
 { "items": [
-  { "id": "0192a001-…", "name": "Barbell Bench Press", "equipment": "barbell", "custom": false, "hidden": false,
+  { "id": "0192a001-…", "name": "Barbell Bench Press", "equipment": "barbell",
+    "muscleGroup": "chest", "secondaryMuscleGroups": ["shoulders", "triceps"],
+    "aliases": ["Flat Bench"], "custom": false, "hidden": false,
     "incrementKg": 2.5, "restSeconds": 180, "repLow": 6, "repHigh": 10,
     "overrides": { "incrementKg": false, "restSeconds": true, "repLow": false, "repHigh": false } }
 ] }
 ```
 
 `overrides` tells the settings screen which values are the user's own and which are defaults.
+`muscleGroup` is where the library files the exercise and `aliases` are the other names search
+matches. The client groups, filters and searches; the API returns one flat list. A custom exercise has
+`"aliases": []`, and `"muscleGroup": null` until the user files it: create and edit take an optional
+`muscleGroup`, where `null` files it under no group.
+`secondaryMuscleGroups` are the groups it also trains, where a working set counts half in the
+balance view (issue `#50`). Every seeded exercise has a reviewed list, empty for one that trains a
+single group; a custom one has `[]` until given some. Create and edit take an optional list. The
+API keeps each group once, in the order of `MuscleGroup`, and drops the group the exercise is filed
+under, also when an edit files it under one of them; left out of an edit, the list stays. A repeat
+create with the same groups in another order is the same create.
 
 - **Create.** `id`, `name` and `equipment` are required. An omitted `incrementKg` takes the equipment
   class's increment (`04` `exercise`), `restSeconds` 120 and the rep range 6–10. A missing rep end
@@ -316,17 +344,19 @@ GET /api/training/last-time  →  200
 { "asOf": "2026-11-04T10:15:02.000Z",
   "exercises": [
     { "exerciseId": "0192a001-…", "workoutId": "0192w001-…", "performedOn": "2026-11-04",
-      "sets": [ { "workingSet": 1, "weightKg": 80, "reps": 10 }, { "workingSet": 2, "weightKg": 80, "reps": 10 }, { "workingSet": 3, "weightKg": 80, "reps": 10 } ],
+      "sets": [ { "workingSet": 1, "weightKg": 80, "countedWeightKg": 80, "reps": 10, "rir": 2 }, { "workingSet": 2, "weightKg": 80, "countedWeightKg": 80, "reps": 10, "rir": 2 }, { "workingSet": 3, "weightKg": 80, "countedWeightKg": 80, "reps": 10, "rir": null } ],
+      "bodyweight": null,
       "suggestion": { "weightKg": 82.5, "rule": "top_of_range_hit", "reason": "hit 10 on every set last time" },
       "slots": [] }
   ] }
 ```
 
-`sets` holds working sets only; `workingSet` is derived, 1…n in `position` order (`04`). `suggestion.rule` is `top_of_range_hit` or `repeat`. An exercise never logged is absent, and the
-screen shows "first workout".
+`sets` holds working sets only; `workingSet` is derived, 1…n in `position` order (`04`). Each set has `weightKg` as logged and `countedWeightKg` for display. Each exercise and slot has `bodyweight`, the counted weigh-in basis or `null` for other equipment. `rir` is `null` where the set recorded none. `suggestion.rule` is `top_of_range_hit` or `repeat`. An exercise never logged is absent from a successful response; the workout's first-time and unknown-history states are specified in `10` §1.
 
 - **Which workout is last time:** the caller's most recent workout, by `started_at`, with at least
   one working set of the exercise. A workout where it only had warm-ups is passed over.
+  `?exclude=<workout id>` leaves that workout out: the open workout asks with its own id, so a
+  weigh-in typed mid-workout recounts the workout before it, not its own synced sets.
 - **The suggestion** takes that workout's heaviest working weight, the `rep_high` copied into its
   `workout_exercise`, and the exercise's increment and equipment as they are today, so a changed
   increment applies at once. The weight is rounded up to one the equipment can make (S3).
@@ -341,7 +371,9 @@ screen shows "first workout".
 - **`routineExerciseId` may be left out of a synced `workoutExercises` row** and is then stored as
   null: a row made on a device before the field existed still uploads.
 - **`performedOn`** is the workout's `started_at` as a date in the profile's time zone: the day
-  boundary. Without a profile there is no zone to read it in, hence `setup_incomplete`.
+  boundary. `?timezone=<IANA zone>` reads it, and the daily weights behind `bodyweight`, in that
+  zone instead: the open workout asks in the zone it started in, so a profile change while it is
+  open moves no date (`#60`). Without a profile there is still `setup_incomplete`.
 
 ### 3.4 Sync — the only write path for workouts, workout exercises and sets
 
@@ -349,16 +381,18 @@ screen shows "first workout".
 | --- | --- | --- | --- | --- | --- |
 | POST | `/api/workouts/sync` | M | Apply the device's queued rows | 200 with a result per row | 401 (nothing applied; every row stays pending), 413 over the row limit, 422 |
 
-**Built so far (slice 3):** the happy path, the clock guard, deleting a workout, ownership and the
-limit. A batch that fails request schema validation gets a 422; a database check or range violation
-on one row is reported as that row's `validation_failed` in a 200 response. Deleting a workout
-exercise or a set, and tombstones, arrive in slice 4 (`06`, 2026-10-03). Until then a
-`{ id, deletedAt }` in `workoutExercises` or `sets` is a 422, a deleted workout reports `deleted`,
-and a stale copy sent after its delete would be stored again.
+**Built (slices 3 and 4):** the happy path, the clock guard, ownership and the limit; and, since
+2026-10-08, deleting any of the three rows, tombstones, and a row refused on its own inside a 200
+(`06`, 2026-10-08).
 
 **Request.** Three arrays, each row the **whole current row** as the phone holds it, plus
-`clientUpdatedAt`, the phone's clock at the last edit. Only a workout can be deleted in slice 3,
-with `{ id, deletedAt }`.
+`clientUpdatedAt`, the phone's clock at the last edit. A row the phone deleted is sent as
+`{ id, deletedAt }` in its array, and nothing else.
+
+**Any object with an id is taken.** The body is a 422 only when it is not three arrays of objects
+that each carry a uuid `id`. A row that fits neither shape above is not applied: its result is
+`refused` with `validation_failed`, and the rest of the batch is applied. Otherwise one row an
+older build wrote would fail the whole batch, and every set behind it would wait for good.
 
 ```http
 POST /api/workouts/sync
@@ -399,14 +433,16 @@ POST /api/workouts/sync
   A retry of the same payload changes nothing. So does a stale copy arriving after a newer edit.
   This replaces `03` §8.1's `DO NOTHING`, and `docs/04` gains `client_updated_at` on the three
   tables.
-- **A workout deletion** removes the row if the stored `client_updated_at` is older than `deletedAt`,
-  and counts as `deleted` if the row is already gone. Deleting a workout cascades (`04`).
-- **Planned for slice 4: a deleted row stays deleted.** Each deletion writes a `sync_tombstone`
-  (`04`) for the row and every row it cascades to. A row whose id, or whose parent's id, has a
-  tombstone is not inserted, and neither is a child of a row reported `deleted` earlier in the
-  same batch. All of these are
-  reported `deleted`. Without this, a stale copy from a second tab or a late request would bring a
-  deleted set back. *Added 2026-09-22.*
+- **A deletion** removes the row if the stored `client_updated_at` is older than `deletedAt`, and
+  counts as `deleted` if the row is already gone or was never there. A stored copy that is newer
+  wins: the row stays and is answered `unchanged`. Deleting a workout or a workout exercise
+  cascades (`04`).
+- **A deleted row stays deleted.** Each deletion writes a `sync_tombstone` (`04`) for the row and
+  every row it cascades to, in its transaction. A row whose id, or whose parent's id, has a
+  tombstone is not inserted, whatever its `clientUpdatedAt`, and neither is a child of a row
+  reported `deleted` earlier in the same batch. All of these are reported `deleted`. Without this,
+  a stale copy from a second tab or a late request would bring a deleted set back. Two requests on
+  the same id take turns (`03` §8.1). *Added 2026-09-22, built 2026-10-08.*
 - **Ownership:** a row whose id exists under another user is refused as `not_found`, like any
   other cross-user access. A row whose `workoutId`, `workoutExerciseId` or `exerciseId` is not the
   caller's is refused as `parent_missing` (`08` §4). A workout whose `routineId` is not the
@@ -431,9 +467,18 @@ POST /api/workouts/sync
 | `status` | Meaning | What the phone does |
 | --- | --- | --- |
 | `stored` | Inserted or updated | Mark **acknowledged**; keep an open workout's rows on the device until it ends (`03` §6) |
-| `unchanged` | The server already had this version or a newer one. `row` is the server's copy | Mark acknowledged; keep an open workout's rows until it ends. A workout the phone ended or removed whose `row` is still open is **not** acknowledged: it stays pending (`08` §7) |
-| `deleted` | Gone, now or before | Delete the local record |
-| `refused` | Refused, with `problem` | Keep the record and mark it **refused** (`03` §7, kind 3) |
+| `unchanged` | The server already had this version or a newer one. `row` is the server's copy | Mark acknowledged; keep an open workout's rows until it ends. A workout the phone ended whose `row` is still open stays pending (`08` §7). If a deleted row's server copy survived, restore it from `row`. Keep a deleted workout's exercises while its deletion is pending; if the server keeps the workout, restore it with those exercises so it can be resumed |
+| `deleted` | Gone, now or before, or never stored because it or its parent was deleted | Delete the local record, and those of the rows under it |
+| `refused` | Refused, with `problem` | Keep the record and mark it **refused** (`03` §7, kind 3), with the problem's code and fields. A refused deletion is of a row that is not the caller's: the record is deleted |
+
+A refused row's `problem` is `{ code, status }`, with `errors` when the row did not match its
+schema: the fields at fault as `{ path, message }`, as in a 422 (§1.3), never a value.
+
+```json
+{ "table": "sets", "id": "0192s021-…", "status": "refused",
+  "problem": { "code": "validation_failed", "status": 422,
+               "errors": [{ "path": "reps", "message": "Too big: expected number to be <=100" }] } }
+```
 
 - **A 401 applies nothing** and refuses nothing. Every row stays pending until sign-in (`08` §5).
 - A network failure or a 5xx leaves every row pending, and the whole batch is resent. The guard
@@ -443,9 +488,12 @@ POST /api/workouts/sync
 
 | Method | Path | Auth | Purpose | Success | Failures |
 | --- | --- | --- | --- | --- | --- |
-| GET | `/api/workouts` | M | History, newest `startedAt` first, paged. Each item is a summary: name, times, exercise names, working-set count | 200 | 401 |
-| GET | `/api/workouts/{id}` | M | One workout with exercises, sets and the linked Apple workout | 200 | 401, 404 |
-| GET | `/api/exercises/{id}/progress` | M | The S7 chart, with S20 overlays when asked | 200 | 401, 404, 422 |
+| GET | `/api/workouts` | M | History: finished workouts, newest `startedAt` first, paged. Each item is a summary: name, times, working-set count, and each exercise's name and top set | 200 | 400, 401 |
+| GET | `/api/workouts/last-done` | M | When each routine was last done: its newest finished workout. A routine never done, or deleted, is absent | 200 | 401 |
+| GET | `/api/workouts/{id}` | M | One workout with its exercises and every set. The linked Apple workout joins it in M3 | 200 | 400, 401, 404 |
+| GET | `/api/exercises/{id}/progress` | M | The S7 chart, with S20 overlays when asked | 200 | 400, 401, 404, 422 |
+| GET | `/api/training/strength` | M | The strength overview: every lift's points, trend and status over a span, and their average | 200 | 400, 401, 422 |
+| GET | `/api/training/balance` | M | Muscle balance: every muscle group's working sets a week over four weeks or this week, its status and its sources | 200 | 400, 401, 422 |
 
 ```http
 GET /api/exercises/0192a001-…/progress?span=12w&overlays=intake,trend,sleep,hrv
@@ -453,8 +501,9 @@ GET /api/exercises/0192a001-…/progress?span=12w&overlays=intake,trend,sleep,hr
 ```json
 {
   "span": "12w", "from": "2026-08-19", "to": "2026-11-10",
-  "points": [ { "workoutId": "0192w001-…", "date": "2026-11-04", "e1rmKg": 106.7, "topSetKg": 80, "volumeKg": 2400 } ],
-  "stats": { "bestE1rmKg": 106.7, "topSetKg": 82.5, "volumeKg": 28800 },
+  "points": [ { "workoutId": "0192w001-…", "workoutName": "Push A", "date": "2026-11-04", "e1rmKg": 106.7, "topSetKg": 80, "topSetReps": 10, "volumeKg": 2400,
+                "sets": [ { "weightKg": 80, "reps": 10 }, { "weightKg": 80, "reps": 10 }, { "weightKg": 80, "reps": 10 } ] } ],
+  "stats": { "bestE1rmKg": 106.7, "changeKg": 5.367, "topSetKg": 82.5, "topSetReps": 8, "volumeKg": 28800 },
   "overlays": {
     "intake": [ { "date": "2026-11-04", "energyKcal": 2380, "complete": true } ],
     "trend":  [ { "date": "2026-11-04", "trendKg": 71.84 } ],
@@ -464,10 +513,201 @@ GET /api/exercises/0192a001-…/progress?span=12w&overlays=intake,trend,sleep,hr
 }
 ```
 
-- `span` is one of `4w`, `12w`, `6m`, `1y`, `all`.
+- `span` is one of `4w`, `12w`, `6m`, `1y`, `all`, and `12w` when omitted. Any other value is a
+  400 (§1.3). A span ends today and includes it, in the caller's time zone: `from` is its first
+  local date. For `all` it is the first point's date, and `null` without one.
+- A point is one workout with a working set of the exercise, oldest first: `e1rmKg` to the tenth,
+  the heaviest working set as `topSetKg` with `topSetReps`, the most reps done at that weight,
+  and `volumeKg`, weight × reps summed over its working sets. `sets` is those working sets as
+  logged, in order, and `workoutName` the workout's name: the exercise's past sets, which the
+  screen lists under the chart (`06`, 2026-10-11).
+- `stats` covers the span: the best e1RM, the heaviest top set with its reps, and the volume of
+  every workout together. The best e1RM and the top set are `null` without a workout. `changeKg`
+  is the last point's e1RM less the first's, taken from the estimates before they are rounded and
+  carried to the thousandth, and `null` with fewer than 2 points. The client converts it to the
+  user's unit, rounds it once to the tenth, and never works it out itself.
 - With fewer than 2 workouts, `points` has 0 or 1 items and the client shows "Not enough data yet".
+  It shows the same on any span whose points all fall on one local date: a chart needs two days.
+- The 404 is an exercise that is not the caller's to see. The 422 is `setup_incomplete` with
+  `missing: ["profile"]`: local dates need the time zone.
 - `overlays` omitted gives no overlay keys. The M3 series return empty arrays before M3 data exists.
+  **As built in slice 5** (`06`, 2026-10-10) the parameter is not read and the key is never
+  sent: the overlays arrive with their data, in M2 and M3.
 - Warm-ups are excluded from every number here (S6).
+
+**History, as built 2026-10-11** (`06`). Its routes read what the sync batch wrote and change
+nothing.
+
+```http
+GET /api/workouts?limit=30&cursor=WyIyMDI2LTEw…
+```
+```json
+{
+  "items": [
+    { "id": "0192w001-…", "name": "Push A", "routineId": "0192r001-…",
+      "startedAt": "2026-10-09T09:30:00.000Z", "endedAt": "2026-10-09T10:24:00.000Z",
+      "workingSets": 13,
+      "exercises": [ { "name": "Barbell Bench Press", "topSetKg": 80, "topSetReps": 10 } ] }
+  ],
+  "nextCursor": "WyIyMDI2LTA5…",
+  "total": 194
+}
+```
+
+- **Only finished workouts are listed.** One in progress (`endedAt: null`) is not history yet, and
+  is not counted. `total` is every finished workout the caller has, on every page, for the
+  screen's `194 WORKOUTS`.
+- The order is `startedAt` then `id`, both descending, and the cursor is the last item's pair
+  (§1.4). A `limit` outside 1 to 100, or a cursor that does not decode to a start time and valid
+  id, is a 400.
+- `exercises` holds each exercise that logged a working set, in the workout's order, with its top
+  set (`CONTEXT.md`): the heaviest working set and the most reps done at that weight.
+  `workingSets` counts them. Warm-ups are in neither (S6).
+- `routineId` is the routine the workout was started from, or `null` when it came from none or the
+  routine was deleted since. A workout finished on the device is laid over Today's last-done line
+  by it.
+
+```json
+{
+  "id": "0192w001-…", "routineId": "0192r001-…", "name": "Push A",
+  "startedAt": "2026-10-09T09:30:00.000Z", "endedAt": "2026-10-09T10:24:00.000Z",
+  "note": null, "clientUpdatedAt": "2026-10-09T10:24:00.000Z",
+  "exercises": [
+    { "id": "0192e001-…", "workoutId": "0192w001-…", "exerciseId": "0192a001-…", "name": "Barbell Bench Press",
+      "position": 0, "…": "the rest of the workout-exercise row, as §3.4 sends it",
+      "sets": [ { "id": "0192s001-…", "workoutExerciseId": "0192e001-…", "position": 0,
+                  "weightKg": 80, "reps": 10, "rir": 2, "rpe": null, "isWarmup": false,
+                  "performedAt": "2026-10-09T09:41:00.000Z", "clientUpdatedAt": "2026-10-09T09:41:00.000Z" } ] }
+  ]
+}
+```
+
+- **Every row is the one the sync batch holds**, field for field, with the exercise's `name`
+  beside its row. So the phone can put a past workout back in its set store and send a set back
+  edited, or deleted, through `/api/workouts/sync` (§3.4): there is no other write path, and no
+  `PATCH` on a set.
+- Exercises are in `position` order, and one that logged no set is still listed; sets are in
+  `position` order, warm-ups included. A workout in progress is answered too.
+- The 404 is a workout that does not exist or is not the caller's, the same answer for both. The
+  400 is an id that is not a UUID.
+
+**Last done, as built 2026-10-14** (`06`; issue `#61`). Today's line under each routine, in one
+call, so Today never pages through the list to find a routine.
+
+```http
+GET /api/workouts/last-done
+```
+```json
+{
+  "items": [
+    { "routineId": "0192r001-…", "workoutId": "0192w001-…", "startedAt": "2026-10-09T09:30:00.000Z" }
+  ]
+}
+```
+
+- One item per routine the caller has finished a workout from: its newest by `startedAt`, then
+  `id`. A routine never done is absent, and so is a deleted one, whose workouts no longer name it.
+  A workout in progress does not count.
+- `workoutId` lets the device tell when it has deleted that workout and the answer is out of date.
+
+**The strength overview, as built 2026-10-14** (`06`; issue `#49`). It reads the sets the chart
+reads, every exercise at once, and changes nothing.
+
+```http
+GET /api/training/strength?span=12w
+```
+```json
+{
+  "span": "12w", "from": "2026-07-23", "to": "2026-10-14",
+  "overall": { "lifts": 1, "changePct": 6, "status": "gaining" },
+  "lifts": [
+    { "exerciseId": "0192a001-…", "name": "Barbell Bench Press",
+      "points": [ { "date": "2026-09-28", "e1rmKg": 100 }, { "date": "2026-10-05", "e1rmKg": 103 }, { "date": "2026-10-12", "e1rmKg": 106 } ],
+      "workoutCount": 3, "status": "gaining", "trend": { "changeKg": 6, "changePct": 6 } },
+    { "exerciseId": "0192a002-…", "name": "Cable Face Pull",
+      "points": [ { "date": "2026-10-08", "e1rmKg": 28 } ],
+      "workoutCount": 1, "status": "too_few", "trend": null }
+  ]
+}
+```
+
+- `span` is `4w`, `12w` or `1y`, `12w` when omitted. Any other value is a 400. `from` and `to`
+  are local dates, ending today in the caller's time zone. `from` is the span start even when
+  no lift was logged.
+- **A lift** is an exercise with at least one working set in the span; one with none is not listed. A
+  point is a workout's e1RM from its best working set, to the tenth, as the chart plots it, a
+  workout in progress included. Warm-ups are left out (S6). So is a workout whose working sets
+  carry no weight: its e1RM is 0, which a percentage cannot be taken of. `workoutCount` counts
+  all workouts with a working set, including those at zero weight.
+- **The trend** is the least-squares line through the lift's e1RM by local date, fitted to the
+  estimates before they are rounded. `changeKg` is the line's end less its start, to the
+  thousandth; `changePct` is that as a share of the start, to the tenth, halves away from zero.
+  The client converts `changeKg` to the user's unit and rounds it once, and never works out
+  either itself.
+- **The status** reads the unrounded percentage: `gaining` at 2% or more, `losing` at −2% or
+  less, `holding` between. A displayed `+2.0%` can therefore be holding.
+- **A bodyweight lift** (`equipment = bodyweight`) counts the caller's weight plus the kg logged on
+  each set (`06`, 2026-10-17; `04` `body_measurement`): its points and trend are of that load, and
+  the lift carries `bodyweight`, the weigh-in its latest workout in the span was counted at:
+  `{ "basis": "earlier_day", "weightKg": 82.4, "weighedOn": "2026-10-10" }`. `basis` is
+  `same_day`, `earlier_day`, `later_day` (a workout older than the first weigh-in) or `none`
+  (no weigh-in at all: the sets stay as logged, so a lift logged at 0 kg is `no_weight`). Null on
+  any other lift. The chart (`GET /api/exercises/{id}/progress`) says the same on every point, and
+  its `topSetKg`, `volumeKg` and `sets` are of the counted load.
+- **`too_few`** with `trend: null`: fewer than three workouts with a working set in the span,
+  where at least one has a positive e1RM. A lift with none is `no_weight` instead.
+  Its displayed count includes zero-weight workouts.
+- **`no_trend`** with `trend: null`: three or more working workouts but no calculable
+  percentage. This includes positive points all on one local date, a fitted line starting at or
+  below zero, and fewer than three positive points after zero-weight workouts are excluded.
+  The lift keeps its workout count and sits outside the average.
+- **`no_weight`** with `trend: null` and no points: the lift has working sets but no positive
+  e1RM. Its workout count is shown; it does not enter the overall average.
+- **`overall`** is the plain average of every verdict's unrounded percentage, judged before
+  rounding and displayed to the tenth. Each lift counts once whatever it weighs. `lifts` is how
+  many were averaged.
+  With none, `changePct` and `status` are `null`.
+- `lifts` come with a verdict first, the largest `changePct` first and by name between equals,
+  then those without, by name. The screen groups them by `status` and keeps the order.
+- The 422 is `setup_incomplete` with `missing: ["profile"]`: local dates need the time zone.
+
+**Muscle balance, as built 2026-10-14** (`06`; issue `#50`, Q13 and Q14). It reads the same sets
+again, by muscle group, and changes nothing. The sum is `domain/balance.ts`, pure.
+
+```http
+GET /api/training/balance?view=4w
+```
+```json
+{
+  "view": "4w", "from": "2026-09-17", "to": "2026-10-14", "weeks": 4,
+  "range": { "low": 10, "high": 20 },
+  "groups": [
+    { "muscleGroup": "chest", "sets": 14, "directSets": 14, "status": "in_range",
+      "sources": [ { "exerciseId": "0192a001-…", "name": "Barbell Bench Press", "indirect": false, "sets": 8 },
+                   { "exerciseId": "0192a003-…", "name": "Incline Dumbbell Bench Press", "indirect": false, "sets": 6 } ] },
+    { "muscleGroup": "triceps", "sets": 18, "directSets": 8, "status": "in_range",
+      "sources": [ { "exerciseId": "0192a001-…", "name": "Barbell Bench Press", "indirect": true, "sets": 4 },
+                   { "exerciseId": "0192a004-…", "name": "Cable Triceps Pushdown", "indirect": false, "sets": 8 } ] },
+    { "muscleGroup": "forearms", "sets": 0, "directSets": 0, "status": "none", "sources": [] }
+  ]
+}
+```
+
+- `view` is `4w`, the default, or `week`. Any other value is a 400. `4w` is the 28 local days to
+  today, its sets divided by four; `week` is Monday to today, not divided, so a week in progress
+  reads low (Q14). `from` and `to` are local dates in the caller's time zone.
+- **A set** is a working set of an exercise in a workout that started in the view, a workout in
+  progress included. Warm-ups count nowhere (S6). It counts whole for the group its exercise is
+  filed under and half for each of its `secondaryMuscleGroups` (Q13). An exercise filed under no
+  group counts only for those.
+- **`groups`** are all eleven, in the order of `MuscleGroup`, trained or not. `sets` is whole and
+  half together and `directSets` the whole alone, each a week to the tenth, halves rounded up.
+- **The status** reads `sets` after rounding, so it always agrees with the printed figure: `none` at
+  0, `low` under 10, `in_range` from 10 to 20 inclusive, `high` over 20. The range is the same for
+  every group, and is answered as `range`.
+- **`sources`** are the exercises a group's sets came from, a week to the tenth, by when each first
+  came up in the view. `indirect: true` marks the half count, already halved.
+- The 422 is `setup_incomplete` with `missing: ["profile"]`: local dates need the time zone.
 
 ### Apple workout links (S19)
 
@@ -484,13 +724,21 @@ GET /api/exercises/0192a001-…/progress?span=12w&overlays=intake,trend,sleep,hr
 
 | Method | Path | Auth | Purpose | Success | Failures |
 | --- | --- | --- | --- | --- | --- |
-| GET | `/api/foods` | M | The food list, by name. Archived ones only with `?includeArchived=true` | 200 | 401 |
-| POST | `/api/foods` | M | Add a confirmed food. The body carries the values **and the basis they were read in**; the API converts to per 100 g | 201 / 200 | 401, 409, 422 |
-| PATCH | `/api/foods/{id}` | M | Edit values, piece weight or rotation group. Past plan days keep their snapshot | 200 | 401, 404, 422 |
-| DELETE | `/api/foods/{id}` | M | Archive (`archivedAt` set). Unconfirmed future plan days are regenerated without it | 204 | 401 |
-| GET | `/api/reference-foods?q=` | M | Search the MEXT table (八訂 増補2023). At least 1 character, 20 results, best match first | 200 | 401, 422 |
-| GET | `/api/barcodes/{code}` | M | Look up Open Food Facts. Returns a **candidate**, not a saved food, plus `existingFoodId` if the list already has that barcode | 200, 404 `not_found` | 401, 429, 502 |
-| POST | `/api/label-reads` | M | Photo of a 栄養成分表示 → candidate values and their basis (multipart) | 200 | 401, 413, 422 `unreadable_label`, 429 `model_cap_reached`, 502 |
+| GET | `/api/foods` | M | The food list, by name (case-folded) then id. Archived ones only with `?includeArchived=true` | 200 | 401 |
+| POST | `/api/foods` | M | Add a confirmed food. The body carries the values **and the basis they were read in**; the API converts to per 100 g | 201 / 200 | 401, 409 `id_conflict` \| `food_exists`, 422 |
+| PATCH | `/api/foods/{id}` | M | Edit name, brand, state, values per 100 g, piece weight, keeping days or rotation group. Past plan days keep their snapshot | 200 | 400, 401, 404, 409 `food_exists`, 422 |
+| DELETE | `/api/foods/{id}` | M | Archive (`archivedAt` set, once). Unconfirmed future plan days are regenerated without it, once plans exist (`#79`) | 204 | 400, 401 |
+| GET | `/api/reference-foods?q=` | M | Search the MEXT table (八訂 増補2023). 1 to 80 characters; every word must appear in the English or the Japanese name. 20 results: a name starting with the words first, then raw, then the shorter name. Each carries `existingFoodId` if that code is on the list | 200 | 400, 401 |
+| GET | `/api/barcodes/{code}` | M | Look up Open Food Facts (8 to 14 digits). Returns a **candidate**, not a saved food. A barcode already on the list returns `{ candidate: null, per100g: null, existingFoodId }` and looks nothing up | 200, 404 `not_found` | 400, 401, 429, 502 |
+| POST | `/api/label-reads` | M | Photo of a 栄養成分表示 → candidate values and their basis (multipart) | 200 | 401, 413, 422 `validation_failed` \| `unreadable_label`, 429 `model_cap_reached`, 502 |
+
+**As built, 2026-10-17** (`06`): the values a create takes are at most 100,000 on their basis, and
+at most 900 kcal and 100 g of each nutrient once converted to 100 g; above that, or a basis other
+than per 100 g without its grams, is 422. `fiberG: null` is saved as 0. A food with an id the caller
+already has, with the same content, is the stored food (200). Open Food Facts is asked with
+`User-Agent: Overload/1 (<web origin>)`, an 8 s timeout, and its values per serving when it gives
+them per serving with the serving's weight. A label read takes one of the day's model calls before
+the model is asked (`04` `model_call_count`) and is read by `claude-haiku-4-5`.
 
 The three lookups never save. The user confirms the candidate on the confirmation screen and the
 client then calls `POST /api/foods`. That is S12's "shown for confirmation before saving".
@@ -505,13 +753,14 @@ Content-Type: multipart/form-data; boundary=…
 { "candidate": {
     "name": "サラダチキン プレーン", "brand": null, "state": "cooked",
     "basis": { "kind": "per_package", "grams": 110 },
-    "energyKcal": 121, "proteinG": 26.4, "carbG": 0.3, "fatG": 1.5, "fiberG": null, "sodiumMg": null },
-  "per100g": { "energyKcal": 110.0, "proteinG": 24.0, "carbG": 0.27, "fatG": 1.36, "fiberG": 0 },
-  "model": "claude-haiku-4-5-20251001" }
+    "energyKcal": 121, "proteinG": 26.4, "carbG": 0.3, "fatG": 1.5, "fiberG": null },
+  "per100g": { "energyKcal": 110, "proteinG": 24, "carbG": 0.27, "fatG": 1.36, "fiberG": null },
+  "model": "claude-haiku-4-5" }
 ```
 
-`basis.kind` is `per_100g`, `per_piece`, `per_serving` or `per_package`, with its grams when
-printed. `per100g` is the server's conversion, shown so the user sees what will be saved. A field
+`basis.kind` is `per_100g`, `per_100ml`, `per_piece`, `per_serving` or `per_package`, with its grams when
+known. A label read per 100 ml returns `per_100ml` with `grams: null` until the user weighs 100 ml.
+`per100g` is the server's conversion, or null while the basis has no grams. A field
 the label does not print is `null`, never a guess.
 
 ```http
@@ -524,8 +773,8 @@ POST /api/foods
 ```json
 201
 { "id": "0192f010-…", "name": "サラダチキン プレーン", "brand": null, "state": "cooked",
-  "energyKcal": 110.0, "proteinG": 24.0, "carbG": 0.27, "fatG": 1.36, "fiberG": 0,
-  "pieceWeightG": null, "source": "label_photo", "sourceRef": "4901234567894",
+  "energyKcal": 110, "proteinG": 24, "carbG": 0.27, "fatG": 1.36, "fiberG": 0,
+  "pieceWeightG": null, "keepsDays": null, "source": "label_photo", "sourceRef": "4901234567894",
   "rotationGroupId": null, "archivedAt": null }
 ```
 
@@ -535,10 +784,10 @@ A stored food is always per 100 g. The response has no `basis`.
 
 | Method | Path | Auth | Purpose | Success | Failures |
 | --- | --- | --- | --- | --- | --- |
-| GET | `/api/rotation-groups` | M | Groups with their member food ids | 200 | 401 |
-| POST | `/api/rotation-groups` | M | Create `{ id, name, foodIds[] }` | 201 / 200 | 401, 409, 422 |
-| PATCH | `/api/rotation-groups/{id}` | M | Rename, or replace `foodIds` | 200 | 401, 404, 422 |
-| DELETE | `/api/rotation-groups/{id}` | M | Delete. Its foods stay, ungrouped | 204 | 401 |
+| GET | `/api/rotation-groups` | M | Groups by name, each with its unarchived foods' ids by name | 200 | 401 |
+| POST | `/api/rotation-groups` | M | Create `{ id, name, foodIds[] }`. A food in another group moves to this one | 201 / 200 | 401, 409, 422 |
+| PATCH | `/api/rotation-groups/{id}` | M | Rename, or replace `foodIds`. A food not on the caller's list is 422 on `foodIds.N` | 200 | 400, 401, 404, 422 |
+| DELETE | `/api/rotation-groups/{id}` | M | Delete. Its foods stay, ungrouped | 204 | 400, 401 |
 | GET | `/api/foods/{id}/batches` | M | Batches of one food, newest `cookedOn` first, each with its derived `yield` | 200 | 401, 404 |
 | POST | `/api/batches` | M | Record a batch `{ id, foodId, rawWeightG, cookedWeightG, cookedOn, note }` | 201 / 200 | 401, 409, 422 |
 | DELETE | `/api/batches/{id}` | M | Delete. Plan items that used it keep their macro snapshot | 204 | 401 |
@@ -643,8 +892,8 @@ confirm endpoints return 409 `day_locked` (`docs/09` F11). A `PATCH /api/goal-ph
 
 | Method | Path | Auth | Purpose | Success | Failures |
 | --- | --- | --- | --- | --- | --- |
-| GET | `/api/weigh-ins?from=&to=` | M | Weigh-ins in a range, plus the derived daily weights and trend (S11) | 200 | 401, 422 |
-| POST | `/api/weigh-ins` | M | Weigh-in by hand `{ id, measuredAt, weightKg, bodyFatPct, leanMassKg }` | 201 / 200 | 401, 409, 422 |
+| GET | `/api/weigh-ins?from=&to=` | M | Weigh-ins in a range, plus the derived daily weights and trend (S11) | 200 | 400, 401, 422 `setup_incomplete` |
+| POST | `/api/weigh-ins` | M | Weigh-in by hand `{ id, measuredAt, weightKg, bodyFatPct }` (`leanMassKg` joins with its M3 column) | 201 / 200 | 401, 409 `id_conflict`, 409 `weigh_in_exists`, 422 |
 | DELETE | `/api/weigh-ins/{id}` | M | Delete a hand-typed weigh-in | 204 | 401, 409 `managed_by_apple_health` |
 | GET | `/api/maintenance-check` | M | S18a over the trailing 14 calendar days, complete days only (`03` §8.3) | 200 | 401 |
 | GET | `/api/expenditure-estimates` | M | Weekly estimates, newest `weekStart` first, paged (S21) | 200 | 401 |
@@ -662,15 +911,31 @@ confirm endpoints return 409 `day_locked` (`docs/09` F11). A `PATCH /api/goal-ph
 ```json
 GET /api/weigh-ins?from=2026-11-01&to=2026-11-05  →  200
 { "weighIns": [
-    { "id": "0192h101-…", "measuredAt": "2026-11-04T22:41:00.000Z", "weightKg": 71.6, "bodyFatPct": null, "leanMassKg": null, "source": "apple_health" } ],
+    { "id": "0192h101-…", "measuredAt": "2026-11-04T22:41:00.000Z", "weightKg": 71.6, "bodyFatPct": null, "source": "apple_health" } ],
   "days": [
-    { "date": "2026-11-05", "weightKg": 71.6, "morning": true, "trendKg": 71.84 },
-    { "date": "2026-11-03", "weightKg": 72.2, "morning": false, "trendKg": 71.90 } ],
-  "trendAvailable": true }
+    { "date": "2026-11-05", "weighInId": "0192h101-…", "weightKg": 71.6, "morning": true, "trendKg": 71.84 },
+    { "date": "2026-11-03", "weighInId": "0192h0f7-…", "weightKg": 72.2, "morning": false, "trendKg": 71.90 } ],
+  "trendAvailable": true,
+  "weekChangeKg": -0.29 }
 ```
 
-`days` holds only weighed days, newest first. `trendAvailable` is false with fewer than 3 weighed
-days, and every `trendKg` is then `null` (PRD empty state).
+*As built in M2 slice 1* (`06`, 2026-10-16):
+
+- `from` and `to` are optional local dates, both included: `from` defaults to the first weigh-in
+  and `to` to today, in the profile's time zone. A malformed date, or `from` after `to`, is 400.
+  Without a profile it is 422 `setup_incomplete` with `missing: ["profile"]`. The read is not paged:
+  a range bounds it, and the export's `weighIns` section pages them all.
+- `weighIns` is every reading in the range, newest first. `days` holds only weighed days, newest
+  first; each names the reading that stands for it (`weighInId`), so the day's other readings are
+  stored but not in the trend. The trend is computed over every day up to `to`, from the first
+  reading ever, so a short range starts from where the weight was.
+- `trendAvailable` is false with fewer than 3 weighed days up to `to`, and every `trendKg` is then
+  `null` (PRD empty state). `weekChangeKg` is the latest trend less the trend at the latest weighed
+  day on or before a week before today, to the hundredth; null without a trend or such a day, or
+  when the latest weighed day is itself on or before that week boundary.
+- A typed weight is 20 to 300 kg to the hundredth, body fat 1 to 75% to the tenth. A repeat of the
+  same create returns the stored row (200); the same id with other content, or another user's id,
+  is 409 `id_conflict`.
 
 ```json
 GET /api/maintenance-check  →  200
@@ -776,10 +1041,10 @@ payload sizes.
 
 ## Unverified, to check when built
 
-- How `@hono/zod-openapi` describes a `multipart/form-data` body with a file part, for
-  `label-reads` and `meal-estimates`. `06` names this as its revisit condition.
-- Whether iOS Safari's camera capture hands the page HEIC, and whether the client-side resize
-  converts it. The API accepts HEIC as a fallback either way.
+- ~~How `@hono/zod-openapi` describes a `multipart/form-data` body with a file part.~~ Settled
+  2026-10-17: `z.instanceof(File)` under `multipart/form-data`, a binary string in the OpenAPI.
+- Whether iOS Safari's camera capture hands the page HEIC that the canvas resize can decode. The
+  resize re-encodes as JPEG, and the API no longer takes HEIC (§1.5). Check on the phone.
 - Which OpenAPI breaking-change checker to run in CI. Picked in `docs/11`.
 - That an `APIError` thrown in `beforeDelete` carries our own `code` (`admin_account`) to the
   client. Better Auth's source builds errors as `APIError.from(status, { message, code })`, so it

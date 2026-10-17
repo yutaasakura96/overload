@@ -224,11 +224,11 @@ The endpoint list is `docs/07`.
   session or names another account takes it away. While that check is away the account is not
   confirmed, so nothing is fetched, uploaded or saved under it; the screen shows what it already
   held. *Changed 2026-10-03 (`06`).*
-- **Known limit: a set-store write still queued when the account changes.** A Start, a completed
-  set or an ending waiting behind another write runs against whichever account's records are loaded
-  when its turn comes. If another account is confirmed in the same tab mid-save, that write can
-  land among the second account's records. Accepted for slice 3; binding each write to the account
-  that started it is issue #32. *Added 2026-10-05.*
+- **Queued workout writes stay with the account that started them.** Start, a completed set, Finish
+  and the three-hour ending read and write that account's set-store records even if another account
+  is confirmed while they wait. Their results are shown only if that account is still open. A sync
+  answer likewise updates the records of the account whose rows were sent; it cannot publish into
+  the next account's screen or upload batch.
 - **Back online**, a 401 from any request means the session has ended, whether it expired, was
   signed out elsewhere, or was revoked. The client cannot tell which from the 401, and it does not
   try:
@@ -246,15 +246,20 @@ The endpoint list is `docs/07`.
 
 ## 6. Account deletion (S10)
 
-- `user.deleteUser.enabled: true`. Deleting a Better Auth `user` row cascades through every table of
-  ours (`04`).
+- `user.deleteUser.enabled: true`. Deleting a Better Auth `user` row cascades through the user's
+  data tables (`04`); the access and bookkeeping exceptions are in `07` §2.
 - **Fresh session required.** Better Auth guards deletion with a session younger than `freshAge`
   (1 day). For a Google-only account that is the confirmation: if the session is older, the app
   asks the user to sign in with Google again, then offers deletion.
-- **Confirmation:** the screen names what will go (workouts, sets, food list, plans, weigh-ins,
-  health data), says what outlasts it (access records for a year, backups for up to 30 days), and
-  offers an export first. The user types `DELETE` to confirm.
-- **`beforeDelete`** removes the user's `invite` row. "Removes their access" in S10 means the email
+- **Confirmation:** the screen names the data currently in the app that will go (`10` §8.5), says
+  what outlasts it (access records for a year, backups for up to 30 days), and offers an export
+  first. The user types `DELETE` to confirm.
+- Immediately before deletion, the client reads the session without the cookie cache and checks
+  that its user id is the one shown on the screen. A missing or different session stops deletion;
+  the user reloads the page. Pending device rows are checked for that confirmed user id.
+- **`beforeDelete`** removes the user's `invite` row. *As built* (`06`, 2026-10-15) it deletes the
+  whole account itself, in one transaction with the `account_deleted` audit row, and Better Auth's
+  own delete after it finds nothing left. "Removes their access" in S10 means the email
   is no longer invited, and keeping the address after the account is gone would keep personal data
   that the user asked to remove. To come back, they need a new invite.
 - **The admin cannot delete their own account** while the `ADMIN_EMAIL` env var names them. The API
@@ -289,6 +294,9 @@ The endpoint list is `docs/07`.
 - If the set store cannot be cleared after the server ends the session, sign-out reaches `/sign-in`
   with the same warning, "Saved data couldn't be cleared from this device." The rows stay under
   their user's id and show only to that account. *Added 2026-10-03.*
+- If the set store cannot take the server's answer during **Upload now** or **Try again** below,
+  the session stays and Sign out answers "Couldn't sign out. Try again." Nothing is discarded: the
+  rows stay pending and the next upload sends them again. *Added 2026-10-07.*
 - **With a workout in progress**, whatever is waiting: "A workout is in progress. Finish it first."
   The session stays, and neither action below is offered. The device cannot yet bring an open
   workout back from the server, so signing out would leave it open there for good (`06`,
@@ -298,8 +306,10 @@ The endpoint list is `docs/07`.
   reach the server before you sign out.", with **Try again**, which uploads and then signs out.
   Neither action below is offered: discarding here would leave the workout open on the server.
   An answer of `unchanged` whose row is still open is not an acknowledgment: the server kept its
-  own, newer copy (the phone's clock went back), so the ending or removal stays pending.
-  *Added 2026-10-04.*
+  own, newer copy (an edit made elsewhere; the phone stamps its own edits after the version they
+  replace, `06`, 2026-10-08), so the ending stays pending. A removal the server answers with its
+  surviving newer row puts the workout back in progress, and the case above applies.
+  *Added 2026-10-04; changed 2026-10-09.*
 - **With pending or refused sets** of workouts the server has fully acknowledged: first a dialog,
   "*N* sets not uploaded yet", with two actions:
   - **Upload now**, when online. Sign-out continues only when nothing pending is left. Refused sets
@@ -322,12 +332,20 @@ The endpoint list is `docs/07`.
 When the admin revokes an invite:
 1. `invite.revoked_at` is set. The row stays.
 2. Every `session` row for that user is deleted, so every device and a future native app is signed
-   out on its next request.
+   out on its next request. The shared member and admin request guard also checks the session
+   user's lowercased email against `invite.revoked_at`; a session created after the delete still
+   gets 401, whether sent as a cookie or a bearer token.
 3. Every `ingest_token` of theirs gets `revoked_at`, so Health Auto Export starts receiving 401.
+   *From M3, which creates the table:* slice 6 built steps 1, 2 and 4, and M3 adds this step to
+   the same transaction (`06`, 2026-10-15).
 4. **Their data stays.** Restoring the invite (clearing `revoked_at`) brings back sign-in and every
-   row. **Ingest tokens stay revoked:** the member creates a new one on the health setup screen and
-   pastes it into Health Auto Export. A token sat in an app that had lost access, and it was shown
-   once, so un-revoking it would revive a secret nobody can see again. *Changed 2026-09-22* from
+   row. Before clearing `revoked_at`, restore deletes any session created after revoke, so only a
+   fresh sign-in can regain access. A sign-in that passed the invite check before the revoke and
+   completes after the restore is accepted, since that member's access is restored (`06`,
+   2026-10-15). **Ingest tokens stay revoked:** the member creates a new one on
+   the health setup screen and pastes it into Health Auto Export. A token sat in an app that had lost
+   access, and it was shown once, so un-revoking it would revive a secret nobody can see again.
+   *Changed 2026-09-22* from
    "restores everything".
 
 A revoked member cannot reach export or delete. If they ask for their data, the admin re-invites

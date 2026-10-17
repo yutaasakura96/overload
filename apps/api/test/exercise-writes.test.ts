@@ -13,6 +13,9 @@ type Item = {
   id: string;
   name: string;
   equipment: string;
+  muscleGroup: string | null;
+  secondaryMuscleGroups: string[];
+  aliases: string[];
   custom: boolean;
   hidden: boolean;
   incrementKg: number;
@@ -71,6 +74,7 @@ describe('POST /api/exercises', () => {
       id,
       name: '  Cable Y-Raise ',
       equipment: 'cable',
+      muscleGroup: 'shoulders',
       incrementKg: 1.25,
       restSeconds: 90,
       repLow: 12,
@@ -82,6 +86,9 @@ describe('POST /api/exercises', () => {
       id,
       name: 'Cable Y-Raise',
       equipment: 'cable',
+      muscleGroup: 'shoulders',
+      secondaryMuscleGroups: [],
+      aliases: [],
       custom: true,
       hidden: false,
       incrementKg: 1.25,
@@ -102,7 +109,13 @@ describe('POST /api/exercises', () => {
       equipment: 'dumbbell',
     });
 
-    expect(created).toMatchObject({ incrementKg: 1, restSeconds: 120, repLow: 6, repHigh: 10 });
+    expect(created).toMatchObject({
+      muscleGroup: null,
+      incrementKg: 1,
+      restSeconds: 120,
+      repLow: 6,
+      repHigh: 10,
+    });
   });
 
   it('answers a repeat of the same create with 200 and the stored row, and stores it once', async () => {
@@ -239,7 +252,7 @@ describe('Hono’s csrf() on the first write route (docs/08 §2)', () => {
     expect(res.status).toBe(403);
     expect(res.headers.get('content-type')).toBe('application/problem+json');
     expect(await res.json()).toMatchObject({ code: 'cross_origin' });
-    expect(await list(cookie, '')).toHaveLength(50);
+    expect(await list(cookie, '')).toHaveLength(185);
   });
 
   it('lets the same request through from the web origin, where the body is then validated', async () => {
@@ -253,7 +266,7 @@ describe('Hono’s csrf() on the first write route (docs/08 §2)', () => {
 
     // Past csrf(), the JSON body validator refuses anything that is not application/json.
     expect(res.status).not.toBe(403);
-    expect(await list(cookie, '')).toHaveLength(50);
+    expect(await list(cookie, '')).toHaveLength(185);
   });
 });
 
@@ -275,6 +288,70 @@ describe('PATCH /api/exercises/{id}', () => {
       restSeconds: 60,
       incrementKg: created.incrementKg,
     });
+  });
+
+  it('files a custom exercise under a muscle group, keeps it when left out, and clears it on null', async () => {
+    const { cookie } = await t.createSignedInUser('filer@example.test');
+    const created = await createCustom(cookie);
+    const patch = async (body: unknown) => {
+      const res = await send(cookie, 'PATCH', `/api/exercises/${created.id}`, body);
+      const item: Item = await res.json();
+      return item.muscleGroup;
+    };
+
+    expect(await patch({ muscleGroup: 'shoulders' })).toBe('shoulders');
+    expect(await patch({ restSeconds: 60 })).toBe('shoulders');
+    expect(await patch({ muscleGroup: null })).toBeNull();
+
+    const refused = await send(cookie, 'PATCH', `/api/exercises/${created.id}`, {
+      muscleGroup: 'neck',
+    });
+    expect(refused.status).toBe(422);
+  });
+
+  it('stores secondary muscle groups each once, in order, and never the group it is filed under', async () => {
+    const { cookie } = await t.createSignedInUser('filer@example.test');
+    const created = await createCustom(cookie, {
+      muscleGroup: 'chest',
+      secondaryMuscleGroups: ['triceps', 'chest', 'shoulders', 'triceps'],
+    });
+    expect(created.secondaryMuscleGroups).toEqual(['shoulders', 'triceps']);
+    const patch = async (body: unknown) => {
+      const res = await send(cookie, 'PATCH', `/api/exercises/${created.id}`, body);
+      expect(res.status).toBe(200);
+      const item: Item = await res.json();
+      return item.secondaryMuscleGroups;
+    };
+
+    // Left out, they stay. Filed under one of them, it drops out.
+    expect(await patch({ restSeconds: 60 })).toEqual(['shoulders', 'triceps']);
+    expect(await patch({ muscleGroup: 'triceps' })).toEqual(['shoulders']);
+    expect(await patch({ secondaryMuscleGroups: ['core', 'back'] })).toEqual(['back', 'core']);
+    expect(await patch({ secondaryMuscleGroups: [] })).toEqual([]);
+
+    const refused = await send(cookie, 'PATCH', `/api/exercises/${created.id}`, {
+      secondaryMuscleGroups: ['neck'],
+    });
+    expect(refused.status).toBe(422);
+  });
+
+  it('answers a repeated create with secondary groups in another order as the same create', async () => {
+    const { cookie } = await t.createSignedInUser('filer@example.test');
+    const id = randomUUID();
+    const body = (secondaryMuscleGroups: string[]) => ({
+      id,
+      name: 'Landmine Press',
+      equipment: 'barbell',
+      muscleGroup: 'shoulders',
+      secondaryMuscleGroups,
+    });
+    expect((await send(cookie, 'POST', '/api/exercises', body(['triceps', 'chest']))).status).toBe(
+      201,
+    );
+    expect((await send(cookie, 'POST', '/api/exercises', body(['chest', 'triceps']))).status).toBe(
+      200,
+    );
+    expect((await send(cookie, 'POST', '/api/exercises', body(['chest']))).status).toBe(409);
   });
 
   it('answers 404 for a seeded exercise, which nobody may edit', async () => {
@@ -363,7 +440,7 @@ describe('DELETE /api/exercises/{id}', () => {
     const bench = await seeded(cookie, 'Barbell Bench Press');
 
     expect((await send(cookie, 'DELETE', `/api/exercises/${bench.id}`)).status).toBe(204);
-    expect(await list(cookie, '')).toHaveLength(50);
+    expect(await list(cookie, '')).toHaveLength(185);
   });
 });
 
