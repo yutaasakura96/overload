@@ -3891,8 +3891,10 @@ Checked on invented weigh-ins.
   the counted load for display. These are computed at read time from the stored sets and
   weigh-ins: nothing is written back, so a weigh-in typed or deleted later moves the figures, and
   the screens ask again after one. An open workout keeps its logged Last time sets and suggestion;
-  its displayed count follows weighed days fetched after that workout started. Older cached days
-  cannot replace the API's count copied at start.
+  its displayed count follows a Last time answer fetched after that workout started, asked with
+  `?exclude=` its own id so its synced sets are never its last time (`07` §3). An answer from
+  before the start cannot replace the count copied then. Offline, a weigh-in newer than the
+  cached answer does not move it: left as a follow-up.
 - **Which weigh-in is shown.** Every chart point, and the Strength lift, carries `bodyweight`:
   `basis` of `same_day`, `earlier_day`, `later_day` or `none`, with the weight and its local date
   when there is one. The chart's headline and each past-sets row say `Counted at 82 kg · your
@@ -3908,4 +3910,4 @@ Checked on invented weigh-ins.
   *Rejected:* the trend weight, which lags the scale by design and would score a pull-up at a
   weight the lifter did not weigh that day.
 
-**Changed:** `00`, `06`, `07` §3, `10` §2, §9.
+**Changed:** `00`, `04`, `06`, `07` §3, `10` §1, §2, §9.
