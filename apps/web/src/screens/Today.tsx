@@ -325,7 +325,8 @@ export function Today({ me, navigate }: { me: Me; navigate: Navigate }) {
         </section>
       )}
 
-      {loaded && open !== undefined && (
+      {/* On a training day the open workout is the timeline's workout entry instead (docs/10 §3). */}
+      {loaded && open !== undefined && !inTimeline && (
         <section className="today__section" aria-labelledby="in-progress">
           <h2 id="in-progress" className="section-label">
             In progress

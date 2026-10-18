@@ -68,6 +68,7 @@ export function GoalPhaseScreen({ me, navigate }: { me: Me; navigate: Navigate }
     <main>
       <AppBar
         title="Goal phase"
+        sticky
         subline={open === undefined ? 'STEP 3 OF 4' : phaseLine(open, today).toUpperCase()}
         slot={<DataState at={phases.dataUpdatedAt} />}
         back={{ label: 'Back', onClick: back }}
@@ -312,7 +313,7 @@ function PhaseForm({
               value={fields.rate}
               onChange={(next) => setField('rate', next)}
               decimal
-              unit="%"
+              unit="% bodyweight"
               placeholder={String(
                 sameType
                   ? (open?.targetRatePctPerWeek ?? d.targetRatePctPerWeek.value)
@@ -338,7 +339,7 @@ function PhaseForm({
           value={fields.protein}
           onChange={(next) => setField('protein', next)}
           decimal
-          unit="g/kg"
+          unit="g per kg"
           placeholder={String(
             sameType ? (open?.proteinGPerKg ?? d.proteinGPerKg.value) : d.proteinGPerKg.value,
           )}
@@ -359,7 +360,7 @@ function PhaseForm({
           value={fields.fat}
           onChange={(next) => setField('fat', next)}
           decimal
-          unit="%"
+          unit="% of calories"
           placeholder={String(
             sameType ? (open?.fatPctCalories ?? d.fatPctCalories.value) : d.fatPctCalories.value,
           )}
@@ -378,7 +379,7 @@ function PhaseForm({
           note={provisional ? 'Provisional' : basis === 'measured' ? 'Measured' : 'Yours'}
           value={fields.kcal}
           onChange={(next) => setField('kcal', next)}
-          unit="kcal"
+          unit="kcal a day"
           placeholder={String(
             sameType ? (open?.calorieTargetKcal ?? d.calories.value) : d.calories.value,
           )}

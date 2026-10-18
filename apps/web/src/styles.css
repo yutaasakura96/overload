@@ -3745,7 +3745,7 @@ html:has(.m2-stick) {
   width: 9px;
   height: 9px;
   margin: 0 2px;
-  border: 1px solid var(--text-quaternary);
+  border: 1px solid var(--line-control);
   border-radius: 50%;
 }
 

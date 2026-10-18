@@ -81,7 +81,7 @@ export function DayTotals({ day }: { day: PlanDay }) {
             <span className="totals__of"> of {whole(targets.energyKcal)} kcal planned</span>
           </div>
           <span className={flagged ? 'totals__off totals__off--flag' : 'totals__off'}>
-            {flagged && <InfoIcon size={11} color="var(--flag)" />}
+            {flagged && <InfoIcon size={12} color="var(--flag)" />}
             {sign}
             {Math.abs(offShown).toFixed(1)}%
             <span className="visually-hidden">

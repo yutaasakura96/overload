@@ -371,10 +371,11 @@ the meal and still lets the day be complete.
     failing says `No plan yet`: `Couldn’t make today’s plan. Try again when you have signal.`
   - Meal cards are not buttons, and there are no actions, until confirming arrives (`#80`). The meal
     due is open: the first no more than an hour past its time.
-  - The totals stick at the top of the scroll, since Today's app bar does not stick. `Fiber` shows
+  - The totals stick at the top of the scroll, below the status bar, since Today's app bar does not
+    stick; what takes focus comes to rest below them. The setup screens' app bars stick (§7.3). `Fiber` shows
     its total with `no target`.
   - The workout entry is the day's routine, the one done longest ago, with `Start`; once started it
-    reads `In progress` with `Resume`, once finished `Done`, and with no routine `No routine yet`
+    reads `In progress` with `Resume` (and the `In progress` section above the day is left out), once finished `Done`, and with no routine `No routine yet`
     with `Create`. The start list leaves the day's routine out.
   - Shortfalls: `PROTEIN 22 G SHORT` as drawn, and an energy gap as `CALORIES 140 SHORT` with the
     capped-portion sentence, or one that the foods cannot fill the day, with `Add a food`.
@@ -1066,7 +1067,9 @@ changed count adds `Yours: 4 meals. The recommendation was 5.` in `flag`. `Use t
 - About you's weight is the latest weigh-in, noted `From your weigh-in of …`; a changed weight is
   saved as a new weigh-in. Saving makes the week's plan again and returns to Today.
 - Goal phase's fields start from the open phase of the same type, or the defaults, noted `Default`,
-  `Yours`, `Provisional` or `Measured`. Fat's default is **25 %** (`06`), not the drawn 27. The
+  `Yours`, `Provisional` or `Measured`. For a new phase the defaults are the fields' placeholders,
+  not filled values, so the calories keep following the rate until one is typed. The units read
+  `% bodyweight`, `g per kg`, `% of calories` and `kcal a day`, as drawn. Fat's default is **25 %** (`06`), not the drawn 27. The
   `PROVISIONAL` box names Mifflin–St Jeor with its resting energy, activity level and the deficit
   or surplus. Changing the type while a phase is open says `A cut is open` and `Saving ends the cut
   yesterday and starts a bulk from today.` (a phase begun today ends on its own start day).
