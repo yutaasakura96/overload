@@ -3893,8 +3893,8 @@ Checked on invented weigh-ins.
   the screens ask again after one. An open workout keeps its logged Last time sets and suggestion;
   its displayed count follows a Last time answer fetched after that workout started, asked with
   `?exclude=` its own id so its synced sets are never its last time (`07` §3). An answer from
-  before the start cannot replace the count copied then. Offline, a weigh-in newer than the
-  cached answer does not move it: left as a follow-up, built on 2026-10-18 (below).
+  before the start cannot replace the count copied then. Offline freshness changed on 2026-10-18
+  (below).
 - **Which weigh-in is shown.** Every chart point, and the Strength lift, carries `bodyweight`:
   `basis` of `same_day`, `earlier_day`, `later_day` or `none`, with the weight and its local date
   when there is one. The chart's headline and each past-sets row say `Counted at 82 kg · your
