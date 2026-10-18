@@ -317,6 +317,8 @@ function exerciseRecord(input: {
   position: number;
   slot?: Routine['exercises'][number];
   lastTimes: Map<string, LastTime> | undefined;
+  /** When `lastTimes` arrived, in ms. */
+  lastTimesAt: number | undefined;
   now: string;
 }): WorkoutExerciseRecord {
   const { exercise, slot } = input;
@@ -353,6 +355,7 @@ function exerciseRecord(input: {
         rir: set.rir,
       })),
       lastTimeBodyweight: last?.bodyweight ?? null,
+      lastTimeAt: input.lastTimes === undefined ? undefined : input.lastTimesAt,
       lastTimeOn: last?.performedOn ?? null,
       lastTimeKnown: input.lastTimes !== undefined,
       suggestion: last?.suggestion ?? null,
@@ -370,6 +373,8 @@ export async function startWorkout(input: {
   routine: Routine;
   exercises: Map<string, Exercise>;
   lastTimes?: Map<string, LastTime>;
+  /** When `lastTimes` arrived, in ms. */
+  lastTimesAt?: number;
   /** The profile's time zone, which the workout keeps. */
   timeZone: string;
 }): Promise<void> {
@@ -383,7 +388,17 @@ export async function startWorkout(input: {
   const exercises = input.routine.exercises.flatMap((slot, position) => {
     const exercise = input.exercises.get(slot.exerciseId);
     if (exercise === undefined) return [];
-    return [exerciseRecord({ workout, exercise, position, slot, lastTimes: input.lastTimes, now })];
+    return [
+      exerciseRecord({
+        workout,
+        exercise,
+        position,
+        slot,
+        lastTimes: input.lastTimes,
+        lastTimesAt: input.lastTimesAt,
+        now,
+      }),
+    ];
   });
   if (!(await mutate((records) => startIfNone(records, [workout, ...exercises]), input.userId)))
     return;
@@ -427,6 +442,8 @@ export async function addExercises(input: {
   workoutId: string;
   exercises: Exercise[];
   lastTimes?: Map<string, LastTime>;
+  /** When `lastTimes` arrived, in ms. */
+  lastTimesAt?: number;
 }): Promise<boolean> {
   const now = new Date().toISOString();
   let applied = false;
@@ -443,6 +460,7 @@ export async function addExercises(input: {
           exercise,
           position: after + index,
           lastTimes: input.lastTimes,
+          lastTimesAt: input.lastTimesAt,
           now,
         }),
       ),

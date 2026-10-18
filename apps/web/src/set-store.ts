@@ -82,6 +82,11 @@ export type WorkoutExerciseRecord = RecordBase & {
     restSeconds: number;
     lastTime: LastSet[];
     lastTimeBodyweight?: BodyweightCount | null;
+    /**
+     * When the Last time answer copied here arrived, in ms: a weigh-in cached after it moves the
+     * count offline. Absent from a copy kept before it was carried.
+     */
+    lastTimeAt?: number;
     /** Last time's local date. Absent from a copy kept before it was carried. */
     lastTimeOn?: string | null;
     lastTimeKnown?: boolean;

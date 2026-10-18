@@ -1,4 +1,4 @@
-import type { Exercise, LastTime, Me, WeightUnit } from '@overload/api-contract';
+import type { Exercise, LastTime, Me, WeightDay, WeightUnit } from '@overload/api-contract';
 import { useQuery } from '@tanstack/react-query';
 import {
   Fragment,
@@ -30,6 +30,7 @@ import {
   openLastTimeQuery,
   queryClient,
   useAccount,
+  weighInsQuery,
 } from '../query';
 import { RefusedSet } from '../refused';
 import { keepAwake, playTone, unlockTone } from '../rest-alert';
@@ -155,6 +156,8 @@ export function Workout({
     ...openLastTimeQuery(workout?.id ?? '', workoutZone),
     enabled: confirmed && me.profile !== null && workout !== undefined,
   });
+  // Read from the cache only: offline, weigh-ins newer than last time's answer move its count.
+  const weighIns = useQuery({ ...weighInsQuery, enabled: false });
   const [adding, setAdding] = useState<'pick' | 'new-exercise'>();
   const [addFailed, setAddFailed] = useState(false);
   // Said to a screen reader on the way back, where focus alone would say nothing changed.
@@ -180,12 +183,19 @@ export function Workout({
   if (workout === undefined) return <AppBar title="Workout" slot={<DataState at={0} />} />;
 
   const add = async (picked: Exercise[]) => {
-    const cached = lastTimes.data ?? queryClient.getQueryData(lastTimeQuery.queryKey);
+    const cached =
+      lastTimes.data === undefined
+        ? {
+            data: queryClient.getQueryData(lastTimeQuery.queryKey),
+            at: queryClient.getQueryState(lastTimeQuery.queryKey)?.dataUpdatedAt,
+          }
+        : { data: lastTimes.data, at: lastTimes.dataUpdatedAt };
     try {
       const applied = await addExercises({
         workoutId: workout.id,
         exercises: picked,
-        lastTimes: cached && new Map(cached.map((last) => [last.exerciseId, last])),
+        lastTimes: cached.data && new Map(cached.data.map((last) => [last.exerciseId, last])),
+        lastTimesAt: cached.at,
       });
       if (!applied) throw new Error('workout was not changed');
       setAddFailed(false);
@@ -208,6 +218,9 @@ export function Workout({
           records={records}
           lastTimes={
             lastTimes.data && { exercises: lastTimes.data, updatedAt: lastTimes.dataUpdatedAt }
+          }
+          weighIns={
+            weighIns.data && { days: weighIns.data.days, updatedAt: weighIns.dataUpdatedAt }
           }
           unit={me.profile?.weightUnit ?? 'kg'}
           timeZone={workoutZone}
@@ -279,6 +292,7 @@ function LiveWorkout({
   workout,
   records,
   lastTimes,
+  weighIns,
   unit,
   timeZone,
   guideOpen,
@@ -292,6 +306,7 @@ function LiveWorkout({
   workout: WorkoutRecord;
   records: StoreRecord[];
   lastTimes: { exercises: LastTime[]; updatedAt: number } | undefined;
+  weighIns: { days: WeightDay[]; updatedAt: number } | undefined;
   unit: WeightUnit;
   timeZone: string;
   guideOpen: boolean;
@@ -307,7 +322,7 @@ function LiveWorkout({
   onFinish: (result: Promise<boolean | undefined>) => void;
 }) {
   const exercises = exercisesOf(records, workout.id).map((exercise) =>
-    recountedLastTime(exercise, lastTimes, workout.row.startedAt),
+    recountedLastTime(exercise, lastTimes, weighIns, workout.row.startedAt),
   );
   // Turned on by hand each workout and not remembered (docs/06, 2026-10-12): it lives here, in a
   // component keyed by the workout.

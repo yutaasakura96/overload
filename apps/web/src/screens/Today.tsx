@@ -151,6 +151,7 @@ export function Today({ me, navigate }: { me: Me; navigate: Navigate }) {
         routine,
         exercises: new Map(exercises.data.map((exercise) => [exercise.id, exercise])),
         lastTimes: lastTimes && new Map(lastTimes.map((last) => [last.exerciseId, last])),
+        lastTimesAt: queryClient.getQueryState(lastTimeQuery.queryKey)?.dataUpdatedAt,
         timeZone,
       });
       navigate('/workout');
