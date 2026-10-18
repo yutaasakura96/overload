@@ -165,9 +165,9 @@ function AboutForm({
             }),
           ),
         );
+        void refreshWeighIns();
       }
       try {
-        await refreshWeighIns();
         await regeneratePlan();
         onSaved();
       } catch {

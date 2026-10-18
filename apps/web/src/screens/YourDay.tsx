@@ -1,6 +1,6 @@
 import type { DayRoutine, DayType, Me, MealRecommendation } from '@overload/api-contract';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { useId, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { api, ApiError } from '../api';
 import { AppBar, DataState, FieldLabel, Notice } from '../components';
 import { EVIDENCE, EvidenceTag } from '../evidence';
@@ -137,6 +137,7 @@ function DayForm({
   const [savedNow, setSavedNow] = useState<DayType>();
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<SaveProblem>();
+  const followPending = useRef(false);
   const day = days[dayType];
   const training = dayType === 'training';
   const setDay = (patch: Partial<Day>) => {
@@ -165,7 +166,8 @@ function DayForm({
     if (r === undefined) return;
     setBusy(true);
     setProblem(undefined);
-    let stored: string | undefined;
+    const stored: string[] = [];
+    let phaseError: unknown;
     try {
       const profileWeekdays = me.profile?.trainingWeekdays ?? [];
       const sorted = weekdays.toSorted((a, b) => a - b);
@@ -175,13 +177,16 @@ function DayForm({
             api.PATCH('/api/me/profile', { body: { trainingWeekdays: sorted } }),
           ),
         );
-        stored = 'Training days saved.';
+        stored.push('Training days');
+        followPending.current = true;
       }
-      if (await followTrainingDays()) {
-        stored =
-          stored === undefined
-            ? 'The goal phase’s calories saved.'
-            : 'Training days and the goal phase’s calories saved.';
+      if (followPending.current) {
+        try {
+          if (await followTrainingDays()) stored.push('the goal phase’s calories');
+          followPending.current = false;
+        } catch (error) {
+          phaseError = error;
+        }
       }
       await confirmedAccountData(() =>
         api.PUT('/api/day-routines/{dayType}', {
@@ -196,7 +201,13 @@ function DayForm({
           },
         }),
       );
+      stored.push(training ? 'the training day' : 'the rest day');
       await queryClient.invalidateQueries({ queryKey: ['plan'] });
+      if (phaseError !== undefined) {
+        setProblem(partlySaved(saveProblem(phaseError), savedSentence(stored), 'goal phase'));
+        setBusy(false);
+        return;
+      }
       const other: DayType = training ? 'rest' : 'training';
       if (needed(sorted).includes(other) && saved(other) === undefined && savedNow !== other) {
         // The week needs the other day type too: that is the next thing to set.
@@ -215,9 +226,9 @@ function DayForm({
     } catch (error) {
       const failed = saveProblem(error);
       setProblem(
-        stored === undefined
+        stored.length === 0
           ? failed
-          : partlySaved(failed, stored, training ? 'training day' : 'rest day'),
+          : partlySaved(failed, savedSentence(stored), training ? 'training day' : 'rest day'),
       );
       setBusy(false);
     }
@@ -358,6 +369,11 @@ function DayForm({
       </div>
     </>
   );
+}
+
+function savedSentence(parts: string[]) {
+  const list = new Intl.ListFormat('en-GB', { type: 'conjunction' }).format(parts);
+  return `${list.charAt(0).toUpperCase()}${list.slice(1)} saved.`;
 }
 
 /**

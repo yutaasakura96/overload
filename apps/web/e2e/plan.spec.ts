@@ -346,3 +346,76 @@ test('Today reports a failed plan generation', async ({ page }) => {
   ).json();
   expect(saved.profile.trainingWeekdays).not.toContain(1);
 });
+
+test('a Your day save that keeps the training days leaves the phase’s calories', async ({
+  page,
+}) => {
+  const headers = { Origin: WEB_ORIGIN };
+  expect(
+    (
+      await page.request.patch('/api/me/profile', {
+        headers,
+        data: {
+          heightCm: 176,
+          sex: 'male',
+          birthDate: '1994-05-01',
+          trainingWeekdays: [1, 2, 3, 4, 5, 6, 7],
+        },
+      })
+    ).ok(),
+  ).toBe(true);
+  const weighIn = (weightKg: number) =>
+    page.request.post('/api/weigh-ins', {
+      headers,
+      data: { id: randomUUID(), measuredAt: new Date().toISOString(), weightKg },
+    });
+  expect((await weighIn(82.5)).ok()).toBe(true);
+  expect(
+    (
+      await page.request.post('/api/goal-phases', {
+        headers,
+        data: {
+          id: randomUUID(),
+          type: 'cut',
+          startedOn: todayInZone().date,
+          targetRatePctPerWeek: 0.5,
+          proteinGPerKg: 2.2,
+          fatPctCalories: 25,
+          calorieTargetKcal: 2350,
+          calorieBasis: 'provisional_formula',
+        },
+      })
+    ).ok(),
+  ).toBe(true);
+  expect(
+    (
+      await page.request.put('/api/day-routines/training', {
+        headers,
+        data: {
+          wakeTime: '06:30',
+          workStart: null,
+          workEnd: null,
+          trainingTime: '18:30',
+          bedTime: '23:00',
+          slots: [
+            { time: '07:00', label: 'Breakfast' },
+            { time: '12:00', label: 'Lunch' },
+            { time: '16:30', label: 'Before training' },
+            { time: '19:45', label: 'After training' },
+          ],
+        },
+      })
+    ).ok(),
+  ).toBe(true);
+  // A new weigh-in moves the formula's figure; only a change of training days follows it.
+  expect((await weighIn(95)).ok()).toBe(true);
+
+  await page.goto('/plan/day');
+  await page.getByLabel('Wake').fill('07:00');
+  await page.getByRole('button', { name: 'Use these meals' }).click();
+  await expect(page.getByText('Saved. The week’s plan is made again from it.')).toBeVisible();
+  const phases: { items: { endedOn: string | null; calorieTargetKcal: number }[] } = await (
+    await page.request.get('/api/goal-phases')
+  ).json();
+  expect(phases.items.find((phase) => phase.endedOn === null)?.calorieTargetKcal).toBe(2350);
+});
