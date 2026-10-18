@@ -3894,7 +3894,7 @@ Checked on invented weigh-ins.
   its displayed count follows a Last time answer fetched after that workout started, asked with
   `?exclude=` its own id so its synced sets are never its last time (`07` §3). An answer from
   before the start cannot replace the count copied then. Offline, a weigh-in newer than the
-  cached answer does not move it: left as a follow-up.
+  cached answer does not move it: left as a follow-up, built on 2026-10-18 (below).
 - **Which weigh-in is shown.** Every chart point, and the Strength lift, carries `bodyweight`:
   `basis` of `same_day`, `earlier_day`, `later_day` or `none`, with the weight and its local date
   when there is one. The chart's headline and each past-sets row say `Counted at 82 kg · your
@@ -3982,3 +3982,23 @@ invented foods; the label read is tested against a stubbed model until the Anthr
   `MuscleGroup` have the same shape already and are left as they are.
 
 **Changed:** `00`, `04`, `06`, `07` §1.3, §1.5, §2, §4, `10` §5, §8.6, `11` §2, `13` §3, §9.
+
+### 2026-10-18 — Offline, a weigh-in newer than Last time's answer moves its bodyweight count
+
+Follow-up to `#69`. A lifter could cache an 85 kg weigh-in while the device's Last time answer still
+counted 82 kg, go offline and start a workout: the copy kept 82 kg.
+
+- **The copy carries its answer's time** (`lastTimeAt`, when the Last time answer arrived on the
+  device). An open workout's displayed count follows the newest of that answer, a Last time answer
+  fetched since, and the weigh-ins cached since. When the weigh-ins are newest, the device counts
+  them itself; the logged sets and the suggestion are not changed. A copy kept before the time was
+  carried is not recounted from weigh-ins.
+- **The rule stays the API's.** The device's copy is `apps/web/src/bodyweight-count.ts`, used only
+  for this offline case. It imports nothing, so the API's suite runs it against
+  `domain/bodyweight.ts` on the same days and dates, and a change to one fails there. *Rejected:*
+  importing the API's domain into the web app, which the contract rule forbids, and moving the rule
+  into the contract package, which holds only what is generated from the routes.
+- **The cached weigh-ins' days are in the profile's time zone**, as Last time's are unless the
+  workout was started in another; there the API's next answer corrects it.
+
+**Changed:** `06`.

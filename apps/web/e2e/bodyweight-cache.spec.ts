@@ -56,6 +56,7 @@ test('an open workout takes last time’s counts only from an answer newer than 
       exercises: [answer(90, { basis: 'same_day', weightKg: 80, weighedOn: '2026-10-10' })],
       updatedAt: Date.parse(startedAt) - 1,
     },
+    undefined,
     startedAt,
   );
   expect(older).toBe(lastTime);
@@ -66,6 +67,7 @@ test('an open workout takes last time’s counts only from an answer newer than 
       exercises: [answer(100, { basis: 'same_day', weightKg: 90, weighedOn: '2026-10-10' })],
       updatedAt: after,
     },
+    undefined,
     startedAt,
   );
   expect(weighed.local.lastTime[0]).toMatchObject({ weightKg: 10, countedWeightKg: 100 });
@@ -75,6 +77,7 @@ test('an open workout takes last time’s counts only from an answer newer than 
   const deleted = recountedLastTime(
     lastTime,
     { exercises: [answer(10, { basis: 'none' })], updatedAt: after },
+    undefined,
     startedAt,
   );
   expect(deleted.local.lastTime[0]?.countedWeightKg).toBe(10);
@@ -94,7 +97,85 @@ test('an answer about another workout leaves the open workout’s copy as it is'
       ],
       updatedAt: after,
     },
+    undefined,
     startedAt,
   );
   expect(synced).toBe(lastTime);
+});
+
+// The weigh-ins as `GET /api/weigh-ins` lists them, newest first.
+const weighed = (...days: [string, number][]) =>
+  days.map(([date, weightKg]) => ({
+    date,
+    weighInId: `weigh-in-${date}`,
+    weightKg,
+    morning: true,
+    trendKg: null,
+  }));
+// Last time was answered at 82 kg the evening before the workout, and copied at the start.
+const answeredAt = Date.parse(startedAt) - 60_000;
+const copied: WorkoutExerciseRecord = {
+  ...lastTime,
+  local: { ...lastTime.local, lastTimeAt: answeredAt },
+};
+
+test('offline, a weigh-in cached after last time’s answer moves the open workout’s count', () => {
+  // 85 kg typed for last time's day after the answer said 82, then the workout started offline.
+  const recounted = recountedLastTime(
+    copied,
+    undefined,
+    { days: weighed(['2026-10-10', 85], ['2026-10-01', 80]), updatedAt: answeredAt + 1 },
+    startedAt,
+  );
+  expect(recounted.local.lastTime[0]).toMatchObject({ weightKg: 10, countedWeightKg: 95 });
+  expect(recounted.local.lastTimeBodyweight).toEqual({
+    basis: 'same_day',
+    weightKg: 85,
+    weighedOn: '2026-10-10',
+  });
+  expect(recounted.local.suggestion?.weightKg).toBe(10);
+
+  // No weigh-in on last time's day: the latest earlier one, as the API counts it.
+  const earlier = recountedLastTime(
+    copied,
+    undefined,
+    { days: weighed(['2026-10-12', 86], ['2026-10-08', 85]), updatedAt: answeredAt + 1 },
+    startedAt,
+  );
+  expect(earlier.local.lastTime[0]?.countedWeightKg).toBe(95);
+  expect(earlier.local.lastTimeBodyweight).toMatchObject({
+    basis: 'earlier_day',
+    weighedOn: '2026-10-08',
+  });
+
+  // Every weigh-in deleted since: counted as logged.
+  const none = recountedLastTime(
+    copied,
+    undefined,
+    { days: [], updatedAt: answeredAt + 1 },
+    startedAt,
+  );
+  expect(none.local.lastTime[0]?.countedWeightKg).toBe(10);
+  expect(none.local.lastTimeBodyweight).toEqual({ basis: 'none' });
+});
+
+test('weigh-ins older than the answer leave the count the API gave', () => {
+  const stale = { days: weighed(['2026-10-10', 85]), updatedAt: answeredAt - 1 };
+  expect(recountedLastTime(copied, undefined, stale, startedAt)).toBe(copied);
+
+  // An answer fetched after the weigh-ins were cached is the newer one.
+  const answered = recountedLastTime(
+    copied,
+    {
+      exercises: [answer(98, { basis: 'same_day', weightKg: 88, weighedOn: '2026-10-10' })],
+      updatedAt: after + 1,
+    },
+    { days: weighed(['2026-10-10', 85]), updatedAt: after },
+    startedAt,
+  );
+  expect(answered.local.lastTime[0]?.countedWeightKg).toBe(98);
+
+  // A copy kept before the answer's time was carried is never recounted from weigh-ins.
+  const fresh = { days: weighed(['2026-10-10', 85]), updatedAt: after };
+  expect(recountedLastTime(lastTime, undefined, fresh, startedAt)).toBe(lastTime);
 });

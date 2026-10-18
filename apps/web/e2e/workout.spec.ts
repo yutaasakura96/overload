@@ -435,6 +435,84 @@ async function toToday(page: Page) {
   await expect(page).toHaveURL('/');
 }
 
+test('offline, a weigh-in typed after last time’s answer counts on the bodyweight lift', async ({
+  page,
+  context,
+}) => {
+  const email = `offline-weigh-in-${Date.now()}@example.test`;
+  const { userId: lifter }: { userId: string } = JSON.parse(apiFixture('user', email));
+  try {
+    await context.clearCookies();
+    const cookies: Cookies = JSON.parse(apiFixture('cookies', lifter, 'localhost'));
+    await context.addCookies(cookies);
+    await saveProfile(page, 'Kilograms');
+    const yesterday = new Date(Date.now() + 9 * 60 * 60 * 1000 - 24 * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 10);
+    const weighed = await page.request.post('/api/weigh-ins', {
+      data: {
+        id: crypto.randomUUID(),
+        measuredAt: new Date(`${yesterday}T07:00:00+09:00`).toISOString(),
+        weightKg: 82,
+      },
+    });
+    expect(weighed.status()).toBe(201);
+    const name = `Offline weigh-in ${Date.now()}`;
+    await createRoutine(page, name, ['Chin-Up']);
+    await page.getByRole('textbox', { name: 'Sets for Chin-Up' }).fill('1');
+    await page.getByRole('button', { name: 'Create routine' }).click();
+    await expect(page).toHaveURL('/routines');
+
+    await start(page, name);
+    await completeSet(page, { reps: '8' });
+    await expect(dataState(page)).toContainText('SYNCED');
+    const answered = page.waitForResponse(
+      (response) => response.url().includes('/api/training/last-time') && response.ok(),
+    );
+    await finish(page);
+    await answered;
+
+    // Last time's answer stays at 82 kg: it is not asked again before the device goes offline.
+    // No reload from here on, so the screens read the cache this answer is in.
+    await page.route('**/api/training/last-time**', (route) => route.abort());
+    await toToday(page);
+    await page
+      .getByRole('navigation', { name: 'Sections' })
+      .getByRole('link', { name: 'Progress' })
+      .click();
+    await page
+      .getByRole('navigation', { name: 'Progress' })
+      .getByRole('link', { name: 'Weight' })
+      .click();
+    await page.getByRole('button', { name: 'Type a weight' }).click();
+    await page.getByRole('textbox', { name: 'Weight' }).fill('85');
+    const listed = page.waitForResponse(
+      (response) =>
+        response.url().endsWith('/api/weigh-ins') &&
+        response.request().method() === 'GET' &&
+        response.ok(),
+    );
+    await page.getByRole('button', { name: 'Save weigh-in' }).click();
+    await expect(page).toHaveURL('/progress/weight');
+    await listed;
+
+    await context.setOffline(true);
+    await page
+      .getByRole('navigation', { name: 'Sections' })
+      .getByRole('link', { name: 'Today' })
+      .click();
+    await page.getByRole('button', { name: new RegExp(`${name}.*Start this workout`) }).click();
+    await expect(page).toHaveURL('/workout');
+    await expect(brief(page)).toContainText('85 kg × 8');
+    await expect(brief(page)).toContainText('Counted at 85 kg · that day’s weigh-in');
+    await expect(page.getByRole('region', { name: 'SET 1 OF 1' })).toContainText('LAST TIME85 × 8');
+    await expect(page.getByRole('textbox', { name: 'Weight in kilograms' })).toHaveValue('0');
+  } finally {
+    await context.setOffline(false);
+    apiFixture('delete', email);
+  }
+});
+
 test('bodyweight history describes reps without a zero-weight target', async ({ page }) => {
   const name = `Bodyweight ${Date.now()}`;
   await saveProfile(page, 'Kilograms');

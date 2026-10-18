@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { bodyweightOn, withBodyweight } from '../src/domain/bodyweight';
+// The web app's offline copy of the rule, checked against this one below.
+import * as offline from '../../web/src/bodyweight-count';
+import { bodyweightOn, countedLoad, withBodyweight } from '../src/domain/bodyweight';
 import { exerciseProgress, type LoggedWorkout } from '../src/domain/progress';
 import { strengthOverview, type LoggedLift } from '../src/domain/strength';
 import type { DailyWeight } from '../src/domain/weight';
@@ -51,6 +53,31 @@ describe('bodyweightOn', () => {
 
   it('says there was no weigh-in when the lifter has none', () => {
     expect(bodyweightOn([], '2026-09-10')).toEqual({ basis: 'none' });
+  });
+});
+
+describe('the web app’s offline copy of the rule', () => {
+  it('counts every day as bodyweightOn and countedLoad do, in either order of days', () => {
+    const dates = [
+      '2026-08-31',
+      '2026-09-01',
+      '2026-09-05',
+      '2026-09-10',
+      '2026-09-20',
+      '2026-09-21',
+    ];
+    for (const days of [[], [weighed[1]!], weighed, weighed.toReversed()]) {
+      for (const date of dates) {
+        const count = bodyweightOn(
+          days.toSorted((a, b) => a.date.localeCompare(b.date)),
+          date,
+        );
+        expect(offline.bodyweightOn(days, date)).toEqual(count);
+        for (const kg of [0, 2.5, 10.25]) {
+          expect(offline.countedLoad(kg, count)).toBe(countedLoad(kg, count));
+        }
+      }
+    }
   });
 });
 
