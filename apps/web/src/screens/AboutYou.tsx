@@ -164,8 +164,13 @@ function AboutForm({
         );
         await refreshWeighIns();
       }
-      await regeneratePlan();
-      onSaved();
+      try {
+        await regeneratePlan();
+        onSaved();
+      } catch {
+        setProblem({ kind: 'plan_failed' });
+        setBusy(false);
+      }
     } catch (error) {
       setProblem(saveProblem(error));
       setBusy(false);

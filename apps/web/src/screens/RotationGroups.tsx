@@ -36,15 +36,17 @@ export function RotationGroups({ navigate }: { navigate: Navigate }) {
   const run = async (write: () => Promise<unknown>) => {
     setBusy(true);
     setProblem(undefined);
+    let saved = false;
     try {
       await forAccount(write);
+      saved = true;
       await refreshFoods();
       setBusy(false);
       return true;
     } catch (error) {
-      setProblem(saveProblem(error));
+      setProblem(saved ? { kind: 'plan_failed' } : saveProblem(error));
       setBusy(false);
-      return false;
+      return saved;
     }
   };
   const setMembers = (group: RotationGroup, foodIds: string[]) =>

@@ -248,7 +248,11 @@ export function Today({ me, navigate }: { me: Me; navigate: Navigate }) {
       </p>
       {plan.step === undefined && plan.failed && plan.day === undefined && (
         <Notice tone="flag" word="No plan yet">
-          Couldn’t make today’s plan. Try again when you have signal.
+          Couldn’t make today’s plan.{' '}
+          <button type="button" className="inline-link" onClick={plan.retry}>
+            Try again
+          </button>{' '}
+          when you have signal.
         </Notice>
       )}
       {plan.day !== undefined && (
@@ -358,6 +362,7 @@ export function Today({ me, navigate }: { me: Me; navigate: Navigate }) {
           <Timeline
             day={plan.day}
             now={clock(new Date().toISOString(), timeZone)}
+            wakeTime={plan.wakeTime}
             workout={
               inTimeline && plan.trainingTime !== null && loaded
                 ? {
@@ -925,10 +930,9 @@ function usePlan(me: Me, confirmed: boolean) {
   const attempted = useRef<string>(undefined);
   const missing = days.data?.missing.length ?? 0;
   useEffect(() => {
-    if (missing === 0 || attempted.current === today) return;
+    if (missing === 0 || failed || attempted.current === today) return;
     attempted.current = today;
     setGenerating(true);
-    setFailed(false);
     void regeneratePlan()
       .then(() => queryClient.fetchQuery({ ...planDaysQuery(today, to), staleTime: 0 }))
       .then((read) => {
@@ -938,7 +942,7 @@ function usePlan(me: Me, confirmed: boolean) {
       })
       .catch(() => setFailed(true))
       .finally(() => setGenerating(false));
-  }, [missing, today, to]);
+  }, [missing, failed, today, to]);
 
   return {
     today,
@@ -950,11 +954,19 @@ function usePlan(me: Me, confirmed: boolean) {
     reading: ready && days.isPending,
     made,
     failed,
+    retry: () => {
+      attempted.current = undefined;
+      setFailed(false);
+    },
     phase,
     targets: targets.data,
     mealCounts:
       routines.data?.map((each) => ({ dayType: each.dayType, meals: each.mealCount })) ?? [],
     trainingTime: routines.data?.find((each) => each.dayType === 'training')?.trainingTime ?? null,
+    wakeTime:
+      routines.data?.find(
+        (each) => each.dayType === days.data?.days.find((day) => day.date === today)?.dayType,
+      )?.wakeTime ?? '00:00',
   };
 }
 

@@ -13,6 +13,10 @@ const TIME_ZONE = 'Asia/Tokyo';
 const DAY_MS = 24 * 60 * 60 * 1000;
 let userId = '';
 
+// Both tests answer the plan's generate request themselves; a service worker would send it past
+// page.route in WebKit.
+test.use({ serviceWorkers: 'block' });
+
 const per100g = (
   energyKcal: number,
   proteinG: number,
@@ -155,6 +159,18 @@ test('sets up a phase and a day, and Today shows the day’s plan', async ({ pag
   );
   expect(offTarget).toEqual([]);
 
+  await page.route('**/api/plan-days/generate', async (route) => {
+    await route.fulfill({ status: 500, body: 'Generation failed' });
+  });
+  await page.goto('/plan/phase');
+  await page.getByRole('button', { name: 'Save targets' }).click();
+  await expect(
+    page.getByText('Saved. The plan couldn’t be made again; try again when you have signal.'),
+  ).toBeVisible();
+  await expect(page.getByText('Not saved')).toHaveCount(0);
+  await page.unroute('**/api/plan-days/generate');
+  await page.goto('/');
+
   await timeline.getByRole('button', { name: 'Start Push A' }).click();
   await expect(page).toHaveURL(/\/workout/);
 });
@@ -217,7 +233,13 @@ test('Today reports a failed plan generation', async ({ page }) => {
       })
     ).ok(),
   ).toBe(true);
+  let failedOnce = false;
   await page.route('**/api/plan-days/generate', async (route) => {
+    if (failedOnce) {
+      await route.continue();
+      return;
+    }
+    failedOnce = true;
     await route.fulfill({
       status: 500,
       contentType: 'application/problem+json',
@@ -231,8 +253,53 @@ test('Today reports a failed plan generation', async ({ page }) => {
     });
   });
   await page.goto('/');
-  await expect(
-    page.getByText('Couldn’t make today’s plan. Try again when you have signal.'),
-  ).toBeVisible();
+  await expect(page.getByText('Couldn’t make today’s plan.', { exact: false })).toBeVisible();
   await expect(page.getByText('Today’s plan is ready.')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Try again' }).click();
+  await expect(page.getByRole('region', { name: 'The day’s totals' })).toContainText(
+    'kcal planned',
+  );
+
+  const today = todayInZone().date;
+  expect(
+    (
+      await page.request.put('/api/day-routines/training', {
+        headers,
+        data: {
+          wakeTime: '09:00',
+          workStart: null,
+          workEnd: null,
+          trainingTime: '23:00',
+          bedTime: '02:00',
+          slots: [
+            { time: '09:30', label: 'Breakfast' },
+            { time: '14:00', label: 'Lunch' },
+            { time: '21:00', label: 'Before training' },
+            { time: '00:15', label: 'After training' },
+          ],
+        },
+      })
+    ).ok(),
+  ).toBe(true);
+  expect(
+    (
+      await page.request.post('/api/plan-days/generate', {
+        headers,
+        data: { from: today, to: today },
+      })
+    ).ok(),
+  ).toBe(true);
+  await page.clock.setFixedTime(new Date(`${today}T14:00:00Z`));
+  await page.reload();
+  const timeline = page.getByRole('region', { name: 'The day', exact: true });
+  await expect(timeline.locator('.timeline__time').getByText('23:00')).toBeVisible();
+  await expect(timeline.locator('.timeline__time').getByText('00:15')).toBeVisible();
+  const times = await timeline.locator('.timeline__time').allTextContents();
+  expect(times.indexOf('23:00')).toBeLessThan(times.indexOf('00:15'));
+  await expect(
+    timeline
+      .locator('.timeline__entry')
+      .filter({ hasText: '00:15' })
+      .locator('.timeline__dot--active'),
+  ).toBeVisible();
 });

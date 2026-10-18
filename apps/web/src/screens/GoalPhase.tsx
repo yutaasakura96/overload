@@ -278,8 +278,13 @@ function PhaseForm({
         );
       });
       await queryClient.invalidateQueries({ queryKey: ['plan'] });
-      await regeneratePlan();
-      onSaved();
+      try {
+        await regeneratePlan();
+        onSaved();
+      } catch {
+        setProblem({ kind: 'plan_failed' });
+        setBusy(false);
+      }
     } catch (error) {
       setProblem(saveProblem(error));
       setBusy(false);
@@ -291,8 +296,9 @@ function PhaseForm({
       {segments}
       {changingType && (
         <Notice tone="flag" word={`A ${typeWord(open.type)} is open`}>
-          Saving ends the {typeWord(open.type)} yesterday and starts a {typeWord(type)} from today.
-          The {typeWord(open.type)} is kept, with what it did.
+          {open.startedOn === today
+            ? 'This phase began today. A new phase can start tomorrow.'
+            : `Saving ends the ${typeWord(open.type)} yesterday and starts a ${typeWord(type)} from today. The ${typeWord(open.type)} is kept, with what it did.`}
         </Notice>
       )}
       {problem?.kind === 'refused' && problem.fields.has('startedOn') ? (

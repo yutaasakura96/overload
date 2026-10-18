@@ -7,7 +7,13 @@ import { dayLabel } from '../dates';
 import { newId } from '../ids';
 import { goBack, type Navigate } from '../navigation';
 import { forAccount, invitesQuery, refreshInvites, useAccount } from '../query';
-import { saveProblem, SaveNotice, useFocusRefused, type SaveProblem } from '../saving';
+import {
+  saveProblem,
+  SaveNotice,
+  useFocusRefused,
+  type RequestProblem,
+  type SaveProblem,
+} from '../saving';
 import { deviceTimezone } from '../timezones';
 
 // Invite administration (S9, docs/09 F6). No artboard draws it (docs/10 §8): it is built from
@@ -148,7 +154,7 @@ function AddInvite() {
 /** One invite: its email, note and dates, and Revoke or Restore (docs/09 F6 steps 3 and 4). */
 function InviteRow({ invite, timeZone }: { invite: Invite; timeZone: string }) {
   const [busy, setBusy] = useState(false);
-  const [problem, setProblem] = useState<SaveProblem>();
+  const [problem, setProblem] = useState<RequestProblem>();
   const isRevoked = invite.revokedAt !== null;
   // After a revoke or restore the button pressed is gone; focus goes to the one that replaced it.
   const row = useRef<HTMLLIElement>(null);
@@ -223,7 +229,7 @@ function InviteRow({ invite, timeZone }: { invite: Invite; timeZone: string }) {
   );
 }
 
-function RowProblem({ problem }: { problem: SaveProblem }) {
+function RowProblem({ problem }: { problem: RequestProblem }) {
   if (problem.kind === 'unreached') {
     return (
       <Notice tone="flag" word="Not saved">

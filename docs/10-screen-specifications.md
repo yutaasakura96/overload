@@ -1072,7 +1072,8 @@ changed count adds `Yours: 4 meals. The recommendation was 5.` in `flag`. `Use t
   `% bodyweight`, `g per kg`, `% of calories` and `kcal a day`, as drawn. Fat's default is **25 %** (`06`), not the drawn 27. The
   `PROVISIONAL` box names Mifflin–St Jeor with its resting energy, activity level and the deficit
   or surplus. Changing the type while a phase is open says `A cut is open` and `Saving ends the cut
-  yesterday and starts a bulk from today.` (a phase begun today ends on its own start day).
+  yesterday and starts a bulk from today.` A phase begun today says `This phase began today. A new
+  phase can start tomorrow.`; an attempted same-day start is refused.
 - Your day starts on `Training day` unless it is saved and the rest day is not. The weekday toggles
   change the profile's training weekdays; while the phase's calories are still the formula's, they
   follow. When the week needs both day types and one is unsaved, saving the first says `Training

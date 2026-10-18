@@ -590,8 +590,9 @@ see what a previous cut actually did.
 | `created_at` / `updated_at` | timestamptz | no | `now()` | |
 
 - `UNIQUE (user_id) WHERE ended_on IS NULL` — one open phase at a time (`goal_phase_user_id_open_key`).
-  Starting a phase while one is open ends the open one the day before, or on its own start day if
-  it started today; a create without `endPrevious` answers `409 phase_already_open` (`07` §4).
+  With `endPrevious`, a new phase must start after the open phase's start date; the open phase ends
+  the day before the new start. An equal or earlier start answers `422 validation_failed`; a create
+  without `endPrevious` answers `409 phase_already_open` (`07` §4).
 - `CHECK (ended_on IS NULL OR ended_on >= started_on)`. `INDEX (user_id, started_on DESC)` for the
   list, newest first.
 - The maintenance estimate (S18a) never writes here. Applying it is a user action that writes a new

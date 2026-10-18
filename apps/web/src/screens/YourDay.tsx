@@ -198,8 +198,13 @@ function DayForm({
         setBusy(false);
         return;
       }
-      await regeneratePlan();
-      onDone();
+      try {
+        await regeneratePlan();
+        onDone();
+      } catch {
+        setProblem({ kind: 'plan_failed' });
+        setBusy(false);
+      }
     } catch (error) {
       setProblem(saveProblem(error));
       setBusy(false);

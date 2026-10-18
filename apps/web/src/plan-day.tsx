@@ -236,20 +236,31 @@ const minutes = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.sl
 export function Timeline({
   day,
   now,
+  wakeTime,
   workout,
 }: {
   day: PlanDay;
   /** The local time now, `HH:MM`. */
   now: string;
+  wakeTime: string;
   workout: { time: string; node: ReactNode } | undefined;
 }) {
-  const meals = day.meals.toSorted((a, b) => minutes(a.plannedTime) - minutes(b.plannedTime));
-  const due = meals.find((meal) => minutes(meal.plannedTime) + 60 >= minutes(now));
+  const wake = minutes(wakeTime);
+  const wakingMinute = (time: string) => {
+    const minute = minutes(time);
+    return minute < wake ? minute + 1440 : minute;
+  };
+  const meals = day.meals.toSorted(
+    (a, b) => wakingMinute(a.plannedTime) - wakingMinute(b.plannedTime),
+  );
+  const due = meals.find((meal) => wakingMinute(meal.plannedTime) + 60 >= wakingMinute(now));
   type Entry = { time: string; meal?: PlanMeal; workout?: ReactNode };
   const entries: Entry[] = [
     ...meals.map((meal): Entry => ({ time: meal.plannedTime, meal })),
     ...(workout === undefined ? [] : [{ time: workout.time, workout: workout.node }]),
-  ].toSorted((a, b) => minutes(a.time) - minutes(b.time) || (a.workout === undefined ? -1 : 1));
+  ].toSorted(
+    (a, b) => wakingMinute(a.time) - wakingMinute(b.time) || (a.workout === undefined ? -1 : 1),
+  );
 
   return (
     <ol className="timeline">

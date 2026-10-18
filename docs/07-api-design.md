@@ -802,7 +802,7 @@ A stored food is always per 100 g. The response has no `basis`.
 | Method | Path | Auth | Purpose | Success | Failures |
 | --- | --- | --- | --- | --- | --- |
 | GET | `/api/goal-phases` | M | Every phase, newest first; the open one has `endedOn: null` | 200 | 401 |
-| POST | `/api/goal-phases` | M | Open a phase. `endPrevious: true` closes the open one on the day before (on its start day if it started today), in the same transaction | 201 / 200 | 401, 409 `phase_already_open` \| `id_conflict`, 422 |
+| POST | `/api/goal-phases` | M | Open a phase. `endPrevious: true` closes the open one on the day before, in the same transaction; the new start must be after the open phase's start | 201 / 200 | 401, 409 `phase_already_open` \| `id_conflict`, 422 `validation_failed` for an equal or earlier start |
 | PATCH | `/api/goal-phases/{id}` | M | Edit targets, or apply the maintenance check by hand (`calorieTargetKcal` plus `calorieBasis: "measured"`) | 200 | 400, 401, 404, 422 |
 | GET | `/api/goal-phases/defaults?type=cut&targetRatePctPerWeek=` | M | The defaults with their sources (S14): rate, protein, fat, provisional calories. The rate is the type's default unless given | 200 | 400, 401, 422 `setup_incomplete` |
 | GET | `/api/day-routines` | M | The day types set so far, training first, with their meals | 200 | 401 |

@@ -6,7 +6,9 @@ import { queryClient } from './query';
 // What a failed save shows (docs/09 F2 and F5). Routines and exercises are not queued offline, so a
 // save that does not arrive keeps the form as it is (docs/06, offline scope).
 
-export type SaveProblem =
+export type SaveProblem = RequestProblem | { kind: 'plan_failed' };
+
+export type RequestProblem =
   | { kind: 'unreached' }
   | {
       kind: 'refused';
@@ -17,7 +19,7 @@ export type SaveProblem =
       saved?: string;
     };
 
-export function saveProblem(error: unknown): SaveProblem {
+export function saveProblem(error: unknown): RequestProblem {
   // No answer, or the service failed: nothing was refused, so trying again may work (docs/03 §7).
   if (!(error instanceof ApiError) || error.status >= 500) return { kind: 'unreached' };
   // A 401 is not a refusal: asking /api/me again sends the app to sign-in (docs/09, rule 4).
@@ -86,6 +88,13 @@ function fieldMessage(path: string, serverMessage: string): string {
 /** The notice above a form whose save failed. Refused fields are also marked where they are. */
 export function SaveNotice({ problem, what }: { problem: SaveProblem | undefined; what: string }) {
   if (problem === undefined) return null;
+  if (problem.kind === 'plan_failed') {
+    return (
+      <Notice tone="flag" word="Plan not updated">
+        Saved. The plan couldn’t be made again; try again when you have signal.
+      </Notice>
+    );
+  }
   if (problem.kind === 'unreached') {
     return (
       <Notice tone="flag" word="Not saved">
