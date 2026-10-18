@@ -3872,6 +3872,8 @@ export interface components {
       cooked: boolean;
       /** @description A cooked weight with no batch yield recorded: the values are approximate. */
       approximate: boolean;
+      /** @description A batch-cooked food with no cooked values in the food table: planned raw, by its raw values. */
+      noCookedMatch: boolean;
       /** @description The food’s values as the plan used them. */
       per100g: {
         energyKcal: number;

@@ -89,6 +89,7 @@ CREATE TABLE "plan_meal_item" (
 	"piece_count" numeric(5, 2),
 	"cooked" boolean DEFAULT false NOT NULL,
 	"approximate" boolean DEFAULT false NOT NULL,
+	"no_cooked_match" boolean DEFAULT false NOT NULL,
 	"energy_kcal_per_100g" numeric(7, 2) NOT NULL,
 	"protein_g_per_100g" numeric(6, 2) NOT NULL,
 	"carb_g_per_100g" numeric(6, 2) NOT NULL,

@@ -311,7 +311,7 @@ day stands, a meal lists its foods as rows, and every action is a word.
 
 | Entry | Drawn as |
 | --- | --- |
-| A planned meal | A button card, `line/hairline`: the meal's name 15px, `467 kcal · 29 g protein` 12px mono `text/tertiary` on the right; the foods as rows, name 12px `text/tertiary` with `cooked` (and `approx.` without a batch) in `text/quaternary`, grams 12px mono. Tapping it opens it (Q6). A meal with more carbs for training carries the evidence tag `MORE CARBS · MODERATE` on its own row under the card, so the tag is never inside the card's button |
+| A planned meal | A button card, `line/hairline`: the meal's name 15px, `467 kcal · 29 g protein` 12px mono `text/tertiary` on the right; the foods as rows, name 12px `text/tertiary` with `cooked` (and `approx.` without a batch), or `raw, no cooked match`, in `text/quaternary`, grams 12px mono. Tapping it opens it (Q6). A meal with more carbs for training carries the evidence tag `MORE CARBS · MODERATE` on its own row under the card, so the tag is never inside the card's button |
 | The next meal due | Open, as `05` §4.5's active card: name 15px, then the macro line and the tag, then the foods at 13px with grams 13px mono/500 `text/primary`, then the actions |
 | A confirmed meal | One row: name 15px `text/secondary` and, in `done` with the check, `Eaten as planned`, `Eaten, adjusted`, `Replaced` or `Skipped`. Opened, it says `Confirmed. Changing it replaces this, never adds to it.` over `Adjust` / `Replaced` / `Undo` |
 | The workout | A 9px `accent` square on the rail; a card with a 2px `accent` left edge: `WORKOUT` 10px `0.12em` `accent`, the routine's name 15px, `5 exercises · 17 sets · last done Mon 12 Oct`, and a 44px primary `Start` (Q5) |
@@ -381,6 +381,9 @@ the meal and still lets the day be complete.
     capped-portion sentence, or one that the foods cannot fill the day, with `Add a food`.
   - An `approx.` item adds a footnote under the timeline: the food table's cooked values are used
     because no batch has been weighed yet, and weighing one makes it exact.
+  - A `raw, no cooked match` item adds its own footnote: a batch-cooked food the food table has no
+    cooked values for is planned at its raw weight, and weighing a batch gives it cooked amounts
+    (`06`, 2026-10-18).
 
 ---
 

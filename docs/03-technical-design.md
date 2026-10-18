@@ -339,7 +339,8 @@ type in `domain/planning.ts`.
 Provisional calories are Mifflin–St Jeor × (1.45 + 0.05 per training day) ± the rate × bodyweight ×
 7,700 ÷ 7, to the nearest 10; protein is g/kg of the trend weight (the latest weigh-in before there
 is a trend), fat a share of calories, carbohydrate the rest. A raw batch-cooked food is planned at
-its MEXT cooked counterpart's values and marked approximate until batches (`#81`); the cook-day
+its MEXT cooked counterpart's values and marked approximate until batches (`#81`), or with no
+counterpart planned raw and marked `noCookedMatch`; the cook-day
 limit above comes with them.
 
 ### 8.3 Weight trend and expenditure (S11, S18a, S21, S23), method `weight_trend_balance_v1`

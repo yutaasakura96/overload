@@ -23,6 +23,8 @@ export type PlanItem = {
   cooked: boolean;
   /** A cooked weight with no batch yield to convert by (docs/02, Empty states). */
   approximate: boolean;
+  /** A batch-cooked food the MEXT table has no cooked values for: planned raw (S16). */
+  noCookedMatch: boolean;
   per100g: Per100g;
 };
 
@@ -141,6 +143,7 @@ async function withMeals(
             pieceCount: planMealItem.pieceCount,
             cooked: planMealItem.cooked,
             approximate: planMealItem.approximate,
+            noCookedMatch: planMealItem.noCookedMatch,
             energyKcal: planMealItem.energyKcalPer100g,
             proteinG: planMealItem.proteinGPer100g,
             carbG: planMealItem.carbGPer100g,
@@ -183,6 +186,7 @@ async function withMeals(
             pieceCount: item.pieceCount,
             cooked: item.cooked,
             approximate: item.approximate,
+            noCookedMatch: item.noCookedMatch,
             per100g: {
               energyKcal: item.energyKcal,
               proteinG: item.proteinG,
@@ -283,6 +287,7 @@ export async function replacePlanDays(
           pieceCount: item.pieceCount,
           cooked: item.cooked,
           approximate: item.approximate,
+          noCookedMatch: item.noCookedMatch,
           energyKcalPer100g: item.per100g.energyKcal,
           proteinGPer100g: item.per100g.proteinG,
           carbGPer100g: item.per100g.carbG,
@@ -304,6 +309,7 @@ export type PlanFood = {
   rotationGroupId: string | null;
   cooked: boolean;
   approximate: boolean;
+  noCookedMatch: boolean;
 };
 
 /**
@@ -324,8 +330,9 @@ export function cookedNames(raw: string): string[] {
  * The unarchived foods, as the plan weighs them (S16). A food stored cooked is planned cooked. One
  * stored raw and batch-cooked (`keeps_days` set) is planned in cooked weight; with no batch yield
  * recorded, which until batches are built (#81) is every one, by the MEXT table's cooked values for
- * the same food when it has them, else by its own raw values, and marked approximate either way
- * (docs/02, Empty states). Any other food is planned as it is weighed, raw.
+ * the same food, marked approximate (docs/02, Empty states). With no cooked counterpart it is
+ * planned raw by its own values, and says so; raw values are never presented as cooked (docs/06,
+ * 2026-10-18). Any other food is planned as it is weighed, raw.
  */
 export async function planFoods(db: Queryable, userId: string): Promise<PlanFood[]> {
   const foods = await db
@@ -394,9 +401,9 @@ export async function planFoods(db: Queryable, userId: string): Promise<PlanFood
       pieceWeightG: each.pieceWeightG,
       rotationGroupId: each.rotationGroupId,
     };
-    if (each.state === 'cooked') return { ...base, per100g: own, cooked: true, approximate: false };
-    if (each.keepsDays === null)
-      return { ...base, per100g: own, cooked: false, approximate: false };
+    const asWeighed = { per100g: own, approximate: false, noCookedMatch: false };
+    if (each.state === 'cooked') return { ...base, ...asWeighed, cooked: true };
+    if (each.keepsDays === null) return { ...base, ...asWeighed, cooked: false };
     const raw = raws.find((row) => each.source === 'mext' && row.code === each.sourceRef);
     const match =
       raw === undefined
@@ -404,17 +411,15 @@ export async function planFoods(db: Queryable, userId: string): Promise<PlanFood
         : cookedNames(raw.name)
             .map((name) => cooked.find((row) => row.name === name && row.group === raw.group))
             .find((row) => row !== undefined);
-    const per100g =
-      match === undefined
-        ? own
-        : {
-            energyKcal: match.energyKcal,
-            proteinG: match.proteinG,
-            carbG: match.carbG,
-            fatG: match.fatG,
-            fiberG: match.fiberG,
-          };
-    return { ...base, per100g, cooked: true, approximate: true };
+    if (match === undefined) return { ...base, ...asWeighed, cooked: false, noCookedMatch: true };
+    const per100g = {
+      energyKcal: match.energyKcal,
+      proteinG: match.proteinG,
+      carbG: match.carbG,
+      fatG: match.fatG,
+      fiberG: match.fiberG,
+    };
+    return { ...base, per100g, cooked: true, approximate: true, noCookedMatch: false };
   });
 }
 

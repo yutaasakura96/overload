@@ -60,9 +60,11 @@ export type PlanningFood = {
   rotationGroupId: string | null;
   cooked: boolean;
   approximate: boolean;
+  noCookedMatch: boolean;
 };
 
 export type PlanningRoutine = {
+  wakeTime: string;
   trainingTime: string | null;
   slots: { position: number; time: string; label: string | null }[];
 };
@@ -86,6 +88,7 @@ export type PlannedDay = {
       pieceCount: number | null;
       cooked: boolean;
       approximate: boolean;
+      noCookedMatch: boolean;
       per100g: Per100g;
     }[];
   }[];
@@ -142,6 +145,7 @@ export function planDates(input: {
                 pieceCount: item.pieces,
                 cooked: each.cooked,
                 approximate: each.approximate,
+                noCookedMatch: each.noCookedMatch,
                 per100g: each.per100g,
               },
             ];

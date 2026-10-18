@@ -1373,6 +1373,10 @@ export const PlanItem = z
     approximate: z.boolean().openapi({
       description: 'A cooked weight with no batch yield recorded: the values are approximate.',
     }),
+    noCookedMatch: z.boolean().openapi({
+      description:
+        'A batch-cooked food with no cooked values in the food table: planned raw, by its raw values.',
+    }),
     per100g: PlanPer100g.openapi({ description: 'The food’s values as the plan used them.' }),
   })
   .openapi('PlanItem');

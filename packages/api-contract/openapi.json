@@ -1826,6 +1826,10 @@
             "type": "boolean",
             "description": "A cooked weight with no batch yield recorded: the values are approximate."
           },
+          "noCookedMatch": {
+            "type": "boolean",
+            "description": "A batch-cooked food with no cooked values in the food table: planned raw, by its raw values."
+          },
           "per100g": {
             "type": "object",
             "properties": {
@@ -1864,6 +1868,7 @@
           "pieceCount",
           "cooked",
           "approximate",
+          "noCookedMatch",
           "per100g"
         ]
       },

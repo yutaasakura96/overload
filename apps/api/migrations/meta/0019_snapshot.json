@@ -1,5 +1,5 @@
 {
-  "id": "0b25b6ff-39e8-402f-b27e-07478b8d081c",
+  "id": "882c050a-b03a-4b33-a30d-4de0489fffad",
   "prevId": "008206b4-3246-4394-8a0a-bdef10007125",
   "version": "7",
   "dialect": "postgresql",
@@ -1585,6 +1585,13 @@
         },
         "approximate": {
           "name": "approximate",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "no_cooked_match": {
+          "name": "no_cooked_match",
           "type": "boolean",
           "primaryKey": false,
           "notNull": true,

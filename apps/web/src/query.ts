@@ -563,7 +563,9 @@ export async function regeneratePlan(): Promise<void> {
   const from = planToday(profile.timezone);
   try {
     await forAccount(async () =>
-      unwrap(await api.POST('/api/plan-days/generate', { body: { from, to: addLocalDays(from, 6) } })),
+      unwrap(
+        await api.POST('/api/plan-days/generate', { body: { from, to: addLocalDays(from, 6) } }),
+      ),
     );
   } catch (error) {
     if (!(error instanceof ApiError && error.code === 'setup_incomplete')) throw error;

@@ -4039,9 +4039,13 @@ and §8.6 describe, with the screens from the approved M2 prototype. Checked at
   before training and one 75 minutes after it starts. A protein target a hair over 0.55 g/kg a meal
   does not add a meal.
 - **A raw batch-cooked food is planned at its cooked weight** by the MEXT cooked counterpart of the
-  same food (生 → ゆで, 水煮, 蒸し or 焼き; 穀粒 → めし), else its own raw values, and marked
-  `approximate` until slice 6 records a batch yield (`#81`). The PRD's empty state says so on
-  Today. `plan_meal_item` gains `cooked` and `approximate`; `batch_id` comes with `batch`.
+  same food (生 → ゆで, 水煮, 蒸し or 焼き; 穀粒 → めし), and marked `approximate` until slice 6
+  records a batch yield (`#81`). The PRD's empty state says so on Today. With no cooked counterpart
+  (a hand-entered food, or a MEXT food the table has no cooked row for) it is planned raw, by its
+  raw values, with `noCookedMatch` and the note `raw, no cooked match`. *Rejected:* planning it by
+  its raw values labelled cooked, which presents raw figures as cooked ones (no-mistakes review,
+  decided by Firstmate). `plan_meal_item` gains `cooked`, `approximate` and `no_cooked_match`;
+  `batch_id` comes with `batch`.
 - **Cook-day limits** (a batch only on days its `keeps_days` covers from two cook days) wait for
   batches in slice 6 (`#81`).
 - **The client regenerates, the server never does on its own.** After a food or rotation group

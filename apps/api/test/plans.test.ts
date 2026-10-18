@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { and, eq, inArray } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
+import { planFoods } from '../src/db/plans';
 import { localDateIn } from '../src/db/training';
 import { goalPhase, planDay, planMeal } from '../src/db/schema';
 import { sender } from './account-fixture';
@@ -34,6 +35,8 @@ type PlanDayBody = {
       pieceCount: number | null;
       cooked: boolean;
       approximate: boolean;
+      noCookedMatch: boolean;
+      per100g: { energyKcal: number; proteinG: number };
     }[];
   }[];
 };
@@ -462,11 +465,58 @@ describe('plan days', () => {
       .filter((meal) => meal.evidence.length > 0)
       .map((meal) => meal.label);
     expect(tagged).toEqual(['Before training', 'After training']);
-    // Chicken is batch-cooked with no batch yet: planned cooked, marked approximate.
+    // Chicken is batch-cooked, but entered by hand: the food table has no cooked counterpart for it,
+    // so it is planned raw by its own values and says so, never raw values labelled cooked.
     const chicken = days
       .flatMap((day) => day.meals.flatMap((meal) => meal.items))
       .find((item) => item.name === 'Chicken breast');
-    expect(chicken).toMatchObject({ cooked: true, approximate: true });
+    expect(chicken).toMatchObject({
+      cooked: false,
+      approximate: false,
+      noCookedMatch: true,
+      per100g: { energyKcal: 105, proteinG: 23.3 },
+    });
+  });
+
+  it('plans a batch-cooked food by its MEXT cooked counterpart, else raw with the note', async () => {
+    const { send, user } = await member('cooked-match@example.test');
+    const thigh = randomUUID();
+    const manual = randomUUID();
+    for (const each of [
+      {
+        id: thigh,
+        name: 'Chicken thigh',
+        source: 'mext',
+        sourceRef: '11221',
+        state: 'raw',
+        keepsDays: 3,
+        ...per100(190, 16.6, 0, 14.2),
+      },
+      {
+        id: manual,
+        name: 'Home-made patty',
+        source: 'manual',
+        state: 'raw',
+        keepsDays: 3,
+        ...per100(220, 18, 2, 15),
+      },
+    ]) {
+      expect((await send('POST', '/api/foods', each)).status).toBe(201);
+    }
+    const foods = await planFoods(t.db, user.id);
+    // 皮つき 生 → 皮つき ゆで, the first of MEXT's cooked counterparts tried.
+    expect(foods.find((each) => each.id === thigh)).toMatchObject({
+      cooked: true,
+      approximate: true,
+      noCookedMatch: false,
+      per100g: { energyKcal: 216, proteinG: 22, fatG: 15.2 },
+    });
+    expect(foods.find((each) => each.id === manual)).toMatchObject({
+      cooked: false,
+      approximate: false,
+      noCookedMatch: true,
+      per100g: { energyKcal: 220, proteinG: 18, fatG: 15 },
+    });
   });
 
   it('lists dates with no plan as missing, and reads without writing', async () => {

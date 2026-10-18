@@ -176,6 +176,7 @@ function Foods({ meal, dim }: { meal: PlanMeal; dim: boolean }) {
             {item.cooked && (
               <span className="meal__qual"> cooked{item.approximate ? ', approx.' : ''}</span>
             )}
+            {item.noCookedMatch && <span className="meal__qual"> raw, no cooked match</span>}
           </span>
           <Amount item={item} />
         </li>

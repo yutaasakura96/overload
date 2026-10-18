@@ -33,7 +33,13 @@ const per100g = (
 });
 
 const FOODS = [
-  { name: 'Chicken breast, skinless', state: 'raw', ...per100g(105, 23.3, 0.1, 1.9) },
+  // Batch-cooked and entered by hand: no MEXT cooked counterpart, so it is planned raw and says so.
+  {
+    name: 'Chicken breast, skinless',
+    state: 'raw',
+    keepsDays: 4,
+    ...per100g(105, 23.3, 0.1, 1.9),
+  },
   { name: 'White rice', state: 'cooked', ...per100g(156, 2.5, 37.1, 0.3, 1.5) },
   { name: 'Rolled oats', state: 'raw', ...per100g(350, 13.7, 69.1, 5.7, 9.4) },
   { name: 'Broccoli', state: 'raw', ...per100g(37, 5.4, 6.6, 0.6, 5.1) },
@@ -136,6 +142,10 @@ test('sets up a phase and a day, and Today shows the day’s plan', async ({ pag
   await expect(timeline.getByRole('heading', { level: 3 }).first()).toBeVisible();
   expect(await timeline.getByRole('heading', { level: 3 }).count()).toBeGreaterThanOrEqual(4);
   await expect(timeline.getByRole('button', { name: 'Start Push A' })).toBeEnabled();
+  await expect(timeline.getByText('raw, no cooked match').first()).toBeVisible();
+  await expect(
+    page.getByText(/planned at its raw weight, because the food table has/),
+  ).toBeVisible();
 
   // The week from today is made, each day within ±5% of its calories or saying what it is short.
   const to = new Date(Date.parse(`${today.date}T00:00:00Z`) + 6 * DAY_MS)

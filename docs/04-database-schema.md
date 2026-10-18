@@ -708,6 +708,7 @@ One food in one meal, planned and as eaten (S16, S18).
 | `piece_count` | numeric(5,2) | yes | — | For unit foods; grams follow from `food.piece_weight_g` |
 | `cooked` | boolean | no | `false` | *Added 2026-10-18.* The grams are a cooked weight |
 | `approximate` | boolean | no | `false` | *Added 2026-10-18.* A cooked weight planned from the MEXT cooked counterpart of a raw batch-cooked food, with no batch yield recorded yet (`06`, 2026-10-18). Screen 3 marks it `approx.` |
+| `no_cooked_match` | boolean | no | `false` | *Added 2026-10-18.* A raw batch-cooked food with no MEXT cooked counterpart, planned raw by its raw values (`06`, 2026-10-18). Screen 3 marks it `raw, no cooked match` |
 | `batch_id` | uuid | yes | — | → `batch.id`, `ON DELETE SET NULL`. The yield used to convert cooked → raw macros. **Not yet created**: it comes with `batch` in slice 6 (`#81`) |
 | `energy_kcal_per_100g` | numeric(7,2) | no | — | **Snapshot** of the food's macros at plan time |
 | `protein_g_per_100g` | numeric(6,2) | no | — | Snapshot |

@@ -705,6 +705,8 @@ export const planMealItem = pgTable(
     // The grams are a cooked weight (S16), and with no batch yield to convert by, approximate.
     cooked: boolean('cooked').notNull().default(false),
     approximate: boolean('approximate').notNull().default(false),
+    // Batch-cooked, but the MEXT table has no cooked counterpart: planned raw, and said so.
+    noCookedMatch: boolean('no_cooked_match').notNull().default(false),
     energyKcalPer100g: numeric('energy_kcal_per_100g', {
       precision: 7,
       scale: 2,

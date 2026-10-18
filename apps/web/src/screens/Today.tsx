@@ -396,6 +396,12 @@ export function Today({ me, navigate }: { me: Me; navigate: Navigate }) {
               of it has been weighed yet. Weighing a batch, raw and cooked, makes it exact.
             </p>
           )}
+          {plan.day.meals.some((meal) => meal.items.some((item) => item.noCookedMatch)) && (
+            <p className="plan__footnote">
+              A food marked no cooked match is planned at its raw weight, because the food table has
+              no cooked values for it. Weighing a batch, raw and cooked, gives it cooked amounts.
+            </p>
+          )}
         </section>
       )}
 

@@ -893,7 +893,8 @@ GET /api/plan-days?from=2026-11-11&to=2026-11-11  →  200
   nothing more to give, with `suggestion: "add_food"`. Protein is never padded; a protein shortfall
   still fills the calories from carbohydrate and fat.
 - `approximate: true` is set, in M2 slice 4, on a raw batch-cooked food planned at the cooked
-  weight of its MEXT cooked counterpart (`06`, 2026-10-18), until slice 6's batch yield.
+  weight of its MEXT cooked counterpart (`06`, 2026-10-18), until slice 6's batch yield. With no
+  counterpart the item is `cooked: false`, by the food's raw values, with `noCookedMatch: true`.
 
 **Confirming a meal.** The body depends on `status`:
 
