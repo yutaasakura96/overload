@@ -9,7 +9,7 @@ import { queryClient } from './query';
 export type SaveProblem = RequestProblem | { kind: 'plan_failed' };
 
 export type RequestProblem =
-  | { kind: 'unreached' }
+  | { kind: 'unreached'; saved?: string }
   | {
       kind: 'refused';
       code: string | undefined;
@@ -51,6 +51,17 @@ export function refusedOnDevice(
 ): SaveProblem | undefined {
   if (fields.length === 0) return undefined;
   return { kind: 'refused', code: undefined, fields: new Map(fields), routines: [] };
+}
+
+/** A save whose earlier writes arrived before a later one failed: what was stored, then what was not. */
+export function partlySaved(problem: RequestProblem, stored: string, what: string): RequestProblem {
+  return {
+    ...problem,
+    saved:
+      problem.kind === 'unreached'
+        ? `${stored} The ${what} wasn’t; save again when you have signal.`
+        : `${stored} The ${what} wasn’t; check it and try again.`,
+  };
 }
 
 /**
@@ -97,8 +108,9 @@ export function SaveNotice({ problem, what }: { problem: SaveProblem | undefined
   }
   if (problem.kind === 'unreached') {
     return (
-      <Notice tone="flag" word="Not saved">
-        Couldn’t reach Overload. The {what} is still here; save again when you have signal.
+      <Notice tone="flag" word={problem.saved === undefined ? 'Not saved' : 'Partly saved'}>
+        {problem.saved ??
+          `Couldn’t reach Overload. The ${what} is still here; save again when you have signal.`}
       </Notice>
     );
   }

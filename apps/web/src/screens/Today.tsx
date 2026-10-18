@@ -26,6 +26,7 @@ import { useEntryNote, type Navigate } from '../navigation';
 import { phaseLine } from '../plan';
 import { DayTotals, PlanSkeleton, Shortfalls, Timeline } from '../plan-day';
 import {
+  activePlanDay,
   addLocalDays,
   allExercisesQuery,
   confirmedAccountData,
@@ -36,7 +37,6 @@ import {
   lastDoneQuery,
   lastTimeQuery,
   planDaysQuery,
-  planToday,
   queryClient,
   refreshLastTime,
   regeneratePlan,
@@ -897,11 +897,11 @@ type SetupKey = (typeof SETUP)[number]['key'];
 function usePlan(me: Me, confirmed: boolean) {
   const profile = me.profile;
   const timeZone = profile?.timezone ?? deviceTimezone();
-  const today = planToday(timeZone);
   const weighIns = useQuery({ ...weighInsQuery, enabled: confirmed && profile !== null });
   const foods = useQuery({ ...foodsQuery, enabled: confirmed });
   const phases = useQuery({ ...goalPhasesQuery, enabled: confirmed });
   const routines = useQuery({ ...dayRoutinesQuery, enabled: confirmed });
+  const today = activePlanDay(timeZone, profile?.trainingWeekdays ?? [], routines.data ?? []);
   const phase: GoalPhase | undefined = phases.data?.find((each) => each.endedOn === null);
   const weekdays = profile?.trainingWeekdays ?? [];
   const needed: DayType[] = [

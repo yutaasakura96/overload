@@ -16,7 +16,7 @@ import {
   setProfile,
   useAccount,
 } from '../query';
-import { saveProblem, SaveNotice, type SaveProblem } from '../saving';
+import { partlySaved, saveProblem, SaveNotice, type SaveProblem } from '../saving';
 
 // Your day (S15, docs/10 §8.6): wake, work, training and bed for each day type, the training
 // weekdays, and the recommended meal count and times with why and its source. The count can be
@@ -165,6 +165,7 @@ function DayForm({
     if (r === undefined) return;
     setBusy(true);
     setProblem(undefined);
+    let stored: string | undefined;
     try {
       const profileWeekdays = me.profile?.trainingWeekdays ?? [];
       const sorted = weekdays.toSorted((a, b) => a - b);
@@ -174,7 +175,13 @@ function DayForm({
             api.PATCH('/api/me/profile', { body: { trainingWeekdays: sorted } }),
           ),
         );
-        await followTrainingDays();
+        stored = 'Training days saved.';
+      }
+      if (await followTrainingDays()) {
+        stored =
+          stored === undefined
+            ? 'The goal phase’s calories saved.'
+            : 'Training days and the goal phase’s calories saved.';
       }
       await confirmedAccountData(() =>
         api.PUT('/api/day-routines/{dayType}', {
@@ -206,7 +213,12 @@ function DayForm({
         setBusy(false);
       }
     } catch (error) {
-      setProblem(saveProblem(error));
+      const failed = saveProblem(error);
+      setProblem(
+        stored === undefined
+          ? failed
+          : partlySaved(failed, stored, training ? 'training day' : 'rest day'),
+      );
       setBusy(false);
     }
   };
@@ -353,21 +365,22 @@ function DayForm({
  * still on the formula's figure takes the formula's new one; a figure the user set, or a measured
  * one, is theirs and stays.
  */
-async function followTrainingDays() {
+async function followTrainingDays(): Promise<boolean> {
   const phases = await queryClient.fetchQuery({ ...goalPhasesQuery, staleTime: 0 });
   const open = phases.find((phase) => phase.endedOn === null);
-  if (open === undefined || open.calorieBasis !== 'provisional_formula') return;
+  if (open === undefined || open.calorieBasis !== 'provisional_formula') return false;
   const defaults = await queryClient.fetchQuery({
     ...phaseDefaultsQuery(open.type, open.targetRatePctPerWeek ?? undefined),
     staleTime: 0,
   });
-  if (defaults.calories.value === open.calorieTargetKcal) return;
+  if (defaults.calories.value === open.calorieTargetKcal) return false;
   await confirmedAccountData(() =>
     api.PATCH('/api/goal-phases/{id}', {
       params: { path: { id: open.id } },
       body: { calorieTargetKcal: defaults.calories.value, calorieBasis: 'provisional_formula' },
     }),
   );
+  return true;
 }
 
 function Recommend({

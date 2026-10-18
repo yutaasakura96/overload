@@ -16,6 +16,7 @@ import {
   weighInsQuery,
 } from '../query';
 import {
+  partlySaved,
   refusedOnDevice,
   saveProblem,
   SaveNotice,
@@ -137,6 +138,7 @@ function AboutForm({
     }
     setBusy(true);
     setProblem(undefined);
+    let savedDetails = false;
     try {
       const saved = await confirmedAccountData(() =>
         api.PATCH('/api/me/profile', {
@@ -149,6 +151,7 @@ function AboutForm({
         }),
       );
       setProfile(saved);
+      savedDetails = true;
       // An unchanged weight is the weigh-in already there; a new one is weighed now.
       if (weight !== latest?.weight) {
         await forAccount(async () =>
@@ -162,9 +165,9 @@ function AboutForm({
             }),
           ),
         );
-        await refreshWeighIns();
       }
       try {
+        await refreshWeighIns();
         await regeneratePlan();
         onSaved();
       } catch {
@@ -172,7 +175,8 @@ function AboutForm({
         setBusy(false);
       }
     } catch (error) {
-      setProblem(saveProblem(error));
+      const failed = saveProblem(error);
+      setProblem(savedDetails ? partlySaved(failed, 'Your details saved.', 'weigh-in') : failed);
       setBusy(false);
     }
   };

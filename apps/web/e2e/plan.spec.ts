@@ -312,4 +312,37 @@ test('Today reports a failed plan generation', async ({ page }) => {
       .filter({ hasText: '00:15' })
       .locator('.timeline__dot--active'),
   ).toBeVisible();
+  // 00:15 the next calendar day, before its 09:00 wake: still the waking day with the 00:15 meal.
+  await page.clock.setFixedTime(new Date(`${today}T15:15:00Z`));
+  await page.reload();
+  await expect(timeline.locator('.timeline__time').getByText('00:15')).toBeVisible();
+  await expect(
+    timeline
+      .locator('.timeline__entry')
+      .filter({ hasText: '00:15' })
+      .locator('.timeline__dot--active'),
+  ).toBeVisible();
+
+  // A day whose training days arrive but whose routine does not says which part was stored.
+  await page.route('**/api/day-routines/*', async (route) => {
+    if (route.request().method() !== 'PUT') {
+      await route.continue();
+      return;
+    }
+    await route.fulfill({ status: 500, body: 'Routine failed' });
+  });
+  await page.goto('/plan/day');
+  await page.getByRole('radio', { name: 'Training day' }).check();
+  await page.getByRole('button', { name: 'Monday', exact: true }).click();
+  await page.getByRole('button', { name: 'Use these meals' }).click();
+  await expect(
+    page.getByText(
+      'Training days saved. The training day wasn’t; save again when you have signal.',
+    ),
+  ).toBeVisible();
+  await expect(page.getByText('Not saved')).toHaveCount(0);
+  const saved: { profile: { trainingWeekdays: number[] } } = await (
+    await page.request.get('/api/me')
+  ).json();
+  expect(saved.profile.trainingWeekdays).not.toContain(1);
 });

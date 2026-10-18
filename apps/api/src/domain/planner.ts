@@ -250,7 +250,7 @@ export function generateDayPlan(input: {
         })),
     })),
     planned: roundTotals(planned),
-    shortfalls: shortfallsOf(kept, planned, targets),
+    shortfalls: shortfallsOf(items, planned, targets),
   };
 }
 

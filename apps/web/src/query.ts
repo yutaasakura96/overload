@@ -2,6 +2,7 @@ import {
   ACCOUNT_HEADER,
   type BalanceView,
   type DayType,
+  type DayRoutine,
   type GoalPhaseType,
   type Me,
   type Span,
@@ -560,7 +561,11 @@ export const planDaysQuery = (from: string, to: string) =>
 export async function regeneratePlan(): Promise<void> {
   const profile = queryClient.getQueryData<Me>(ME_KEY)?.profile;
   if (profile == null) return;
-  const from = planToday(profile.timezone);
+  const from = activePlanDay(
+    profile.timezone,
+    profile.trainingWeekdays,
+    queryClient.getQueryData<DayRoutine[]>(dayRoutinesQuery.queryKey) ?? [],
+  );
   try {
     await forAccount(async () =>
       unwrap(
@@ -582,6 +587,26 @@ export const planToday = (timeZone: string, now = Date.now()) =>
     day: '2-digit',
     timeZone,
   }).format(new Date(now));
+
+export function activePlanDay(
+  timeZone: string,
+  trainingWeekdays: number[],
+  routines: Pick<DayRoutine, 'dayType' | 'wakeTime'>[],
+  now = Date.now(),
+) {
+  const date = planToday(timeZone, now);
+  const weekday = ((new Date(`${date}T00:00:00Z`).getUTCDay() + 6) % 7) + 1;
+  const dayType = trainingWeekdays.includes(weekday) ? 'training' : 'rest';
+  const wake = routines.find((routine) => routine.dayType === dayType)?.wakeTime;
+  if (wake === undefined) return date;
+  const clock = new Intl.DateTimeFormat('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+    timeZone,
+  }).format(new Date(now));
+  return clock < wake ? addLocalDays(date, -1) : date;
+}
 
 export const addLocalDays = (date: string, days: number) =>
   new Date(Date.parse(`${date}T00:00:00Z`) + days * DAY_MS).toISOString().slice(0, 10);

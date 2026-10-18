@@ -135,6 +135,20 @@ describe('generateDayPlan', () => {
     ).toBe(false);
   });
 
+  it('names a zero-cap carbohydrate portion as the energy shortfall cause', () => {
+    const oversizedCarb = food('f-large-carb', 250, 1, 60, 0, 0, { pieceWeightG: 500 });
+    const plan = generateDayPlan({
+      date: '2026-10-16',
+      targets,
+      meals: restDay,
+      foods: [chicken, oversizedCarb],
+    });
+    expect(items(plan).some((item) => item.foodId === oversizedCarb.id)).toBe(false);
+    expect(plan.shortfalls).toContainEqual(
+      expect.objectContaining({ target: 'energy', cause: 'portion_cap', suggestion: null }),
+    );
+  });
+
   it('names a protein shortfall in grams and pads nothing to hide it', () => {
     // Fatty, low protein sources: reaching 181 g would go far over calories.
     const weak = [food('f-tofu', 73, 7, 1.5, 4.9, 1.1), rice, oil];
