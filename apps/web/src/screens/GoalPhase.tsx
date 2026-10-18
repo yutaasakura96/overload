@@ -295,7 +295,13 @@ function PhaseForm({
           The {typeWord(open.type)} is kept, with what it did.
         </Notice>
       )}
-      <SaveNotice problem={problem} what="targets" />
+      {problem?.kind === 'refused' && problem.fields.has('startedOn') ? (
+        <Notice tone="error" word="Refused">
+          This goal phase must start after the open phase began.
+        </Notice>
+      ) : (
+        <SaveNotice problem={problem} what="targets" />
+      )}
       <form
         ref={form}
         className="form"

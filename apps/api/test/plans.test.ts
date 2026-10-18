@@ -200,6 +200,34 @@ describe('goal phases', () => {
     ]);
   });
 
+  it('refuses an equal or earlier replacement start, then accepts the next day', async () => {
+    const { send } = await member('phase-boundary@example.test');
+    const started = addDays(today(), -2);
+    expect((await send('POST', '/api/goal-phases', cut({ startedOn: started }))).status).toBe(201);
+    for (const replacementStart of [started, addDays(started, -1)]) {
+      const refused = await send(
+        'POST',
+        '/api/goal-phases',
+        cut({ startedOn: replacementStart, endPrevious: true }),
+      );
+      expect(refused.status).toBe(422);
+      expect(refused.headers.get('content-type')).toContain('application/problem+json');
+      expect(await refused.json()).toMatchObject({
+        code: 'validation_failed',
+        errors: [{ path: 'startedOn', message: 'Start after the open phase began' }],
+      });
+    }
+    const next = addDays(started, 1);
+    expect(
+      (await send('POST', '/api/goal-phases', cut({ startedOn: next, endPrevious: true }))).status,
+    ).toBe(201);
+    const { items }: { items: Phase[] } = await (await send('GET', '/api/goal-phases')).json();
+    expect(items.map((phase) => [phase.startedOn, phase.endedOn])).toEqual([
+      [next, null],
+      [started, started],
+    ]);
+  });
+
   it('refuses a rate on maintenance and none on a cut', async () => {
     const { send } = await member('rate@example.test');
     const maintain = await send('POST', '/api/goal-phases', cut({ type: 'maintain' }));

@@ -119,6 +119,22 @@ describe('generateDayPlan', () => {
     );
   });
 
+  it('leaves an oversized whole piece out of every meal', () => {
+    const oversized = food('f-large-piece', 220, 45, 0, 2, 0, { pieceWeightG: 500 });
+    const dense = food('f-dense-piece', 1000, 70, 0, 75, 0, { pieceWeightG: 100 });
+    expect(portionCap(oversized)).toBe(0);
+    expect(portionCap(dense)).toBe(0);
+    const plan = generateDayPlan({
+      date: '2026-10-16',
+      targets,
+      meals: restDay,
+      foods: [oversized, dense, rice],
+    });
+    expect(
+      items(plan).some((item) => item.foodId === oversized.id || item.foodId === dense.id),
+    ).toBe(false);
+  });
+
   it('names a protein shortfall in grams and pads nothing to hide it', () => {
     // Fatty, low protein sources: reaching 181 g would go far over calories.
     const weak = [food('f-tofu', 73, 7, 1.5, 4.9, 1.1), rice, oil];
@@ -251,8 +267,20 @@ describe('recommendMeals', () => {
       trainingMeals(
         slots.map((slot) => slot.time),
         '18:30',
+        '06:30',
       ),
     ).toEqual({ pre: 2, post: 3 });
+  });
+
+  it('matches training meals across midnight on the waking day', () => {
+    expect(trainingMeals(['20:30', '22:00', '00:15'], '23:00', '09:00')).toEqual({
+      pre: 1,
+      post: 2,
+    });
+    expect(trainingMeals(['23:00', '00:15', '02:00'], '00:30', '09:00')).toEqual({
+      pre: 0,
+      post: 2,
+    });
   });
 
   it('keeps four meals when protein is 0.55 g/kg a meal but for rounding', () => {

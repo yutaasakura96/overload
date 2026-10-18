@@ -158,3 +158,81 @@ test('sets up a phase and a day, and Today shows the day’s plan', async ({ pag
   await timeline.getByRole('button', { name: 'Start Push A' }).click();
   await expect(page).toHaveURL(/\/workout/);
 });
+
+test('Today reports a failed plan generation', async ({ page }) => {
+  const headers = { Origin: WEB_ORIGIN };
+  const profile = await page.request.patch('/api/me/profile', {
+    headers,
+    data: {
+      timezone: TIME_ZONE,
+      heightCm: 176,
+      sex: 'male',
+      birthDate: '1994-05-01',
+      trainingWeekdays: [1, 2, 3, 4, 5, 6, 7],
+    },
+  });
+  expect(profile.ok()).toBe(true);
+  expect(
+    (
+      await page.request.post('/api/weigh-ins', {
+        headers,
+        data: { id: randomUUID(), measuredAt: new Date().toISOString(), weightKg: 82.5 },
+      })
+    ).ok(),
+  ).toBe(true);
+  expect(
+    (
+      await page.request.post('/api/goal-phases', {
+        headers,
+        data: {
+          id: randomUUID(),
+          type: 'cut',
+          startedOn: todayInZone().date,
+          targetRatePctPerWeek: 0.5,
+          proteinGPerKg: 2.2,
+          fatPctCalories: 25,
+          calorieTargetKcal: 2350,
+          calorieBasis: 'manual',
+        },
+      })
+    ).ok(),
+  ).toBe(true);
+  expect(
+    (
+      await page.request.put('/api/day-routines/training', {
+        headers,
+        data: {
+          wakeTime: '06:30',
+          workStart: null,
+          workEnd: null,
+          trainingTime: '18:30',
+          bedTime: '23:00',
+          slots: [
+            { time: '07:00', label: 'Breakfast' },
+            { time: '12:00', label: 'Lunch' },
+            { time: '16:30', label: 'Before training' },
+            { time: '19:45', label: 'After training' },
+          ],
+        },
+      })
+    ).ok(),
+  ).toBe(true);
+  await page.route('**/api/plan-days/generate', async (route) => {
+    await route.fulfill({
+      status: 500,
+      contentType: 'application/problem+json',
+      body: JSON.stringify({
+        type: 'urn:overload:problem:internal',
+        title: 'Internal error',
+        status: 500,
+        code: 'internal',
+        requestId: 'test',
+      }),
+    });
+  });
+  await page.goto('/');
+  await expect(
+    page.getByText('Couldn’t make today’s plan. Try again when you have signal.'),
+  ).toBeVisible();
+  await expect(page.getByText('Today’s plan is ready.')).toHaveCount(0);
+});

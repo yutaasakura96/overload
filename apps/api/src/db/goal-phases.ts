@@ -69,14 +69,15 @@ export type CreateGoalPhaseResult =
   | { kind: 'created'; phase: GoalPhase }
   | { kind: 'existing'; phase: GoalPhase }
   | { kind: 'id_conflict' }
-  | { kind: 'phase_already_open'; open: GoalPhase };
+  | { kind: 'phase_already_open'; open: GoalPhase }
+  | { kind: 'phase_start_not_after_open' };
 
 const dayBefore = (date: string) =>
   new Date(Date.parse(`${date}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
 
 /**
  * Opens a phase. With one already open it is refused unless `endPrevious`, which ends that one on
- * the day before in the same transaction, or on its own first day when it began no earlier. A
+ * the day before in the same transaction. A
  * repeat of the same create returns the stored phase (docs/07 §1.2).
  */
 export function createGoalPhase(
@@ -110,10 +111,11 @@ export function createGoalPhase(
     const open = await openGoalPhase(tx, userId);
     if (open !== undefined) {
       if (!endPrevious) return { kind: 'phase_already_open', open };
+      if (input.startedOn <= open.startedOn) return { kind: 'phase_start_not_after_open' };
       const end = dayBefore(input.startedOn);
       await tx
         .update(goalPhase)
-        .set({ endedOn: end < open.startedOn ? open.startedOn : end, updatedAt: sql`now()` })
+        .set({ endedOn: end, updatedAt: sql`now()` })
         .where(and(eq(goalPhase.id, open.id), eq(goalPhase.userId, userId)));
     }
     const [created] = await tx

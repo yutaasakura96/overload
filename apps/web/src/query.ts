@@ -555,17 +555,21 @@ export const planDaysQuery = (from: string, to: string) =>
 /**
  * Makes the week from today again after its inputs changed: the food list, the phase, the routine
  * or the profile (docs/07 §4, Plan days). Days with a confirmed meal are left by the server. Until
- * setup is complete the server answers `setup_incomplete`, which is nothing to report. It never
- * rejects; the plan screens are asked again either way.
+ * setup is complete the server answers `setup_incomplete`, which is nothing to report.
  */
 export async function regeneratePlan(): Promise<void> {
   const profile = queryClient.getQueryData<Me>(ME_KEY)?.profile;
   if (profile == null) return;
   const from = planToday(profile.timezone);
-  await forAccount(async () =>
-    api.POST('/api/plan-days/generate', { body: { from, to: addLocalDays(from, 6) } }),
-  ).catch(() => undefined);
-  await queryClient.invalidateQueries({ queryKey: ['plan'] });
+  try {
+    await forAccount(async () =>
+      unwrap(await api.POST('/api/plan-days/generate', { body: { from, to: addLocalDays(from, 6) } })),
+    );
+  } catch (error) {
+    if (!(error instanceof ApiError && error.code === 'setup_incomplete')) throw error;
+  } finally {
+    await queryClient.invalidateQueries({ queryKey: ['plan'] });
+  }
 }
 
 /** Today's local date in `timeZone`, as the plan reads it. */
@@ -693,16 +697,16 @@ export const refreshWeighIns = () =>
 /**
  * After a food or a group is saved, archived or deleted: both lists, since a food names its group
  * and a group its foods, and any search, which marks the foods already on the list. The week's plan
- * is made again from the list as it now is, without holding up the screen that saved.
+ * is made again from the list as it now is before the save is reported complete.
  */
-export const refreshFoods = () => {
-  void regeneratePlan();
-  return queryClient.invalidateQueries({
+export const refreshFoods = async () => {
+  await queryClient.invalidateQueries({
     predicate: (query) =>
       query.queryKey[0] === 'foods' ||
       query.queryKey[0] === 'rotation-groups' ||
       query.queryKey[0] === 'reference-foods',
   });
+  await regeneratePlan();
 };
 /**
  * After an acknowledged sync batch: a chart on screen is asked again, the rest when next opened.

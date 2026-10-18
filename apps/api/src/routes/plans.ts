@@ -349,6 +349,11 @@ export function planRoutes({ db }: RouteDeps) {
         const result = await createGoalPhase(db, c.get('user').id, input, endPrevious === true);
         if (result.kind === 'created') return c.json(phaseJson(result.phase), 201);
         if (result.kind === 'existing') return c.json(phaseJson(result.phase), 200);
+        if (result.kind === 'phase_start_not_after_open') {
+          return problem(c, 'validation_failed', {
+            errors: [{ path: 'startedOn', message: 'Start after the open phase began' }],
+          });
+        }
         return problem(c, result.kind);
       },
     }),

@@ -107,6 +107,7 @@ export function planDates(input: {
     const { pre, post } = trainingMeals(
       routine.slots.map((slot) => slot.time),
       dayType === 'training' ? routine.trainingTime : null,
+      routine.wakeTime,
     );
     const meals = routine.slots.map((slot, index) => ({
       position: slot.position,

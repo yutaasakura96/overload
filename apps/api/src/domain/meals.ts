@@ -173,13 +173,19 @@ export function mealTimes(shape: DayShape, count: number): MealSlot[] {
 export function trainingMeals(
   times: string[],
   trainingTime: string | null,
+  wakeTime: string,
 ): { pre: number | null; post: number | null } {
   if (trainingTime === null) return { pre: null, post: null };
-  const training = minutes(trainingTime);
+  const wake = minutes(wakeTime);
+  const wakingDayMinute = (time: string) => {
+    const minute = minutes(time);
+    return minute < wake ? minute + 1440 : minute;
+  };
+  const training = wakingDayMinute(trainingTime);
   let pre: number | null = null;
   let post: number | null = null;
   times.forEach((time, index) => {
-    const delta = minutes(time) - training;
+    const delta = wakingDayMinute(time) - training;
     if (delta >= -240 && delta <= -30) pre = index;
     if (post === null && delta > 0 && delta <= 180) post = index;
   });

@@ -104,7 +104,7 @@ export function portionCap(food: PlannerFood): number {
     food.per100g.energyKcal > 0 ? (PORTION_CAP_KCAL / food.per100g.energyKcal) * 100 : Infinity;
   const grams = Math.min(PORTION_CAP_G, byEnergy);
   if (food.pieceWeightG === null) return Math.floor(grams / GRAM_STEP) * GRAM_STEP;
-  return Math.max(1, Math.floor(grams / food.pieceWeightG)) * food.pieceWeightG;
+  return Math.floor(grams / food.pieceWeightG) * food.pieceWeightG;
 }
 
 type Item = { food: PlannerFood; role: Role; grams: number; meal: number };
@@ -149,7 +149,7 @@ export function generateDayPlan(input: {
   const items: Item[] = [];
   const add = (food: PlannerFood | undefined, meal: number, grams = 0) => {
     if (food === undefined) return undefined;
-    const item: Item = { food, role: roleOf(food.per100g), grams, meal };
+    const item: Item = { food, role: roleOf(food.per100g), grams: clamp(food, grams), meal };
     items.push(item);
     return item;
   };
