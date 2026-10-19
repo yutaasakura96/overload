@@ -462,30 +462,33 @@ test('a Your day save that keeps the training days leaves the phase’s calories
     .toBe(defaults.calories.value);
 });
 
+const dayFromToday = (offset: number) =>
+  new Date(Date.parse(`${todayInZone().date}T00:00:00Z`) + offset * DAY_MS)
+    .toISOString()
+    .slice(0, 10);
+
+const manualCut = (startedOn: string, endPrevious = false) => ({
+  id: randomUUID(),
+  type: 'cut',
+  startedOn,
+  endPrevious,
+  targetRatePctPerWeek: 0.5,
+  proteinGPerKg: 2.2,
+  fatPctCalories: 25,
+  calorieTargetKcal: 2350,
+  calorieBasis: 'manual',
+});
+
 test('refuses a replacement phase that overlaps its open predecessor', async ({ page }) => {
   const headers = { Origin: WEB_ORIGIN };
-  const day = (offset: number) =>
-    new Date(Date.parse(`${todayInZone().date}T00:00:00Z`) + offset * DAY_MS)
-      .toISOString()
-      .slice(0, 10);
-  const first = day(-3);
-  const phase = (startedOn: string, endPrevious = false) => ({
-    id: randomUUID(),
-    type: 'cut',
-    startedOn,
-    endPrevious,
-    targetRatePctPerWeek: 0.5,
-    proteinGPerKg: 2.2,
-    fatPctCalories: 25,
-    calorieTargetKcal: 2350,
-    calorieBasis: 'manual',
-  });
-  expect((await page.request.post('/api/goal-phases', { headers, data: phase(first) })).status())
-    .toBe(201);
-  for (const start of [first, day(-4)]) {
+  const first = dayFromToday(-3);
+  expect(
+    (await page.request.post('/api/goal-phases', { headers, data: manualCut(first) })).status(),
+  ).toBe(201);
+  for (const start of [first, dayFromToday(-4)]) {
     const refused = await page.request.post('/api/goal-phases', {
       headers,
-      data: phase(start, true),
+      data: manualCut(start, true),
     });
     expect(refused.status()).toBe(422);
     expect(refused.headers()['content-type']).toContain('application/problem+json');
@@ -494,13 +497,19 @@ test('refuses a replacement phase that overlaps its open predecessor', async ({ 
       errors: [{ path: 'startedOn', message: 'Start after the open phase began' }],
     });
   }
-  expect((await page.request.post('/api/goal-phases', { headers, data: phase(day(-2), true) })).status())
-    .toBe(201);
+  expect(
+    (
+      await page.request.post('/api/goal-phases', {
+        headers,
+        data: manualCut(dayFromToday(-2), true),
+      })
+    ).status(),
+  ).toBe(201);
   const history: { items: { startedOn: string; endedOn: string | null }[] } = await (
     await page.request.get('/api/goal-phases')
   ).json();
   expect(history.items.map(({ startedOn, endedOn }) => [startedOn, endedOn])).toEqual([
-    [day(-2), null],
+    [dayFromToday(-2), null],
     [first, first],
   ]);
 });

@@ -233,7 +233,12 @@ test('switches the weight chart from 30 days to the open phase start', async ({ 
     data: { heightCm: 176, sex: 'male', birthDate: '1994-05-01' },
   });
   expect(profile.ok()).toBe(true);
-  for (const [daysAgo, weight] of [[40, 85], [35, 84], [20, 83], [1, 82]] as const) {
+  for (const [daysAgo, weight] of [
+    [40, 85],
+    [35, 84],
+    [20, 83],
+    [1, 82],
+  ] as const) {
     await weighIn(page, daysAgo, weight);
   }
   const phase = await page.request.post('/api/goal-phases', {
