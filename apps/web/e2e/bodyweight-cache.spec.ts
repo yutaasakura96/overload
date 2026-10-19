@@ -1,9 +1,11 @@
 import { expect, test } from '@playwright/test';
-import type { LastTime } from '@overload/api-contract';
+import type { LastTime, WeighIn } from '@overload/api-contract';
 import { recountedLastTime } from '../src/bodyweight';
 import type { WorkoutExerciseRecord } from '../src/set-store';
 
 const startedAt = '2026-10-11T10:00:00.000Z';
+// The zone the workout started in.
+const zone = 'Asia/Tokyo';
 const lastTime: WorkoutExerciseRecord = {
   id: 'exercise',
   userId: 'member',
@@ -58,6 +60,7 @@ test('an open workout takes last time’s counts only from an answer newer than 
     },
     undefined,
     startedAt,
+    zone,
   );
   expect(older).toBe(lastTime);
 
@@ -69,6 +72,7 @@ test('an open workout takes last time’s counts only from an answer newer than 
     },
     undefined,
     startedAt,
+    zone,
   );
   expect(weighed.local.lastTime[0]).toMatchObject({ weightKg: 10, countedWeightKg: 100 });
   expect(weighed.local.lastTimeBodyweight).toMatchObject({ weightKg: 90 });
@@ -79,6 +83,7 @@ test('an open workout takes last time’s counts only from an answer newer than 
     { exercises: [answer(10, { basis: 'none' })], updatedAt: after },
     undefined,
     startedAt,
+    zone,
   );
   expect(deleted.local.lastTime[0]?.countedWeightKg).toBe(10);
   expect(deleted.local.lastTimeBodyweight).toEqual({ basis: 'none' });
@@ -99,19 +104,21 @@ test('an answer about another workout leaves the open workout’s copy as it is'
     },
     undefined,
     startedAt,
+    zone,
   );
   expect(synced).toBe(lastTime);
 });
 
-// The weigh-ins as `GET /api/weigh-ins` lists them, newest first.
+// The readings as `GET /api/weigh-ins` lists them, newest first: each at 07:00 in Tokyo.
 const weighed = (...days: [string, number][]) =>
-  days.map(([date, weightKg]) => ({
-    date,
-    weighInId: `weigh-in-${date}`,
-    weightKg,
-    morning: true,
-    trendKg: null,
-  }));
+  days.map(([date, weightKg]) => reading(`${date}T07:00:00+09:00`, weightKg));
+const reading = (at: string, weightKg: number): WeighIn => ({
+  id: `weigh-in-${at}`,
+  measuredAt: new Date(at).toISOString(),
+  weightKg,
+  bodyFatPct: null,
+  source: 'manual',
+});
 // Last time was answered at 82 kg the evening before the workout, and copied at the start.
 const answeredAt = Date.parse(startedAt) - 60_000;
 const copied: WorkoutExerciseRecord = {
@@ -124,8 +131,9 @@ test('offline, a weigh-in cached after last time’s answer moves the open worko
   const recounted = recountedLastTime(
     copied,
     undefined,
-    { days: weighed(['2026-10-10', 85], ['2026-10-01', 80]), updatedAt: answeredAt + 1 },
+    { readings: weighed(['2026-10-10', 85], ['2026-10-01', 80]), updatedAt: answeredAt + 1 },
     startedAt,
+    zone,
   );
   expect(recounted.local.lastTime[0]).toMatchObject({ weightKg: 10, countedWeightKg: 95 });
   expect(recounted.local.lastTimeBodyweight).toEqual({
@@ -139,8 +147,9 @@ test('offline, a weigh-in cached after last time’s answer moves the open worko
   const earlier = recountedLastTime(
     copied,
     undefined,
-    { days: weighed(['2026-10-12', 86], ['2026-10-08', 85]), updatedAt: answeredAt + 1 },
+    { readings: weighed(['2026-10-12', 86], ['2026-10-08', 85]), updatedAt: answeredAt + 1 },
     startedAt,
+    zone,
   );
   expect(earlier.local.lastTime[0]?.countedWeightKg).toBe(95);
   expect(earlier.local.lastTimeBodyweight).toMatchObject({
@@ -152,16 +161,17 @@ test('offline, a weigh-in cached after last time’s answer moves the open worko
   const none = recountedLastTime(
     copied,
     undefined,
-    { days: [], updatedAt: answeredAt + 1 },
+    { readings: [], updatedAt: answeredAt + 1 },
     startedAt,
+    zone,
   );
   expect(none.local.lastTime[0]?.countedWeightKg).toBe(10);
   expect(none.local.lastTimeBodyweight).toEqual({ basis: 'none' });
 });
 
 test('weigh-ins older than the answer leave the count the API gave', () => {
-  const stale = { days: weighed(['2026-10-10', 85]), updatedAt: answeredAt - 1 };
-  expect(recountedLastTime(copied, undefined, stale, startedAt)).toBe(copied);
+  const stale = { readings: weighed(['2026-10-10', 85]), updatedAt: answeredAt - 1 };
+  expect(recountedLastTime(copied, undefined, stale, startedAt, zone)).toBe(copied);
 
   // An answer fetched after the weigh-ins were cached is the newer one.
   const answered = recountedLastTime(
@@ -170,12 +180,47 @@ test('weigh-ins older than the answer leave the count the API gave', () => {
       exercises: [answer(98, { basis: 'same_day', weightKg: 88, weighedOn: '2026-10-10' })],
       updatedAt: after + 1,
     },
-    { days: weighed(['2026-10-10', 85]), updatedAt: after },
+    { readings: weighed(['2026-10-10', 85]), updatedAt: after },
     startedAt,
+    zone,
   );
   expect(answered.local.lastTime[0]?.countedWeightKg).toBe(98);
 
   // A copy kept before the answer's time was carried is never recounted from weigh-ins.
-  const fresh = { days: weighed(['2026-10-10', 85]), updatedAt: after };
-  expect(recountedLastTime(lastTime, undefined, fresh, startedAt)).toBe(lastTime);
+  const fresh = { readings: weighed(['2026-10-10', 85]), updatedAt: after };
+  expect(recountedLastTime(lastTime, undefined, fresh, startedAt, zone)).toBe(lastTime);
+});
+
+test('offline, cached weigh-ins are dated in the workout’s zone, not a profile zone changed since', () => {
+  // Last time was on 10 Oct in Tokyo, the workout's zone. Mid-workout the profile moved to Los
+  // Angeles and the weigh-ins were asked again, so the API dated them there: 07:30 Tokyo on the
+  // 10th is 15:30 on the 9th in Los Angeles, and 23:30 Tokyo on the 10th is 07:30 on the 10th.
+  const readings = [
+    reading('2026-10-10T23:30:00+09:00', 88),
+    reading('2026-10-10T07:30:00+09:00', 85),
+    reading('2026-10-09T23:30:00+09:00', 80),
+  ];
+  const recounted = recountedLastTime(
+    copied,
+    undefined,
+    { readings, updatedAt: answeredAt + 1 },
+    startedAt,
+    zone,
+  );
+  expect(recounted.local.lastTimeBodyweight).toEqual({
+    basis: 'same_day',
+    weightKg: 85,
+    weighedOn: '2026-10-10',
+  });
+  expect(recounted.local.lastTime[0]?.countedWeightKg).toBe(95);
+
+  // Read in Los Angeles, the same readings would have counted 88 kg for the 10th.
+  const elsewhere = recountedLastTime(
+    copied,
+    undefined,
+    { readings, updatedAt: answeredAt + 1 },
+    startedAt,
+    'America/Los_Angeles',
+  );
+  expect(elsewhere.local.lastTimeBodyweight).toMatchObject({ weightKg: 88 });
 });

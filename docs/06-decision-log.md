@@ -3998,7 +3998,12 @@ counted 82 kg, go offline and start a workout: the copy kept 82 kg.
   `domain/bodyweight.ts` on the same days and dates, and a change to one fails there. *Rejected:*
   importing the API's domain into the web app, which the contract rule forbids, and moving the rule
   into the contract package, which holds only what is generated from the routes.
-- **The cached weigh-ins' days are in the profile's time zone**, as Last time's are unless the
-  workout was started in another; there the API's next answer corrects it.
+- **The cached weigh-ins are dated in the workout's time zone** (2026-10-19), as Last time's date
+  is. The API dates its list in the profile's, so a profile zone changed mid-workout, with the
+  weigh-ins asked again, would put a reading near midnight on the wrong day. The device dates the
+  cached readings itself (`weighedDaysIn`, the copy of `dailyWeights`, checked against it in the API's suite).
+  *Rejected:* waiting for the API's next Last time answer, which never comes offline, and a zone
+  parameter on `GET /api/weigh-ins`, whose answer in the workout's zone would have to be cached
+  before the device went offline.
 
 **Changed:** `06`.
