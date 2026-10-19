@@ -418,4 +418,40 @@ test('a Your day save that keeps the training days leaves the phase’s calories
     await page.request.get('/api/goal-phases')
   ).json();
   expect(phases.items.find((phase) => phase.endedOn === null)?.calorieTargetKcal).toBe(2350);
+
+  // Training days that arrive without their phase follow-up: a later save, after a reload, sends it.
+  await page.route('**/api/goal-phases/*', async (route) => {
+    if (route.request().method() !== 'PATCH') {
+      await route.continue();
+      return;
+    }
+    await route.fulfill({ status: 500, body: 'Phase failed' });
+  });
+  await page.goto('/plan/day');
+  await page.getByRole('radio', { name: 'Training day' }).check();
+  await page.getByRole('button', { name: 'Monday', exact: true }).click();
+  await page.getByRole('button', { name: 'Use these meals' }).click();
+  await expect(
+    page.getByText(
+      'Training days and the training day saved. The goal phase wasn’t; save again when you have signal.',
+    ),
+  ).toBeVisible();
+  await page.unroute('**/api/goal-phases/*');
+  await page.goto('/');
+  await page.reload();
+  await page.goto('/plan/day');
+  await page.getByRole('radio', { name: 'Training day' }).check();
+  await page.getByRole('button', { name: 'Use these meals' }).click();
+  const defaults: { calories: { value: number } } = await (
+    await page.request.get('/api/goal-phases/defaults?type=cut&targetRatePctPerWeek=0.5')
+  ).json();
+  expect(defaults.calories.value).not.toBe(2350);
+  await expect
+    .poll(async () => {
+      const followed: { items: { endedOn: string | null; calorieTargetKcal: number }[] } = await (
+        await page.request.get('/api/goal-phases')
+      ).json();
+      return followed.items.find((phase) => phase.endedOn === null)?.calorieTargetKcal;
+    })
+    .toBe(defaults.calories.value);
 });

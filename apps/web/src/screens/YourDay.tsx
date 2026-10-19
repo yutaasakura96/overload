@@ -1,8 +1,9 @@
 import type { DayRoutine, DayType, Me, MealRecommendation } from '@overload/api-contract';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { useId, useRef, useState } from 'react';
+import { useId, useState } from 'react';
 import { api, ApiError } from '../api';
 import { AppBar, DataState, FieldLabel, Notice } from '../components';
+import { deviceStore } from '../device-store';
 import { EVIDENCE, EvidenceTag } from '../evidence';
 import { goBack, type Navigate } from '../navigation';
 import {
@@ -137,7 +138,6 @@ function DayForm({
   const [savedNow, setSavedNow] = useState<DayType>();
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<SaveProblem>();
-  const followPending = useRef(false);
   const day = days[dayType];
   const training = dayType === 'training';
   const setDay = (patch: Partial<Day>) => {
@@ -171,19 +171,20 @@ function DayForm({
     try {
       const profileWeekdays = me.profile?.trainingWeekdays ?? [];
       const sorted = weekdays.toSorted((a, b) => a - b);
-      if (JSON.stringify(sorted) !== JSON.stringify(profileWeekdays)) {
+      const changed = JSON.stringify(sorted) !== JSON.stringify(profileWeekdays);
+      if (changed) {
         setProfile(
           await confirmedAccountData(() =>
             api.PATCH('/api/me/profile', { body: { trainingWeekdays: sorted } }),
           ),
         );
         stored.push('Training days');
-        followPending.current = true;
+        await deviceStore.followPending.set(me.user.id).catch(() => undefined);
       }
-      if (followPending.current) {
+      if (changed || (await deviceStore.followPending.get(me.user.id).catch(() => false))) {
         try {
           if (await followTrainingDays()) stored.push('the goal phase’s calories');
-          followPending.current = false;
+          await deviceStore.followPending.clear(me.user.id).catch(() => undefined);
         } catch (error) {
           phaseError = error;
         }

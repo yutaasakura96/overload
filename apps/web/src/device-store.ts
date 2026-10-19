@@ -10,6 +10,7 @@ const SIGNED_IN_USER = 'signed-in-user';
 // Days left incomplete at the end-of-day check (docs/03 §6) will live here too from M2, and the
 // wipe below already covers them.
 const QUERY_CACHE = 'query-cache';
+const FOLLOW_PENDING = 'training-days-follow-pending';
 const WIPE_PENDING = 'overload:wipe-pending';
 
 export type SignedInUser = Me['user'];
@@ -24,6 +25,17 @@ export const deviceStore = {
     getItem: (key: string) => get<string>(`${QUERY_CACHE}:${key}`, store),
     setItem: (key: string, value: string) => set(`${QUERY_CACHE}:${key}`, value, store),
     removeItem: (key: string) => del(`${QUERY_CACHE}:${key}`, store),
+  },
+
+  /**
+   * Training days saved whose goal-phase follow-up (S14) has not arrived, per account: the phase
+   * alone cannot show it, as its provisional figure also moves with the weight.
+   */
+  followPending: {
+    get: async (userId: string) =>
+      (await get<boolean>(`${FOLLOW_PENDING}:${userId}`, store)) === true,
+    set: (userId: string) => set(`${FOLLOW_PENDING}:${userId}`, true, store),
+    clear: (userId: string) => del(`${FOLLOW_PENDING}:${userId}`, store),
   },
 
   wipePending: () => {
