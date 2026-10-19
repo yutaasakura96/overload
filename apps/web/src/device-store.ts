@@ -15,6 +15,9 @@ const WIPE_PENDING = 'overload:wipe-pending';
 
 export type SignedInUser = Me['user'];
 
+/** A phase owed the follow-up of saved training days, at the calories it had before it. */
+export type FollowPending = { phaseId: string; calorieTargetKcal: number };
+
 export const deviceStore = {
   /** The last confirmed signed-in user, so an offline launch can open as them (docs/08 §5). */
   rememberUser: (user: SignedInUser) => set(SIGNED_IN_USER, user, store),
@@ -32,9 +35,9 @@ export const deviceStore = {
    * alone cannot show it, as its provisional figure also moves with the weight.
    */
   followPending: {
-    get: async (userId: string) =>
-      (await get<boolean>(`${FOLLOW_PENDING}:${userId}`, store)) === true,
-    set: (userId: string) => set(`${FOLLOW_PENDING}:${userId}`, true, store),
+    get: (userId: string) => get<FollowPending>(`${FOLLOW_PENDING}:${userId}`, store),
+    set: (userId: string, pending: FollowPending) =>
+      set(`${FOLLOW_PENDING}:${userId}`, pending, store),
     clear: (userId: string) => del(`${FOLLOW_PENDING}:${userId}`, store),
   },
 

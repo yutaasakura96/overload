@@ -179,15 +179,13 @@ function DayForm({
           ),
         );
         stored.push('Training days');
-        await deviceStore.followPending.set(me.user.id).catch(() => undefined);
       }
-      if (changed || (await deviceStore.followPending.get(me.user.id).catch(() => false))) {
-        try {
-          if (await followTrainingDays()) stored.push('the goal phase’s calories');
-          await deviceStore.followPending.clear(me.user.id).catch(() => undefined);
-        } catch (error) {
-          phaseError = error;
+      try {
+        if (await followTrainingDays(me.user.id, changed)) {
+          stored.push('the goal phase’s calories');
         }
+      } catch (error) {
+        phaseError = error;
       }
       await confirmedAccountData(() =>
         api.PUT('/api/day-routines/{dayType}', {
@@ -205,7 +203,14 @@ function DayForm({
       stored.push(training ? 'the training day' : 'the rest day');
       await queryClient.invalidateQueries({ queryKey: ['plan'] });
       if (phaseError !== undefined) {
-        setProblem(partlySaved(saveProblem(phaseError), savedSentence(stored), 'goal phase'));
+        setProblem(
+          phaseError instanceof FollowUnrecorded
+            ? {
+                kind: 'unreached',
+                saved: `${savedSentence(stored)} The goal phase wasn’t updated; check its calories in Goal phase.`,
+              }
+            : partlySaved(saveProblem(phaseError), savedSentence(stored), 'goal phase'),
+        );
         setBusy(false);
         return;
       }
@@ -377,27 +382,58 @@ function savedSentence(parts: string[]) {
   return `${list.charAt(0).toUpperCase()}${list.slice(1)} saved.`;
 }
 
+/** The follow-up failed, and the device could not keep it to send with a later save. */
+class FollowUnrecorded extends Error {}
+
 /**
  * Training days move the provisional calories, which count them in the activity level (S14). A phase
  * still on the formula's figure takes the formula's new one; a figure the user set, or a measured
- * one, is theirs and stays.
+ * one, is theirs and stays. It runs when this save changed the training days, or when an earlier
+ * change's follow-up is still owed to the open phase: kept on the device until it arrives, and void
+ * once that phase is closed or its calories moved.
  */
-async function followTrainingDays(): Promise<boolean> {
+async function followTrainingDays(userId: string, changed: boolean): Promise<boolean> {
   const phases = await queryClient.fetchQuery({ ...goalPhasesQuery, staleTime: 0 });
   const open = phases.find((phase) => phase.endedOn === null);
   if (open === undefined || open.calorieBasis !== 'provisional_formula') return false;
-  const defaults = await queryClient.fetchQuery({
-    ...phaseDefaultsQuery(open.type, open.targetRatePctPerWeek ?? undefined),
-    staleTime: 0,
-  });
-  if (defaults.calories.value === open.calorieTargetKcal) return false;
-  await confirmedAccountData(() =>
-    api.PATCH('/api/goal-phases/{id}', {
-      params: { path: { id: open.id } },
-      body: { calorieTargetKcal: defaults.calories.value, calorieBasis: 'provisional_formula' },
-    }),
-  );
-  return true;
+  let recorded = true;
+  if (changed) {
+    recorded = await deviceStore.followPending
+      .set(userId, { phaseId: open.id, calorieTargetKcal: open.calorieTargetKcal })
+      .then(
+        () => true,
+        () => false,
+      );
+  } else {
+    const pending = await deviceStore.followPending.get(userId).catch(() => {
+      throw new FollowUnrecorded();
+    });
+    if (pending === undefined) return false;
+    if (pending.phaseId !== open.id || pending.calorieTargetKcal !== open.calorieTargetKcal) {
+      await deviceStore.followPending.clear(userId).catch(() => undefined);
+      return false;
+    }
+  }
+  let moved: boolean;
+  try {
+    const defaults = await queryClient.fetchQuery({
+      ...phaseDefaultsQuery(open.type, open.targetRatePctPerWeek ?? undefined),
+      staleTime: 0,
+    });
+    moved = defaults.calories.value !== open.calorieTargetKcal;
+    if (moved) {
+      await confirmedAccountData(() =>
+        api.PATCH('/api/goal-phases/{id}', {
+          params: { path: { id: open.id } },
+          body: { calorieTargetKcal: defaults.calories.value, calorieBasis: 'provisional_formula' },
+        }),
+      );
+    }
+  } catch (error) {
+    throw recorded ? error : new FollowUnrecorded();
+  }
+  await deviceStore.followPending.clear(userId).catch(() => undefined);
+  return moved;
 }
 
 function Recommend({

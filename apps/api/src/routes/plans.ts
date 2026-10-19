@@ -1,6 +1,6 @@
 import { createRoute, defineOpenAPIRoute, z } from '@hono/zod-openapi';
 import type { AppEnv, RouteDeps } from '../app-env.js';
-import type { Database } from '../db/connection.js';
+import type { Database, Queryable } from '../db/connection.js';
 import { listDayRoutines, putDayRoutine } from '../db/day-routines.js';
 import {
   createGoalPhase,
@@ -14,6 +14,7 @@ import {
   listPlanDays,
   planFoods,
   replacePlanDays,
+  withPlanLock,
   type StoredPlanDay,
 } from '../db/plans.js';
 import { getProfile } from '../db/profile.js';
@@ -60,17 +61,15 @@ import {
 export const PLAN_RANGE_MAX_DAYS = 31;
 
 /** What the plan routes read: the profile, the bodyweight targets are set at, and the setup. */
-async function planContext(db: Database, userId: string) {
+async function planContext(db: Queryable, userId: string) {
   const profile = await getProfile(db, userId);
   const timezone = profile?.timezone ?? 'Asia/Tokyo';
   const today = localDateIn(timezone)(new Date());
   const days = weightTrend(dailyWeights(await listWeighIns(db, userId), timezone)).days;
   const bodyweight = bodyweightForTargets(days, today);
-  const [phase, routines, foods] = await Promise.all([
-    openGoalPhase(db, userId),
-    listDayRoutines(db, userId),
-    planFoods(db, userId),
-  ]);
+  const phase = await openGoalPhase(db, userId);
+  const routines = await listDayRoutines(db, userId);
+  const foods = await planFoods(db, userId);
   const profileComplete =
     profile !== null &&
     profile.heightCm !== null &&
@@ -559,31 +558,32 @@ export function planRoutes({ db }: RouteDeps) {
             ],
           });
         }
-        const context = await planContext(db, userId);
-        const { phase, bodyweight } = context;
-        if (context.missing.length > 0 || phase === undefined || bodyweight === null) {
-          return problem(c, 'setup_incomplete', { missing: context.missing });
-        }
-        const targets = macroTargets(phase, bodyweight.weightKg);
-        const planned = planDates({
-          dates: datesBetween(range.from, range.to),
-          trainingWeekdays: context.trainingWeekdays,
-          routines: Object.fromEntries(
-            context.routines.map((routine) => [routine.dayType, routine]),
-          ),
-          targets,
-          goalPhaseId: phase.id,
-          foods: context.foods,
-        });
-        // A day with a confirmed meal is never made again, nor a past day already planned: what it
-        // aimed for stays what it aimed for.
-        await replacePlanDays(db, userId, planned, async (tx) => {
+        const missing = await withPlanLock(db, userId, async (tx) => {
+          const context = await planContext(tx, userId);
+          const { phase, bodyweight } = context;
+          if (context.missing.length > 0 || phase === undefined || bodyweight === null) {
+            return context.missing;
+          }
+          const planned = planDates({
+            dates: datesBetween(range.from, range.to),
+            trainingWeekdays: context.trainingWeekdays,
+            routines: Object.fromEntries(
+              context.routines.map((routine) => [routine.dayType, routine]),
+            ),
+            targets: macroTargets(phase, bodyweight.weightKg),
+            goalPhaseId: phase.id,
+            foods: context.foods,
+          });
+          // A day with a confirmed meal is never made again, nor a past day already planned: what
+          // it aimed for stays what it aimed for.
           const kept = await confirmedDates(tx, userId, range);
           for (const day of await listPlanDays(tx, userId, range)) {
             if (day.date < context.today) kept.add(day.date);
           }
-          return kept;
+          await replacePlanDays(tx, userId, planned, kept);
+          return undefined;
         });
+        if (missing !== undefined) return problem(c, 'setup_incomplete', { missing });
         return c.json(await readRange(db, userId, range), 200);
       },
     }),

@@ -221,83 +221,89 @@ export async function confirmedDates(
 }
 
 /**
- * Writes generated days in place of their unconfirmed copies, in one transaction that holds the
- * user's plan lock, so two generations at once cannot both write a day. A day that gained a
- * confirmed meal meanwhile is left as it is.
+ * Runs `work` in one transaction that holds the user's plan lock, so two generations at once run
+ * one after the other: each reads its inputs and writes its days with no other in between.
  */
-export async function replacePlanDays(
+export async function withPlanLock<T>(
   db: Database,
   userId: string,
-  days: NewPlanDay[],
-  keep: (tx: Transaction) => Promise<Set<string>>,
-): Promise<void> {
-  if (days.length === 0) return;
-  await db.transaction(async (tx) => {
+  work: (tx: Transaction) => Promise<T>,
+): Promise<T> {
+  return db.transaction(async (tx) => {
     await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext('plan_day'), hashtext(${userId}))`);
-    const kept = await keep(tx);
-    const written = days.filter((day) => !kept.has(day.date));
-    if (written.length === 0) return;
-    await tx.delete(planDay).where(
-      and(
-        eq(planDay.userId, userId),
-        inArray(
-          planDay.planDate,
-          written.map((day) => day.date),
-        ),
-      ),
-    );
-    for (const day of written) {
-      const [row] = await tx
-        .insert(planDay)
-        .values({
-          userId,
-          planDate: day.date,
-          dayType: day.dayType,
-          goalPhaseId: day.goalPhaseId,
-          targetKcal: day.targets.energyKcal,
-          targetProteinG: day.targets.proteinG,
-          targetCarbG: day.targets.carbG,
-          targetFatG: day.targets.fatG,
-          shortfalls: day.shortfalls,
-        })
-        .returning({ id: planDay.id });
-      if (row === undefined) throw new Error('plan day insert returned no row');
-      if (day.meals.length === 0) continue;
-      const meals = await tx
-        .insert(planMeal)
-        .values(
-          day.meals.map((meal) => ({
-            planDayId: row.id,
-            position: meal.position,
-            plannedTime: meal.plannedTime,
-            label: meal.label,
-            isPreTraining: meal.isPreTraining,
-            isPostTraining: meal.isPostTraining,
-          })),
-        )
-        .returning({ id: planMeal.id, position: planMeal.position });
-      const items = day.meals.flatMap((meal) => {
-        const stored = meals.find((each) => each.position === meal.position);
-        if (stored === undefined) return [];
-        return meal.items.map((item) => ({
-          planMealId: stored.id,
-          foodId: item.foodId,
-          name: item.name,
-          plannedGrams: item.plannedGrams,
-          pieceCount: item.pieceCount,
-          cooked: item.cooked,
-          approximate: item.approximate,
-          noCookedMatch: item.noCookedMatch,
-          energyKcalPer100g: item.per100g.energyKcal,
-          proteinGPer100g: item.per100g.proteinG,
-          carbGPer100g: item.per100g.carbG,
-          fatGPer100g: item.per100g.fatG,
-          fiberGPer100g: item.per100g.fiberG,
-        }));
-      });
-      if (items.length > 0) await tx.insert(planMealItem).values(items);
-    }
+    return work(tx);
   });
+}
+
+/** Writes generated days in place of their unconfirmed copies, all but the dates `kept`. */
+export async function replacePlanDays(
+  tx: Transaction,
+  userId: string,
+  days: NewPlanDay[],
+  kept: Set<string>,
+): Promise<void> {
+  const written = days.filter((day) => !kept.has(day.date));
+  if (written.length === 0) return;
+  await tx.delete(planDay).where(
+    and(
+      eq(planDay.userId, userId),
+      inArray(
+        planDay.planDate,
+        written.map((day) => day.date),
+      ),
+    ),
+  );
+  for (const day of written) {
+    const [row] = await tx
+      .insert(planDay)
+      .values({
+        userId,
+        planDate: day.date,
+        dayType: day.dayType,
+        goalPhaseId: day.goalPhaseId,
+        targetKcal: day.targets.energyKcal,
+        targetProteinG: day.targets.proteinG,
+        targetCarbG: day.targets.carbG,
+        targetFatG: day.targets.fatG,
+        shortfalls: day.shortfalls,
+      })
+      .returning({ id: planDay.id });
+    if (row === undefined) throw new Error('plan day insert returned no row');
+    if (day.meals.length === 0) continue;
+    const meals = await tx
+      .insert(planMeal)
+      .values(
+        day.meals.map((meal) => ({
+          planDayId: row.id,
+          position: meal.position,
+          plannedTime: meal.plannedTime,
+          label: meal.label,
+          isPreTraining: meal.isPreTraining,
+          isPostTraining: meal.isPostTraining,
+        })),
+      )
+      .returning({ id: planMeal.id, position: planMeal.position });
+    const items = day.meals.flatMap((meal) => {
+      const stored = meals.find((each) => each.position === meal.position);
+      if (stored === undefined) return [];
+      return meal.items.map((item) => ({
+        planMealId: stored.id,
+        foodId: item.foodId,
+        name: item.name,
+        plannedGrams: item.plannedGrams,
+        pieceCount: item.pieceCount,
+        cooked: item.cooked,
+        approximate: item.approximate,
+        noCookedMatch: item.noCookedMatch,
+        energyKcalPer100g: item.per100g.energyKcal,
+        proteinGPer100g: item.per100g.proteinG,
+        carbGPer100g: item.per100g.carbG,
+        fatGPer100g: item.per100g.fatG,
+        fiberGPer100g: item.per100g.fiberG,
+      }));
+    });
+    if (items.length > 0) await tx.insert(planMealItem).values(items);
+  }
 }
 
 /** A food as the planner reads it: its values per 100 g of the weight the plan gives. */

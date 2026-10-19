@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, sql } from 'drizzle-orm';
-import type { Database } from './connection.js';
+import type { Database, Queryable } from './connection.js';
 import { bodyMeasurement } from './schema.js';
 
 /** One weigh-in as the API returns it (docs/07 §5). */
@@ -31,7 +31,7 @@ const columns = {
  * Every reading the user has, oldest first. The trend runs from the first one (docs/03 §8.3), and
  * one person's readings are a few a day at most, so they are read whole.
  */
-export function listWeighIns(db: Database, userId: string): Promise<WeighIn[]> {
+export function listWeighIns(db: Queryable, userId: string): Promise<WeighIn[]> {
   return db
     .select(columns)
     .from(bodyMeasurement)
