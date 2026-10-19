@@ -855,8 +855,9 @@ puts the "provisional" label on screen (S14).
 - **Generation never returns nothing** (`03` §8.2). When a target cannot be met, the day carries
   `shortfalls`, stored with it (`04` `plan_day.shortfalls`).
 - **As built, 2026-10-18** (`#79`): `from` after `to`, or more than 31 days, is a 400 on the read
-  and a 422 `validation_failed` on `generate`. The client generates today through today + 6 when
-  `missing` is not empty, and again after a food or a rotation group changes, or a
+  and a 422 `validation_failed` on `generate`. One generation at a time per user: it reads its inputs
+  and writes its days under one lock, so a waiting one never writes from an older food list. The
+  client generates today through today + 6 when `missing` is not empty, and again after a food or a rotation group changes, or a
   save on About you, Goal phase or Your day. The daily job is not built. Confirming (below) and the
   prep plan are slices 5 and 6 (`#80`, `#81`); `batchId` and `estimateId` are not in the item yet,
   and `cooked` is.

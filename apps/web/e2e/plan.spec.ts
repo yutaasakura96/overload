@@ -146,6 +146,12 @@ test('sets up a phase and a day, and Today shows the day’s plan', async ({ pag
   await expect(
     page.getByText(/planned at its raw weight, because the food table has/),
   ).toBeVisible();
+  if (process.env.NO_MISTAKES_EVIDENCE_DIR) {
+    await page.screenshot({
+      path: `${process.env.NO_MISTAKES_EVIDENCE_DIR}/today-generated-plan.png`,
+      fullPage: true,
+    });
+  }
 
   // The week from today is made, each day within ±5% of its calories or saying what it is short.
   const to = new Date(Date.parse(`${today.date}T00:00:00Z`) + 6 * DAY_MS)
@@ -454,4 +460,47 @@ test('a Your day save that keeps the training days leaves the phase’s calories
       return followed.items.find((phase) => phase.endedOn === null)?.calorieTargetKcal;
     })
     .toBe(defaults.calories.value);
+});
+
+test('refuses a replacement phase that overlaps its open predecessor', async ({ page }) => {
+  const headers = { Origin: WEB_ORIGIN };
+  const day = (offset: number) =>
+    new Date(Date.parse(`${todayInZone().date}T00:00:00Z`) + offset * DAY_MS)
+      .toISOString()
+      .slice(0, 10);
+  const first = day(-3);
+  const phase = (startedOn: string, endPrevious = false) => ({
+    id: randomUUID(),
+    type: 'cut',
+    startedOn,
+    endPrevious,
+    targetRatePctPerWeek: 0.5,
+    proteinGPerKg: 2.2,
+    fatPctCalories: 25,
+    calorieTargetKcal: 2350,
+    calorieBasis: 'manual',
+  });
+  expect((await page.request.post('/api/goal-phases', { headers, data: phase(first) })).status())
+    .toBe(201);
+  for (const start of [first, day(-4)]) {
+    const refused = await page.request.post('/api/goal-phases', {
+      headers,
+      data: phase(start, true),
+    });
+    expect(refused.status()).toBe(422);
+    expect(refused.headers()['content-type']).toContain('application/problem+json');
+    expect(await refused.json()).toMatchObject({
+      code: 'validation_failed',
+      errors: [{ path: 'startedOn', message: 'Start after the open phase began' }],
+    });
+  }
+  expect((await page.request.post('/api/goal-phases', { headers, data: phase(day(-2), true) })).status())
+    .toBe(201);
+  const history: { items: { startedOn: string; endedOn: string | null }[] } = await (
+    await page.request.get('/api/goal-phases')
+  ).json();
+  expect(history.items.map(({ startedOn, endedOn }) => [startedOn, endedOn])).toEqual([
+    [day(-2), null],
+    [first, first],
+  ]);
 });

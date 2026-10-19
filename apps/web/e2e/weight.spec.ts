@@ -227,3 +227,40 @@ test('shows no movement for the last week when the latest weigh-in is older than
   await page.reload();
   await expect(page.getByText('in the last week')).toBeVisible();
 });
+
+test('switches the weight chart from 30 days to the open phase start', async ({ page }) => {
+  const profile = await page.request.patch('/api/me/profile', {
+    data: { heightCm: 176, sex: 'male', birthDate: '1994-05-01' },
+  });
+  expect(profile.ok()).toBe(true);
+  for (const [daysAgo, weight] of [[40, 85], [35, 84], [20, 83], [1, 82]] as const) {
+    await weighIn(page, daysAgo, weight);
+  }
+  const phase = await page.request.post('/api/goal-phases', {
+    headers: { Origin: WEB_ORIGIN },
+    data: {
+      id: crypto.randomUUID(),
+      type: 'cut',
+      startedOn: tokyoDate(45),
+      targetRatePctPerWeek: 0.5,
+      proteinGPerKg: 2.2,
+      fatPctCalories: 25,
+      calorieTargetKcal: 2350,
+      calorieBasis: 'manual',
+    },
+  });
+  expect(phase.ok()).toBe(true);
+
+  await page.goto('/progress/weight');
+  await expect(page.getByRole('radio', { name: '30 days' })).toBeChecked();
+  await expect(page.locator('.wchart__dot')).toHaveCount(2);
+  await page.getByRole('radio', { name: /^Since / }).check();
+  await expect(page.locator('.wchart__dot')).toHaveCount(4);
+  await expect(page.locator('.wchart figcaption')).toContainText('4 weighed days');
+  if (process.env.NO_MISTAKES_EVIDENCE_DIR) {
+    await page.screenshot({
+      path: `${process.env.NO_MISTAKES_EVIDENCE_DIR}/weight-phase-span.png`,
+      fullPage: true,
+    });
+  }
+});

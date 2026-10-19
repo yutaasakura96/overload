@@ -367,7 +367,9 @@ the meal and still lets the day be complete.
     `About you` is done with height, sex, birth date and a weigh-in, and `Your day` once every day
     type the training weekdays need is saved. A save on one of them returns to Today, which says
     `Saved.` while a step is left and `Saved. The week’s plan is made again from it.` once none is.
-  - Once set up, Today reads today through today + 6 and generates any day missing, once. It
+  - Once set up, Today reads today through today + 6 and generates any day missing, once. Before
+    the day type's wake time, today is still the day before, so a night past midnight stays on the
+    day it belongs to. It
     failing says `No plan yet`: `Couldn’t make today’s plan. Try again when you have signal.`
   - Meal cards are not buttons, and there are no actions, until confirming arrives (`#80`). The meal
     due is open: the first no more than an hour past its time.
@@ -707,7 +709,9 @@ components, and pass the polish gate (`AGENTS.md`). Nothing here adds a token or
   `Default` or `Yours`. A refused field gets an `error` border, and under it the word `Refused`, the
   info icon and the reason; focus moves to the first one.
 - **Save notices.** `Not saved` in `flag` when the server was not reached: the form keeps
-  everything, and saving again later works. `Refused` in `error` when the server refused, or before
+  everything, and saving again later works. `Partly saved` in `flag` when a save's first writes
+  landed and a later one did not: it says what was saved, then what was not (`Your details saved.
+  The weigh-in wasn’t; save again when you have signal.`). `Refused` in `error` when the server refused, or before
   sending when a figure is not a number (`Enter a number, in digits only`), so it never goes as
   `null`, which would mean the default, or when a slot has one end of its rep range (`Set both ends
   of the range, or neither`). Neither queues offline (`06`, offline scope).
@@ -1079,7 +1083,9 @@ changed count adds `Yours: 4 meals. The recommendation was 5.` in `flag`. `Use t
   phase can start tomorrow.`; an attempted same-day start is refused.
 - Your day starts on `Training day` unless it is saved and the rest day is not. The weekday toggles
   change the profile's training weekdays; while the phase's calories are still the formula's, they
-  follow. When the week needs both day types and one is unsaved, saving the first says `Training
+  follow, on the save that changes the weekdays only. A follow-up that fails is kept on the device
+  for that phase and sent with the next save; if the device cannot keep it, the notice says `The
+  goal phase wasn’t updated; check its calories in Goal phase.` When the week needs both day types and one is unsaved, saving the first says `Training
   day saved. Now your rest day.` and switches to it. Without a goal phase the recommendation says
   `Set up first` with a link to it.
 
