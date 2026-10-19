@@ -495,96 +495,9 @@
               "items",
               "nextCursor"
             ]
-          },
-          {
-            "type": "object",
-            "properties": {
-              "section": {
-                "type": "string",
-                "enum": [
-                  "phases"
-                ]
-              },
-              "items": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/GoalPhase"
-                }
-              },
-              "nextCursor": {
-                "type": [
-                  "string",
-                  "null"
-                ],
-                "description": "Opaque. Send it back as `cursor` for the next page."
-              }
-            },
-            "required": [
-              "section",
-              "items",
-              "nextCursor"
-            ]
-          },
-          {
-            "type": "object",
-            "properties": {
-              "section": {
-                "type": "string",
-                "enum": [
-                  "dayRoutines"
-                ]
-              },
-              "items": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/DayRoutine"
-                }
-              },
-              "nextCursor": {
-                "type": [
-                  "string",
-                  "null"
-                ],
-                "description": "Opaque. Send it back as `cursor` for the next page."
-              }
-            },
-            "required": [
-              "section",
-              "items",
-              "nextCursor"
-            ]
-          },
-          {
-            "type": "object",
-            "properties": {
-              "section": {
-                "type": "string",
-                "enum": [
-                  "planDays"
-                ]
-              },
-              "items": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/PlanDay"
-                }
-              },
-              "nextCursor": {
-                "type": [
-                  "string",
-                  "null"
-                ],
-                "description": "Opaque. Send it back as `cursor` for the next page."
-              }
-            },
-            "required": [
-              "section",
-              "items",
-              "nextCursor"
-            ]
           }
         ],
-        "description": "One page of one section. `profile` has one item; `exercises`, `routines`, `workouts`, `weighIns`, `foods`, `rotationGroups`, `phases`, `dayRoutines` and `planDays` are cursor-paged. Workouts include ones in progress, and `foods` archived ones."
+        "description": "One page of one section. `profile` has one item; `exercises`, `routines`, `workouts`, `weighIns`, `foods` and `rotationGroups` are cursor-paged. Workouts include ones in progress, and `foods` archived ones."
       },
       "ExportProfile": {
         "type": "object",
@@ -1282,6 +1195,110 @@
           "foodIds"
         ]
       },
+      "ExportSection": {
+        "type": "string",
+        "enum": [
+          "profile",
+          "exercises",
+          "routines",
+          "workouts",
+          "weighIns",
+          "foods",
+          "rotationGroups"
+        ],
+        "description": "The sections built so far. Later milestones add theirs (docs/07 §2)."
+      },
+      "PlanningExportPage": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "section": {
+                "type": "string",
+                "enum": [
+                  "phases"
+                ]
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/GoalPhase"
+                }
+              },
+              "nextCursor": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Opaque. Send it back as `cursor` for the next page."
+              }
+            },
+            "required": [
+              "section",
+              "items",
+              "nextCursor"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "section": {
+                "type": "string",
+                "enum": [
+                  "dayRoutines"
+                ]
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/DayRoutine"
+                }
+              },
+              "nextCursor": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Opaque. Send it back as `cursor` for the next page."
+              }
+            },
+            "required": [
+              "section",
+              "items",
+              "nextCursor"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "section": {
+                "type": "string",
+                "enum": [
+                  "planDays"
+                ]
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PlanDay"
+                }
+              },
+              "nextCursor": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Opaque. Send it back as `cursor` for the next page."
+              }
+            },
+            "required": [
+              "section",
+              "items",
+              "nextCursor"
+            ]
+          }
+        ]
+      },
       "GoalPhase": {
         "type": "object",
         "properties": {
@@ -1872,21 +1889,13 @@
           "per100g"
         ]
       },
-      "ExportSection": {
+      "PlanningExportSection": {
         "type": "string",
         "enum": [
-          "profile",
-          "exercises",
-          "routines",
-          "workouts",
-          "weighIns",
-          "foods",
-          "rotationGroups",
           "phases",
           "dayRoutines",
           "planDays"
-        ],
-        "description": "The sections built so far. Later milestones add theirs (docs/07 §2)."
+        ]
       },
       "ExerciseList": {
         "type": "object",
@@ -5229,6 +5238,87 @@
           },
           "400": {
             "description": "An unknown section, a limit outside 1 to 100, or a cursor that does not decode to this section’s sort key and id",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/me/export/planning": {
+      "get": {
+        "summary": "One page of a planning section of the caller’s export",
+        "parameters": [
+          {
+            "schema": {
+              "$ref": "#/components/schemas/PlanningExportSection"
+            },
+            "required": true,
+            "name": "section",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30,
+              "description": "Default 30, at most 100."
+            },
+            "required": false,
+            "description": "Default 30, at most 100.",
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "The previous page’s `nextCursor`."
+            },
+            "required": false,
+            "description": "The previous page’s `nextCursor`.",
+            "name": "cursor",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One page of the section, and the cursor of the next",
+            "headers": {
+              "Overload-User": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "The id of the user whose session answered. Keep the body for that account only."
+                },
+                "required": true,
+                "description": "The id of the user whose session answered. Keep the body for that account only."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanningExportPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "An unknown section, limit, or cursor",
             "content": {
               "application/problem+json": {
                 "schema": {

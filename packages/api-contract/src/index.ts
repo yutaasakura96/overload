@@ -14,6 +14,7 @@ export type BalanceView = Balance['view'];
 export type Equipment = components['schemas']['Equipment'];
 export type Exercise = components['schemas']['Exercise'];
 export type ExportPage = components['schemas']['ExportPage'];
+export type PlanningExportPage = components['schemas']['PlanningExportPage'];
 export type Food = components['schemas']['Food'];
 export type FoodCandidate = components['schemas']['FoodCandidate'];
 export type FoodSource = components['schemas']['FoodSource'];

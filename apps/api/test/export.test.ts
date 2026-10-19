@@ -64,6 +64,22 @@ describe('GET /api/me/export', () => {
     expect((await t.app.request('/api/me/export?section=profile')).status).toBe(401);
   });
 
+  it('keeps planning sections on the new endpoint', async () => {
+    const { cookie } = await t.createSignedInUser('planning-export@example.test');
+    for (const section of ['phases', 'dayRoutines', 'planDays']) {
+      const oldRoute = await t.app.request(`/api/me/export?section=${section}`, {
+        headers: { cookie },
+      });
+      expect(oldRoute.status).toBe(400);
+      const planningRoute = await t.app.request(`/api/me/export/planning?section=${section}`, {
+        headers: { cookie },
+      });
+      expect(planningRoute.status).toBe(200);
+      expect(await planningRoute.json()).toEqual({ section, items: [], nextCursor: null });
+    }
+    expect((await t.app.request('/api/me/export/planning?section=phases')).status).toBe(401);
+  });
+
   it.each([
     '',
     'section=meals',

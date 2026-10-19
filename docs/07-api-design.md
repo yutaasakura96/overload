@@ -198,22 +198,25 @@ weights are shown and typed. Every weight in every request and response stays kg
 `trainingWeekdays` uses ISO weekday numbers, 1 = Monday. It is what makes a calendar day a
 training day for the planner (S15).
 
-### `GET /api/me/export`
+### `GET /api/me/export` and `GET /api/me/export/planning`
 
 **Why sectioned:** Vercel caps a response body at 4.5 MB, and a few years of one person's sets,
 plans and health samples can pass that. The client fetches every section page by page and builds
 the file in the browser as `overload-export-2026-11-04.json`.
 
-- `?section=` one of `profile`, `exercises`, `routines`, `workouts`, `foods`, `rotationGroups`, `batches`, `phases`,
-  `dayRoutines`, `planDays`, `weighIns`, `healthSamples`, `appleWorkouts`, `expenditureEstimates`,
-  `mealEstimates`, `protocolSuggestions`, `ingestTokens` (labels and dates only, never hashes).
+- `?section=` on `/api/me/export` is one of `profile`, `exercises`, `routines`, `workouts`,
+  `weighIns`, `foods` or `rotationGroups`. `/api/me/export/planning` takes `phases`,
+  `dayRoutines` or `planDays`. Later slices add `batches`, `healthSamples`, `appleWorkouts`,
+  `expenditureEstimates`, `mealEstimates`, `protocolSuggestions` and `ingestTokens` (labels and
+  dates only, never hashes).
 - Paged as in §1.4. Each item is the row as the API's normal read returns it, with its children
   nested (a workout carries its exercises and sets).
 - **As built in slice 7** (`06`, 2026-10-15): M1's four sections, `profile`, `exercises`,
   `routines` and `workouts`. M2 slice 1 adds `weighIns`, newest `measuredAt` then id first, each as
   `GET /api/weigh-ins` lists it. M2 slice 3 adds `foods`, archived ones included, and
   `rotationGroups` with their `foodIds`, each paged by id and shaped as its list returns it;
-  `model_call_count` is bookkeeping and in neither (`06`, 2026-10-17). M2 slice 4 adds `phases`
+  `model_call_count` is bookkeeping and in neither (`06`, 2026-10-17). M2 slice 4 adds the
+  `/api/me/export/planning` route for `phases`
   (newest `startedOn` then id first, as `GET /api/goal-phases` lists them), `dayRoutines` (by day
   type, each with its meals, as `GET /api/day-routines`) and `planDays` (newest date first, each as
   `GET /api/plan-days` returns a day, meals and items nested) (`06`, 2026-10-18). `profile` is one item, `{ user, profile }`, as `/api/me` without

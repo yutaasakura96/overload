@@ -210,6 +210,68 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/me/export/planning': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** One page of a planning section of the caller’s export */
+    get: {
+      parameters: {
+        query: {
+          section: components['schemas']['PlanningExportSection'];
+          /** @description Default 30, at most 100. */
+          limit?: number;
+          /** @description The previous page’s `nextCursor`. */
+          cursor?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description One page of the section, and the cursor of the next */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['PlanningExportPage'];
+          };
+        };
+        /** @description An unknown section, limit, or cursor */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/exercises': {
     parameters: {
       query?: never;
@@ -3283,7 +3345,7 @@ export interface components {
       trainingWeekdays?: number[];
       weightUnit?: components['schemas']['WeightUnit'];
     };
-    /** @description One page of one section. `profile` has one item; `exercises`, `routines`, `workouts`, `weighIns`, `foods`, `rotationGroups`, `phases`, `dayRoutines` and `planDays` are cursor-paged. Workouts include ones in progress, and `foods` archived ones. */
+    /** @description One page of one section. `profile` has one item; `exercises`, `routines`, `workouts`, `weighIns`, `foods` and `rotationGroups` are cursor-paged. Workouts include ones in progress, and `foods` archived ones. */
     ExportPage:
       | {
           /** @enum {string} */
@@ -3331,27 +3393,6 @@ export interface components {
           /** @enum {string} */
           section: 'rotationGroups';
           items: components['schemas']['RotationGroup'][];
-          /** @description Opaque. Send it back as `cursor` for the next page. */
-          nextCursor: string | null;
-        }
-      | {
-          /** @enum {string} */
-          section: 'phases';
-          items: components['schemas']['GoalPhase'][];
-          /** @description Opaque. Send it back as `cursor` for the next page. */
-          nextCursor: string | null;
-        }
-      | {
-          /** @enum {string} */
-          section: 'dayRoutines';
-          items: components['schemas']['DayRoutine'][];
-          /** @description Opaque. Send it back as `cursor` for the next page. */
-          nextCursor: string | null;
-        }
-      | {
-          /** @enum {string} */
-          section: 'planDays';
-          items: components['schemas']['PlanDay'][];
           /** @description Opaque. Send it back as `cursor` for the next page. */
           nextCursor: string | null;
         };
@@ -3673,6 +3714,40 @@ export interface components {
       /** @description Its foods on the list, by name. */
       foodIds: string[];
     };
+    /**
+     * @description The sections built so far. Later milestones add theirs (docs/07 §2).
+     * @enum {string}
+     */
+    ExportSection:
+      | 'profile'
+      | 'exercises'
+      | 'routines'
+      | 'workouts'
+      | 'weighIns'
+      | 'foods'
+      | 'rotationGroups';
+    PlanningExportPage:
+      | {
+          /** @enum {string} */
+          section: 'phases';
+          items: components['schemas']['GoalPhase'][];
+          /** @description Opaque. Send it back as `cursor` for the next page. */
+          nextCursor: string | null;
+        }
+      | {
+          /** @enum {string} */
+          section: 'dayRoutines';
+          items: components['schemas']['DayRoutine'][];
+          /** @description Opaque. Send it back as `cursor` for the next page. */
+          nextCursor: string | null;
+        }
+      | {
+          /** @enum {string} */
+          section: 'planDays';
+          items: components['schemas']['PlanDay'][];
+          /** @description Opaque. Send it back as `cursor` for the next page. */
+          nextCursor: string | null;
+        };
     GoalPhase: {
       /**
        * Format: uuid
@@ -3883,21 +3958,8 @@ export interface components {
         fiberG: number;
       };
     };
-    /**
-     * @description The sections built so far. Later milestones add theirs (docs/07 §2).
-     * @enum {string}
-     */
-    ExportSection:
-      | 'profile'
-      | 'exercises'
-      | 'routines'
-      | 'workouts'
-      | 'weighIns'
-      | 'foods'
-      | 'rotationGroups'
-      | 'phases'
-      | 'dayRoutines'
-      | 'planDays';
+    /** @enum {string} */
+    PlanningExportSection: 'phases' | 'dayRoutines' | 'planDays';
     ExerciseList: {
       items: components['schemas']['Exercise'][];
     };

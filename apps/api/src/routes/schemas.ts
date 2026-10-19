@@ -1439,19 +1439,18 @@ export const EXPORT_SECTIONS = [
   'weighIns',
   'foods',
   'rotationGroups',
-  'phases',
-  'dayRoutines',
-  'planDays',
 ] as const;
 
 export const ExportSection = z.enum(EXPORT_SECTIONS).openapi('ExportSection', {
   description: 'The sections built so far. Later milestones add theirs (docs/07 §2).',
 });
 
-const exportPage = <Section extends (typeof EXPORT_SECTIONS)[number], Item extends z.ZodType>(
-  section: Section,
-  item: Item,
-) =>
+export const PLANNING_EXPORT_SECTIONS = ['phases', 'dayRoutines', 'planDays'] as const;
+export const PlanningExportSection = z
+  .enum(PLANNING_EXPORT_SECTIONS)
+  .openapi('PlanningExportSection');
+
+const exportPage = <Section extends string, Item extends z.ZodType>(section: Section, item: Item) =>
   z.object({
     section: z.literal(section),
     items: z.array(item),
@@ -1473,13 +1472,18 @@ export const ExportPage = z
     exportPage('weighIns', WeighIn),
     exportPage('foods', Food),
     exportPage('rotationGroups', RotationGroup),
-    exportPage('phases', GoalPhase),
-    exportPage('dayRoutines', DayRoutine),
-    exportPage('planDays', PlanDay),
   ])
   .openapi('ExportPage', {
     description:
       'One page of one section. `profile` has one item; `exercises`, `routines`, `workouts`, ' +
-      '`weighIns`, `foods`, `rotationGroups`, `phases`, `dayRoutines` and `planDays` are ' +
-      'cursor-paged. Workouts include ones in progress, and `foods` archived ones.',
+      '`weighIns`, `foods` and `rotationGroups` are cursor-paged. Workouts include ones in ' +
+      'progress, and `foods` archived ones.',
   });
+
+export const PlanningExportPage = z
+  .discriminatedUnion('section', [
+    exportPage('phases', GoalPhase),
+    exportPage('dayRoutines', DayRoutine),
+    exportPage('planDays', PlanDay),
+  ])
+  .openapi('PlanningExportPage');

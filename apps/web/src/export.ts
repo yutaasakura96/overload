@@ -1,4 +1,4 @@
-import type { ExportPage } from '@overload/api-contract';
+import type { ExportPage, PlanningExportPage } from '@overload/api-contract';
 import { api } from './api';
 import { localDate } from './dates';
 import { confirmedAccountData, currentAccount } from './query';
@@ -20,7 +20,8 @@ const SECTIONS = [
 ] as const;
 
 type Section = (typeof SECTIONS)[number];
-type ExportFile = { exportedAt: string } & Record<Section, ExportPage['items'][number][]>;
+type ExportItem = (ExportPage | PlanningExportPage)['items'][number];
+type ExportFile = { exportedAt: string } & Record<Section, ExportItem[]>;
 
 export function exportAccountIsCurrent(userId: string) {
   const account = currentAccount();
@@ -35,13 +36,20 @@ export async function readExport(
   const read = async (section: Section, index: number) => {
     if (!exportAccountIsCurrent(userId)) throw new Error('Export account changed');
     onSection(index);
-    const items: ExportPage['items'][number][] = [];
+    const items: ExportItem[] = [];
     let cursor: string | undefined;
     do {
       if (!exportAccountIsCurrent(userId)) throw new Error('Export account changed');
-      const page = await confirmedAccountData(() =>
-        api.GET('/api/me/export', { params: { query: { section, limit: 100, cursor } } }),
-      );
+      const page =
+        section === 'phases' || section === 'dayRoutines' || section === 'planDays'
+          ? await confirmedAccountData(() =>
+              api.GET('/api/me/export/planning', {
+                params: { query: { section, limit: 100, cursor } },
+              }),
+            )
+          : await confirmedAccountData(() =>
+              api.GET('/api/me/export', { params: { query: { section, limit: 100, cursor } } }),
+            );
       if (!exportAccountIsCurrent(userId)) throw new Error('Export account changed');
       if (page.section !== section) throw new Error('Export answered another section');
       items.push(...page.items);
