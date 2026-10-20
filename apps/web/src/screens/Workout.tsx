@@ -1,4 +1,4 @@
-import type { Exercise, LastTime, Me, WeightDay, WeightUnit } from '@overload/api-contract';
+import type { Exercise, LastTime, Me, WeighIn, WeightUnit } from '@overload/api-contract';
 import { useQuery } from '@tanstack/react-query';
 import {
   Fragment,
@@ -220,7 +220,7 @@ export function Workout({
             lastTimes.data && { exercises: lastTimes.data, updatedAt: lastTimes.dataUpdatedAt }
           }
           weighIns={
-            weighIns.data && { days: weighIns.data.days, updatedAt: weighIns.dataUpdatedAt }
+            weighIns.data && { readings: weighIns.data.weighIns, updatedAt: weighIns.dataUpdatedAt }
           }
           unit={me.profile?.weightUnit ?? 'kg'}
           timeZone={workoutZone}
@@ -306,7 +306,7 @@ function LiveWorkout({
   workout: WorkoutRecord;
   records: StoreRecord[];
   lastTimes: { exercises: LastTime[]; updatedAt: number } | undefined;
-  weighIns: { days: WeightDay[]; updatedAt: number } | undefined;
+  weighIns: { readings: WeighIn[]; updatedAt: number } | undefined;
   unit: WeightUnit;
   timeZone: string;
   guideOpen: boolean;
@@ -322,7 +322,7 @@ function LiveWorkout({
   onFinish: (result: Promise<boolean | undefined>) => void;
 }) {
   const exercises = exercisesOf(records, workout.id).map((exercise) =>
-    recountedLastTime(exercise, lastTimes, weighIns, workout.row.startedAt),
+    recountedLastTime(exercise, lastTimes, weighIns, workout.row.startedAt, timeZone),
   );
   // Turned on by hand each workout and not remembered (docs/06, 2026-10-12): it lives here, in a
   // component keyed by the workout.

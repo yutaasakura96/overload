@@ -3285,7 +3285,8 @@ Settled while building:
 - **The device record carries last time's date and the equipment class**, copied at start beside
   the sets and the suggestion. A workout already open when this ships has neither: it shows no
   date and names no next weight.
-- **The age of last time is counted in the profile's time zone**, as every local date is.
+- **The age of last time is counted in the workout's time zone**, so a profile change while it is
+  open does not move the date (`07` §3, "Last time and suggestions").
 - **The idle bar keeps the height of its controls.** In the prototype the `FULL SCREEN` button
   gives it that height; here it is set, so the bar does not jump when a rest starts.
 
@@ -3998,8 +3999,13 @@ counted 82 kg, go offline and start a workout: the copy kept 82 kg.
   `domain/bodyweight.ts` on the same days and dates, and a change to one fails there. *Rejected:*
   importing the API's domain into the web app, which the contract rule forbids, and moving the rule
   into the contract package, which holds only what is generated from the routes.
-- **The cached weigh-ins' days are in the profile's time zone**, as Last time's are unless the
-  workout was started in another; there the API's next answer corrects it.
+- **The cached weigh-ins are dated in the workout's time zone** (2026-10-19), as Last time's date
+  is. The API dates its list in the profile's, so a profile zone changed mid-workout, with the
+  weigh-ins asked again, would put a reading near midnight on the wrong day. The device dates the
+  cached readings itself (`weighedDaysIn`, the copy of `dailyWeights`, checked against it in the API's suite).
+  *Rejected:* waiting for the API's next Last time answer, which never comes offline, and a zone
+  parameter on `GET /api/weigh-ins`, whose answer in the workout's zone would have to be cached
+  before the device went offline.
 
 **Changed:** `06`.
 ### 2026-10-18 — M2 slice 4: goal phase, the day's routine, and the generated plan

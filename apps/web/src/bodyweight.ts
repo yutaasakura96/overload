@@ -1,5 +1,5 @@
-import type { BodyweightCount, LastTime, WeightDay, WeightUnit } from '@overload/api-contract';
-import { bodyweightOn, countedLoad } from './bodyweight-count';
+import type { BodyweightCount, LastTime, WeighIn, WeightUnit } from '@overload/api-contract';
+import { bodyweightOn, countedLoad, weighedDaysIn } from './bodyweight-count';
 import type { WorkoutExerciseRecord } from './set-store';
 import { formatWeight } from './units';
 
@@ -30,13 +30,15 @@ export function countedAt(count: BodyweightCount, unit: WeightUnit): string {
  * Last time answer fetched since, and the weigh-ins cached since (issue #69). The API counts the
  * first two; the weigh-ins are counted here only offline, when they are newer than any answer. A
  * later answer is used only when it is about the workout the copy was made from. A copy kept
- * before its answer's time was carried is not recounted from weigh-ins.
+ * before its answer's time was carried is not recounted from weigh-ins. The weigh-ins are dated in
+ * `timeZone`, the workout's, as last time's date is: the API dates its list in the profile's.
  */
 export function recountedLastTime(
   exercise: WorkoutExerciseRecord,
   lastTimes: { exercises: LastTime[]; updatedAt: number } | undefined,
-  weighIns: { days: WeightDay[]; updatedAt: number } | undefined,
+  weighIns: { readings: WeighIn[]; updatedAt: number } | undefined,
   startedAt: string,
+  timeZone: string,
 ): WorkoutExerciseRecord {
   const { bodyweight, lastTime, lastTimeOn, lastTimeAt } = exercise.local;
   if (!bodyweight || lastTimeOn == null || lastTime.length === 0) return exercise;
@@ -49,7 +51,7 @@ export function recountedLastTime(
   if (weighIns.updatedAt <= Math.max(lastTimeAt, answered?.at ?? 0)) {
     return answered?.exercise ?? exercise;
   }
-  const count = bodyweightOn(weighIns.days, lastTimeOn);
+  const count = bodyweightOn(weighedDaysIn(weighIns.readings, timeZone), lastTimeOn);
   return counted(
     exercise,
     count,

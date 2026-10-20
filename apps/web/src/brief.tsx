@@ -17,7 +17,7 @@ const dateLabel = new Intl.DateTimeFormat('en-GB', {
   timeZone: 'UTC',
 });
 
-/** `Mon 5 Oct · 5 days ago`, counted in days of the profile's time zone. */
+/** `Mon 5 Oct · 5 days ago`, counted in days of the workout's time zone. */
 function when(isoDate: string, timeZone: string) {
   // en-CA writes a date as YYYY-MM-DD.
   const today = new Intl.DateTimeFormat('en-CA', {

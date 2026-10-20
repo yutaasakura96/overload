@@ -513,6 +513,88 @@ test('offline, a weigh-in typed after last time’s answer counts on the bodywei
   }
 });
 
+test('offline Last time uses the workout zone after the profile zone changes', async ({
+  page,
+  context,
+}) => {
+  const email = `offline-zone-${Date.now()}@example.test`;
+  const { userId: lifter }: { userId: string } = JSON.parse(apiFixture('user', email));
+  const pageErrors: string[] = [];
+  page.on('pageerror', (error) => pageErrors.push(error.message));
+  try {
+    await context.clearCookies();
+    const cookies: Cookies = JSON.parse(apiFixture('cookies', lifter, 'localhost'));
+    await context.addCookies(cookies);
+    await saveProfile(page, 'Kilograms');
+    await page.clock.install({ time: new Date('2026-10-10T03:00:00Z') });
+    const weigh = async (at: string, weightKg: number) => {
+      const response = await page.request.post('/api/weigh-ins', {
+        data: { id: crypto.randomUUID(), measuredAt: at, weightKg },
+      });
+      expect(response.status()).toBe(201);
+    };
+    await weigh('2026-10-09T07:30:00+09:00', 82);
+    const name = `Offline zone ${Date.now()}`;
+    await createRoutine(page, name, ['Chin-Up']);
+    await page.getByRole('textbox', { name: 'Sets for Chin-Up' }).fill('1');
+    await page.getByRole('button', { name: 'Create routine' }).click();
+    await start(page, name);
+    await completeSet(page, { reps: '8' });
+    await expect(dataState(page)).toContainText('SYNCED');
+    await finish(page);
+
+    await page.clock.setFixedTime(new Date('2026-10-11T03:00:00Z'));
+    await start(page, name);
+    await expect(brief(page)).toContainText('Counted at 82 kg');
+    await page.route('**/api/training/last-time**', (route) => route.abort());
+    const moved = await page.request.patch('/api/me/profile', {
+      headers: { Origin: new URL(page.url()).origin },
+      data: { timezone: 'America/Los_Angeles' },
+    });
+    expect(moved.ok()).toBe(true);
+    await weigh('2026-10-10T07:30:00+09:00', 85);
+    await weigh('2026-10-10T23:30:00+09:00', 88);
+    await page.clock.setFixedTime(new Date('2026-10-11T03:01:00Z'));
+    const listed = page.waitForResponse(
+      (response) => response.url().endsWith('/api/weigh-ins') && response.ok(),
+    );
+    await page.goBack();
+    await expect(page).toHaveURL('/');
+    await page
+      .getByRole('navigation', { name: 'Sections' })
+      .getByRole('link', { name: 'Progress' })
+      .click();
+    await page
+      .getByRole('navigation', { name: 'Progress' })
+      .getByRole('link', { name: 'Weight' })
+      .click();
+    const refreshed = await listed;
+    const inProfileZone: { days: { date: string; weightKg: number }[] } = await refreshed.json();
+    expect(inProfileZone.days).toEqual(
+      expect.arrayContaining([expect.objectContaining({ date: '2026-10-10', weightKg: 88 })]),
+    );
+    await context.setOffline(true);
+    await page
+      .getByRole('navigation', { name: 'Sections' })
+      .getByRole('link', { name: 'Today' })
+      .click();
+    await page.getByRole('link', { name: 'Resume workout' }).click();
+    await expect(brief(page)).toContainText('Counted at 85 kg · that day’s weigh-in');
+    await expect(page.getByRole('region', { name: 'SET 1 OF 1' })).toContainText('LAST TIME85 × 8');
+    const evidence = process.env.NO_MISTAKES_EVIDENCE_DIR;
+    if (evidence) {
+      await page.screenshot({
+        path: `${evidence}/offline-last-time-workout-zone.png`,
+        fullPage: true,
+      });
+    }
+    expect(pageErrors).toEqual([]);
+  } finally {
+    await context.setOffline(false);
+    apiFixture('delete', email);
+  }
+});
+
 test('bodyweight history describes reps without a zero-weight target', async ({ page }) => {
   const name = `Bodyweight ${Date.now()}`;
   await saveProfile(page, 'Kilograms');

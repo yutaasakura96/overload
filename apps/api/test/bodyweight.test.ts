@@ -5,7 +5,7 @@ import * as offline from '../../web/src/bodyweight-count';
 import { bodyweightOn, countedLoad, withBodyweight } from '../src/domain/bodyweight';
 import { exerciseProgress, type LoggedWorkout } from '../src/domain/progress';
 import { strengthOverview, type LoggedLift } from '../src/domain/strength';
-import type { DailyWeight } from '../src/domain/weight';
+import { dailyWeights, type DailyWeight } from '../src/domain/weight';
 import { sender } from './account-fixture';
 import { useTestApp } from './harness';
 
@@ -76,6 +76,31 @@ describe('the web app’s offline copy of the rule', () => {
         for (const kg of [0, 2.5, 10.25]) {
           expect(offline.countedLoad(kg, count)).toBe(countedLoad(kg, count));
         }
+      }
+    }
+  });
+
+  it('dates the readings as dailyWeights does, in any zone, near midnight and 10:00', () => {
+    const readings = [
+      '2026-10-09T14:30:00Z',
+      '2026-10-09T22:30:00Z',
+      '2026-10-10T00:59:00Z',
+      '2026-10-10T01:00:00Z',
+      '2026-10-10T14:30:00Z',
+      '2026-10-10T14:30:00Z',
+      '2026-10-10T15:00:00Z',
+    ].map((at, index) => ({
+      id: randomUUID(),
+      measuredAt: new Date(at),
+      weightKg: 80 + index,
+    }));
+    for (const zone of ['Asia/Tokyo', 'America/Los_Angeles', 'UTC', 'Asia/Kolkata']) {
+      for (const some of [readings, readings.toReversed(), readings.slice(2)]) {
+        const listed = some.map((each) => ({ ...each, measuredAt: each.measuredAt.toISOString() }));
+        const days = offline.weighedDaysIn(listed, zone);
+        expect(days.toSorted((a, b) => a.date.localeCompare(b.date))).toEqual(
+          dailyWeights(some, zone).map(({ date, weightKg }) => ({ date, weightKg })),
+        );
       }
     }
   });
