@@ -375,23 +375,21 @@ test('a Your day save moves the phase’s calories only with the training days',
       data: { id: randomUUID(), measuredAt: new Date().toISOString(), weightKg },
     });
   expect((await weighIn(82.5)).ok()).toBe(true);
-  expect(
-    (
-      await page.request.post('/api/goal-phases', {
-        headers,
-        data: {
-          id: randomUUID(),
-          type: 'cut',
-          startedOn: todayInZone().date,
-          targetRatePctPerWeek: 0.5,
-          proteinGPerKg: 2.2,
-          fatPctCalories: 25,
-          calorieTargetKcal: 2350,
-          calorieBasis: 'provisional_formula',
-        },
-      })
-    ).ok(),
-  ).toBe(true);
+  const created = await page.request.post('/api/goal-phases', {
+    headers,
+    data: {
+      id: randomUUID(),
+      type: 'cut',
+      startedOn: todayInZone().date,
+      targetRatePctPerWeek: 0.5,
+      proteinGPerKg: 2.2,
+      fatPctCalories: 25,
+      calorieTargetKcal: 2350,
+      calorieBasis: 'provisional_formula',
+    },
+  });
+  expect(created.ok()).toBe(true);
+  const { calorieTargetKcal: before }: { calorieTargetKcal: number } = await created.json();
   expect(
     (
       await page.request.put('/api/day-routines/training', {
@@ -422,7 +420,7 @@ test('a Your day save moves the phase’s calories only with the training days',
   const phases: { items: { endedOn: string | null; calorieTargetKcal: number }[] } = await (
     await page.request.get('/api/goal-phases')
   ).json();
-  expect(phases.items.find((phase) => phase.endedOn === null)?.calorieTargetKcal).toBe(2350);
+  expect(phases.items.find((phase) => phase.endedOn === null)?.calorieTargetKcal).toBe(before);
 
   // Changing the training days moves the formula's calories with them, in the same write.
   await page.goto('/plan/day');
@@ -433,7 +431,7 @@ test('a Your day save moves the phase’s calories only with the training days',
   const defaults: { calories: { value: number } } = await (
     await page.request.get('/api/goal-phases/defaults?type=cut&targetRatePctPerWeek=0.5')
   ).json();
-  expect(defaults.calories.value).not.toBe(2350);
+  expect(defaults.calories.value).not.toBe(before);
   const followed: { items: { endedOn: string | null; calorieTargetKcal: number }[] } = await (
     await page.request.get('/api/goal-phases')
   ).json();
@@ -515,7 +513,9 @@ test('a goal phase save waits for the calories of the rate typed', async ({ page
     .toMatchObject({ calorieTargetKcal: faster.calories.value, targetRatePctPerWeek: 1 });
 });
 
-test('editing an open provisional phase follows the rate unless Calories is edited', async ({ page }) => {
+test('editing an open provisional phase follows the rate unless Calories is edited', async ({
+  page,
+}) => {
   const headers = { Origin: WEB_ORIGIN };
   expect(
     (
@@ -572,7 +572,8 @@ test('editing an open provisional phase follows the rate unless Calories is edit
   await page.goto('/plan/phase');
   const calories = page.getByRole('textbox', { name: 'Calories in kilocalories a day' });
   const save = page.getByRole('button', { name: 'Save targets' });
-  await expect(calories).toHaveValue(String(original));
+  await expect(calories).toHaveValue('');
+  await expect(calories).toHaveAttribute('placeholder', String(original));
   await page.getByLabel('Target rate, loss a week').fill('1');
   const current = await defaultCalories(1);
   expect(current).not.toBe(original);

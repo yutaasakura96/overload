@@ -201,22 +201,18 @@ function PhaseForm({
   const rate = type === 'maintain' ? null : value('rate', d.targetRatePctPerWeek?.value ?? null);
   const protein = value('protein', d.proteinGPerKg.value) ?? d.proteinGPerKg.value;
   const fat = value('fat', d.fatPctCalories.value) ?? d.fatPctCalories.value;
-  const followRate =
-    sameType &&
-    open !== undefined &&
-    open.calorieBasis === 'provisional_formula' &&
-    rate !== open.targetRatePctPerWeek &&
-    !caloriesEdited;
-  const calories = followRate
-    ? d.calories.value
-    : (value('kcal', d.calories.value) ?? d.calories.value);
-  // The open phase's calories keep their basis until changed; a new figure is the formula's or yours.
-  const kept = sameType && open !== undefined && calories === open.calorieTargetKcal;
-  const basis = kept
-    ? open.calorieBasis
-    : calories === d.calories.value
-      ? 'provisional_formula'
-      : 'manual';
+  // Calories typed are yours. Otherwise an open phase's measured or own figure stays, and the rest
+  // follow the formula, whose figure the API works out again as it saves.
+  const kcalTyped = parseFigure(fields.kcal);
+  const yours = kcalTyped !== null && (!sameType || caloriesEdited);
+  const followsFormula = !sameType || open.calorieBasis === 'provisional_formula';
+  const calories = yours ? kcalTyped : followsFormula ? d.calories.value : open.calorieTargetKcal;
+  const basis =
+    sameType && open.calorieBasis !== 'provisional_formula' && calories === open.calorieTargetKcal
+      ? open.calorieBasis
+      : yours
+        ? 'manual'
+        : 'provisional_formula';
   const provisional = basis === 'provisional_formula';
   const weightKg = d.bodyweight.weightKg;
   const proteinG = Math.round(protein * weightKg);
@@ -257,15 +253,16 @@ function PhaseForm({
     setProblem(undefined);
     try {
       await forAccount(async () => {
-        if (open !== undefined && sameType) {
-          // The calories are sent only when they changed, so a measured target keeps its basis.
-          const kcalChanged = calories !== open.calorieTargetKcal;
+        if (sameType) {
+          // A measured or own target is sent only when it changed, so it keeps its basis.
+          const sendCalories =
+            provisional || calories !== open.calorieTargetKcal || basis !== open.calorieBasis;
           return unwrap(
             await api.PATCH('/api/goal-phases/{id}', {
               params: { path: { id: open.id } },
               body: {
                 ...targets,
-                ...(kcalChanged
+                ...(sendCalories
                   ? {
                       calorieTargetKcal: calories,
                       calorieBasis: provisional ? 'provisional_formula' : 'manual',
@@ -401,15 +398,13 @@ function PhaseForm({
         <NumberField
           label="Calories"
           note={provisional ? 'Provisional' : basis === 'measured' ? 'Measured' : 'Yours'}
-          value={followRate ? '' : fields.kcal}
+          value={sameType && followsFormula && !caloriesEdited ? '' : fields.kcal}
           onChange={(next) => {
             if (sameType) setCaloriesEdited(true);
             setField('kcal', next);
           }}
           unit="kcal a day"
-          placeholder={String(
-            followRate ? d.calories.value : sameType ? open.calorieTargetKcal : d.calories.value,
-          )}
+          placeholder={String(followsFormula ? d.calories.value : open.calorieTargetKcal)}
           error={refused('calorieTargetKcal')}
         />
         <Provisional defaults={d} type={type} basis={basis} />

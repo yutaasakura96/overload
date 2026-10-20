@@ -1171,7 +1171,8 @@ export const GoalPhaseCreate = z
     fatPctCalories: FatPct,
     calorieTargetKcal: CalorieTarget,
     calorieBasis: z.enum(['provisional_formula', 'manual']).openapi({
-      description: '`provisional_formula` when the calories are the defaults’ estimate, unchanged.',
+      description:
+        '`provisional_formula` when the calories were not set by hand: the API stores the formula’s figure for the current inputs in their place.',
     }),
     endPrevious: z.boolean().optional().openapi({
       description: 'Ends the open phase on the day before. Without it an open phase is a 409.',
@@ -1187,7 +1188,8 @@ export const GoalPhasePatch = z
     fatPctCalories: FatPct.optional(),
     calorieTargetKcal: CalorieTarget.optional(),
     calorieBasis: CalorieBasis.optional().openapi({
-      description: '`measured` applies the maintenance check by hand (docs/09 F13).',
+      description:
+        '`measured` applies the maintenance check by hand (docs/09 F13). While the phase is on `provisional_formula`, a patch to its rate or calories stores the formula’s figure for the current inputs in place of `calorieTargetKcal`.',
     }),
   })
   .openapi('GoalPhasePatch', { description: 'An omitted field is unchanged.' });

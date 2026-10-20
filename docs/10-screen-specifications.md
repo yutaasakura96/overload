@@ -1075,9 +1075,12 @@ changed count adds `Yours: 4 meals. The recommendation was 5.` in `flag`. `Use t
   saved as a new weigh-in. Saving makes the week's plan again and returns to Today.
 - Goal phase's fields start from the open phase of the same type, or the defaults, noted `Default`,
   `Yours`, `Provisional` or `Measured`. For a new phase the defaults are the fields' placeholders,
-  not filled values, so the calories keep following the rate until one is typed. Saving waits
-  while the calories for a newly typed rate load, and Your day's `Use these meals` waits for the
-  meals of newly typed times. The units read
+  not filled values, so the calories keep following the rate until one is typed. An open phase
+  still on the formula shows the formula's figure for its rate as the placeholder too, and follows
+  a new rate the same way; a figure typed into Calories is the member's own. Untyped calories are
+  saved as provisional and the API works out their figure as it saves (`06`, 2026-10-21). Saving
+  waits while the calories for a newly typed rate load, and Your day's `Use these meals` waits for
+  the meals of newly typed times. The units read
   `% bodyweight`, `g per kg`, `% of calories` and `kcal a day`, as drawn. Fat's default is **25 %** (`06`), not the drawn 27. The
   `PROVISIONAL` box names Mifflin–St Jeor with its resting energy, activity level and the deficit
   or surplus. Changing the type while a phase is open says `A cut is open` and `Saving ends the cut

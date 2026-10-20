@@ -4463,7 +4463,7 @@
               "provisional_formula",
               "manual"
             ],
-            "description": "`provisional_formula` when the calories are the defaults’ estimate, unchanged."
+            "description": "`provisional_formula` when the calories were not set by hand: the API stores the formula’s figure for the current inputs in their place."
           },
           "endPrevious": {
             "type": "boolean",
@@ -4517,7 +4517,7 @@
                 "$ref": "#/components/schemas/CalorieBasis"
               },
               {
-                "description": "`measured` applies the maintenance check by hand (docs/09 F13)."
+                "description": "`measured` applies the maintenance check by hand (docs/09 F13). While the phase is on `provisional_formula`, a patch to its rate or calories stores the formula’s figure for the current inputs in place of `calorieTargetKcal`."
               }
             ]
           }
@@ -7833,7 +7833,7 @@
             }
           },
           "422": {
-            "description": "`validation_failed`",
+            "description": "`validation_failed`; `setup_incomplete` with `missing: [\"profile\"]` for the formula’s calories",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -7923,7 +7923,7 @@
             }
           },
           "422": {
-            "description": "`validation_failed`, including a rate on maintenance or none on a cut",
+            "description": "`validation_failed`, including a rate on maintenance or none on a cut; `setup_incomplete` with `missing: [\"profile\"]` for the formula’s calories",
             "content": {
               "application/problem+json": {
                 "schema": {

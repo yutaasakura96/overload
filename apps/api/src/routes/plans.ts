@@ -6,6 +6,7 @@ import {
   createGoalPhase,
   followFormulaCalories,
   listGoalPhases,
+  lockGoalPhases,
   openGoalPhase,
   updateGoalPhase,
   type GoalPhase,
@@ -210,7 +211,9 @@ const postPhase = createRoute({
     409: problemResponse(
       '`phase_already_open` without `endPrevious`; `id_conflict`: the id is in use with other content',
     ),
-    422: problemResponse('`validation_failed`'),
+    422: problemResponse(
+      '`validation_failed`; `setup_incomplete` with `missing: ["profile"]` for the formula’s calories',
+    ),
   },
 });
 
@@ -224,7 +227,9 @@ const patchPhase = createRoute({
     400: problemResponse('A malformed id'),
     401: problemResponse('No session'),
     404: problemResponse('No such phase of the caller’s'),
-    422: problemResponse('`validation_failed`, including a rate on maintenance or none on a cut'),
+    422: problemResponse(
+      '`validation_failed`, including a rate on maintenance or none on a cut; `setup_incomplete` with `missing: ["profile"]` for the formula’s calories',
+    ),
   },
 });
 
@@ -395,8 +400,25 @@ export function planRoutes({ db }: RouteDeps) {
     defineOpenAPIRoute<typeof postPhase, AppEnv>({
       route: postPhase,
       handler: async (c) => {
+        const userId = c.get('user').id;
         const { endPrevious, ...input } = c.req.valid('json');
-        const result = await createGoalPhase(db, c.get('user').id, input, endPrevious === true);
+        const result = await db.transaction(async (tx) => {
+          await lockGoalPhases(tx, userId);
+          if (input.calorieBasis !== 'provisional_formula') {
+            return createGoalPhase(tx, userId, input, endPrevious === true);
+          }
+          const formula = formulaCalories(
+            await planContext(tx, userId),
+            input.type,
+            input.targetRatePctPerWeek,
+          );
+          if (formula === undefined) return { kind: 'setup_incomplete' } as const;
+          const calorieTargetKcal = formula.calories.kcal;
+          return createGoalPhase(tx, userId, { ...input, calorieTargetKcal }, endPrevious === true);
+        });
+        if (result.kind === 'setup_incomplete') {
+          return problem(c, 'setup_incomplete', { missing: ['profile'] });
+        }
         if (result.kind === 'created') return c.json(phaseJson(result.phase), 201);
         if (result.kind === 'existing') return c.json(phaseJson(result.phase), 200);
         if (result.kind === 'phase_start_not_after_open') {
@@ -413,26 +435,66 @@ export function planRoutes({ db }: RouteDeps) {
         const userId = c.get('user').id;
         const { id } = c.req.valid('param');
         const patch = c.req.valid('json');
-        if (patch.targetRatePctPerWeek !== undefined) {
-          const stored = (await listGoalPhases(db, userId)).find((phase) => phase.id === id);
-          if (stored === undefined) return problem(c, 'not_found');
-          if ((patch.targetRatePctPerWeek === null) !== (stored.type === 'maintain')) {
-            return problem(c, 'validation_failed', {
-              errors: [
-                {
-                  path: 'targetRatePctPerWeek',
-                  message:
-                    stored.type === 'maintain'
-                      ? 'Maintenance has no rate'
-                      : 'A cut or bulk needs a rate',
-                },
-              ],
-            });
+        const result = await db.transaction(async (tx) => {
+          // Held as a weekday change holds it, so the formula's calories are read for the inputs
+          // they are stored with.
+          await lockGoalPhases(tx, userId);
+          const stored = (await listGoalPhases(tx, userId)).find((phase) => phase.id === id);
+          if (stored === undefined) return { kind: 'not_found' } as const;
+          if (
+            patch.targetRatePctPerWeek !== undefined &&
+            (patch.targetRatePctPerWeek === null) !== (stored.type === 'maintain')
+          ) {
+            return { kind: 'rate_mismatch', type: stored.type } as const;
           }
+          const formulaInputs =
+            patch.calorieBasis !== undefined ||
+            patch.calorieTargetKcal !== undefined ||
+            patch.targetRatePctPerWeek !== undefined;
+          if (
+            (patch.calorieBasis ?? stored.calorieBasis) !== 'provisional_formula' ||
+            !formulaInputs
+          ) {
+            return {
+              kind: 'updated',
+              phase: await updateGoalPhase(tx, userId, id, patch),
+            } as const;
+          }
+          const formula = formulaCalories(
+            await planContext(tx, userId),
+            stored.type,
+            patch.targetRatePctPerWeek === undefined
+              ? stored.targetRatePctPerWeek
+              : patch.targetRatePctPerWeek,
+          );
+          if (formula === undefined) return { kind: 'setup_incomplete' } as const;
+          const phase = await updateGoalPhase(tx, userId, id, {
+            ...patch,
+            calorieTargetKcal: formula.calories.kcal,
+            calorieBasis: 'provisional_formula',
+          });
+          return { kind: 'updated', phase } as const;
+        });
+        if (result.kind === 'setup_incomplete') {
+          return problem(c, 'setup_incomplete', { missing: ['profile'] });
         }
-        const updated = await updateGoalPhase(db, userId, id, patch);
-        if (updated === undefined) return problem(c, 'not_found');
-        return c.json(phaseJson(updated), 200);
+        if (result.kind === 'rate_mismatch') {
+          return problem(c, 'validation_failed', {
+            errors: [
+              {
+                path: 'targetRatePctPerWeek',
+                message:
+                  result.type === 'maintain'
+                    ? 'Maintenance has no rate'
+                    : 'A cut or bulk needs a rate',
+              },
+            ],
+          });
+        }
+        if (result.kind === 'not_found' || result.phase === undefined) {
+          return problem(c, 'not_found');
+        }
+        return c.json(phaseJson(result.phase), 200);
       },
     }),
     defineOpenAPIRoute<typeof getDefaults, AppEnv>({

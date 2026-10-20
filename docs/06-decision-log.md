@@ -4084,8 +4084,16 @@ save. Every review round found another way to lose that record or send it to the
   are still the ones read, so a figure the user set meanwhile stays. *Rejected:* the device's
   pending record, kept per account and then per phase, which could be lost before it was written,
   on a storage failure, or on a remount.
+- **The API works out a phase's provisional calories as it writes them.** A create or a patch that
+  carries `calorieBasis: "provisional_formula"` (calories nobody typed), or a rate change on a phase
+  still on the formula, stores the formula's figure for the phase's type and rate and the
+  profile's weekdays, height, sex, birth date and bodyweight as they are inside the write, under
+  the phase lock. The figure the device sent is ignored, so a rate edited on an open phase, or
+  defaults cached before a weekday change in another tab, can't store an old figure. A figure
+  typed into Calories is sent as `manual` and stored as given. *Rejected:* checking on the device
+  that the defaults on screen are current, which a cached answer could pass.
 - **A save waits for the answer to its inputs.** Goal phase and Your day keep the previous answer on
-  screen while the next loads; their save buttons are `aria-disabled` until it arrives, so new
-  inputs are never stored with an old recommendation.
+  screen while the next loads; their save buttons are `aria-disabled` until it arrives. For Goal
+  phase this is only so the figures on screen match what is saved.
 
-**Changed:** `06`, `07` §2, `10` §8.6.
+**Changed:** `06`, `07` §2, §4, `10` §8.6.

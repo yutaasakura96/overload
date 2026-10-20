@@ -805,8 +805,8 @@ A stored food is always per 100 g. The response has no `basis`.
 | Method | Path | Auth | Purpose | Success | Failures |
 | --- | --- | --- | --- | --- | --- |
 | GET | `/api/goal-phases` | M | Every phase, newest first; the open one has `endedOn: null` | 200 | 401 |
-| POST | `/api/goal-phases` | M | Open a phase. `endPrevious: true` closes the open one on the day before, in the same transaction; the new start must be after the open phase's start | 201 / 200 | 401, 409 `phase_already_open` \| `id_conflict`, 422 `validation_failed` for an equal or earlier start |
-| PATCH | `/api/goal-phases/{id}` | M | Edit targets, or apply the maintenance check by hand (`calorieTargetKcal` plus `calorieBasis: "measured"`) | 200 | 400, 401, 404, 422 |
+| POST | `/api/goal-phases` | M | Open a phase. `endPrevious: true` closes the open one on the day before, in the same transaction; the new start must be after the open phase's start. With `calorieBasis: "provisional_formula"` the API stores the formula's calories for the current inputs, not the figure sent | 201 / 200 | 401, 409 `phase_already_open` \| `id_conflict`, 422 `validation_failed` for an equal or earlier start, 422 `setup_incomplete` |
+| PATCH | `/api/goal-phases/{id}` | M | Edit targets, or apply the maintenance check by hand (`calorieTargetKcal` plus `calorieBasis: "measured"`). While the phase stays on `provisional_formula`, a patch to its rate or calories stores the formula's figure for the current inputs, under the phase lock | 200 | 400, 401, 404, 422 |
 | GET | `/api/goal-phases/defaults?type=cut&targetRatePctPerWeek=` | M | The defaults with their sources (S14): rate, protein, fat, provisional calories. The rate is the type's default unless given | 200 | 400, 401, 422 `setup_incomplete` |
 | GET | `/api/day-routines` | M | The day types set so far, training first, with their meals | 200 | 401 |
 | PUT | `/api/day-routines/{dayType}` | M | Replace one day type's routine and its meals. `slots` (1 to 8) are the meals in order; their count is the meal count | 200 | 400, 401, 422 |

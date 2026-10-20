@@ -2460,7 +2460,7 @@ export interface paths {
             'application/problem+json': components['schemas']['Problem'];
           };
         };
-        /** @description `validation_failed` */
+        /** @description `validation_failed`; `setup_incomplete` with `missing: ["profile"]` for the formula’s calories */
         422: {
           headers: {
             [name: string]: unknown;
@@ -2544,7 +2544,7 @@ export interface paths {
             'application/problem+json': components['schemas']['Problem'];
           };
         };
-        /** @description `validation_failed`, including a rate on maintenance or none on a cut */
+        /** @description `validation_failed`, including a rate on maintenance or none on a cut; `setup_incomplete` with `missing: ["profile"]` for the formula’s calories */
         422: {
           headers: {
             [name: string]: unknown;
@@ -4991,7 +4991,7 @@ export interface components {
       /** @example 2350 */
       calorieTargetKcal: number;
       /**
-       * @description `provisional_formula` when the calories are the defaults’ estimate, unchanged.
+       * @description `provisional_formula` when the calories were not set by hand: the API stores the formula’s figure for the current inputs in their place.
        * @enum {string}
        */
       calorieBasis: 'provisional_formula' | 'manual';

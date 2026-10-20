@@ -48,7 +48,7 @@ const columns = {
 const newestFirst = [desc(goalPhase.startedOn), desc(goalPhase.id)];
 
 /** Every phase, newest first: the open one has no end (S14). */
-export function listGoalPhases(db: Database, userId: string): Promise<GoalPhase[]> {
+export function listGoalPhases(db: Queryable, userId: string): Promise<GoalPhase[]> {
   return db
     .select(columns)
     .from(goalPhase)
@@ -84,53 +84,53 @@ const dayBefore = (date: string) =>
   new Date(Date.parse(`${date}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
 
 /**
- * Opens a phase. With one already open it is refused unless `endPrevious`, which ends that one on
- * the day before in the same transaction. A
- * repeat of the same create returns the stored phase (docs/07 §1.2).
+ * Opens a phase, in the caller's transaction. With one already open it is refused unless
+ * `endPrevious`, which ends that one on the day before in the same transaction. A repeat of the same
+ * create returns the stored phase (docs/07 §1.2); the formula's calories are the server's, so a
+ * repeat of a provisional create is the same whatever figure it carries.
  */
-export function createGoalPhase(
-  db: Database,
+export async function createGoalPhase(
+  tx: Transaction,
   userId: string,
   input: GoalPhaseInput,
   endPrevious: boolean,
 ): Promise<CreateGoalPhaseResult> {
-  return db.transaction(async (tx): Promise<CreateGoalPhaseResult> => {
-    // One open phase at a time: a second create waits here for the first to commit.
-    await lockGoalPhases(tx, userId);
-    const [stored] = await tx.select(columns).from(goalPhase).where(eq(goalPhase.id, input.id));
-    if (stored !== undefined) {
-      const [mine] = await tx
-        .select({ id: goalPhase.id })
-        .from(goalPhase)
-        .where(and(eq(goalPhase.id, input.id), eq(goalPhase.userId, userId)));
-      const same =
-        mine !== undefined &&
-        stored.type === input.type &&
-        stored.startedOn === input.startedOn &&
-        stored.targetRatePctPerWeek === input.targetRatePctPerWeek &&
-        stored.proteinGPerKg === input.proteinGPerKg &&
-        stored.fatPctCalories === input.fatPctCalories &&
-        stored.calorieTargetKcal === input.calorieTargetKcal &&
-        stored.calorieBasis === input.calorieBasis;
-      return same ? { kind: 'existing', phase: stored } : { kind: 'id_conflict' };
-    }
-    const open = await openGoalPhase(tx, userId);
-    if (open !== undefined) {
-      if (!endPrevious) return { kind: 'phase_already_open', open };
-      if (input.startedOn <= open.startedOn) return { kind: 'phase_start_not_after_open' };
-      const end = dayBefore(input.startedOn);
-      await tx
-        .update(goalPhase)
-        .set({ endedOn: end, updatedAt: sql`now()` })
-        .where(and(eq(goalPhase.id, open.id), eq(goalPhase.userId, userId)));
-    }
-    const [created] = await tx
-      .insert(goalPhase)
-      .values({ ...input, userId })
-      .returning(columns);
-    if (created === undefined) throw new Error('goal phase insert returned no row');
-    return { kind: 'created', phase: created };
-  });
+  // One open phase at a time: a second create waits here for the first to commit.
+  await lockGoalPhases(tx, userId);
+  const [stored] = await tx.select(columns).from(goalPhase).where(eq(goalPhase.id, input.id));
+  if (stored !== undefined) {
+    const [mine] = await tx
+      .select({ id: goalPhase.id })
+      .from(goalPhase)
+      .where(and(eq(goalPhase.id, input.id), eq(goalPhase.userId, userId)));
+    const same =
+      mine !== undefined &&
+      stored.type === input.type &&
+      stored.startedOn === input.startedOn &&
+      stored.targetRatePctPerWeek === input.targetRatePctPerWeek &&
+      stored.proteinGPerKg === input.proteinGPerKg &&
+      stored.fatPctCalories === input.fatPctCalories &&
+      (input.calorieBasis === 'provisional_formula' ||
+        stored.calorieTargetKcal === input.calorieTargetKcal) &&
+      stored.calorieBasis === input.calorieBasis;
+    return same ? { kind: 'existing', phase: stored } : { kind: 'id_conflict' };
+  }
+  const open = await openGoalPhase(tx, userId);
+  if (open !== undefined) {
+    if (!endPrevious) return { kind: 'phase_already_open', open };
+    if (input.startedOn <= open.startedOn) return { kind: 'phase_start_not_after_open' };
+    const end = dayBefore(input.startedOn);
+    await tx
+      .update(goalPhase)
+      .set({ endedOn: end, updatedAt: sql`now()` })
+      .where(and(eq(goalPhase.id, open.id), eq(goalPhase.userId, userId)));
+  }
+  const [created] = await tx
+    .insert(goalPhase)
+    .values({ ...input, userId })
+    .returning(columns);
+  if (created === undefined) throw new Error('goal phase insert returned no row');
+  return { kind: 'created', phase: created };
 }
 
 /**
@@ -138,7 +138,7 @@ export function createGoalPhase(
  * in force are read against (docs/09 F13). Undefined: no such phase of the caller's.
  */
 export async function updateGoalPhase(
-  db: Database,
+  db: Queryable,
   userId: string,
   id: string,
   patch: GoalPhasePatch,
