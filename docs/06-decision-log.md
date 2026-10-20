@@ -3285,7 +3285,8 @@ Settled while building:
 - **The device record carries last time's date and the equipment class**, copied at start beside
   the sets and the suggestion. A workout already open when this ships has neither: it shows no
   date and names no next weight.
-- **The age of last time is counted in the profile's time zone**, as every local date is.
+- **The age of last time is counted in the workout's time zone**, so a profile change while it is
+  open does not move the date (`07` §3, "Last time and suggestions").
 - **The idle bar keeps the height of its controls.** In the prototype the `FULL SCREEN` button
   gives it that height; here it is set, so the bar does not jump when a rest starts.
 
