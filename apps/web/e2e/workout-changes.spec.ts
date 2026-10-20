@@ -78,8 +78,14 @@ test('two tabs starting empty workouts keep one in progress', async ({ page, con
     page.getByRole('button', { name: 'Start workout' }).evaluate(clickButtonNow),
     other.getByRole('button', { name: 'Start workout' }).evaluate(clickButtonNow),
   ]);
-  await expect(page).toHaveURL('/workout');
-  await expect(other).toHaveURL('/workout');
+  for (const tab of [page, other]) {
+    // The tab that loses the start may return to Today with the winner's workout to resume.
+    const heading = tab.getByRole('heading', { name: /^(First|Second) tab$/ });
+    const resume = tab.getByRole('link', { name: 'Resume workout' });
+    await expect(heading.or(resume)).toBeVisible();
+    if (await resume.isVisible()) await resume.click();
+    await expect(tab).toHaveURL('/workout');
+  }
   const openOnDevice = () =>
     page.evaluate(
       () =>
