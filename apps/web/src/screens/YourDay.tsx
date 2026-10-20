@@ -8,7 +8,6 @@ import { goBack, type Navigate } from '../navigation';
 import {
   confirmedAccountData,
   dayRoutinesQuery,
-  goalPhasesQuery,
   mealRecommendationQuery,
   queryClient,
   regeneratePlan,
@@ -179,7 +178,6 @@ function DayForm({
           ),
         );
         stored.push('Training days');
-        void queryClient.invalidateQueries({ queryKey: goalPhasesQuery.queryKey });
       }
       await confirmedAccountData(() =>
         api.PUT('/api/day-routines/{dayType}', {

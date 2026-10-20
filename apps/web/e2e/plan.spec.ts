@@ -515,6 +515,88 @@ test('a goal phase save waits for the calories of the rate typed', async ({ page
     .toMatchObject({ calorieTargetKcal: faster.calories.value, targetRatePctPerWeek: 1 });
 });
 
+test('editing an open provisional phase follows the rate unless Calories is edited', async ({ page }) => {
+  const headers = { Origin: WEB_ORIGIN };
+  expect(
+    (
+      await page.request.patch('/api/me/profile', {
+        headers,
+        data: { heightCm: 176, sex: 'male', birthDate: '1994-05-01', trainingWeekdays: [1, 3, 5] },
+      })
+    ).ok(),
+  ).toBe(true);
+  expect(
+    (
+      await page.request.post('/api/weigh-ins', {
+        headers,
+        data: { id: randomUUID(), measuredAt: new Date().toISOString(), weightKg: 82.5 },
+      })
+    ).ok(),
+  ).toBe(true);
+  const defaultCalories = async (rate: number) => {
+    const defaults: { calories: { value: number } } = await (
+      await page.request.get(`/api/goal-phases/defaults?type=cut&targetRatePctPerWeek=${rate}`)
+    ).json();
+    return defaults.calories.value;
+  };
+  const original = await defaultCalories(0.5);
+  expect(
+    (
+      await page.request.post('/api/goal-phases', {
+        headers,
+        data: {
+          id: randomUUID(),
+          type: 'cut',
+          startedOn: todayInZone().date,
+          targetRatePctPerWeek: 0.5,
+          proteinGPerKg: 2.2,
+          fatPctCalories: 25,
+          calorieTargetKcal: original,
+          calorieBasis: 'provisional_formula',
+        },
+      })
+    ).ok(),
+  ).toBe(true);
+  const openPhase = async () => {
+    const phases: {
+      items: {
+        endedOn: string | null;
+        calorieTargetKcal: number;
+        calorieBasis: string;
+        targetRatePctPerWeek: number;
+      }[];
+    } = await (await page.request.get('/api/goal-phases')).json();
+    return phases.items.find((phase) => phase.endedOn === null);
+  };
+
+  await page.goto('/plan/phase');
+  const calories = page.getByRole('textbox', { name: 'Calories in kilocalories a day' });
+  const save = page.getByRole('button', { name: 'Save targets' });
+  await expect(calories).toHaveValue(String(original));
+  await page.getByLabel('Target rate, loss a week').fill('1');
+  const current = await defaultCalories(1);
+  expect(current).not.toBe(original);
+  await expect(calories).toHaveAttribute('placeholder', String(current));
+  await save.click();
+  await expect.poll(openPhase).toMatchObject({
+    calorieTargetKcal: current,
+    calorieBasis: 'provisional_formula',
+    targetRatePctPerWeek: 1,
+  });
+
+  await page.goto('/plan/phase');
+  const manual = current + 200;
+  await calories.fill(String(manual));
+  await page.getByLabel('Target rate, loss a week').fill('1.5');
+  await expect(calories).toHaveValue(String(manual));
+  await save.click();
+  await expect.poll(openPhase).toMatchObject({
+    calorieTargetKcal: manual,
+    calorieBasis: 'manual',
+    targetRatePctPerWeek: 1.5,
+  });
+});
+
 const dayFromToday = (offset: number) =>
   new Date(Date.parse(`${todayInZone().date}T00:00:00Z`) + offset * DAY_MS)
     .toISOString()

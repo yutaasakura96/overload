@@ -114,6 +114,7 @@ function PhaseForm({
     maintain: fieldsOf(open?.type === 'maintain' ? open : undefined),
     bulk: fieldsOf(open?.type === 'bulk' ? open : undefined),
   }));
+  const [caloriesEdited, setCaloriesEdited] = useState(false);
   const fields = typed[type];
   const setField = (key: keyof Fields, value: string) =>
     setTyped((all) => ({ ...all, [type]: { ...all[type], [key]: value } }));
@@ -200,7 +201,15 @@ function PhaseForm({
   const rate = type === 'maintain' ? null : value('rate', d.targetRatePctPerWeek?.value ?? null);
   const protein = value('protein', d.proteinGPerKg.value) ?? d.proteinGPerKg.value;
   const fat = value('fat', d.fatPctCalories.value) ?? d.fatPctCalories.value;
-  const calories = value('kcal', d.calories.value) ?? d.calories.value;
+  const followRate =
+    sameType &&
+    open !== undefined &&
+    open.calorieBasis === 'provisional_formula' &&
+    rate !== open.targetRatePctPerWeek &&
+    !caloriesEdited;
+  const calories = followRate
+    ? d.calories.value
+    : (value('kcal', d.calories.value) ?? d.calories.value);
   // The open phase's calories keep their basis until changed; a new figure is the formula's or yours.
   const kept = sameType && open !== undefined && calories === open.calorieTargetKcal;
   const basis = kept
@@ -392,11 +401,14 @@ function PhaseForm({
         <NumberField
           label="Calories"
           note={provisional ? 'Provisional' : basis === 'measured' ? 'Measured' : 'Yours'}
-          value={fields.kcal}
-          onChange={(next) => setField('kcal', next)}
+          value={followRate ? '' : fields.kcal}
+          onChange={(next) => {
+            if (sameType) setCaloriesEdited(true);
+            setField('kcal', next);
+          }}
           unit="kcal a day"
           placeholder={String(
-            sameType ? (open?.calorieTargetKcal ?? d.calories.value) : d.calories.value,
+            followRate ? d.calories.value : sameType ? open.calorieTargetKcal : d.calories.value,
           )}
           error={refused('calorieTargetKcal')}
         />
