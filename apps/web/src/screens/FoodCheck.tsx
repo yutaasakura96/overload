@@ -325,7 +325,7 @@ function FoodForm({
       if (next.kind === 'refused' && next.fields.has('rotationGroupId')) {
         next.fields.set('rotationGroupId', REFUSALS.group);
       }
-      setProblem(next);
+      setProblem(answered ? { kind: 'plan_failed' } : next);
       setBusy(false);
     }
   };

@@ -4002,3 +4002,64 @@ counted 82 kg, go offline and start a workout: the copy kept 82 kg.
   workout was started in another; there the API's next answer corrects it.
 
 **Changed:** `06`.
+### 2026-10-18 — M2 slice 4: goal phase, the day's routine, and the generated plan
+
+Issue `#79`, S14 to S16, built as `04` `goal_phase` to `plan_meal_item`, `07` §4 and `10` §3, §6
+and §8.6 describe, with the screens from the approved M2 prototype. Checked at
+390px on invented foods, weigh-ins and routines.
+
+- **The planner is hand-written** (`03` §8.2), the choice `03` left to M2's start. Each food takes
+  one role by where its energy comes from; each meal is solved for its share of protein (equal
+  across meals) and of carbohydrate (half as much again before and after training); fat fills the
+  day's gap; a last pass rounds to 5 g or whole pieces and brings the day back within ±5 % of
+  calories and ±5 g of protein. *Rejected:* a solver library. The problem is a few foods a meal
+  with hard rounding, and a solver would still need the same hand rules for what makes a sensible
+  meal; the signature and the tolerance tests were written first, so the choice can still be
+  swapped.
+- **Portions stay sensible:** a food past 250 g, or 3 pieces, shares its role's portion with a
+  second food of that role; a second portion under 30 g is folded back into the first. No portion
+  is ever above 400 g or 800 kcal. Past the cap the gap is named (`portion_cap`), never filled.
+- **Protein is never padded.** When the foods cannot reach protein, the day says how many grams
+  short; the calories are still filled to target from carbohydrate and fat, never from more protein
+  food than fits. A day under its calories says `portion_cap` or `foods`.
+- **Shortfalls are stored on `plan_day`** (a `jsonb` column, added to `04`), so a day read later says
+  what it was short of without running the planner again. *Rejected:* recomputing them on read,
+  which would describe today's food list rather than the one the day was planned from.
+- **Provisional calories:** Mifflin–St Jeor resting energy (Mifflin 1990; Frankenfield 2005's
+  review) × an activity level of **1.45 plus 0.05 per training day** (1.45 to 1.80), inside
+  FAO/WHO/UNU 2004's 1.40 to 1.99, then less or plus the rate × bodyweight × 7,700 kcal/kg ÷ 7,
+  to the nearest 10. Changing the training days moves a phase's calories only while they are still the formula's.
+- **Defaults:** a cut 0.5 %/week (0.5–1, Helms 2014) and 2.2 g/kg protein; a bulk 0.25 %/week
+  (0.25–0.5, Iraki 2019) and 1.6 g/kg; maintenance no rate and 1.6 g/kg (1.6–2.2, Morton 2018).
+  **Fat is 25 % of calories**, inside Helms 2014's 15–30 %, carbohydrate the rest. Each default
+  carries its range and source key, and the screen shows the source under it.
+- **Meal count:** at least 4, enough to keep each meal at or under 0.55 g/kg of protein, and 5 on a
+  training day when 0.4 g/kg a meal allows (Schoenfeld & Aragon 2018). Meals sit 90 minutes apart
+  at least, from 30 minutes after waking to 90 before bed; on a training day one about 2 hours
+  before training and one 75 minutes after it starts. A protein target a hair over 0.55 g/kg a meal
+  does not add a meal.
+- **A raw batch-cooked food is planned at its cooked weight** by the MEXT cooked counterpart of the
+  same food (生 → ゆで, 水煮, 蒸し or 焼き; 穀粒 → めし), and marked `approximate` until slice 6
+  records a batch yield (`#81`). The PRD's empty state says so on Today. With no cooked counterpart
+  (a hand-entered food, or a MEXT food the table has no cooked row for) it is planned raw, by its
+  raw values, with `noCookedMatch` and the note `raw, no cooked match`. *Rejected:* planning it by
+  its raw values labelled cooked, which presents raw figures as cooked ones (no-mistakes review,
+  decided by Firstmate). `plan_meal_item` gains `cooked`, `approximate` and `no_cooked_match`;
+  `batch_id` comes with `batch`.
+- **Cook-day limits** (a batch only on days its `keeps_days` covers from two cook days) wait for
+  batches in slice 6 (`#81`).
+- **The client regenerates, the server never does on its own.** After a food or rotation group
+  changes, and after a save on About you, Goal phase or Your day, the client generates today
+  through today + 6; Today generates when any of those days is missing. *Rejected:* regenerating
+  on the server inside `DELETE /api/foods/{id}` and the other writes, which would tie every write
+  route to the planner and the plan's range. **Past days and days with a confirmed meal are never
+  generated again.**
+- **Today:** the meal due is the first not more than an hour past. The workout sits in the
+  timeline at its training time, and the day's routine is the one done longest ago. Meal cards are
+  not buttons until confirming arrives (`#80`). The totals stick at the top of the scroll (Today's
+  app bar does not stick). Fiber shows its total with `no target`.
+- **Weight's second span** (Q16) is `Since <start>`, the open phase's start, shown when the phase began
+  before today and there is a trend. The week's change on Weight stays uncoloured (Q8).
+- **The export** gains `phases`, `dayRoutines` and `planDays` (`07` §2).
+
+**Changed:** `00`, `03` §8.2, `04`, `06`, `07` §2, §4, `10` §3, §6, §8.6, `11` §2.

@@ -210,6 +210,68 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/me/export/planning': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** One page of a planning section of the caller’s export */
+    get: {
+      parameters: {
+        query: {
+          section: components['schemas']['PlanningExportSection'];
+          /** @description Default 30, at most 100. */
+          limit?: number;
+          /** @description The previous page’s `nextCursor`. */
+          cursor?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description One page of the section, and the cursor of the next */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['PlanningExportPage'];
+          };
+        };
+        /** @description An unknown section, limit, or cursor */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/exercises': {
     parameters: {
       query?: never;
@@ -2301,6 +2363,633 @@ export interface paths {
     };
     trace?: never;
   };
+  '/api/goal-phases': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Every goal phase, newest first */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description The open one has `endedOn: null` */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['GoalPhaseList'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    put?: never;
+    /** Open a goal phase */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['GoalPhaseCreate'];
+        };
+      };
+      responses: {
+        /** @description A repeat of the same create: the stored phase */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['GoalPhase'];
+          };
+        };
+        /** @description Opened */
+        201: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['GoalPhase'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `phase_already_open` without `endPrevious`; `id_conflict`: the id is in use with other content */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `validation_failed` */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/goal-phases/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /** Edit a phase’s targets, or apply the maintenance check by hand */
+    patch: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['GoalPhasePatch'];
+        };
+      };
+      responses: {
+        /** @description The phase */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['GoalPhase'];
+          };
+        };
+        /** @description A malformed id */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No such phase of the caller’s */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `validation_failed`, including a rate on maintenance or none on a cut */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    trace?: never;
+  };
+  '/api/goal-phases/defaults': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** The defaults of a new phase, each with its source (S14) */
+    get: {
+      parameters: {
+        query: {
+          type: components['schemas']['GoalPhaseType'];
+          /** @description The rate the calories are worked out for. Default: the type’s. */
+          targetRatePctPerWeek?: number;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Rate, protein, fat and provisional calories */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['PhaseDefaults'];
+          };
+        };
+        /** @description An unknown type or a rate out of range */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `setup_incomplete` with `missing: ["profile"]`: height, sex, birth date and a weigh-in first */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/day-routines': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Both day types with their meals */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description The day types set so far, training first */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['DayRoutineList'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/day-routines/{dayType}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /** Replace one day type’s routine and its meals */
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          dayType: components['schemas']['DayType'];
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['DayRoutinePut'];
+        };
+      };
+      responses: {
+        /** @description The routine as stored */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['DayRoutine'];
+          };
+        };
+        /** @description An unknown day type */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `validation_failed`, including a training day without a training time or a rest day with one */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/day-routines/{dayType}/recommendation': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** The recommended meal count and times for a day, with the protein each meal carries (S15) */
+    get: {
+      parameters: {
+        query: {
+          wakeTime: string;
+          bedTime: string;
+          /** @description A training day’s. */
+          trainingTime?: string;
+          /** @description The count to give times for. Default: the recommendation. */
+          mealCount?: number;
+        };
+        header?: never;
+        path: {
+          dayType: components['schemas']['DayType'];
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description The recommendation, for the day as given */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['MealRecommendation'];
+          };
+        };
+        /** @description A malformed time or count */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `setup_incomplete` with `missing`: protein per meal needs the profile and the goal phase */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/targets/current': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** The targets in force today, and where they came from */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Today’s targets */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['CurrentTargets'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `setup_incomplete` with `missing`: the profile or the goal phase */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/plan-days': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** The plan days in a range, meals and items included. Read-only */
+    get: {
+      parameters: {
+        query: {
+          from: string;
+          to: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description The days, and the dates with no plan in `missing` */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['PlanDays'];
+          };
+        };
+        /** @description A malformed date, `from` after `to`, or more than 31 days */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/plan-days/generate': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Generate a range: each day with no confirmed meal is made again from current inputs. Past days already planned are left */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['PlanRange'];
+        };
+      };
+      responses: {
+        /** @description The range’s days after generating */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['PlanDays'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `setup_incomplete` with `missing`; `validation_failed` for `from` after `to` or more than 31 days */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/admin/invites': {
     parameters: {
       query?: never;
@@ -3037,6 +3726,240 @@ export interface components {
       | 'weighIns'
       | 'foods'
       | 'rotationGroups';
+    PlanningExportPage:
+      | {
+          /** @enum {string} */
+          section: 'phases';
+          items: components['schemas']['GoalPhase'][];
+          /** @description Opaque. Send it back as `cursor` for the next page. */
+          nextCursor: string | null;
+        }
+      | {
+          /** @enum {string} */
+          section: 'dayRoutines';
+          items: components['schemas']['DayRoutine'][];
+          /** @description Opaque. Send it back as `cursor` for the next page. */
+          nextCursor: string | null;
+        }
+      | {
+          /** @enum {string} */
+          section: 'planDays';
+          items: components['schemas']['PlanDay'][];
+          /** @description Opaque. Send it back as `cursor` for the next page. */
+          nextCursor: string | null;
+        };
+    GoalPhase: {
+      /**
+       * Format: uuid
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      id: string;
+      type: components['schemas']['GoalPhaseType'];
+      /**
+       * Format: date
+       * @example 2026-10-16
+       */
+      startedOn: string;
+      /**
+       * Format: date
+       * @description Null on the open phase.
+       * @example 2026-10-16
+       */
+      endedOn: string | null;
+      /**
+       * @description % of bodyweight a week, lost on a cut or gained on a bulk. Null on maintenance.
+       * @example 0.5
+       */
+      targetRatePctPerWeek: number | null;
+      /** @example 2.2 */
+      proteinGPerKg: number;
+      /** @example 25 */
+      fatPctCalories: number;
+      /** @example 2350 */
+      calorieTargetKcal: number;
+      calorieBasis: components['schemas']['CalorieBasis'];
+      /**
+       * Format: date-time
+       * @description When the calories were last set.
+       * @example 2026-11-11T09:01:40.000Z
+       */
+      calorieTargetSetAt: string;
+    };
+    /** @enum {string} */
+    GoalPhaseType: 'cut' | 'bulk' | 'maintain';
+    /**
+     * @description `provisional_formula` puts the provisional label on screen until the maintenance check is applied (S14).
+     * @enum {string}
+     */
+    CalorieBasis: 'provisional_formula' | 'measured' | 'manual';
+    DayRoutine: {
+      dayType: components['schemas']['DayType'];
+      /** @example 18:30 */
+      wakeTime: string;
+      /** @example 18:30 */
+      workStart: string | null;
+      /** @example 18:30 */
+      workEnd: string | null;
+      /**
+       * @description Null on a rest day.
+       * @example 18:30
+       */
+      trainingTime: string | null;
+      /** @example 18:30 */
+      bedTime: string;
+      mealCount: number;
+      /** @description The meals, in order. */
+      slots: components['schemas']['MealSlot'][];
+    };
+    /** @enum {string} */
+    DayType: 'training' | 'rest';
+    MealSlot: {
+      position: number;
+      /** @example 18:30 */
+      time: string;
+      label: string | null;
+    };
+    PlanDay: {
+      /**
+       * Format: uuid
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      id: string;
+      /**
+       * Format: date
+       * @example 2026-10-16
+       */
+      date: string;
+      dayType: components['schemas']['DayType'];
+      /**
+       * Format: uuid
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      goalPhaseId: string | null;
+      /** @description No meal left at `planned`. */
+      complete: boolean;
+      /** @description Copied from the targets in force when generated. */
+      targets: {
+        energyKcal: number;
+        proteinG: number;
+        carbG: number;
+        fatG: number;
+      };
+      planned: {
+        energyKcal: number;
+        proteinG: number;
+        carbG: number;
+        fatG: number;
+        fiberG: number;
+      };
+      confirmed: {
+        energyKcal: number;
+        proteinG: number;
+        carbG: number;
+        fatG: number;
+        fiberG: number;
+      };
+      shortfalls: components['schemas']['PlanShortfall'][];
+      /**
+       * Format: date-time
+       * @example 2026-11-11T09:01:40.000Z
+       */
+      generatedAt: string;
+      meals: components['schemas']['PlanMeal'][];
+    };
+    /** @description A target the plan could not reach, never padded. */
+    PlanShortfall:
+      | {
+          /** @enum {string} */
+          target: 'protein';
+          missingG: number;
+          /** @enum {string} */
+          suggestion: 'add_protein_source';
+        }
+      | {
+          /** @enum {string} */
+          target: 'energy';
+          missingKcal: number;
+          /**
+           * @description `portion_cap`: a portion reached its cap; `foods`: the list has no more to give.
+           * @enum {string}
+           */
+          cause: 'portion_cap' | 'foods';
+          /** @enum {string|null} */
+          suggestion: 'add_food' | null;
+        };
+    PlanMeal: {
+      /**
+       * Format: uuid
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      id: string;
+      position: number;
+      /** @example 18:30 */
+      plannedTime: string;
+      label: string | null;
+      isPreTraining: boolean;
+      isPostTraining: boolean;
+      /** @enum {string} */
+      status: 'planned' | 'as_planned' | 'adjusted' | 'replaced' | 'skipped';
+      /**
+       * Format: date-time
+       * @example 2026-11-11T09:01:40.000Z
+       */
+      confirmedAt: string | null;
+      evidence: {
+        claim: string;
+        /** @enum {string} */
+        strength: 'strong' | 'moderate' | 'contested';
+        sourceKey: components['schemas']['SourceKey'];
+      }[];
+      items: components['schemas']['PlanItem'][];
+    };
+    /**
+     * @description The evidence a default or a recommendation rests on, its claim and sources.
+     * @enum {string}
+     */
+    SourceKey:
+      | 'rate_cut'
+      | 'rate_bulk'
+      | 'protein_g_per_kg'
+      | 'fat_pct_calories'
+      | 'provisional_calories'
+      | 'protein_per_meal'
+      | 'carb_timing_training';
+    PlanItem: {
+      /**
+       * Format: uuid
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      id: string;
+      /**
+       * Format: uuid
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      foodId: string | null;
+      name: string;
+      plannedGrams: number | null;
+      actualGrams: number | null;
+      /** @description Whole pieces of a unit food. */
+      pieceCount: number | null;
+      /** @description The grams are a cooked weight. */
+      cooked: boolean;
+      /** @description A cooked weight with no batch yield recorded: the values are approximate. */
+      approximate: boolean;
+      /** @description A batch-cooked food with no cooked values in the food table: planned raw, by its raw values. */
+      noCookedMatch: boolean;
+      /** @description The food’s values as the plan used them. */
+      per100g: {
+        energyKcal: number;
+        proteinG: number;
+        carbG: number;
+        fatG: number;
+        fiberG: number;
+      };
+    };
+    /** @enum {string} */
+    PlanningExportSection: 'phases' | 'dayRoutines' | 'planDays';
     ExerciseList: {
       items: components['schemas']['Exercise'][];
     };
@@ -4039,6 +4962,192 @@ export interface components {
       name?: string;
       /** @description The whole membership. A food left out stays on the list, ungrouped. */
       foodIds?: string[];
+    };
+    GoalPhaseList: {
+      items: components['schemas']['GoalPhase'][];
+    };
+    GoalPhaseCreate: {
+      /**
+       * Format: uuid
+       * @description Made on the device (UUIDv7). A repeat returns the phase.
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      id: string;
+      type: components['schemas']['GoalPhaseType'];
+      /**
+       * Format: date
+       * @example 2026-10-16
+       */
+      startedOn: string;
+      /** @example 0.5 */
+      targetRatePctPerWeek: number | null;
+      /** @example 2.2 */
+      proteinGPerKg: number;
+      /** @example 25 */
+      fatPctCalories: number;
+      /** @example 2350 */
+      calorieTargetKcal: number;
+      /**
+       * @description `provisional_formula` when the calories are the defaults’ estimate, unchanged.
+       * @enum {string}
+       */
+      calorieBasis: 'provisional_formula' | 'manual';
+      /** @description Ends the open phase on the day before. Without it an open phase is a 409. */
+      endPrevious?: boolean;
+    };
+    /** @description An omitted field is unchanged. */
+    GoalPhasePatch: {
+      /** @example 0.5 */
+      targetRatePctPerWeek?: number | null;
+      /** @example 2.2 */
+      proteinGPerKg?: number;
+      /** @example 25 */
+      fatPctCalories?: number;
+      /** @example 2350 */
+      calorieTargetKcal?: number;
+      calorieBasis?: components['schemas']['CalorieBasis'] & unknown;
+    };
+    PhaseDefaults: {
+      type: components['schemas']['GoalPhaseType'];
+      /** @description The trend weight, or the latest weigh-in before there is a trend. */
+      bodyweight: {
+        weightKg: number;
+        /**
+         * Format: date
+         * @example 2026-10-16
+         */
+        date: string;
+      };
+      /** @description Null on maintenance. */
+      targetRatePctPerWeek: {
+        value: number;
+        /** @description The range it sits in, low then high. */
+        range: number[];
+        sourceKey: components['schemas']['SourceKey'];
+      } | null;
+      proteinGPerKg: {
+        value: number;
+        /** @description The range it sits in, low then high. */
+        range: number[];
+        sourceKey: components['schemas']['SourceKey'];
+      };
+      fatPctCalories: {
+        value: number;
+        /** @description The range it sits in, low then high. */
+        range: number[];
+        sourceKey: components['schemas']['SourceKey'];
+      };
+      /** @description Provisional until the maintenance check is applied (S14). */
+      calories: {
+        /** @description kcal a day, to the nearest 10. */
+        value: number;
+        /** @enum {string} */
+        basis: 'provisional_formula';
+        /** @enum {string} */
+        formula: 'mifflin_st_jeor';
+        restingKcal: number;
+        activityLevel: number;
+        trainingDaysPerWeek: number;
+        /** @description The deficit (negative) or surplus a day. */
+        adjustmentKcal: number;
+        age: number;
+        sourceKey: components['schemas']['SourceKey'];
+      };
+    };
+    DayRoutineList: {
+      /** @description Training first. A day type not set is absent. */
+      items: components['schemas']['DayRoutine'][];
+    };
+    DayRoutinePut: {
+      /** @example 18:30 */
+      wakeTime: string;
+      /** @example 18:30 */
+      workStart: string | null;
+      /** @example 18:30 */
+      workEnd: string | null;
+      /**
+       * @description Required on a training day.
+       * @example 18:30
+       */
+      trainingTime: string | null;
+      /** @example 18:30 */
+      bedTime: string;
+      /** @description The meals, in order: their count is the meal count. */
+      slots: {
+        /** @example 18:30 */
+        time: string;
+        label: string | null;
+      }[];
+    };
+    /** @description S15: the count and times, and the protein each meal carries. */
+    MealRecommendation: {
+      dayType: components['schemas']['DayType'];
+      recommendedCount: number;
+      /** @description The count asked about, or the recommendation. */
+      mealCount: number;
+      /** @description The most meals the waking day has room for. */
+      roomFor: number;
+      slots: {
+        position: number;
+        /** @example 18:30 */
+        time: string;
+        label: string;
+        isPreTraining: boolean;
+        isPostTraining: boolean;
+      }[];
+      /** @description The day’s protein target. */
+      proteinG: number;
+      weightKg: number;
+      proteinPerMealG: number;
+      proteinPerMealGPerKg: number;
+      /** @description g per kg a meal, low then high. */
+      perMealRange: number[];
+      /** @enum {string} */
+      perMeal: 'inside' | 'above' | 'below';
+      sourceKey: components['schemas']['SourceKey'];
+    };
+    CurrentTargets: {
+      /**
+       * Format: date
+       * @example 2026-10-16
+       */
+      date: string;
+      /**
+       * Format: uuid
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      goalPhaseId: string;
+      energyKcal: number;
+      proteinG: number;
+      carbG: number;
+      fatG: number;
+      bodyweightKg: number;
+      source: {
+        /**
+         * @description `provisional_formula` is what puts the provisional label on screen.
+         * @enum {string}
+         */
+        kind: 'provisional_formula' | 'goal_phase';
+      };
+    };
+    PlanDays: {
+      /** @description Dates in the range with no plan. */
+      missing: string[];
+      /** @description Oldest first. */
+      days: components['schemas']['PlanDay'][];
+    };
+    /** @description Local dates, both included, at most 31 days. */
+    PlanRange: {
+      /**
+       * Format: date
+       * @example 2026-10-16
+       */
+      from: string;
+      /**
+       * Format: date
+       * @example 2026-10-16
+       */
+      to: string;
     };
     InviteList: {
       items: components['schemas']['Invite'][];

@@ -5,12 +5,14 @@ import { AppBar, Notice } from './components';
 import { routeOf, safeNext, useLocation } from './navigation';
 import { meQuery, useAccount } from './query';
 import { ExerciseScreen } from './screens/ExerciseForm';
+import { AboutYou } from './screens/AboutYou';
 import { AddFood } from './screens/AddFood';
 import { ExerciseLibrary } from './screens/ExerciseLibrary';
 import { FoodBarcode } from './screens/FoodBarcode';
 import { FoodCheck, FoodEdit } from './screens/FoodCheck';
 import { FoodLabel } from './screens/FoodLabel';
 import { FoodPage } from './screens/FoodPage';
+import { GoalPhaseScreen } from './screens/GoalPhase';
 import { Foods } from './screens/Foods';
 import { History } from './screens/History';
 import { Invites } from './screens/Invites';
@@ -26,6 +28,7 @@ import { Today } from './screens/Today';
 import { WeighIn } from './screens/WeighIn';
 import { Weight } from './screens/Weight';
 import { Workout } from './screens/Workout';
+import { YourDay } from './screens/YourDay';
 import { YourData } from './screens/YourData';
 import { endIdleWorkout, loadWorkouts } from './workout';
 
@@ -113,6 +116,9 @@ export function App() {
     if (route.screen === 'food-label') return <FoodLabel navigate={navigate} />;
     if (route.screen === 'food-check') return <FoodCheck navigate={navigate} />;
     if (route.screen === 'rotation-groups') return <RotationGroups navigate={navigate} />;
+    if (route.screen === 'about-you') return <AboutYou me={me.data} navigate={navigate} />;
+    if (route.screen === 'goal-phase') return <GoalPhaseScreen me={me.data} navigate={navigate} />;
+    if (route.screen === 'your-day') return <YourDay me={me.data} navigate={navigate} />;
     if (route.screen === 'invites') {
       // A member gets the not-found screen, not a forbidden one (docs/08 §5).
       if (!me.data.isAdmin) return <NotFound navigate={navigate} />;

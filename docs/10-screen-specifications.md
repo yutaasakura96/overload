@@ -311,7 +311,7 @@ day stands, a meal lists its foods as rows, and every action is a word.
 
 | Entry | Drawn as |
 | --- | --- |
-| A planned meal | A button card, `line/hairline`: the meal's name 15px, `467 kcal · 29 g protein` 12px mono `text/tertiary` on the right; the foods as rows, name 12px `text/tertiary` with `cooked` (and `approx.` without a batch) in `text/quaternary`, grams 12px mono. Tapping it opens it (Q6). A meal with more carbs for training carries the evidence tag `MORE CARBS · MODERATE` on its own row under the card, so the tag is never inside the card's button |
+| A planned meal | A button card, `line/hairline`: the meal's name 15px, `467 kcal · 29 g protein` 12px mono `text/tertiary` on the right; the foods as rows, name 12px `text/tertiary` with `cooked` (and `approx.` without a batch), or `raw, no cooked match`, in `text/quaternary`, grams 12px mono. Tapping it opens it (Q6). A meal with more carbs for training carries the evidence tag `MORE CARBS · MODERATE` on its own row under the card, so the tag is never inside the card's button |
 | The next meal due | Open, as `05` §4.5's active card: name 15px, then the macro line and the tag, then the foods at 13px with grams 13px mono/500 `text/primary`, then the actions |
 | A confirmed meal | One row: name 15px `text/secondary` and, in `done` with the check, `Eaten as planned`, `Eaten, adjusted`, `Replaced` or `Skipped`. Opened, it says `Confirmed. Changing it replaces this, never adds to it.` over `Adjust` / `Replaced` / `Undo` |
 | The workout | A 9px `accent` square on the rail; a card with a 2px `accent` left edge: `WORKOUT` 10px `0.12em` `accent`, the routine's name 15px, `5 exercises · 17 sets · last done Mon 12 Oct`, and a 44px primary `Start` (Q5) |
@@ -361,6 +361,31 @@ the meal and still lets the day be complete.
   line under them saying nothing is lost.
 - **Food list empty** opens the first-run step `Your foods`. A plan day older than 7 days is
   read-only: the same cards without actions (`09` F11).
+- **As built in M2 slice 4** (`#79`, `06` 2026-10-18), at `/`, checked at 390px in both themes on
+  invented foods:
+  - The setup steps are `About you`, `Your foods`, `Goal phase` and `Your day`, in that order;
+    `About you` is done with height, sex, birth date and a weigh-in, and `Your day` once every day
+    type the training weekdays need is saved. A save on one of them returns to Today, which says
+    `Saved.` while a step is left and `Saved. The week’s plan is made again from it.` once none is.
+  - Once set up, Today reads today through today + 6 and generates any day missing, once. Before
+    the day type's wake time, today is still the day before, so a night past midnight stays on the
+    day it belongs to. It
+    failing says `No plan yet`: `Couldn’t make today’s plan. Try again when you have signal.`
+  - Meal cards are not buttons, and there are no actions, until confirming arrives (`#80`). The meal
+    due is open: the first no more than an hour past its time.
+  - The totals stick at the top of the scroll, below the status bar, since Today's app bar does not
+    stick; what takes focus comes to rest below them. The setup screens' app bars stick (§7.3). `Fiber` shows
+    its total with `no target`.
+  - The workout entry is the day's routine, the one done longest ago, with `Start`; once started it
+    reads `In progress` with `Resume` (and the `In progress` section above the day is left out), once finished `Done`, and with no routine `No routine yet`
+    with `Create`. The start list leaves the day's routine out.
+  - Shortfalls: `PROTEIN 22 G SHORT` as drawn, and an energy gap as `CALORIES 140 SHORT` with the
+    capped-portion sentence, or one that the foods cannot fill the day, with `Add a food`.
+  - An `approx.` item adds a footnote under the timeline: the food table's cooked values are used
+    because no batch has been weighed yet, and weighing one makes it exact.
+  - A `raw, no cooked match` item adds its own footnote: a batch-cooked food the food table has no
+    cooked values for is planned at its raw weight, and weighing a batch gives it cooked amounts
+    (`06`, 2026-10-18).
 
 ---
 
@@ -513,12 +538,15 @@ and the rest of the week are planned again; `Now 2,350 provisional → New 2,250
   legend, `Type a weight`, Recent weigh-ins and the footnote, every weight in the profile's unit
   (kg or lb) to the tenth and the week's change to the hundredth. The week's change is uncoloured
   until a phase gives it a direction. Not yet drawn, each with its slice: `Scale: set up` (`#77`),
-  the maintenance check card (`#82`), the phase row and the `Since` span (`#79`); with one span the
-  span segments are left out and the chart is the last 30 days, with `No weigh-ins in the last 30
+  the maintenance check card (`#82`); with one span the span segments are left out and the chart is the last 30 days, with `No weigh-ins in the last 30
   days.` when it is empty. The empty state offers `Type a weight` alone, and says to type the
   morning weight before 10:00. A typed weigh-in's `Delete` acts at once and the screen says
   `Weigh-in deleted.`; without a profile the section asks for one first. The chart is hidden from
   screen readers and read out as one sentence instead; the list carries every value.
+- **As built in M2 slice 4** (`#79`, `06` 2026-10-18): the span segments `30 days` and `Since 4 Sep`,
+  shown when the open phase began before today and there is a trend; the chart's sentence names
+  the span. The phase row, `Target: lose 0.5% a week, about 0.4 kg` (`maintain your weight` on
+  maintenance), opens the goal phase. The week's change stays uncoloured (Q8).
 
 ---
 
@@ -681,7 +709,9 @@ components, and pass the polish gate (`AGENTS.md`). Nothing here adds a token or
   `Default` or `Yours`. A refused field gets an `error` border, and under it the word `Refused`, the
   info icon and the reason; focus moves to the first one.
 - **Save notices.** `Not saved` in `flag` when the server was not reached: the form keeps
-  everything, and saving again later works. `Refused` in `error` when the server refused, or before
+  everything, and saving again later works. `Partly saved` in `flag` when a save's first writes
+  landed and a later one did not: it says what was saved, then what was not (`Your details saved.
+  The weigh-in wasn’t; save again when you have signal.`). `Refused` in `error` when the server refused, or before
   sending when a figure is not a number (`Enter a number, in digits only`), so it never goes as
   `null`, which would mean the default, or when a slot has one end of its rep range (`Set both ends
   of the range, or neither`). Neither queues offline (`06`, offline scope).
@@ -1038,6 +1068,26 @@ times and names as a list, why (`181 g of protein over 5 meals is about 36 g eac
 inside 0.4–0.55.` and the meals around training), its evidence tag (`0.4–0.55 G/KG A MEAL ·
 MODERATE`), and under a hairline that meal count does not change fat loss at equal calories. A
 changed count adds `Yours: 4 meals. The recommendation was 5.` in `flag`. `Use these meals`.
+
+**As built in M2 slice 4** (`#79`, `06` 2026-10-18), at `/plan/about`, `/plan/phase` and
+`/plan/day`, checked at 390px in both themes:
+- About you's weight is the latest weigh-in, noted `From your weigh-in of …`; a changed weight is
+  saved as a new weigh-in. Saving makes the week's plan again and returns to Today.
+- Goal phase's fields start from the open phase of the same type, or the defaults, noted `Default`,
+  `Yours`, `Provisional` or `Measured`. For a new phase the defaults are the fields' placeholders,
+  not filled values, so the calories keep following the rate until one is typed. The units read
+  `% bodyweight`, `g per kg`, `% of calories` and `kcal a day`, as drawn. Fat's default is **25 %** (`06`), not the drawn 27. The
+  `PROVISIONAL` box names Mifflin–St Jeor with its resting energy, activity level and the deficit
+  or surplus. Changing the type while a phase is open says `A cut is open` and `Saving ends the cut
+  yesterday and starts a bulk from today.` A phase begun today says `This phase began today. A new
+  phase can start tomorrow.`; an attempted same-day start is refused.
+- Your day starts on `Training day` unless it is saved and the rest day is not. The weekday toggles
+  change the profile's training weekdays; while the phase's calories are still the formula's, they
+  follow, on the save that changes the weekdays only. A follow-up that fails is kept on the device
+  for that phase and sent with the next save; if the device cannot keep it, the notice says `The
+  goal phase wasn’t updated; check its calories in Goal phase.` When the week needs both day types and one is unsaved, saving the first says `Training
+  day saved. Now your rest day.` and switches to it. Without a goal phase the recommendation says
+  `Set up first` with a link to it.
 
 **Type a weight** (S11; a permanent option, `06` 2026-10-16). `Weight` in kg, then `Date` and `Time`,
 which start at now and can be changed (Q15). One line under them says how the time counts: before

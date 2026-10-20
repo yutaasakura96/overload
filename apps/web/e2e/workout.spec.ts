@@ -827,14 +827,14 @@ test('leaving the app and coming back keeps the workout screen as it was', async
   await rest.getByRole('button', { name: '+30s rest' }).click();
   await page.getByRole('button', { name: /Dumbbell Lateral Raise/ }).click();
   await page.getByRole('textbox', { name: /^Weight in/ }).fill('7.5');
-  await page.getByRole('textbox', { name: 'Reps', exact: true }).fill('12');
+  await page.getByRole('textbox', { name: 'Reps', exact: true }).fill('11');
   await page.getByRole('textbox', { name: 'Reps in reserve, optional' }).fill('2');
   await page.getByRole('button', { name: 'Warm-up set' }).click();
   const asLeft = async () => {
     await expect(page.getByRole('heading', { name: 'Dumbbell Lateral Raise' })).toBeVisible();
     await expect(page.getByRole('region', { name: 'WARM-UP' })).toBeVisible();
     await expect(page.getByRole('textbox', { name: /^Weight in/ })).toHaveValue('7.5');
-    await expect(page.getByRole('textbox', { name: 'Reps', exact: true })).toHaveValue('12');
+    await expect(page.getByRole('textbox', { name: 'Reps', exact: true })).toHaveValue('11');
     await expect(page.getByRole('textbox', { name: 'Reps in reserve, optional' })).toHaveValue('2');
     await expect(rest.getByRole('timer')).toHaveText(/^2:[012]\d$/);
   };

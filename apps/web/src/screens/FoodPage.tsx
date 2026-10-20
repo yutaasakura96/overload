@@ -71,14 +71,16 @@ function FoodDetail({
   const archive = async () => {
     setBusy(true);
     setProblem(undefined);
+    let saved = false;
     try {
       await forAccount(async () =>
         expectOk(await api.DELETE('/api/foods/{id}', { params: { path: { id: food.id } } })),
       );
+      saved = true;
       await refreshFoods();
       navigate('/food', { replace: true, note: 'food-archived' });
     } catch (error) {
-      setProblem(saveProblem(error));
+      setProblem(saved ? { kind: 'plan_failed' } : saveProblem(error));
       setBusy(false);
     }
   };

@@ -48,6 +48,142 @@ export const EVIDENCE = {
       },
     ],
   },
+  // Issue #79: the goal phase's defaults (S14), the meal count (S15) and the plan (S16). Keyed by the
+  // API's `sourceKey`.
+  rate_cut: {
+    tag: '0.5–1% A WEEK',
+    strength: 'moderate',
+    claim: 'Losing 0.5 to 1% of bodyweight a week keeps more muscle on a cut than losing faster.',
+    means:
+      'Moderate: a review of studies in lean, trained people. The default is the slow end, 0.5%, which suits a cut that is already lean.',
+    sources: [
+      {
+        title:
+          'Evidence-based recommendations for natural bodybuilding contest preparation: nutrition and supplementation',
+        meta: 'Helms, Aragon & Fitschen · J Int Soc Sports Nutr · 2014',
+        href: 'https://doi.org/10.1186/1550-2783-11-20',
+      },
+    ],
+  },
+  rate_bulk: {
+    tag: '0.25–0.5% A WEEK',
+    strength: 'moderate',
+    claim:
+      'Gaining 0.25 to 0.5% of bodyweight a week builds muscle with less fat than gaining faster.',
+    means:
+      'Moderate: a narrative review of the evidence for trained lifters. The default is the slow end, 0.25%, since the further trained you are the slower muscle comes.',
+    sources: [
+      {
+        title: 'Nutrition recommendations for bodybuilders in the off-season: a narrative review',
+        meta: 'Iraki, Fitschen, Espinar & Helms · Sports · 2019',
+        href: 'https://doi.org/10.3390/sports7070154',
+      },
+    ],
+  },
+  protein_g_per_kg: {
+    tag: '1.6–2.2 G/KG',
+    strength: 'strong',
+    claim:
+      'Protein of 1.6 g per kg of bodyweight a day, up to about 2.2, supports muscle gain from training.',
+    means:
+      'Strong: a meta-analysis of 49 trials. On a cut needs rise, so a cut starts at the top of the range; maintenance and a bulk start at 1.6.',
+    sources: [
+      {
+        title:
+          'A systematic review, meta-analysis and meta-regression of the effect of protein supplementation on resistance training-induced gains in muscle mass and strength in healthy adults',
+        meta: 'Morton et al. · Br J Sports Med · 2018',
+        href: 'https://doi.org/10.1136/bjsports-2017-097608',
+      },
+      {
+        title:
+          'A systematic review of dietary protein during caloric restriction in resistance trained lean athletes: a case for higher intakes',
+        meta: 'Helms et al. · Int J Sport Nutr Exerc Metab · 2014',
+        href: 'https://doi.org/10.1123/ijsnem.2013-0054',
+      },
+    ],
+  },
+  fat_pct_calories: {
+    tag: '15–30% OF CALORIES',
+    strength: 'moderate',
+    claim: 'Fat at 15 to 30% of calories suits most lifters, with carbohydrate filling the rest.',
+    means:
+      'Moderate: a review’s recommendation for most, but not all, lifters. The default is 25%, inside the range.',
+    sources: [
+      {
+        title:
+          'Evidence-based recommendations for natural bodybuilding contest preparation: nutrition and supplementation',
+        meta: 'Helms, Aragon & Fitschen · J Int Soc Sports Nutr · 2014',
+        href: 'https://doi.org/10.1186/1550-2783-11-20',
+      },
+    ],
+  },
+  provisional_calories: {
+    tag: 'MIFFLIN–ST JEOR',
+    strength: 'moderate',
+    claim:
+      'Resting energy from height, weight, age and sex by the Mifflin–St Jeor equation, times your activity, gives a starting estimate of your calories.',
+    means:
+      'Moderate: the equation a systematic review found most often within 10% of measured, but any equation misses some people by more. Activity is 1.45 with no training days and 0.05 more for each, inside FAO/WHO/UNU’s 1.40 to 1.99. It is provisional until the maintenance check measures your real intake against your weight.',
+    sources: [
+      {
+        title: 'A new predictive equation for resting energy expenditure in healthy individuals',
+        meta: 'Mifflin et al. · Am J Clin Nutr · 1990',
+        href: 'https://doi.org/10.1093/ajcn/51.2.241',
+      },
+      {
+        title:
+          'Comparison of predictive equations for resting metabolic rate in healthy nonobese and obese adults: a systematic review',
+        meta: 'Frankenfield, Roth-Yousey & Compher · J Am Diet Assoc · 2005',
+        href: 'https://doi.org/10.1016/j.jada.2005.02.005',
+      },
+      {
+        title: 'Human energy requirements: report of a joint FAO/WHO/UNU expert consultation',
+        meta: 'FAO/WHO/UNU · Food and Nutrition Technical Report Series 1 · 2004',
+        href: 'https://www.fao.org/4/Y5686E/y5686e00.htm',
+      },
+    ],
+  },
+  protein_per_meal: {
+    tag: '0.4–0.55 G/KG A MEAL',
+    strength: 'moderate',
+    claim:
+      'Spreading protein over at least four meals, at 0.4 to 0.55 g per kg each, makes the most of it for muscle.',
+    means:
+      'Moderate: drawn from short studies of muscle protein synthesis after a meal. The number of meals does not change fat loss at equal calories; it is recommended for protein only.',
+    sources: [
+      {
+        title:
+          'How much protein can the body use in a single meal for muscle-building? Implications for daily protein distribution',
+        meta: 'Schoenfeld & Aragon · J Int Soc Sports Nutr · 2018',
+        href: 'https://doi.org/10.1186/s12970-018-0215-1',
+      },
+      {
+        title: 'Effects of meal frequency on weight loss and body composition: a meta-analysis',
+        meta: 'Schoenfeld, Aragon & Krieger · Nutr Rev · 2015',
+        href: 'https://doi.org/10.1093/nutrit/nuu017',
+      },
+    ],
+  },
+  carb_timing_training: {
+    tag: 'MORE CARBS',
+    strength: 'moderate',
+    claim:
+      'Putting more of the day’s carbohydrate in the meals before and after training can help you train and recover.',
+    means:
+      'Moderate: the effect is clearest for long or twice-a-day training. For one weights workout a day the day’s total matters more than the timing, so the plan moves carbohydrate towards training without changing the total.',
+    sources: [
+      {
+        title: 'International Society of Sports Nutrition position stand: nutrient timing',
+        meta: 'Kerksick et al. · J Int Soc Sports Nutr · 2017',
+        href: 'https://doi.org/10.1186/s12970-017-0189-4',
+      },
+      {
+        title: 'Nutrient timing revisited: is there a post-exercise anabolic window?',
+        meta: 'Aragon & Schoenfeld · J Int Soc Sports Nutr · 2013',
+        href: 'https://doi.org/10.1186/1550-2783-10-5',
+      },
+    ],
+  },
 } satisfies Record<string, Evidence>;
 
 const STRENGTH_WORD: Record<Strength, string> = {

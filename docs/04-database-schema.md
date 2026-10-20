@@ -71,7 +71,7 @@ ahead of the current slice, not a description of the database.**
 | **2** | `routine` · `routine_exercise` |
 | **3** | `workout` · `workout_exercise` · `set` |
 | **4** | `sync_tombstone` |
-| **M2** | Everything under *M2 — meal plan + weight*, slice by slice. M2 slice 1 (`#76`): `body_measurement`, without M3's `lean_mass_kg` (`06`, 2026-10-16). M2 slice 3 (`#78`): `food`, `reference_food` with its seed, `rotation_group` and `model_call_count` (`06`, 2026-10-17) |
+| **M2** | Everything under *M2 — meal plan + weight*, slice by slice. M2 slice 1 (`#76`): `body_measurement`, without M3's `lean_mass_kg` (`06`, 2026-10-16). M2 slice 3 (`#78`): `food`, `reference_food` with its seed, `rotation_group` and `model_call_count` (`06`, 2026-10-17). M2 slice 4 (`#79`): `goal_phase`, `day_routine`, `meal_slot`, `plan_day`, `plan_meal` and `plan_meal_item`, migration `0019`, without `plan_meal_item.batch_id` until `batch` exists (`#81`) (`06`, 2026-10-18) |
 | **M3** | Everything under *M3 — health + coaching*, and `ingest_token`. Its revoke on an invite's revoke and the two tests that go with it come with the table (`06`, 2026-10-15) |
 
 Each slice's GitHub issue names the tables it creates, so the gap between this document and the
@@ -589,7 +589,12 @@ see what a previous cut actually did.
 | `calorie_target_set_at` | timestamptz | no | `now()` | When `calorie_target_kcal` was last set by the user. *Added 2026-09-21* (`docs/09` F13): current targets read the newer of this and the newest applied `expenditure_estimate` |
 | `created_at` / `updated_at` | timestamptz | no | `now()` | |
 
-- `UNIQUE (user_id) WHERE ended_on IS NULL` — one open phase at a time.
+- `UNIQUE (user_id) WHERE ended_on IS NULL` — one open phase at a time (`goal_phase_user_id_open_key`).
+  With `endPrevious`, a new phase must start after the open phase's start date; the open phase ends
+  the day before the new start. An equal or earlier start answers `422 validation_failed`; a create
+  without `endPrevious` answers `409 phase_already_open` (`07` §4).
+- `CHECK (ended_on IS NULL OR ended_on >= started_on)`. `INDEX (user_id, started_on DESC)` for the
+  list, newest first.
 - The maintenance estimate (S18a) never writes here. Applying it is a user action that writes a new
   `calorie_target_kcal` with `calorie_basis = 'measured'`.
 
@@ -607,10 +612,11 @@ The user's weekday shape, one row per day type (S15).
 | `work_start` / `work_end` | time | yes | — | |
 | `training_time` | time | yes | — | `NULL` on rest days |
 | `bed_time` | time | no | — | |
-| `meal_count` | smallint | no | `4` | Recommended, then editable (S15) |
+| `meal_count` | smallint | no | `4` | Recommended, then editable (S15). 1–8, `CHECK`. Written as the number of `meal_slot` rows saved with it |
 | `created_at` / `updated_at` | timestamptz | no | `now()` | |
 
 - `PRIMARY KEY (user_id, day_type)`.
+- `CHECK (day_type = 'training' OR training_time IS NULL)`: a rest day has no training time.
 - Which calendar days are training days comes from the routine the user sets, not from whether a
   workout happened. A missed session does not retroactively rewrite the plan.
 
@@ -651,12 +657,15 @@ the day (S18).
 | `target_protein_g` | numeric(6,1) | no | — | Copied |
 | `target_carb_g` | numeric(6,1) | no | — | Copied |
 | `target_fat_g` | numeric(6,1) | no | — | Copied |
+| `shortfalls` | jsonb | no | `'[]'` | What the planner could not reach, as `07` §4's `PlanShortfall`: `{ target: 'protein', missingG }` or `{ target: 'energy', missingKcal, cause: 'portion_cap' \| 'foods' }`. *Added 2026-10-18* (`06`): stored with the day, so the day says what it is short without re-running the planner |
 | `generated_at` | timestamptz | no | `now()` | |
 | `created_at` / `updated_at` | timestamptz | no | `now()` | |
 
 - `UNIQUE (user_id, plan_date)`.
 - Targets are copied for the same reason a workout copies its rep range: changing your phase today
   must not rewrite what last Tuesday was aiming for.
+- A day with a confirmed meal, or a past day that already has a plan, is never regenerated: the
+  generate call keeps it as it is (`07` §4).
 - **A day is complete** when every `plan_meal` on it has a status other than `planned` (S18). That
   is a query, not a column — the condition is only ever read, never set by hand.
 
@@ -697,7 +706,10 @@ One food in one meal, planned and as eaten (S16, S18).
 | `planned_grams` | numeric(7,2) | yes | — | Cooked weight for batch-cooked foods. `NULL` on an item that was only ever eaten, never planned |
 | `actual_grams` | numeric(7,2) | yes | — | Set when adjusted or replaced |
 | `piece_count` | numeric(5,2) | yes | — | For unit foods; grams follow from `food.piece_weight_g` |
-| `batch_id` | uuid | yes | — | → `batch.id`, `ON DELETE SET NULL`. The yield used to convert cooked → raw macros |
+| `cooked` | boolean | no | `false` | *Added 2026-10-18.* The grams are a cooked weight |
+| `approximate` | boolean | no | `false` | *Added 2026-10-18.* A cooked weight planned from the MEXT cooked counterpart of a raw batch-cooked food, with no batch yield recorded yet (`06`, 2026-10-18). Screen 3 marks it `approx.` |
+| `no_cooked_match` | boolean | no | `false` | *Added 2026-10-18.* A raw batch-cooked food with no MEXT cooked counterpart, planned raw by its raw values (`06`, 2026-10-18). Screen 3 marks it `raw, no cooked match` |
+| `batch_id` | uuid | yes | — | → `batch.id`, `ON DELETE SET NULL`. The yield used to convert cooked → raw macros. **Not yet created**: it comes with `batch` in slice 6 (`#81`) |
 | `energy_kcal_per_100g` | numeric(7,2) | no | — | **Snapshot** of the food's macros at plan time |
 | `protein_g_per_100g` | numeric(6,2) | no | — | Snapshot |
 | `carb_g_per_100g` | numeric(6,2) | no | — | Snapshot |
@@ -705,7 +717,7 @@ One food in one meal, planned and as eaten (S16, S18).
 | `fiber_g_per_100g` | numeric(6,2) | no | `0` | Snapshot |
 | `created_at` / `updated_at` | timestamptz | no | `now()` | |
 
-- `INDEX (plan_meal_id)`.
+- `INDEX (plan_meal_id)` and `INDEX (food_id)`, the second for `ON DELETE SET NULL`.
 - **Why the snapshot.** Correcting a food's protein next March must not silently change what
   February's intake says you ate — and S18a's maintenance estimate is read straight off these rows.
   Same rule as `workout_exercise`: the numbers a day was actually run with stay with that day.

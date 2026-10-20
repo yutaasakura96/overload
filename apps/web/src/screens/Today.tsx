@@ -1,29 +1,49 @@
-import type { Me, Routine, WeightUnit } from '@overload/api-contract';
+import type {
+  CurrentTargets,
+  DayType,
+  GoalPhase,
+  Me,
+  PlanDay,
+  Routine,
+  WeightUnit,
+} from '@overload/api-contract';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { api } from '../api';
 import {
   AccountFooter,
   AppBar,
+  CheckIcon,
   Chevron,
   DataState,
   Notice,
   ScreenTabs,
   TextField,
 } from '../components';
-import { agoLabel, dayLabel, minutesBetween } from '../dates';
+import { agoLabel, dayLabel, localDate, minutesBetween } from '../dates';
 import { historyOnDevice, removedOnDevice } from '../history';
-import type { Navigate } from '../navigation';
+import { useEntryNote, type Navigate } from '../navigation';
+import { phaseLine } from '../plan';
+import { DayTotals, PlanSkeleton, Shortfalls, Timeline } from '../plan-day';
 import {
+  activePlanDay,
+  addLocalDays,
   allExercisesQuery,
   confirmedAccountData,
+  currentTargetsQuery,
+  dayRoutinesQuery,
+  foodsQuery,
+  goalPhasesQuery,
   lastDoneQuery,
   lastTimeQuery,
+  planDaysQuery,
   queryClient,
   refreshLastTime,
+  regeneratePlan,
   routinesQuery,
   setProfile,
   useAccount,
+  weighInsQuery,
   workoutsQuery,
 } from '../query';
 import { RefusedSet, setFigures } from '../refused';
@@ -54,7 +74,9 @@ import {
 // since only one is open at a time. The
 // profile's time zone is the day boundary every local date is read against, and its weight unit is
 // how weights are shown (docs/06, 2026-09-23). The last workout is the way into History from here
-// (docs/10 §9). The meal cards arrive with M2.
+// (docs/10 §9). Today is the whole day (docs/10 §3, Q7): once the plan is set up, the day's meals
+// as a timeline with the workout marked in it, and until then the first setup step missing
+// (docs/09 F10).
 
 const clock = (iso: string, timeZone: string) =>
   new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', timeZone }).format(
@@ -125,6 +147,27 @@ export function Today({ me, navigate }: { me: Me; navigate: Navigate }) {
   const top = useRef<HTMLElement>(null);
   const refusedHeading = useRef<HTMLHeadingElement>(null);
 
+  const plan = usePlan(me, confirmed);
+  const note = useEntryNote();
+  // The day's routine is the one done longest ago, never done first: the next in the rotation. It
+  // is started from its place in the timeline, and the others are listed under the day (Q5).
+  const dayRoutine = items
+    .map((routine, index) => ({ routine, index, at: doneAt.get(routine.id) }))
+    .toSorted(
+      (a, b) =>
+        (a.at === undefined ? 0 : Date.parse(a.at)) - (b.at === undefined ? 0 : Date.parse(b.at)) ||
+        a.index - b.index,
+    )[0]?.routine;
+  const doneToday = finished.find(
+    (workout) => localDate(workout.startedAt, timeZone) === plan.today,
+  );
+  const trainingDay = plan.day?.dayType === 'training';
+  const inTimeline = plan.day !== undefined && trainingDay && plan.trainingTime !== null;
+  const others =
+    inTimeline && doneToday === undefined && open === undefined
+      ? items.filter((routine) => routine.id !== dayRoutine?.id)
+      : items;
+
   const start = async (routine: Routine, finishFirst = false) => {
     if (exercises.data === undefined) {
       setStartFailed('exercises');
@@ -177,10 +220,47 @@ export function Today({ me, navigate }: { me: Me; navigate: Navigate }) {
     <main ref={top} tabIndex={-1}>
       <AppBar
         title="Today"
-        subline={date.toUpperCase()}
+        subline={
+          plan.day === undefined
+            ? date.toUpperCase()
+            : `${date.toUpperCase()} · ${trainingDay ? 'TRAINING DAY' : 'REST DAY'}`
+        }
         slot={<DataState at={routines.dataUpdatedAt} />}
       />
       <ScreenTabs current="/" navigate={navigate} />
+
+      {note === 'plan-saved' && (
+        <output className="saved-line">
+          <CheckIcon size={13} color="var(--done)" />
+          {plan.step === undefined ? 'Saved. The week’s plan is made again from it.' : 'Saved.'}
+        </output>
+      )}
+      {plan.step !== undefined && (
+        <SetupStep step={plan.step} done={plan.done} navigate={navigate} />
+      )}
+      {plan.step === undefined && (plan.generating || plan.reading) && plan.day === undefined && (
+        <PlanSkeleton />
+      )}
+      {/* Mounted throughout, so making the plan and its arrival are both said (a failure is the
+          notice's own). */}
+      <p className="visually-hidden" aria-live="polite">
+        {plan.generating ? 'Making today’s plan.' : plan.made ? 'Today’s plan is ready.' : ''}
+      </p>
+      {plan.step === undefined && plan.failed && plan.day === undefined && (
+        <Notice tone="flag" word="No plan yet">
+          Couldn’t make today’s plan.{' '}
+          <button type="button" className="inline-link" onClick={plan.retry}>
+            Try again
+          </button>{' '}
+          when you have signal.
+        </Notice>
+      )}
+      {plan.day !== undefined && (
+        <>
+          <DayTotals day={plan.day} />
+          <Shortfalls day={plan.day} navigate={navigate} />
+        </>
+      )}
 
       {idleEnded !== undefined && (
         <output className="empty">
@@ -249,7 +329,8 @@ export function Today({ me, navigate }: { me: Me; navigate: Navigate }) {
         </section>
       )}
 
-      {loaded && open !== undefined && (
+      {/* On a training day the open workout is the timeline's workout entry instead (docs/10 §3). */}
+      {loaded && open !== undefined && !inTimeline && (
         <section className="today__section" aria-labelledby="in-progress">
           <h2 id="in-progress" className="section-label">
             In progress
@@ -270,6 +351,57 @@ export function Today({ me, navigate }: { me: Me; navigate: Navigate }) {
               Resume workout
             </a>
           </div>
+        </section>
+      )}
+
+      {plan.day !== undefined && (
+        <section className="today__section today__section--timeline" aria-labelledby="the-day">
+          <h2 id="the-day" className="section-label">
+            The day
+          </h2>
+          <Timeline
+            day={plan.day}
+            now={clock(new Date().toISOString(), timeZone)}
+            wakeTime={plan.wakeTime}
+            workout={
+              inTimeline && plan.trainingTime !== null && loaded
+                ? {
+                    time: plan.trainingTime,
+                    node: (
+                      <WorkoutSlot
+                        routine={
+                          doneToday === undefined && open === undefined ? dayRoutine : undefined
+                        }
+                        open={open?.row.name}
+                        done={
+                          doneToday === undefined
+                            ? undefined
+                            : { name: doneToday.name, at: clock(doneToday.startedAt, timeZone) }
+                        }
+                        lastDone={dayRoutine === undefined ? undefined : doneAt.get(dayRoutine.id)}
+                        timeZone={timeZone}
+                        starting={starting}
+                        onStart={(routine) => void start(routine)}
+                        onResume={() => navigate('/workout')}
+                        onCreate={() => navigate('/routines/new')}
+                      />
+                    ),
+                  }
+                : undefined
+            }
+          />
+          {plan.day.meals.some((meal) => meal.items.some((item) => item.approximate)) && (
+            <p className="plan__footnote">
+              A cooked weight marked approx. uses the food table’s cooked values, because no batch
+              of it has been weighed yet. Weighing a batch, raw and cooked, makes it exact.
+            </p>
+          )}
+          {plan.day.meals.some((meal) => meal.items.some((item) => item.noCookedMatch)) && (
+            <p className="plan__footnote">
+              A food marked no cooked match is planned at its raw weight, because the food table has
+              no cooked values for it. Weighing a batch, raw and cooked, gives it cooked amounts.
+            </p>
+          )}
         </section>
       )}
 
@@ -308,10 +440,14 @@ export function Today({ me, navigate }: { me: Me; navigate: Navigate }) {
       {loaded && items.length > 0 && (
         <section className="today__section" aria-labelledby="start-heading">
           <h2 id="start-heading" className="section-label">
-            Start a workout
+            {plan.day === undefined
+              ? 'Start a workout'
+              : trainingDay
+                ? 'Or start another workout'
+                : 'Rest day. Start a workout anyway'}
           </h2>
           <ul className="starts">
-            {items.map((routine) => (
+            {others.map((routine) => (
               <li key={routine.id}>
                 <button
                   type="button"
@@ -373,6 +509,15 @@ export function Today({ me, navigate }: { me: Me; navigate: Navigate }) {
             </li>
           </ul>
         </section>
+      )}
+
+      {plan.step === undefined && plan.phase !== undefined && (
+        <YourPlan
+          phaseLine={phaseLine(plan.phase, plan.today)}
+          targets={plan.targets}
+          routines={plan.mealCounts}
+          navigate={navigate}
+        />
       )}
 
       {loaded && latest !== undefined && (
@@ -703,6 +848,344 @@ function ProfileForm({ me }: { me: Me }) {
         </button>
         {saved && <output className="form__lede">Saved.</output>}
       </form>
+    </section>
+  );
+}
+
+/** The first-run steps, in the order Today asks for them (docs/09 F10, docs/10 §3). */
+const SETUP = [
+  {
+    key: 'profile',
+    name: 'About you',
+    title: 'First, a little about you',
+    body: 'Your height, sex and birth date set the starting calories, and your weight sets protein. Asked once.',
+    action: 'Add your details',
+    path: '/plan/about',
+  },
+  {
+    key: 'foods',
+    name: 'Your foods',
+    title: 'The plan is built from your foods',
+    body: 'Add the foods you eat, starting with a protein source. The planner only ever plans from your list.',
+    action: 'Add a food',
+    path: '/food/new',
+  },
+  {
+    key: 'phase',
+    name: 'Goal phase',
+    title: 'Set your goal phase',
+    body: 'Cut, maintain or bulk, and how fast. That sets your daily calories and protein, each default with its source.',
+    action: 'Set your goal',
+    path: '/plan/phase',
+  },
+  {
+    key: 'routine',
+    name: 'Your day',
+    title: 'Tell the plan your day',
+    body: 'Wake time, work hours, training days and time, and bedtime. The plan cannot place meals without them.',
+    action: 'Set your day',
+    path: '/plan/day',
+  },
+] as const;
+
+type SetupKey = (typeof SETUP)[number]['key'];
+
+/**
+ * The plan as Today reads it: which setup steps are done, and once all four are, the week from
+ * today, made when any of its days is missing (docs/09 F10 step 4, F11 step 1).
+ */
+function usePlan(me: Me, confirmed: boolean) {
+  const profile = me.profile;
+  const timeZone = profile?.timezone ?? deviceTimezone();
+  const weighIns = useQuery({ ...weighInsQuery, enabled: confirmed && profile !== null });
+  const foods = useQuery({ ...foodsQuery, enabled: confirmed });
+  const phases = useQuery({ ...goalPhasesQuery, enabled: confirmed });
+  const routines = useQuery({ ...dayRoutinesQuery, enabled: confirmed });
+  const today = activePlanDay(timeZone, profile?.trainingWeekdays ?? [], routines.data ?? []);
+  const phase: GoalPhase | undefined = phases.data?.find((each) => each.endedOn === null);
+  const weekdays = profile?.trainingWeekdays ?? [];
+  const needed: DayType[] = [
+    ...(weekdays.length > 0 ? (['training'] as const) : []),
+    ...(weekdays.length < 7 ? (['rest'] as const) : []),
+  ];
+  const done: Record<SetupKey, boolean> = {
+    profile:
+      profile != null &&
+      profile.heightCm !== null &&
+      profile.sex !== null &&
+      profile.birthDate !== null &&
+      (weighIns.data?.weighIns.length ?? 0) > 0,
+    foods: (foods.data?.filter((each) => each.archivedAt === null).length ?? 0) > 0,
+    phase: phase !== undefined,
+    routine: needed.every((type) => routines.data?.some((each) => each.dayType === type) === true),
+  };
+  const known =
+    foods.data !== undefined &&
+    phases.data !== undefined &&
+    routines.data !== undefined &&
+    (profile == null || weighIns.data !== undefined);
+  const step = known ? SETUP.find((each) => !done[each.key]) : undefined;
+  const ready = known && step === undefined;
+
+  const to = addLocalDays(today, 6);
+  const days = useQuery({ ...planDaysQuery(today, to), enabled: confirmed && ready });
+  const targets = useQuery({ ...currentTargetsQuery, enabled: confirmed && ready });
+  const [generating, setGenerating] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const [made, setMade] = useState(false);
+  const attempted = useRef<string>(undefined);
+  const missing = days.data?.missing.length ?? 0;
+  useEffect(() => {
+    if (missing === 0 || failed || attempted.current === today) return;
+    attempted.current = today;
+    setGenerating(true);
+    void regeneratePlan()
+      .then(() => queryClient.fetchQuery({ ...planDaysQuery(today, to), staleTime: 0 }))
+      .then((read) => {
+        const none = read.days.every((day) => day.date !== today);
+        setFailed(none);
+        setMade(!none);
+      })
+      .catch(() => setFailed(true))
+      .finally(() => setGenerating(false));
+  }, [missing, failed, today, to]);
+
+  return {
+    today,
+    step: step === undefined ? undefined : { ...step, number: SETUP.indexOf(step) + 1 },
+    done,
+    day: ready ? days.data?.days.find((day: PlanDay) => day.date === today) : undefined,
+    generating,
+    // Ready, with the week still being read: the skeleton holds its place.
+    reading: ready && days.isPending,
+    made,
+    failed,
+    retry: () => {
+      attempted.current = undefined;
+      setFailed(false);
+    },
+    phase,
+    targets: targets.data,
+    mealCounts:
+      routines.data?.map((each) => ({ dayType: each.dayType, meals: each.mealCount })) ?? [],
+    trainingTime: routines.data?.find((each) => each.dayType === 'training')?.trainingTime ?? null,
+    wakeTime:
+      routines.data?.find(
+        (each) => each.dayType === days.data?.days.find((day) => day.date === today)?.dayType,
+      )?.wakeTime ?? '00:00',
+  };
+}
+
+/** The first setup step missing as Today's empty state, then the four with a check for each done. */
+function SetupStep({
+  step,
+  done,
+  navigate,
+}: {
+  step: (typeof SETUP)[number] & { number: number };
+  done: Record<SetupKey, boolean>;
+  navigate: Navigate;
+}) {
+  const heading = useId();
+  return (
+    <>
+      <section className="empty-state" aria-labelledby={heading}>
+        <span className="m2-step">STEP {step.number} OF 4 · YOUR MEAL PLAN</span>
+        <h2 id={heading} className="empty-state__title">
+          {step.title}
+        </h2>
+        <p className="empty-state__body">{step.body}</p>
+        <button
+          type="button"
+          className="button button--primary"
+          onClick={() => navigate(step.path, { returns: true })}
+        >
+          {step.action}
+        </button>
+      </section>
+      <ol className="m2-steps" aria-label="Your meal plan, four steps">
+        {SETUP.map((each) => (
+          <li
+            key={each.key}
+            className={done[each.key] ? 'm2-steps__item m2-steps__item--done' : 'm2-steps__item'}
+          >
+            {done[each.key] ? (
+              <CheckIcon size={13} color="var(--done)" />
+            ) : (
+              <span className="m2-steps__ring" aria-hidden="true" />
+            )}
+            {each.name}
+            <span className="visually-hidden">{done[each.key] ? ', done' : ', to do'}</span>
+          </li>
+        ))}
+      </ol>
+    </>
+  );
+}
+
+/** A workout entry's heading, beside the meals' own, so heading navigation reaches it too. */
+function SlotHeading({ name }: { name: string }) {
+  return (
+    <h3 className="workout-slot__heading">
+      <span className="workout-slot__label">Workout</span>
+      <span className="visually-hidden">: </span>
+      <span className="workout-slot__name">{name}</span>
+    </h3>
+  );
+}
+
+/** The workout's place in the timeline: the day's routine to start, or the one in progress or done. */
+function WorkoutSlot({
+  routine,
+  open,
+  done,
+  lastDone,
+  timeZone,
+  starting,
+  onStart,
+  onResume,
+  onCreate,
+}: {
+  routine: Routine | undefined;
+  open: string | undefined;
+  done: { name: string; at: string } | undefined;
+  lastDone: string | undefined;
+  timeZone: string;
+  starting: boolean;
+  onStart: (routine: Routine) => void;
+  onResume: () => void;
+  onCreate: () => void;
+}) {
+  if (done !== undefined) {
+    return (
+      <div className="workout-slot">
+        <div>
+          <SlotHeading name={done.name} />
+          <span className="workout-slot__meta">Done, started {done.at}</span>
+        </div>
+      </div>
+    );
+  }
+  if (open !== undefined) {
+    return (
+      <div className="workout-slot">
+        <div>
+          <SlotHeading name={open} />
+          <span className="workout-slot__meta">In progress</span>
+        </div>
+        <button
+          type="button"
+          className="button button--primary workout-slot__go"
+          onClick={onResume}
+        >
+          Resume
+        </button>
+      </div>
+    );
+  }
+  if (routine === undefined) {
+    return (
+      <div className="workout-slot">
+        <div>
+          <SlotHeading name="No routine yet" />
+          <span className="workout-slot__meta">Make one and start it from here</span>
+        </div>
+        <button
+          type="button"
+          className="button button--primary workout-slot__go"
+          onClick={onCreate}
+        >
+          Create
+        </button>
+      </div>
+    );
+  }
+  const sets = routine.exercises.reduce((sum, slot) => sum + slot.targetSets, 0);
+  return (
+    <div className="workout-slot">
+      <div>
+        <SlotHeading name={routine.name} />
+        <span className="workout-slot__meta">
+          {routine.exercises.length} {routine.exercises.length === 1 ? 'exercise' : 'exercises'} ·{' '}
+          {sets} sets
+          {lastDone === undefined ? '' : ` · last done ${dayLabel(lastDone, timeZone)}`}
+        </span>
+      </div>
+      <button
+        type="button"
+        className="button button--primary workout-slot__go"
+        disabled={starting}
+        onClick={() => onStart(routine)}
+      >
+        Start
+        <span className="visually-hidden"> {routine.name}</span>
+      </button>
+    </div>
+  );
+}
+
+/** The phase and the day, opened from the foot of Today (Q18). */
+function YourPlan({
+  phaseLine: line,
+  targets,
+  routines,
+  navigate,
+}: {
+  phaseLine: string;
+  targets: CurrentTargets | undefined;
+  routines: { dayType: DayType; meals: number }[];
+  navigate: Navigate;
+}) {
+  const meals = (type: DayType) => routines.find((each) => each.dayType === type)?.meals;
+  const training = meals('training');
+  const rest = meals('rest');
+  return (
+    <section className="today__section" aria-labelledby="your-plan">
+      <h2 id="your-plan" className="section-label">
+        Your plan
+      </h2>
+      <a
+        href="/plan/phase"
+        className="link-row link-row--flush"
+        onClick={(event) => {
+          event.preventDefault();
+          navigate('/plan/phase', { returns: true });
+        }}
+      >
+        <span>
+          <span className="link-row__name">{line}</span>
+          {targets !== undefined && (
+            <span className="link-row__meta">
+              {Math.round(targets.energyKcal).toLocaleString('en-US')} kcal
+              {targets.source.kind === 'provisional_formula' ? ', provisional' : ''} ·{' '}
+              {Math.round(targets.proteinG)} g protein
+            </span>
+          )}
+        </span>
+        <Chevron direction="forward" />
+      </a>
+      <a
+        href="/plan/day"
+        className="link-row link-row--flush"
+        onClick={(event) => {
+          event.preventDefault();
+          navigate('/plan/day', { returns: true });
+        }}
+      >
+        <span>
+          <span className="link-row__name">Your day</span>
+          <span className="link-row__meta">
+            {[
+              training === undefined ? undefined : `training days ${training} meals`,
+              rest === undefined ? undefined : `rest days ${rest} meals`,
+            ]
+              .filter(Boolean)
+              .join(' · ')
+              .replace(/^./, (first) => first.toUpperCase())}
+          </span>
+        </span>
+        <Chevron direction="forward" />
+      </a>
     </section>
   );
 }

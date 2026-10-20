@@ -1,12 +1,35 @@
-import type { Me, WeighIn, WeighIns, WeightDay, WeightUnit } from '@overload/api-contract';
+import type {
+  GoalPhase,
+  Me,
+  WeighIn,
+  WeighIns,
+  WeightDay,
+  WeightUnit,
+} from '@overload/api-contract';
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { api, expectOk } from '../api';
-import { AccountFooter, AppBar, CheckIcon, DataState, Notice, ScreenTabs } from '../components';
+import {
+  AccountFooter,
+  AppBar,
+  CheckIcon,
+  Chevron,
+  DataState,
+  Notice,
+  ScreenTabs,
+} from '../components';
 import { axisDates, dateX } from '../chart';
 import { clockLabel, dayLabel, localDate } from '../dates';
 import { useEntryNote, type Navigate } from '../navigation';
-import { forAccount, refreshWeighIns, useAccount, weighInsQuery } from '../query';
+import { phaseLine, shortDate } from '../plan';
+import {
+  forAccount,
+  goalPhasesQuery,
+  planToday,
+  refreshWeighIns,
+  useAccount,
+  weighInsQuery,
+} from '../query';
 import { saveProblem, SaveNotice, type SaveProblem } from '../saving';
 import { fromKg, unitName } from '../units';
 import { ProgressSections } from './History';
@@ -16,7 +39,7 @@ import { ProgressSections } from './History';
 // draws them in the profile's unit, and types or deletes a weigh-in by hand, a permanent way in
 // next to the scale (docs/02 S11).
 
-/** The chart's span: the last 30 local days, today included (Q16). */
+/** The chart's first span: the last 30 local days, today included. The second is the phase's (Q16). */
 const SPAN_DAYS = 30;
 /** How many of the newest readings the list shows. */
 const RECENT = 6;
@@ -44,6 +67,8 @@ export function Weight({ me, navigate }: { me: Me; navigate: Navigate }) {
   const confirmed = useAccount().status === 'confirmed';
   const profile = me.profile;
   const weighIns = useQuery({ ...weighInsQuery, enabled: confirmed && profile != null });
+  const phases = useQuery({ ...goalPhasesQuery, enabled: confirmed });
+  const phase = phases.data?.find((each) => each.endedOn === null);
   const weighed = useEntryNote() === 'weighed';
   const [deleted, setDeleted] = useState(false);
   const [problem, setProblem] = useState<SaveProblem>();
@@ -105,6 +130,8 @@ export function Weight({ me, navigate }: { me: Me; navigate: Navigate }) {
           data={data}
           unit={profile.weightUnit}
           timeZone={profile.timezone}
+          phase={phase}
+          navigate={navigate}
           onType={typeOne}
           onDeleted={() => {
             setProblem(undefined);
@@ -126,6 +153,8 @@ function WeightBody({
   data,
   unit,
   timeZone,
+  phase,
+  navigate,
   onType,
   onDeleted,
   onProblem,
@@ -133,13 +162,26 @@ function WeightBody({
   data: WeighIns;
   unit: WeightUnit;
   timeZone: string;
+  phase: GoalPhase | undefined;
+  navigate: Navigate;
   onType: () => void;
   onDeleted: () => void;
   onProblem: (problem: SaveProblem) => void;
 }) {
   // The day the screen opened on: the chart's span ends on it.
   const [today] = useState(() => localDate(Date.now(), timeZone));
-  const from = localDate(Date.parse(`${today}T12:00:00Z`) - (SPAN_DAYS - 1) * DAY_MS, 'UTC');
+  const [span, setSpan] = useState<'30' | 'phase'>('30');
+  const spanName = useId();
+  // Since the phase began, when one is open and began before today; else the last 30 days.
+  const sincePhase = phase !== undefined && phase.startedOn < today ? phase : undefined;
+  const from =
+    span === 'phase' && sincePhase !== undefined
+      ? sincePhase.startedOn
+      : localDate(Date.parse(`${today}T12:00:00Z`) - (SPAN_DAYS - 1) * DAY_MS, 'UTC');
+  const spanWords =
+    span === 'phase' && sincePhase !== undefined
+      ? `since ${shortDate(sincePhase.startedOn)}`
+      : 'over the last 30 days';
   // Oldest first, inside the span: what the chart plots.
   // oxlint-disable-next-line unicorn/no-array-reverse -- toReversed is unavailable on supported iOS Safari 15; this array is new.
   const shown = data.days.filter((day) => day.date >= from && day.date <= today).reverse();
@@ -180,10 +222,38 @@ function WeightBody({
         )}
       </section>
 
+      {trend && sincePhase !== undefined && (
+        <fieldset className="segments segments--top segments--mono">
+          <legend className="visually-hidden">Chart span</legend>
+          {(
+            [
+              ['30', '30 days'],
+              ['phase', `Since ${shortDate(sincePhase.startedOn)}`],
+            ] as const
+          ).map(([value, label]) => (
+            <label key={value} className="segments__segment">
+              <input
+                type="radio"
+                name={spanName}
+                checked={span === value}
+                onChange={() => setSpan(value)}
+              />
+              {label}
+            </label>
+          ))}
+        </fieldset>
+      )}
       {shown.length === 0 ? (
-        <p className="wchart__none">No weigh-ins in the last 30 days.</p>
+        <p className="wchart__none">No weigh-ins {spanWords}.</p>
       ) : (
-        <WeightChart days={shown} from={from} to={today} unit={unit} trend={trend} />
+        <WeightChart
+          days={shown}
+          from={from}
+          to={today}
+          unit={unit}
+          trend={trend}
+          spanWords={spanWords}
+        />
       )}
       <div className="legend" aria-hidden="true">
         {trend && (
@@ -229,6 +299,27 @@ function WeightBody({
         </ul>
       </section>
 
+      {phase !== undefined && (
+        <a
+          href="/plan/phase"
+          className="link-row"
+          onClick={(event) => {
+            event.preventDefault();
+            navigate('/plan/phase', { returns: true });
+          }}
+        >
+          <span>
+            <span className="link-row__name">{phaseLine(phase, planToday(timeZone))}</span>
+            <span className="link-row__meta">
+              {phase.type === 'maintain' || phase.targetRatePctPerWeek === null
+                ? 'Target: maintain your weight'
+                : `Target: ${phase.type === 'cut' ? 'lose' : 'gain'} ${phase.targetRatePctPerWeek}% a week${latest === undefined ? '' : `, about ${tenth(((latest.trendKg ?? latest.weightKg) * phase.targetRatePctPerWeek) / 100, unit)} ${unitWord(unit)}`}`}
+            </span>
+          </span>
+          <Chevron direction="forward" />
+        </a>
+      )}
+
       <footer className="footnote footnote--after">
         <span>The trend smooths each day’s weight</span>
         <span className="footnote__formula">10% a day</span>
@@ -253,12 +344,15 @@ function WeightChart({
   to,
   unit,
   trend,
+  spanWords,
 }: {
   days: WeightDay[];
   from: string;
   to: string;
   unit: WeightUnit;
   trend: boolean;
+  /** `over the last 30 days`, or `since 4 Sep`. */
+  spanWords: string;
 }) {
   const values = days.flatMap((day) => [
     fromKg(day.weightKg, unit),
@@ -281,8 +375,8 @@ function WeightChart({
   const latest = days.at(-1);
   const summary =
     latest === undefined
-      ? 'Daily weights over the last 30 days.'
-      : `Daily weights over the last 30 days${trend ? ', and the trend' : ''}: ${days.length} weighed ${days.length === 1 ? 'day' : 'days'}, the latest ${tenth(latest.weightKg, unit)} ${unitName(unit)}${latest.trendKg === null ? '' : `, trend ${tenth(latest.trendKg, unit)}`}.`;
+      ? `Daily weights ${spanWords}.`
+      : `Daily weights ${spanWords}${trend ? ', and the trend' : ''}: ${days.length} weighed ${days.length === 1 ? 'day' : 'days'}, the latest ${tenth(latest.weightKg, unit)} ${unitName(unit)}${latest.trendKg === null ? '' : `, trend ${tenth(latest.trendKg, unit)}`}.`;
 
   return (
     <figure className="chart wchart">

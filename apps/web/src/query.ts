@@ -1,6 +1,9 @@
 import {
   ACCOUNT_HEADER,
   type BalanceView,
+  type DayType,
+  type DayRoutine,
+  type GoalPhaseType,
   type Me,
   type Span,
   type StrengthSpan,
@@ -473,6 +476,141 @@ export const rotationGroupsQuery = queryOptions({
     (await confirmedAccountData(() => api.GET('/api/rotation-groups', { signal }))).items,
 });
 
+/** Every goal phase, newest first; the open one has no end (S14, docs/07 §4). */
+export const goalPhasesQuery = queryOptions({
+  queryKey: ['plan', 'phases'],
+  refetchOnWindowFocus: false,
+  refetchOnReconnect: false,
+  queryFn: async ({ signal }) =>
+    (await confirmedAccountData(() => api.GET('/api/goal-phases', { signal }))).items,
+});
+
+/**
+ * A new phase's defaults, each with its source, and the provisional calories for a rate (S14).
+ * Enable it only once the profile and a weigh-in exist: before, the API answers `setup_incomplete`.
+ */
+export const phaseDefaultsQuery = (type: GoalPhaseType, targetRatePctPerWeek?: number) =>
+  queryOptions({
+    queryKey: ['plan', 'defaults', type, targetRatePctPerWeek ?? null],
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    queryFn: async ({ signal }) =>
+      confirmedAccountData(() =>
+        api.GET('/api/goal-phases/defaults', {
+          params: {
+            query: targetRatePctPerWeek === undefined ? { type } : { type, targetRatePctPerWeek },
+          },
+          signal,
+        }),
+      ),
+  });
+
+/** Both day types the user has set, with their meals (S15). */
+export const dayRoutinesQuery = queryOptions({
+  queryKey: ['plan', 'routines'],
+  refetchOnWindowFocus: false,
+  refetchOnReconnect: false,
+  queryFn: async ({ signal }) =>
+    (await confirmedAccountData(() => api.GET('/api/day-routines', { signal }))).items,
+});
+
+/** The recommended meal count and times for a day as typed, so far unsaved (S15). */
+export const mealRecommendationQuery = (
+  dayType: DayType,
+  day: { wakeTime: string; bedTime: string; trainingTime?: string; mealCount?: number },
+) =>
+  queryOptions({
+    queryKey: ['plan', 'recommendation', dayType, day],
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    queryFn: async ({ signal }) =>
+      confirmedAccountData(() =>
+        api.GET('/api/day-routines/{dayType}/recommendation', {
+          params: { path: { dayType }, query: day },
+          signal,
+        }),
+      ),
+  });
+
+/** The targets in force today and where they came from (docs/07 §4). */
+export const currentTargetsQuery = queryOptions({
+  queryKey: ['plan', 'targets'],
+  refetchOnWindowFocus: false,
+  refetchOnReconnect: false,
+  queryFn: async ({ signal }) =>
+    confirmedAccountData(() => api.GET('/api/targets/current', { signal })),
+});
+
+/** The plan days of a range of local dates (S16). Read-only: dates without a plan are `missing`. */
+export const planDaysQuery = (from: string, to: string) =>
+  queryOptions({
+    queryKey: ['plan', 'days', from, to],
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    queryFn: async ({ signal }) =>
+      confirmedAccountData(() =>
+        api.GET('/api/plan-days', { params: { query: { from, to } }, signal }),
+      ),
+  });
+
+/**
+ * Makes the week from today again after its inputs changed: the food list, the phase, the routine
+ * or the profile (docs/07 §4, Plan days). Days with a confirmed meal are left by the server. Until
+ * setup is complete the server answers `setup_incomplete`, which is nothing to report.
+ */
+export async function regeneratePlan(): Promise<void> {
+  const profile = queryClient.getQueryData<Me>(ME_KEY)?.profile;
+  if (profile == null) return;
+  const from = activePlanDay(
+    profile.timezone,
+    profile.trainingWeekdays,
+    queryClient.getQueryData<DayRoutine[]>(dayRoutinesQuery.queryKey) ?? [],
+  );
+  try {
+    await forAccount(async () =>
+      unwrap(
+        await api.POST('/api/plan-days/generate', { body: { from, to: addLocalDays(from, 6) } }),
+      ),
+    );
+  } catch (error) {
+    if (!(error instanceof ApiError && error.code === 'setup_incomplete')) throw error;
+  } finally {
+    await queryClient.invalidateQueries({ queryKey: ['plan'] });
+  }
+}
+
+/** Today's local date in `timeZone`, as the plan reads it. */
+export const planToday = (timeZone: string, now = Date.now()) =>
+  new Intl.DateTimeFormat('en-CA', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    timeZone,
+  }).format(new Date(now));
+
+export function activePlanDay(
+  timeZone: string,
+  trainingWeekdays: number[],
+  routines: Pick<DayRoutine, 'dayType' | 'wakeTime'>[],
+  now = Date.now(),
+) {
+  const date = planToday(timeZone, now);
+  const weekday = ((new Date(`${date}T00:00:00Z`).getUTCDay() + 6) % 7) + 1;
+  const dayType = trainingWeekdays.includes(weekday) ? 'training' : 'rest';
+  const wake = routines.find((routine) => routine.dayType === dayType)?.wakeTime;
+  if (wake === undefined) return date;
+  const clock = new Intl.DateTimeFormat('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+    timeZone,
+  }).format(new Date(now));
+  return clock < wake ? addLocalDays(date, -1) : date;
+}
+
+export const addLocalDays = (date: string, days: number) =>
+  new Date(Date.parse(`${date}T00:00:00Z`) + days * DAY_MS).toISOString().slice(0, 10);
+
 /** The MEXT table searched (S12): the same words answer the same, so a search is kept a while. */
 export const referenceFoodsQuery = (q: string) =>
   queryOptions({
@@ -577,21 +715,26 @@ export const refreshWeighIns = () =>
   queryClient.invalidateQueries({
     predicate: (query) =>
       query.queryKey[0] === 'weigh-ins' ||
+      // The phase's defaults and the targets are set at the trend weight.
+      query.queryKey[0] === 'plan' ||
       query.queryKey[0] === 'progress' ||
       query.queryKey[0] === 'strength' ||
       query.queryKey[0] === 'last-time',
   });
 /**
  * After a food or a group is saved, archived or deleted: both lists, since a food names its group
- * and a group its foods, and any search, which marks the foods already on the list.
+ * and a group its foods, and any search, which marks the foods already on the list. The week's plan
+ * is made again from the list as it now is before the save is reported complete.
  */
-export const refreshFoods = () =>
-  queryClient.invalidateQueries({
+export const refreshFoods = async () => {
+  await queryClient.invalidateQueries({
     predicate: (query) =>
       query.queryKey[0] === 'foods' ||
       query.queryKey[0] === 'rotation-groups' ||
       query.queryKey[0] === 'reference-foods',
   });
+  await regeneratePlan();
+};
 /**
  * After an acknowledged sync batch: a chart on screen is asked again, the rest when next opened.
  * The strength overview and the balance view read the same sets, so they go with them.
@@ -629,5 +772,7 @@ export const currentWeightUnit = () =>
 export function setProfile(profile: NonNullable<Me['profile']>) {
   const zoneChanged = queryClient.getQueryData<Me>(ME_KEY)?.profile?.timezone !== profile.timezone;
   queryClient.setQueryData<Me>(ME_KEY, (me) => (me === undefined ? me : { ...me, profile }));
+  // Height, sex, birth date and training days move the defaults; the day boundary moves the plan.
+  void queryClient.invalidateQueries({ queryKey: ['plan'] });
   if (zoneChanged) void refreshWeighIns();
 }

@@ -1,5 +1,5 @@
 import { eq, sql } from 'drizzle-orm';
-import type { Database } from './connection.js';
+import type { Database, Queryable } from './connection.js';
 import { userProfile } from './schema.js';
 
 export type Profile = {
@@ -26,7 +26,7 @@ const columns = {
  * The user's profile, or null until they have set one up. Its first reader is the day boundary:
  * the time zone local dates are read in (slice 3).
  */
-export async function getProfile(db: Database, userId: string): Promise<Profile | null> {
+export async function getProfile(db: Queryable, userId: string): Promise<Profile | null> {
   const [row] = await db.select(columns).from(userProfile).where(eq(userProfile.userId, userId));
   return row ?? null;
 }

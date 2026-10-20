@@ -18,6 +18,7 @@ export const problemCodes = {
   managed_by_apple_health: { status: 409, title: 'The weigh-in came from Apple Health' },
   weigh_in_exists: { status: 409, title: 'A typed weigh-in at that time exists' },
   food_exists: { status: 409, title: 'The food is on the list already' },
+  phase_already_open: { status: 409, title: 'A goal phase is open' },
   payload_too_large: { status: 413, title: 'Request too large' },
   validation_failed: { status: 422, title: 'Request body failed validation' },
   setup_incomplete: { status: 422, title: 'A prerequisite is missing' },

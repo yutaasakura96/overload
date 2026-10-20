@@ -1,8 +1,11 @@
 import { createRoute, defineOpenAPIRoute, z } from '@hono/zod-openapi';
 import type { AppEnv, RouteDeps } from '../app-env.js';
+import { exportDayRoutines } from '../db/day-routines.js';
 import { exportExercises } from '../db/exercises.js';
 import { exportFoods } from '../db/foods.js';
 import { exportWorkouts } from '../db/history.js';
+import { exportGoalPhases } from '../db/goal-phases.js';
+import { exportPlanDays } from '../db/plans.js';
 import { getProfile } from '../db/profile.js';
 import { exportRotationGroups } from '../db/rotation-groups.js';
 import { exportRoutines } from '../db/routines.js';
@@ -10,8 +13,15 @@ import { exportWeighIns } from '../db/weigh-ins.js';
 import { accountHeaders } from '../lib/account.js';
 import { problem, problemResponse } from '../lib/problem.js';
 import { pageQuery } from './paging.js';
-import { ExportPage, ExportSection, Uuid } from './schemas.js';
+import {
+  ExportPage,
+  ExportSection,
+  PlanningExportPage,
+  PlanningExportSection,
+  Uuid,
+} from './schemas.js';
 import { foodJson } from './foods.js';
+import { phaseJson, planDayJson } from './plans.js';
 import { weighInJson } from './weigh-ins.js';
 
 // S10's export (docs/07 §2). Sectioned and paged because Vercel caps a response body at 4.5 MB; the
@@ -30,7 +40,13 @@ export const EXPORTED_TABLES = {
   weighIns: ['body_measurement'],
   foods: ['food'],
   rotationGroups: ['rotation_group'],
-} as const satisfies Record<ExportSection, readonly string[]>;
+  phases: ['goal_phase'],
+  dayRoutines: ['day_routine', 'meal_slot'],
+  planDays: ['plan_day', 'plan_meal', 'plan_meal_item'],
+} as const satisfies Record<
+  ExportSection | z.infer<typeof PlanningExportSection>,
+  readonly string[]
+>;
 
 type ExportSection = z.infer<typeof ExportSection>;
 
@@ -49,6 +65,9 @@ const ExportCursor = z.discriminatedUnion('section', [
   }),
   z.object({ section: z.literal('foods'), id: Uuid }),
   z.object({ section: z.literal('rotationGroups'), id: Uuid }),
+  z.object({ section: z.literal('phases'), id: Uuid }),
+  z.object({ section: z.literal('dayRoutines'), dayType: z.enum(['training', 'rest']) }),
+  z.object({ section: z.literal('planDays'), date: z.iso.date() }),
 ]);
 
 type ExportCursor = z.infer<typeof ExportCursor>;
@@ -94,6 +113,22 @@ const getExport = createRoute({
     400: problemResponse(
       'An unknown section, a limit outside 1 to 100, or a cursor that does not decode to this section’s sort key and id',
     ),
+    401: problemResponse('No session'),
+  },
+});
+
+const getPlanningExport = createRoute({
+  method: 'get',
+  path: '/api/me/export/planning',
+  summary: 'One page of a planning section of the caller’s export',
+  request: { query: z.object({ section: PlanningExportSection, ...pageQuery }) },
+  responses: {
+    200: {
+      description: 'One page of the section, and the cursor of the next',
+      headers: accountHeaders,
+      content: { 'application/json': { schema: PlanningExportPage } },
+    },
+    400: problemResponse('An unknown section, limit, or cursor'),
     401: problemResponse('No session'),
   },
 });
@@ -198,6 +233,57 @@ export function exportRoutes({ db }: RouteDeps) {
           {
             section,
             items: page.items,
+            nextCursor: page.next === null ? null : encodeExportCursor({ section, ...page.next }),
+          },
+          200,
+        );
+      },
+    }),
+    defineOpenAPIRoute<typeof getPlanningExport, AppEnv>({
+      route: getPlanningExport,
+      handler: async (c) => {
+        const { section, limit, cursor } = c.req.valid('query');
+        const user = c.get('user');
+        const after = cursor === undefined ? undefined : decodeExportCursor(cursor);
+        if (cursor !== undefined && (after === undefined || after.section !== section)) {
+          return problem(c, 'bad_request', { detail: 'Invalid parameter: cursor' });
+        }
+        if (section === 'phases') {
+          const page = await exportGoalPhases(db, user.id, {
+            limit,
+            after: after?.section === 'phases' ? after : undefined,
+          });
+          return c.json(
+            {
+              section,
+              items: page.items.map(phaseJson),
+              nextCursor: page.next === null ? null : encodeExportCursor({ section, ...page.next }),
+            },
+            200,
+          );
+        }
+        if (section === 'dayRoutines') {
+          const page = await exportDayRoutines(db, user.id, {
+            limit,
+            after: after?.section === 'dayRoutines' ? after : undefined,
+          });
+          return c.json(
+            {
+              section,
+              items: page.items,
+              nextCursor: page.next === null ? null : encodeExportCursor({ section, ...page.next }),
+            },
+            200,
+          );
+        }
+        const page = await exportPlanDays(db, user.id, {
+          limit,
+          after: after?.section === 'planDays' ? after : undefined,
+        });
+        return c.json(
+          {
+            section,
+            items: page.items.map(planDayJson),
             nextCursor: page.next === null ? null : encodeExportCursor({ section, ...page.next }),
           },
           200,
