@@ -201,14 +201,17 @@ function PhaseForm({
   const rate = type === 'maintain' ? null : value('rate', d.targetRatePctPerWeek?.value ?? null);
   const protein = value('protein', d.proteinGPerKg.value) ?? d.proteinGPerKg.value;
   const fat = value('fat', d.fatPctCalories.value) ?? d.fatPctCalories.value;
-  // Calories typed are yours. Otherwise an open phase's measured or own figure stays, and the rest
-  // follow the formula, whose figure the API works out again as it saves.
+  // Calories typed are yours. An open phase's measured or own figure stays until the field is
+  // changed; an empty field follows the formula, whose figure the API works out again as it saves.
   const kcalTyped = parseFigure(fields.kcal);
   const yours = kcalTyped !== null && (!sameType || caloriesEdited);
-  const followsFormula = !sameType || open.calorieBasis === 'provisional_formula';
-  const calories = yours ? kcalTyped : followsFormula ? d.calories.value : open.calorieTargetKcal;
+  const ownKept = sameType && open.calorieBasis !== 'provisional_formula' && !caloriesEdited;
+  const calories = yours ? kcalTyped : ownKept ? open.calorieTargetKcal : d.calories.value;
   const basis =
-    sameType && open.calorieBasis !== 'provisional_formula' && calories === open.calorieTargetKcal
+    sameType &&
+    open.calorieBasis !== 'provisional_formula' &&
+    (ownKept || yours) &&
+    calories === open.calorieTargetKcal
       ? open.calorieBasis
       : yours
         ? 'manual'
@@ -398,13 +401,17 @@ function PhaseForm({
         <NumberField
           label="Calories"
           note={provisional ? 'Provisional' : basis === 'measured' ? 'Measured' : 'Yours'}
-          value={sameType && followsFormula && !caloriesEdited ? '' : fields.kcal}
+          value={
+            sameType && open.calorieBasis === 'provisional_formula' && !caloriesEdited
+              ? ''
+              : fields.kcal
+          }
           onChange={(next) => {
             if (sameType) setCaloriesEdited(true);
             setField('kcal', next);
           }}
           unit="kcal a day"
-          placeholder={String(followsFormula ? d.calories.value : open.calorieTargetKcal)}
+          placeholder={String(d.calories.value)}
           error={refused('calorieTargetKcal')}
         />
         <Provisional defaults={d} type={type} basis={basis} />

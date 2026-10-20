@@ -494,6 +494,55 @@ describe('the formula’s calories on a phase write', () => {
       calorieBasis: 'manual',
     });
   });
+
+  it('holds the formula’s figure to the calorie range when a small member drops to one training day', async () => {
+    const { send } = await member('small-formula@example.test');
+    expect(
+      (
+        await send('PATCH', '/api/me/profile', {
+          timezone: 'Asia/Tokyo',
+          heightCm: 150,
+          sex: 'female',
+          birthDate: '1950-01-01',
+          trainingWeekdays: [1, 2, 4, 5],
+        })
+      ).status,
+    ).toBe(200);
+    expect(
+      (
+        await send('POST', '/api/weigh-ins', {
+          id: randomUUID(),
+          measuredAt: new Date(Date.now() - 60_000).toISOString(),
+          weightKg: 45,
+        })
+      ).status,
+    ).toBe(201);
+    const created = await (
+      await send('POST', '/api/goal-phases', provisionalCut({ targetRatePctPerWeek: 0.75 }))
+    ).json();
+    expect(created.calorieTargetKcal).toBeGreaterThanOrEqual(1000);
+    expect((await weekdays(send, [1])).status).toBe(200);
+    const defaults: { calories: { value: number; restingKcal: number; adjustmentKcal: number } } =
+      await (
+        await send('GET', '/api/goal-phases/defaults?type=cut&targetRatePctPerWeek=0.75')
+      ).json();
+    // Unbounded, one training day would give under 1,000 kcal.
+    expect(defaults.calories.restingKcal * 1.5 + defaults.calories.adjustmentKcal).toBeLessThan(
+      995,
+    );
+    expect(defaults.calories.value).toBe(1000);
+    expect(await openPhase(send)).toMatchObject({
+      calorieTargetKcal: 1000,
+      calorieBasis: 'provisional_formula',
+    });
+    const patched = await send('PATCH', `/api/goal-phases/${created.id}`, {
+      targetRatePctPerWeek: 1,
+      calorieTargetKcal: 1000,
+      calorieBasis: 'provisional_formula',
+    });
+    expect(patched.status).toBe(200);
+    expect((await patched.json()).calorieTargetKcal).toBe(1000);
+  });
 });
 
 describe('day routines', () => {

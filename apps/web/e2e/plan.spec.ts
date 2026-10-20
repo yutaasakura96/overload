@@ -596,6 +596,20 @@ test('editing an open provisional phase follows the rate unless Calories is edit
     calorieBasis: 'manual',
     targetRatePctPerWeek: 1.5,
   });
+  await expect(page).toHaveURL(/\/$/);
+
+  // Clearing your own figure returns the phase to the formula.
+  await page.goto('/plan/phase');
+  await expect(calories).toHaveValue(String(manual));
+  await calories.fill('');
+  const formula = await defaultCalories(1.5);
+  await expect(calories).toHaveAttribute('placeholder', String(formula));
+  await save.click();
+  await expect.poll(openPhase).toMatchObject({
+    calorieTargetKcal: formula,
+    calorieBasis: 'provisional_formula',
+    targetRatePctPerWeek: 1.5,
+  });
 });
 
 const dayFromToday = (offset: number) =>

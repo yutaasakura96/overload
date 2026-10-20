@@ -68,8 +68,11 @@ export function ageOn(birthDate: string, today: string): number {
 export const activityLevel = (trainingDays: number) =>
   round(1.45 + 0.05 * Math.min(7, Math.max(0, trainingDays)), 2);
 
+/** The range a phase's calorie target is held to, whoever sets it. */
+export const CALORIE_TARGET_KCAL = { min: 1000, max: 6000 } as const;
+
 export type ProvisionalCalories = {
-  /** To the nearest 10 kcal. */
+  /** To the nearest 10 kcal, inside `CALORIE_TARGET_KCAL`. */
   kcal: number;
   /** Resting energy by Mifflin–St Jeor, kcal a day. */
   restingKcal: number;
@@ -101,7 +104,10 @@ export function provisionalCalories(input: {
   const adjustmentKcal =
     input.type === 'cut' ? -round(perDay) : input.type === 'bulk' ? round(perDay) : 0;
   return {
-    kcal: round((restingKcal * level + adjustmentKcal) / 10) * 10,
+    kcal: Math.min(
+      CALORIE_TARGET_KCAL.max,
+      Math.max(CALORIE_TARGET_KCAL.min, round((restingKcal * level + adjustmentKcal) / 10) * 10),
+    ),
     restingKcal,
     activityLevel: level,
     adjustmentKcal,

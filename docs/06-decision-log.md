@@ -4090,8 +4090,13 @@ save. Every review round found another way to lose that record or send it to the
   profile's weekdays, height, sex, birth date and bodyweight as they are inside the write, under
   the phase lock. The figure the device sent is ignored, so a rate edited on an open phase, or
   defaults cached before a weekday change in another tab, can't store an old figure. A figure
-  typed into Calories is sent as `manual` and stored as given. *Rejected:* checking on the device
-  that the defaults on screen are current, which a cached answer could pass.
+  typed into Calories is sent as `manual` and stored as given; clearing the field returns an open
+  phase, own or measured, to the formula. *Rejected:* checking on the device that the defaults on
+  screen are current, which a cached answer could pass.
+- **The formula's figure is held to 1,000–6,000 kcal**, the range every calorie target is checked
+  against, defined once in the domain. A small member on a cut who drops to one training day gets
+  1,000 kcal, not a figure the API would refuse from the device. *Rejected:* refusing the weekday
+  change, which would fail a save about the routine over the phase.
 - **A save waits for the answer to its inputs.** Goal phase and Your day keep the previous answer on
   screen while the next loads; their save buttons are `aria-disabled` until it arrives. For Goal
   phase this is only so the figures on screen match what is saved.

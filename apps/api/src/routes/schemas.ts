@@ -3,6 +3,7 @@ import { BALANCE_VIEWS, MUSCLE_GROUPS, MUSCLE_STATUSES } from '../domain/balance
 import { BASIS_KINDS, PER_100G_MAX } from '../domain/food.js';
 import { SPANS } from '../domain/progress.js';
 import { LIFT_STATUSES, STRENGTH_SPANS, STRENGTH_STATUSES } from '../domain/strength.js';
+import { CALORIE_TARGET_KCAL } from '../domain/targets.js';
 
 // Response schemas shared by the routes. These generate packages/api-contract (docs/03 §2).
 
@@ -1125,7 +1126,11 @@ export const CalorieBasis = z
 const RatePct = z.number().min(0.05).max(2).multipleOf(0.01).openapi({ example: 0.5 });
 const ProteinGPerKg = z.number().min(1).max(4).multipleOf(0.01).openapi({ example: 2.2 });
 const FatPct = z.number().min(10).max(60).multipleOf(0.1).openapi({ example: 25 });
-const CalorieTarget = z.int().min(1000).max(6000).openapi({ example: 2350 });
+const CalorieTarget = z
+  .int()
+  .min(CALORIE_TARGET_KCAL.min)
+  .max(CALORIE_TARGET_KCAL.max)
+  .openapi({ example: 2350 });
 
 export const GoalPhase = z
   .object({
