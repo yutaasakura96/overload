@@ -555,15 +555,15 @@ test('offline Last time uses the workout zone after the profile zone changes', a
     await weigh('2026-10-10T07:30:00+09:00', 85);
     await weigh('2026-10-10T23:30:00+09:00', 88);
     await page.clock.setFixedTime(new Date('2026-10-11T03:01:00Z'));
+    const listed = page.waitForResponse(
+      (response) => response.url().endsWith('/api/weigh-ins') && response.ok(),
+    );
     await page.goBack();
     await expect(page).toHaveURL('/');
     await page
       .getByRole('navigation', { name: 'Sections' })
       .getByRole('link', { name: 'Progress' })
       .click();
-    const listed = page.waitForResponse(
-      (response) => response.url().endsWith('/api/weigh-ins') && response.ok(),
-    );
     await page
       .getByRole('navigation', { name: 'Progress' })
       .getByRole('link', { name: 'Weight' })
