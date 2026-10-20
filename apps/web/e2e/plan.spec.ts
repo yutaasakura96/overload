@@ -102,6 +102,7 @@ test.beforeEach(async ({ context, page }) => {
 
 test('sets up a phase and a day, and Today shows the day’s plan', async ({ page }) => {
   const today = todayInZone();
+  await page.clock.install({ time: new Date(`${today.date}T12:00:00+09:00`) });
   await page.goto('/');
 
   // Step 1: about you. The foods are on the list already, so the goal phase follows.
