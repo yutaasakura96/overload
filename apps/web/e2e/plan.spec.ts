@@ -354,9 +354,7 @@ test('Today reports a failed plan generation', async ({ page }) => {
   expect(saved.profile.trainingWeekdays).not.toContain(1);
 });
 
-test('a Your day save that keeps the training days leaves the phase’s calories', async ({
-  page,
-}) => {
+test('a Your day save moves the phase’s calories only with the training days', async ({ page }) => {
   const headers = { Origin: WEB_ORIGIN };
   expect(
     (
@@ -426,41 +424,95 @@ test('a Your day save that keeps the training days leaves the phase’s calories
   ).json();
   expect(phases.items.find((phase) => phase.endedOn === null)?.calorieTargetKcal).toBe(2350);
 
-  // Training days that arrive without their phase follow-up: a later save, after a reload, sends it.
-  await page.route('**/api/goal-phases/*', async (route) => {
-    if (route.request().method() !== 'PATCH') {
-      await route.continue();
-      return;
-    }
-    await route.fulfill({ status: 500, body: 'Phase failed' });
-  });
+  // Changing the training days moves the formula's calories with them, in the same write.
   await page.goto('/plan/day');
   await page.getByRole('radio', { name: 'Training day' }).check();
   await page.getByRole('button', { name: 'Monday', exact: true }).click();
   await page.getByRole('button', { name: 'Use these meals' }).click();
-  await expect(
-    page.getByText(
-      'Training days and the training day saved. The goal phase wasn’t; save again when you have signal.',
-    ),
-  ).toBeVisible();
-  await page.unroute('**/api/goal-phases/*');
-  await page.goto('/');
-  await page.reload();
-  await page.goto('/plan/day');
-  await page.getByRole('radio', { name: 'Training day' }).check();
-  await page.getByRole('button', { name: 'Use these meals' }).click();
+  await expect(page.getByText('Saved. The week’s plan is made again from it.')).toBeVisible();
   const defaults: { calories: { value: number } } = await (
     await page.request.get('/api/goal-phases/defaults?type=cut&targetRatePctPerWeek=0.5')
   ).json();
   expect(defaults.calories.value).not.toBe(2350);
+  const followed: { items: { endedOn: string | null; calorieTargetKcal: number }[] } = await (
+    await page.request.get('/api/goal-phases')
+  ).json();
+  expect(followed.items.find((phase) => phase.endedOn === null)?.calorieTargetKcal).toBe(
+    defaults.calories.value,
+  );
+
+  // While the meals for an edited time load, the previous answer is on screen but never saved.
+  await page.goto('/plan/day');
+  const use = page.getByRole('button', { name: 'Use these meals' });
+  await expect(use).toHaveAttribute('aria-disabled', 'false');
+  const puts: string[] = [];
+  page.on('request', (request) => {
+    if (request.method() === 'PUT') puts.push(request.url());
+  });
+  const { promise: held, resolve: release } = Promise.withResolvers<void>();
+  await page.route('**/api/day-routines/*/recommendation*', async (route) => {
+    await held;
+    await route.continue();
+  });
+  await page.getByLabel('Wake').fill('08:15');
+  await expect(use).toHaveAttribute('aria-disabled', 'true');
+  // Forced: Playwright waits for an aria-disabled button to be enabled before it clicks.
+  await use.click({ force: true });
+  release();
+  await expect(use).toHaveAttribute('aria-disabled', 'false');
+  expect(puts).toEqual([]);
+});
+
+test('a goal phase save waits for the calories of the rate typed', async ({ page }) => {
+  const headers = { Origin: WEB_ORIGIN };
+  expect(
+    (
+      await page.request.patch('/api/me/profile', {
+        headers,
+        data: { heightCm: 176, sex: 'male', birthDate: '1994-05-01', trainingWeekdays: [1, 3, 5] },
+      })
+    ).ok(),
+  ).toBe(true);
+  expect(
+    (
+      await page.request.post('/api/weigh-ins', {
+        headers,
+        data: { id: randomUUID(), measuredAt: new Date().toISOString(), weightKg: 82.5 },
+      })
+    ).ok(),
+  ).toBe(true);
+  await page.goto('/plan/phase');
+  const save = page.getByRole('button', { name: 'Save targets' });
+  await expect(save).toBeVisible();
+  const writes: string[] = [];
+  page.on('request', (request) => {
+    if (request.url().includes('/api/goal-phases') && request.method() !== 'GET') {
+      writes.push(request.method());
+    }
+  });
+  const { promise: held, resolve: release } = Promise.withResolvers<void>();
+  await page.route('**/api/goal-phases/defaults*', async (route) => {
+    await held;
+    await route.continue();
+  });
+  await page.getByLabel('Target rate, loss a week').fill('1');
+  await expect(save).toHaveAttribute('aria-disabled', 'true');
+  await save.click({ force: true });
+  release();
+  await expect(save).not.toHaveAttribute('aria-disabled');
+  expect(writes).toEqual([]);
+  const faster: { calories: { value: number } } = await (
+    await page.request.get('/api/goal-phases/defaults?type=cut&targetRatePctPerWeek=1')
+  ).json();
+  await save.click();
+  await expect.poll(() => writes).toEqual(['POST']);
   await expect
     .poll(async () => {
-      const followed: { items: { endedOn: string | null; calorieTargetKcal: number }[] } = await (
-        await page.request.get('/api/goal-phases')
-      ).json();
-      return followed.items.find((phase) => phase.endedOn === null)?.calorieTargetKcal;
+      const phases: { items: { calorieTargetKcal: number; targetRatePctPerWeek: number }[] } =
+        await (await page.request.get('/api/goal-phases')).json();
+      return phases.items[0];
     })
-    .toBe(defaults.calories.value);
+    .toMatchObject({ calorieTargetKcal: faster.calories.value, targetRatePctPerWeek: 1 });
 });
 
 const dayFromToday = (offset: number) =>

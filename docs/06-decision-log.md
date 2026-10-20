@@ -4069,3 +4069,23 @@ and §8.6 describe, with the screens from the approved M2 prototype. Checked at
 - **The export** gains `phases`, `dayRoutines` and `planDays` (`07` §2).
 
 **Changed:** `00`, `03` §8.2, `04`, `06`, `07` §2, §4, `10` §3, §6, §8.6, `11` §2.
+
+### 2026-10-21 — Training days move the phase's calories on the server
+
+Follow-up to `#79`. Your day sent the training weekdays, then asked for the defaults and PATCHed the
+open phase's calories itself, keeping a follow-up that failed on the device to send with a later
+save. Every review round found another way to lose that record or send it to the wrong phase.
+
+- **`PATCH /api/me/profile` moves the phase in the same transaction.** When the weekdays change, as
+  a set, and the open phase's calories are still the formula's (`provisional_formula`), the API
+  sets them to the formula's figure for the new weekdays, at the phase's rate and today's
+  bodyweight. A save that keeps the weekdays, in any order, never touches the phase. The write
+  holds the phase lock a phase create takes, and the phase update applies only while its calories
+  are still the ones read, so a figure the user set meanwhile stays. *Rejected:* the device's
+  pending record, kept per account and then per phase, which could be lost before it was written,
+  on a storage failure, or on a remount.
+- **A save waits for the answer to its inputs.** Goal phase and Your day keep the previous answer on
+  screen while the next loads; their save buttons are `aria-disabled` until it arrives, so new
+  inputs are never stored with an old recommendation.
+
+**Changed:** `06`, `07` §2, `10` §8.6.

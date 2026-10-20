@@ -100,7 +100,10 @@ export interface paths {
     delete?: never;
     options?: never;
     head?: never;
-    /** Set profile fields. The first save creates the profile */
+    /**
+     * Set profile fields. The first save creates the profile
+     * @description Changing the training weekdays moves the open goal phase’s calories, while they are still the formula’s, to its figure for the new weekdays, in the same write (S14).
+     */
     patch: {
       parameters: {
         query?: never;

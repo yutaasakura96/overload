@@ -216,8 +216,11 @@ function PhaseForm({
   const fatG = Math.round((calories * fat) / 100 / 9);
   const carbG = Math.max(0, Math.round((calories - proteinG * 4 - fatG * 9) / 4));
   const changingType = open !== undefined && open.type !== type;
+  // The defaults for the rate before the latest edit, shown while the new rate's load: never saved.
+  const stale = defaults.isPlaceholderData;
 
   const save = async () => {
+    if (stale) return;
     const onDevice = refusedOnDevice([
       ...(type !== 'maintain' && outside(rate, LIMITS.rate)
         ? ([['targetRatePctPerWeek', LIMITS.rate.message]] as [string, string][])
@@ -398,7 +401,12 @@ function PhaseForm({
           error={refused('calorieTargetKcal')}
         />
         <Provisional defaults={d} type={type} basis={basis} />
-        <button type="submit" className="button button--primary" disabled={busy}>
+        <button
+          type="submit"
+          className="button button--primary"
+          disabled={busy}
+          aria-disabled={stale || undefined}
+        >
           {busy
             ? 'Saving…'
             : changingType

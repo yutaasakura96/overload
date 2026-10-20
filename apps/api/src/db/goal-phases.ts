@@ -1,5 +1,5 @@
 import { and, desc, eq, isNull, sql } from 'drizzle-orm';
-import type { Database, Queryable } from './connection.js';
+import type { Database, Queryable, Transaction } from './connection.js';
 import { goalPhase } from './schema.js';
 
 /** One phase as the API returns it (docs/07 §4). */
@@ -72,6 +72,14 @@ export type CreateGoalPhaseResult =
   | { kind: 'phase_already_open'; open: GoalPhase }
   | { kind: 'phase_start_not_after_open' };
 
+/**
+ * Holds the user's phase lock until the transaction ends: a phase create, and a training-weekday
+ * change with its follow-up, wait for each other.
+ */
+export async function lockGoalPhases(tx: Transaction, userId: string): Promise<void> {
+  await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext('goal_phase'), hashtext(${userId}))`);
+}
+
 const dayBefore = (date: string) =>
   new Date(Date.parse(`${date}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
 
@@ -88,9 +96,7 @@ export function createGoalPhase(
 ): Promise<CreateGoalPhaseResult> {
   return db.transaction(async (tx): Promise<CreateGoalPhaseResult> => {
     // One open phase at a time: a second create waits here for the first to commit.
-    await tx.execute(
-      sql`SELECT pg_advisory_xact_lock(hashtext('goal_phase'), hashtext(${userId}))`,
-    );
+    await lockGoalPhases(tx, userId);
     const [stored] = await tx.select(columns).from(goalPhase).where(eq(goalPhase.id, input.id));
     if (stored !== undefined) {
       const [mine] = await tx
@@ -151,6 +157,33 @@ export async function updateGoalPhase(
     .where(and(eq(goalPhase.id, id), eq(goalPhase.userId, userId)))
     .returning(columns);
   return updated;
+}
+
+/**
+ * Moves a phase's calories to the formula's new figure, only while they are still the formula's
+ * `from`: calories the user set meanwhile are theirs and stay. False when nothing moved.
+ */
+export async function followFormulaCalories(
+  db: Queryable,
+  userId: string,
+  id: string,
+  from: number,
+  to: number,
+): Promise<boolean> {
+  const moved = await db
+    .update(goalPhase)
+    .set({ calorieTargetKcal: to, calorieTargetSetAt: sql`now()`, updatedAt: sql`now()` })
+    .where(
+      and(
+        eq(goalPhase.id, id),
+        eq(goalPhase.userId, userId),
+        isNull(goalPhase.endedOn),
+        eq(goalPhase.calorieBasis, 'provisional_formula'),
+        eq(goalPhase.calorieTargetKcal, from),
+      ),
+    )
+    .returning({ id: goalPhase.id });
+  return moved.length > 0;
 }
 
 /** The export's `phases` section: by id, a page at a time (docs/07 §2). */

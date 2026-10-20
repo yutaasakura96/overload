@@ -1,9 +1,10 @@
 import { createRoute, defineOpenAPIRoute, z } from '@hono/zod-openapi';
 import type { AppEnv, RouteDeps } from '../app-env.js';
-import type { Database, Queryable } from '../db/connection.js';
+import type { Database, Queryable, Transaction } from '../db/connection.js';
 import { listDayRoutines, putDayRoutine } from '../db/day-routines.js';
 import {
   createGoalPhase,
+  followFormulaCalories,
   listGoalPhases,
   openGoalPhase,
   updateGoalPhase,
@@ -28,6 +29,7 @@ import {
   macroTargets,
   phaseDefaults,
   provisionalCalories,
+  type PhaseType,
 } from '../domain/targets.js';
 import { dailyWeights, weightTrend } from '../domain/weight.js';
 import { accountHeaders } from '../lib/account.js';
@@ -85,6 +87,55 @@ async function planContext(db: Queryable, userId: string) {
     routineDayTypes: routines.map((routine) => routine.dayType),
   });
   return { profile, today, bodyweight, phase, routines, foods, trainingWeekdays, missing };
+}
+
+type PlanContext = Awaited<ReturnType<typeof planContext>>;
+
+/**
+ * The provisional calories for a phase type at a rate, or the type's default rate when null, from
+ * the profile and bodyweight. Undefined until both are set up.
+ */
+function formulaCalories(context: PlanContext, type: PhaseType, rate: number | null) {
+  const { profile, bodyweight } = context;
+  if (
+    profile === null ||
+    profile.heightCm === null ||
+    profile.sex === null ||
+    profile.birthDate === null ||
+    bodyweight === null
+  ) {
+    return undefined;
+  }
+  const age = ageOn(profile.birthDate, context.today);
+  const trainingDaysPerWeek = new Set(profile.trainingWeekdays).size;
+  const calories = provisionalCalories({
+    type,
+    targetRatePctPerWeek:
+      type === 'maintain'
+        ? null
+        : (rate ?? phaseDefaults(type).targetRatePctPerWeek?.value ?? null),
+    weightKg: bodyweight.weightKg,
+    heightCm: profile.heightCm,
+    age,
+    sex: profile.sex,
+    trainingDaysPerWeek,
+  });
+  return { bodyweight, calories, age, trainingDaysPerWeek };
+}
+
+/**
+ * Training days move the provisional calories, which count them in the activity level (S14). Called
+ * in the transaction that changed the weekdays, holding the phase lock, so the open phase follows in
+ * the same write or not at all: a phase still on the formula's figure takes its new one. A figure
+ * the user set, or a measured one, is theirs and stays.
+ */
+export async function followTrainingDays(tx: Transaction, userId: string): Promise<void> {
+  const context = await planContext(tx, userId);
+  const { phase } = context;
+  if (phase === undefined || phase.calorieBasis !== 'provisional_formula') return;
+  const formula = formulaCalories(context, phase.type, phase.targetRatePctPerWeek);
+  if (formula === undefined || formula.calories.kcal === phase.calorieTargetKcal) return;
+  await followFormulaCalories(tx, userId, phase.id, phase.calorieTargetKcal, formula.calories.kcal);
 }
 
 export const phaseJson = (phase: GoalPhase) => ({
@@ -389,37 +440,14 @@ export function planRoutes({ db }: RouteDeps) {
       handler: async (c) => {
         const { type, targetRatePctPerWeek } = c.req.valid('query');
         const context = await planContext(db, c.get('user').id);
-        const { profile, bodyweight } = context;
-        if (
-          profile === null ||
-          profile.heightCm === null ||
-          profile.sex === null ||
-          profile.birthDate === null ||
-          bodyweight === null
-        ) {
-          return problem(c, 'setup_incomplete', { missing: ['profile'] });
-        }
-        const defaults = phaseDefaults(type);
-        const rate =
-          type === 'maintain'
-            ? null
-            : (targetRatePctPerWeek ?? defaults.targetRatePctPerWeek?.value ?? null);
-        const age = ageOn(profile.birthDate, context.today);
-        const trainingDaysPerWeek = new Set(profile.trainingWeekdays).size;
-        const calories = provisionalCalories({
-          type,
-          targetRatePctPerWeek: rate,
-          weightKg: bodyweight.weightKg,
-          heightCm: profile.heightCm,
-          age,
-          sex: profile.sex,
-          trainingDaysPerWeek,
-        });
+        const formula = formulaCalories(context, type, targetRatePctPerWeek ?? null);
+        if (formula === undefined) return problem(c, 'setup_incomplete', { missing: ['profile'] });
+        const { bodyweight, calories, age, trainingDaysPerWeek } = formula;
         return c.json(
           {
             type,
             bodyweight,
-            ...defaults,
+            ...phaseDefaults(type),
             calories: {
               value: calories.kcal,
               basis: 'provisional_formula' as const,

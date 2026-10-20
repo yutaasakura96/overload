@@ -329,6 +329,92 @@ describe('GET /api/goal-phases/defaults', () => {
   });
 });
 
+/** A cut's provisional calories at the default rate, as the defaults give them now. */
+async function formula(send: Send): Promise<number> {
+  const defaults: { calories: { value: number } } = await (
+    await send('GET', '/api/goal-phases/defaults?type=cut')
+  ).json();
+  return defaults.calories.value;
+}
+
+async function openPhase(send: Send) {
+  const phases: {
+    items: (Phase & { calorieTargetKcal: number; calorieTargetSetAt: string })[];
+  } = await (await send('GET', '/api/goal-phases')).json();
+  return phases.items.find((phase) => phase.endedOn === null);
+}
+
+const weekdays = (send: Send, trainingWeekdays: number[]) =>
+  send('PATCH', '/api/me/profile', { trainingWeekdays });
+
+describe('training weekdays and the open phase', () => {
+  it('moves the formula’s calories to its new figure in the write that changes the weekdays', async () => {
+    const { send } = await member('follow@example.test');
+    await aboutYou(send);
+    const four = await formula(send);
+    const created = await (
+      await send('POST', '/api/goal-phases', cut({ calorieTargetKcal: four }))
+    ).json();
+    expect((await weekdays(send, [1, 2, 3, 4, 5, 6])).status).toBe(200);
+    const six = await formula(send);
+    expect(six).not.toBe(four);
+    const phase = await openPhase(send);
+    expect(phase).toMatchObject({ calorieTargetKcal: six, calorieBasis: 'provisional_formula' });
+    expect(Date.parse(phase?.calorieTargetSetAt ?? '')).toBeGreaterThanOrEqual(
+      Date.parse(created.calorieTargetSetAt),
+    );
+  });
+
+  it('leaves the phase when the weekdays are the same, in any order, or not sent', async () => {
+    const { send } = await member('nofollow@example.test');
+    await aboutYou(send);
+    // Provisional, but not the formula's figure now: only a change of weekdays would move it.
+    expect(await formula(send)).not.toBe(2350);
+    const created = await (await send('POST', '/api/goal-phases', cut())).json();
+    expect((await weekdays(send, [5, 4, 2, 1])).status).toBe(200);
+    expect((await send('PATCH', '/api/me/profile', { heightCm: 180 })).status).toBe(200);
+    const phase = await openPhase(send);
+    expect(phase).toMatchObject({ calorieTargetKcal: 2350, calorieBasis: 'provisional_formula' });
+    expect(phase?.calorieTargetSetAt).toBe(created.calorieTargetSetAt);
+  });
+
+  it('keeps calories the user set', async () => {
+    const { send } = await member('manual@example.test');
+    await aboutYou(send);
+    expect(
+      (
+        await send(
+          'POST',
+          '/api/goal-phases',
+          cut({ calorieTargetKcal: 2200, calorieBasis: 'manual' }),
+        )
+      ).status,
+    ).toBe(201);
+    expect((await weekdays(send, [1, 3, 5])).status).toBe(200);
+    expect(await openPhase(send)).toMatchObject({
+      calorieTargetKcal: 2200,
+      calorieBasis: 'manual',
+    });
+  });
+
+  it('moves only the caller’s phase', async () => {
+    const a = await member('follow-a@example.test');
+    const b = await member('follow-b@example.test');
+    await aboutYou(a.send);
+    await aboutYou(b.send);
+    const four = await formula(b.send);
+    expect(
+      (await a.send('POST', '/api/goal-phases', cut({ calorieTargetKcal: four }))).status,
+    ).toBe(201);
+    expect(
+      (await b.send('POST', '/api/goal-phases', cut({ calorieTargetKcal: four }))).status,
+    ).toBe(201);
+    expect((await weekdays(a.send, [1, 2, 3, 4, 5, 6, 7])).status).toBe(200);
+    expect((await openPhase(a.send))?.calorieTargetKcal).not.toBe(four);
+    expect((await openPhase(b.send))?.calorieTargetKcal).toBe(four);
+  });
+});
+
 describe('day routines', () => {
   it('replaces a day type’s routine and its meals', async () => {
     const { send } = await member('routine@example.test');

@@ -1075,18 +1075,19 @@ changed count adds `Yours: 4 meals. The recommendation was 5.` in `flag`. `Use t
   saved as a new weigh-in. Saving makes the week's plan again and returns to Today.
 - Goal phase's fields start from the open phase of the same type, or the defaults, noted `Default`,
   `Yours`, `Provisional` or `Measured`. For a new phase the defaults are the fields' placeholders,
-  not filled values, so the calories keep following the rate until one is typed. The units read
+  not filled values, so the calories keep following the rate until one is typed. Saving waits
+  while the calories for a newly typed rate load, and Your day's `Use these meals` waits for the
+  meals of newly typed times. The units read
   `% bodyweight`, `g per kg`, `% of calories` and `kcal a day`, as drawn. Fat's default is **25 %** (`06`), not the drawn 27. The
   `PROVISIONAL` box names Mifflin–St Jeor with its resting energy, activity level and the deficit
   or surplus. Changing the type while a phase is open says `A cut is open` and `Saving ends the cut
   yesterday and starts a bulk from today.` A phase begun today says `This phase began today. A new
   phase can start tomorrow.`; an attempted same-day start is refused.
 - Your day starts on `Training day` unless it is saved and the rest day is not. The weekday toggles
-  change the profile's training weekdays; while the phase's calories are still the formula's, they
-  follow, on the save that changes the weekdays only. A follow-up that fails is kept on the device
-  for that phase and sent with the next save; if the device cannot keep it, the notice says `The
-  goal phase wasn’t updated; check its calories in Goal phase.` When the week needs both day types and one is unsaved, saving the first says `Training
-  day saved. Now your rest day.` and switches to it. Without a goal phase the recommendation says
+  change the profile's training weekdays; while the phase's calories are still the formula's, the
+  API moves them in the same write, and only when the weekdays change (`06`, 2026-10-21). When the
+  week needs both day types and one is unsaved, saving the first says `Training day saved. Now
+  your rest day.` and switches to it. Without a goal phase the recommendation says
   `Set up first` with a link to it.
 
 **Type a weight** (S11; a permanent option, `06` 2026-10-16). `Weight` in kg, then `Date` and `Time`,
