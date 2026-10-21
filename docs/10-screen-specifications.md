@@ -1072,7 +1072,9 @@ changed count adds `Yours: 4 meals. The recommendation was 5.` in `flag`. `Use t
 **As built in M2 slice 4** (`#79`, `06` 2026-10-18), at `/plan/about`, `/plan/phase` and
 `/plan/day`, checked at 390px in both themes:
 - About you's weight is the latest weigh-in, noted `From your weigh-in of …`; a changed weight is
-  saved as a new weigh-in. Saving makes the week's plan again and returns to Today.
+  saved as a new weigh-in. If the details save but the weigh-in fails, the notice says which saved
+  and asks the member to retry the weigh-in. Saving makes the week's plan again and returns to
+  Today.
 - Goal phase's fields start from the open phase of the same type, or the defaults, noted `Default`,
   `Yours`, `Provisional` or `Measured`. For a new phase the defaults are the fields' placeholders,
   not filled values, so the calories keep following the rate until one is typed. An open phase
@@ -1092,9 +1094,10 @@ changed count adds `Yours: 4 meals. The recommendation was 5.` in `flag`. `Use t
   change the profile's training weekdays; while the phase's calories are still the formula's, the
   API moves them in the same write, and only when the weekdays change (`06`, 2026-10-21). With no
   weigh-in to work them from, Goal phase says `Calories weren’t updated for your new training
-  days. Log a weigh-in to recalculate.` until the next weigh-in moves them. When the
-  week needs both day types and one is unsaved, saving the first says `Training day saved. Now
-  your rest day.` and switches to it. Without a goal phase the recommendation says
+  days. Log a weigh-in to recalculate.` until the next weigh-in moves them. If the training days
+  save but the day routine fails, the notice names the saved training days and asks the member to
+  retry the day routine. When the week needs both day types and one is unsaved, saving the first
+  says `Training day saved. Now your rest day.` and switches to it. Without a goal phase the recommendation says
   `Set up first` with a link to it.
 
 **Type a weight** (S11; a permanent option, `06` 2026-10-16). `Weight` in kg, then `Date` and `Time`,

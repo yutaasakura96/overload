@@ -192,6 +192,34 @@ test('sets up a phase and a day, and Today shows the day’s plan', async ({ pag
   await expect(page).toHaveURL(/\/workout/);
 });
 
+test('About you reports saved details separately when its weigh-in fails', async ({ page }) => {
+  await page.route('**/api/weigh-ins', async (route) => {
+    if (route.request().method() !== 'POST') return route.continue();
+    await route.fulfill({ status: 500, body: 'Weigh-in failed' });
+  });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Add your details' }).click();
+  await page.getByRole('textbox', { name: /^Weight/ }).fill('82.5');
+  await page.getByRole('textbox', { name: /^Height/ }).fill('176');
+  await page.getByLabel('Birth date').fill('1994-05-01');
+  await page.getByRole('radio', { name: 'Male', exact: true }).check();
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(
+    page.getByText('Your details saved. The weigh-in wasn’t; save again when you have signal.'),
+  ).toBeVisible();
+  const saved: { profile: { heightCm: number; sex: string } } = await (
+    await page.request.get('/api/me')
+  ).json();
+  expect(saved.profile).toMatchObject({ heightCm: 176, sex: 'male' });
+  if (process.env.E2E_EVIDENCE_DIR) {
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.screenshot({ path: `${process.env.E2E_EVIDENCE_DIR}/partial-about-save.png` });
+  }
+  await page.unroute('**/api/weigh-ins');
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(page.getByText('Saved.', { exact: true })).toBeVisible();
+});
+
 test('Today reports a failed plan generation', async ({ page }) => {
   const headers = { Origin: WEB_ORIGIN };
   const profile = await page.request.patch('/api/me/profile', {
@@ -347,6 +375,10 @@ test('Today reports a failed plan generation', async ({ page }) => {
       'Training days saved. The training day wasn’t; save again when you have signal.',
     ),
   ).toBeVisible();
+  if (process.env.E2E_EVIDENCE_DIR) {
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.screenshot({ path: `${process.env.E2E_EVIDENCE_DIR}/partial-day-save.png` });
+  }
   await expect(page.getByText('Not saved')).toHaveCount(0);
   const saved: { profile: { trainingWeekdays: number[] } } = await (
     await page.request.get('/api/me')
@@ -637,7 +669,10 @@ test('editing an open provisional phase follows the rate unless Calories is edit
   });
 });
 
-test('Goal phase says when the calories missed a change of training days', async ({ page }) => {
+test('Goal phase says when the calories missed a change of training days', async ({
+  page,
+  context,
+}) => {
   const headers = { Origin: WEB_ORIGIN };
   expect(
     (
@@ -674,6 +709,28 @@ test('Goal phase says when the calories missed a change of training days', async
       })
     ).ok(),
   ).toBe(true);
+  // An offline weekday edit stays on the form; after reconnecting, the real save records that
+  // provisional calories could not follow once the member has no current weigh-in.
+  await page.goto('/plan/day');
+  const useMeals = page.getByRole('button', { name: 'Use these meals' });
+  await expect(useMeals).toHaveAttribute('aria-disabled', 'false');
+  await page.getByRole('button', { name: 'Tuesday', exact: true }).click();
+  await context.setOffline(true);
+  await useMeals.click();
+  await expect(
+    page.getByText(
+      'Couldn’t reach Overload. The day is still here; save again when you have signal.',
+    ),
+  ).toBeVisible();
+  if (process.env.E2E_EVIDENCE_DIR) {
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.screenshot({ path: `${process.env.E2E_EVIDENCE_DIR}/offline-day-save.png` });
+  }
+  await context.setOffline(false);
+  const unchanged: { profile: { trainingWeekdays: number[] } } = await (
+    await page.request.get('/api/me')
+  ).json();
+  expect(unchanged.profile.trainingWeekdays).toEqual([1, 3, 5]);
   expect((await page.request.delete(`/api/weigh-ins/${weighInId}`, { headers })).ok()).toBe(true);
   expect(
     (
@@ -683,14 +740,29 @@ test('Goal phase says when the calories missed a change of training days', async
       })
     ).ok(),
   ).toBe(true);
+  const changed: { profile: { trainingWeekdays: number[] } } = await (
+    await page.request.get('/api/me')
+  ).json();
+  expect(changed.profile.trainingWeekdays).toEqual([1, 2, 3, 5]);
 
   await page.goto('/plan/phase');
   const notice = page.getByText('Calories weren’t updated for your new training days.');
   await expect(notice).toBeVisible();
+  if (process.env.E2E_EVIDENCE_DIR) {
+    await page.screenshot({ path: `${process.env.E2E_EVIDENCE_DIR}/goal-phase-stale-notice.png` });
+  }
+  await page.reload();
+  await expect(notice).toBeVisible();
+  if (process.env.E2E_EVIDENCE_DIR) {
+    await page.screenshot({ path: `${process.env.E2E_EVIDENCE_DIR}/goal-phase-notice-reloaded.png` });
+  }
   await weighIn();
   await page.reload();
   await expect(page.getByRole('button', { name: 'Save targets' })).toBeVisible();
   await expect(notice).toBeHidden();
+  if (process.env.E2E_EVIDENCE_DIR) {
+    await page.screenshot({ path: `${process.env.E2E_EVIDENCE_DIR}/goal-phase-after-reload.png` });
+  }
 });
 
 test('a measured figure typed again in Calories is saved as yours', async ({ page }) => {
