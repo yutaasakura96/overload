@@ -754,7 +754,9 @@ test('Goal phase says when the calories missed a change of training days', async
   await page.reload();
   await expect(notice).toBeVisible();
   if (process.env.E2E_EVIDENCE_DIR) {
-    await page.screenshot({ path: `${process.env.E2E_EVIDENCE_DIR}/goal-phase-notice-reloaded.png` });
+    await page.screenshot({
+      path: `${process.env.E2E_EVIDENCE_DIR}/goal-phase-notice-reloaded.png`,
+    });
   }
   await weighIn();
   await page.reload();

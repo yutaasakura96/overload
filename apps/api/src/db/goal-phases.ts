@@ -145,6 +145,7 @@ export async function existingGoalPhase(
       stored.calorieBasis === input.calorieBasis;
     return same ? { kind: 'existing', phase: stored } : { kind: 'id_conflict' };
   }
+  return undefined;
 }
 
 /**
