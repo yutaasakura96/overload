@@ -100,7 +100,10 @@ export interface paths {
     delete?: never;
     options?: never;
     head?: never;
-    /** Set profile fields. The first save creates the profile */
+    /**
+     * Set profile fields. The first save creates the profile
+     * @description Changing the training weekdays moves the open goal phase’s calories, while they are still the formula’s, to its figure for the new weekdays, in the same write (S14).
+     */
     patch: {
       parameters: {
         query?: never;
@@ -1507,7 +1510,10 @@ export interface paths {
       };
     };
     put?: never;
-    /** Save a weigh-in typed by hand */
+    /**
+     * Save a weigh-in typed by hand
+     * @description An open provisional phase whose calories missed a training-weekday change (`calorieTargetStale`) has them worked out again in the same request.
+     */
     post: {
       parameters: {
         query?: never;
@@ -2457,7 +2463,7 @@ export interface paths {
             'application/problem+json': components['schemas']['Problem'];
           };
         };
-        /** @description `validation_failed` */
+        /** @description `validation_failed`; `setup_incomplete` with `missing: ["profile"]` for the formula’s calories */
         422: {
           headers: {
             [name: string]: unknown;
@@ -2541,7 +2547,7 @@ export interface paths {
             'application/problem+json': components['schemas']['Problem'];
           };
         };
-        /** @description `validation_failed`, including a rate on maintenance or none on a cut */
+        /** @description `validation_failed`, including a rate on maintenance or none on a cut; `setup_incomplete` with `missing: ["profile"]` for the formula’s calories */
         422: {
           headers: {
             [name: string]: unknown;
@@ -3784,6 +3790,8 @@ export interface components {
        * @example 2026-11-11T09:01:40.000Z
        */
       calorieTargetSetAt: string;
+      /** @description The training weekdays changed while there was no bodyweight to work the formula from, so the provisional calories are for the old ones. Cleared when the calories are next set or worked out. */
+      calorieTargetStale: boolean;
     };
     /** @enum {string} */
     GoalPhaseType: 'cut' | 'bulk' | 'maintain';
@@ -4988,7 +4996,7 @@ export interface components {
       /** @example 2350 */
       calorieTargetKcal: number;
       /**
-       * @description `provisional_formula` when the calories are the defaults’ estimate, unchanged.
+       * @description `provisional_formula` when the calories were not set by hand: the API stores the formula’s figure for the current inputs in their place.
        * @enum {string}
        */
       calorieBasis: 'provisional_formula' | 'manual';

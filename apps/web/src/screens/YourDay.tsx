@@ -3,15 +3,12 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useId, useState } from 'react';
 import { api, ApiError } from '../api';
 import { AppBar, DataState, FieldLabel, Notice } from '../components';
-import { deviceStore } from '../device-store';
 import { EVIDENCE, EvidenceTag } from '../evidence';
 import { goBack, type Navigate } from '../navigation';
 import {
   confirmedAccountData,
   dayRoutinesQuery,
-  goalPhasesQuery,
   mealRecommendationQuery,
-  phaseDefaultsQuery,
   queryClient,
   regeneratePlan,
   setProfile,
@@ -161,31 +158,30 @@ function DayForm({
     retry: (count, error) => !(error instanceof ApiError && error.status === 422) && count < 2,
   });
   const r = recommendation.data?.dayType === dayType ? recommendation.data : undefined;
+  // The answer for the inputs before the latest edit, or a cached one being fetched again or that
+  // failed to be, is shown but never saved: the slots saved are for the setup as it is now.
+  const stale =
+    recommendation.isPlaceholderData ||
+    recommendation.fetchStatus !== 'idle' ||
+    recommendation.isRefetchError;
 
   const save = async () => {
-    if (r === undefined) return;
+    if (r === undefined || stale) return;
     setBusy(true);
     setProblem(undefined);
     const stored: string[] = [];
-    let phaseError: unknown;
     try {
       const profileWeekdays = me.profile?.trainingWeekdays ?? [];
       const sorted = weekdays.toSorted((a, b) => a - b);
       const changed = JSON.stringify(sorted) !== JSON.stringify(profileWeekdays);
       if (changed) {
+        // The API moves the open phase's provisional calories with the weekdays, in the same write.
         setProfile(
           await confirmedAccountData(() =>
             api.PATCH('/api/me/profile', { body: { trainingWeekdays: sorted } }),
           ),
         );
         stored.push('Training days');
-      }
-      try {
-        if (await followTrainingDays(me.user.id, changed)) {
-          stored.push('the goal phase’s calories');
-        }
-      } catch (error) {
-        phaseError = error;
       }
       await confirmedAccountData(() =>
         api.PUT('/api/day-routines/{dayType}', {
@@ -202,18 +198,6 @@ function DayForm({
       );
       stored.push(training ? 'the training day' : 'the rest day');
       await queryClient.invalidateQueries({ queryKey: ['plan'] });
-      if (phaseError !== undefined) {
-        setProblem(
-          phaseError instanceof FollowUnrecorded
-            ? {
-                kind: 'unreached',
-                saved: `${savedSentence(stored)} The goal phase wasn’t updated; check its calories in Goal phase.`,
-              }
-            : partlySaved(saveProblem(phaseError), savedSentence(stored), 'goal phase'),
-        );
-        setBusy(false);
-        return;
-      }
       const other: DayType = training ? 'rest' : 'training';
       if (needed(sorted).includes(other) && saved(other) === undefined && savedNow !== other) {
         // The week needs the other day type too: that is the next thing to set.
@@ -365,7 +349,7 @@ function DayForm({
           type="button"
           className="button button--primary"
           // Not `disabled`: after the training day saves, focus stays here for the rest day.
-          aria-disabled={busy || r === undefined || !complete}
+          aria-disabled={busy || r === undefined || stale || !complete}
           onClick={() => {
             if (!busy && complete) void save();
           }}
@@ -380,60 +364,6 @@ function DayForm({
 function savedSentence(parts: string[]) {
   const list = new Intl.ListFormat('en-GB', { type: 'conjunction' }).format(parts);
   return `${list.charAt(0).toUpperCase()}${list.slice(1)} saved.`;
-}
-
-/** The follow-up failed, and the device could not keep it to send with a later save. */
-class FollowUnrecorded extends Error {}
-
-/**
- * Training days move the provisional calories, which count them in the activity level (S14). A phase
- * still on the formula's figure takes the formula's new one; a figure the user set, or a measured
- * one, is theirs and stays. It runs when this save changed the training days, or when an earlier
- * change's follow-up is still owed to the open phase: kept on the device until it arrives, and void
- * once that phase is closed or its calories moved.
- */
-async function followTrainingDays(userId: string, changed: boolean): Promise<boolean> {
-  const phases = await queryClient.fetchQuery({ ...goalPhasesQuery, staleTime: 0 });
-  const open = phases.find((phase) => phase.endedOn === null);
-  if (open === undefined || open.calorieBasis !== 'provisional_formula') return false;
-  let recorded = true;
-  if (changed) {
-    recorded = await deviceStore.followPending
-      .set(userId, { phaseId: open.id, calorieTargetKcal: open.calorieTargetKcal })
-      .then(
-        () => true,
-        () => false,
-      );
-  } else {
-    const pending = await deviceStore.followPending.get(userId).catch(() => {
-      throw new FollowUnrecorded();
-    });
-    if (pending === undefined) return false;
-    if (pending.phaseId !== open.id || pending.calorieTargetKcal !== open.calorieTargetKcal) {
-      await deviceStore.followPending.clear(userId).catch(() => undefined);
-      return false;
-    }
-  }
-  let moved: boolean;
-  try {
-    const defaults = await queryClient.fetchQuery({
-      ...phaseDefaultsQuery(open.type, open.targetRatePctPerWeek ?? undefined),
-      staleTime: 0,
-    });
-    moved = defaults.calories.value !== open.calorieTargetKcal;
-    if (moved) {
-      await confirmedAccountData(() =>
-        api.PATCH('/api/goal-phases/{id}', {
-          params: { path: { id: open.id } },
-          body: { calorieTargetKcal: defaults.calories.value, calorieBasis: 'provisional_formula' },
-        }),
-      );
-    }
-  } catch (error) {
-    throw recorded ? error : new FollowUnrecorded();
-  }
-  await deviceStore.followPending.clear(userId).catch(() => undefined);
-  return moved;
 }
 
 function Recommend({

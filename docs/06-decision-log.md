@@ -4069,3 +4069,46 @@ and §8.6 describe, with the screens from the approved M2 prototype. Checked at
 - **The export** gains `phases`, `dayRoutines` and `planDays` (`07` §2).
 
 **Changed:** `00`, `03` §8.2, `04`, `06`, `07` §2, §4, `10` §3, §6, §8.6, `11` §2.
+
+### 2026-10-21 — Training days move the phase's calories on the server
+
+Follow-up to `#79`. Your day sent the training weekdays, then asked for the defaults and PATCHed the
+open phase's calories itself, keeping a follow-up that failed on the device to send with a later
+save. Every review round found another way to lose that record or send it to the wrong phase.
+
+- **`PATCH /api/me/profile` moves the phase in the same transaction.** When the weekdays change, as
+  a set, and the open phase's calories are still the formula's (`provisional_formula`), the API
+  sets them to the formula's figure for the new weekdays, at the phase's rate and today's
+  bodyweight. A save that keeps the weekdays, in any order, never touches the phase. The write
+  holds the phase lock a phase create takes, and the phase update applies only while its calories
+  are still the ones read, so a figure the user set meanwhile stays. *Rejected:* the device's
+  pending record, kept per account and then per phase, which could be lost before it was written,
+  on a storage failure, or on a remount.
+- **The API works out a phase's provisional calories as it writes them.** A create or a patch that
+  carries `calorieBasis: "provisional_formula"` (calories nobody typed), or a rate change on a phase
+  still on the formula, stores the formula's figure for the phase's type and rate and the
+  profile's weekdays, height, sex, birth date and bodyweight as they are inside the write, under
+  the phase lock. The figure the device sent is ignored, so a rate edited on an open phase, or
+  defaults cached before a weekday change in another tab, can't store an old figure. A figure
+  typed into Calories is sent as `manual` and stored as given; clearing the field returns an open
+  phase, own or measured, to the formula. *Rejected:* checking on the device that the defaults on
+  screen are current, which a cached answer could pass.
+- **The formula's figure is held to 1,000–6,000 kcal**, the range every calorie target is checked
+  against, defined once in the domain. A small member on a cut who drops to one training day gets
+  1,000 kcal, not a figure the API would refuse from the device. *Rejected:* refusing the weekday
+  change, which would fail a save about the routine over the phase.
+- **Without a bodyweight the weekdays still change, and the phase says its calories are stale.**
+  With no weigh-in left to work the formula from, the new weekdays are saved, the phase keeps its
+  calories, and `calorieTargetStale` is set on it (a column with a default, add-first). The next
+  weigh-in works them out again in its own request; any calories set or worked out clear it. Goal
+  phase says `Calories weren’t updated for your new training days. Log a weigh-in to
+  recalculate.` *Rejected:* refusing the weekday save, and falling back to a deleted weigh-in.
+- **A save waits for the answer to its inputs.** Goal phase and Your day keep the previous answer on
+  screen while the next loads; their save buttons are `aria-disabled` until it arrives. For Goal
+  phase this is only so the figures on screen match what is saved. Your day saves the meals of a
+  recommendation only once it is current: not while a cached answer is being asked for again, and
+  not after asking again failed.
+- **A Calories field the member changed is theirs**, labelled `Yours` and saved as `manual`, even
+  when the figure typed equals the measured one it replaced.
+
+**Changed:** `04`, `06`, `07` §2, §4, §5, `10` §8.6.

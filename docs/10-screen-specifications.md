@@ -1072,21 +1072,32 @@ changed count adds `Yours: 4 meals. The recommendation was 5.` in `flag`. `Use t
 **As built in M2 slice 4** (`#79`, `06` 2026-10-18), at `/plan/about`, `/plan/phase` and
 `/plan/day`, checked at 390px in both themes:
 - About you's weight is the latest weigh-in, noted `From your weigh-in of …`; a changed weight is
-  saved as a new weigh-in. Saving makes the week's plan again and returns to Today.
+  saved as a new weigh-in. If the details save but the weigh-in fails, the notice says which saved
+  and asks the member to retry the weigh-in. Saving makes the week's plan again and returns to
+  Today.
 - Goal phase's fields start from the open phase of the same type, or the defaults, noted `Default`,
   `Yours`, `Provisional` or `Measured`. For a new phase the defaults are the fields' placeholders,
-  not filled values, so the calories keep following the rate until one is typed. The units read
+  not filled values, so the calories keep following the rate until one is typed. An open phase
+  still on the formula shows the formula's figure for its rate as the placeholder too, and follows
+  a new rate the same way; a figure typed into Calories is the member's own, noted `Yours` even when
+  it equals the measured figure it replaced, and clearing the
+  field returns an own or measured figure to the formula, its figure the placeholder. Untyped calories are
+  saved as provisional and the API works out their figure as it saves (`06`, 2026-10-21). Saving
+  waits while the calories for a newly typed rate load, and Your day's `Use these meals` waits for
+  the meals of newly typed times. The units read
   `% bodyweight`, `g per kg`, `% of calories` and `kcal a day`, as drawn. Fat's default is **25 %** (`06`), not the drawn 27. The
   `PROVISIONAL` box names Mifflin–St Jeor with its resting energy, activity level and the deficit
   or surplus. Changing the type while a phase is open says `A cut is open` and `Saving ends the cut
   yesterday and starts a bulk from today.` A phase begun today says `This phase began today. A new
   phase can start tomorrow.`; an attempted same-day start is refused.
 - Your day starts on `Training day` unless it is saved and the rest day is not. The weekday toggles
-  change the profile's training weekdays; while the phase's calories are still the formula's, they
-  follow, on the save that changes the weekdays only. A follow-up that fails is kept on the device
-  for that phase and sent with the next save; if the device cannot keep it, the notice says `The
-  goal phase wasn’t updated; check its calories in Goal phase.` When the week needs both day types and one is unsaved, saving the first says `Training
-  day saved. Now your rest day.` and switches to it. Without a goal phase the recommendation says
+  change the profile's training weekdays; while the phase's calories are still the formula's, the
+  API moves them in the same write, and only when the weekdays change (`06`, 2026-10-21). With no
+  weigh-in to work them from, Goal phase says `Calories weren’t updated for your new training
+  days. Log a weigh-in to recalculate.` until the next weigh-in moves them. If the training days
+  save but the day routine fails, the notice names the saved training days and asks the member to
+  retry the day routine. When the week needs both day types and one is unsaved, saving the first
+  says `Training day saved. Now your rest day.` and switches to it. Without a goal phase the recommendation says
   `Set up first` with a link to it.
 
 **Type a weight** (S11; a permanent option, `06` 2026-10-16). `Weight` in kg, then `Date` and `Time`,

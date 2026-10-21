@@ -1,5 +1,5 @@
 import { eq, sql } from 'drizzle-orm';
-import type { Database, Queryable } from './connection.js';
+import type { Queryable } from './connection.js';
 import { userProfile } from './schema.js';
 
 export type Profile = {
@@ -36,7 +36,7 @@ export async function getProfile(db: Queryable, userId: string): Promise<Profile
  * defaults for anything not given (docs/04 `user_profile`).
  */
 export async function updateProfile(
-  db: Database,
+  db: Queryable,
   userId: string,
   patch: Partial<Profile>,
 ): Promise<Profile> {

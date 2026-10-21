@@ -549,6 +549,8 @@ export const goalPhase = pgTable(
     calorieTargetKcal: integer('calorie_target_kcal').notNull(),
     calorieBasis: text('calorie_basis', { enum: calorieBasisValues }).notNull(),
     calorieTargetSetAt: instant('calorie_target_set_at').notNull().defaultNow(),
+    // A training-weekday change the formula couldn't follow, for want of a bodyweight.
+    calorieTargetStale: boolean('calorie_target_stale').notNull().default(false),
     ...timestamps,
   },
   (t) => [

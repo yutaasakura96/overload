@@ -3,6 +3,7 @@ import { BALANCE_VIEWS, MUSCLE_GROUPS, MUSCLE_STATUSES } from '../domain/balance
 import { BASIS_KINDS, PER_100G_MAX } from '../domain/food.js';
 import { SPANS } from '../domain/progress.js';
 import { LIFT_STATUSES, STRENGTH_SPANS, STRENGTH_STATUSES } from '../domain/strength.js';
+import { CALORIE_TARGET_KCAL } from '../domain/targets.js';
 
 // Response schemas shared by the routes. These generate packages/api-contract (docs/03 §2).
 
@@ -1125,7 +1126,11 @@ export const CalorieBasis = z
 const RatePct = z.number().min(0.05).max(2).multipleOf(0.01).openapi({ example: 0.5 });
 const ProteinGPerKg = z.number().min(1).max(4).multipleOf(0.01).openapi({ example: 2.2 });
 const FatPct = z.number().min(10).max(60).multipleOf(0.1).openapi({ example: 25 });
-const CalorieTarget = z.int().min(1000).max(6000).openapi({ example: 2350 });
+const CalorieTarget = z
+  .int()
+  .min(CALORIE_TARGET_KCAL.min)
+  .max(CALORIE_TARGET_KCAL.max)
+  .openapi({ example: 2350 });
 
 export const GoalPhase = z
   .object({
@@ -1142,6 +1147,10 @@ export const GoalPhase = z
     calorieTargetKcal: CalorieTarget,
     calorieBasis: CalorieBasis,
     calorieTargetSetAt: Instant.openapi({ description: 'When the calories were last set.' }),
+    calorieTargetStale: z.boolean().openapi({
+      description:
+        'The training weekdays changed while there was no bodyweight to work the formula from, so the provisional calories are for the old ones. Cleared when the calories are next set or worked out.',
+    }),
   })
   .openapi('GoalPhase');
 
@@ -1171,7 +1180,8 @@ export const GoalPhaseCreate = z
     fatPctCalories: FatPct,
     calorieTargetKcal: CalorieTarget,
     calorieBasis: z.enum(['provisional_formula', 'manual']).openapi({
-      description: '`provisional_formula` when the calories are the defaults’ estimate, unchanged.',
+      description:
+        '`provisional_formula` when the calories were not set by hand: the API stores the formula’s figure for the current inputs in their place.',
     }),
     endPrevious: z.boolean().optional().openapi({
       description: 'Ends the open phase on the day before. Without it an open phase is a 409.',
@@ -1187,7 +1197,8 @@ export const GoalPhasePatch = z
     fatPctCalories: FatPct.optional(),
     calorieTargetKcal: CalorieTarget.optional(),
     calorieBasis: CalorieBasis.optional().openapi({
-      description: '`measured` applies the maintenance check by hand (docs/09 F13).',
+      description:
+        '`measured` applies the maintenance check by hand (docs/09 F13). While the phase is on `provisional_formula`, a patch to its rate or calories stores the formula’s figure for the current inputs in place of `calorieTargetKcal`.',
     }),
   })
   .openapi('GoalPhasePatch', { description: 'An omitted field is unchanged.' });
