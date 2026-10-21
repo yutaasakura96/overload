@@ -4,6 +4,7 @@ import type { Database, Queryable, Transaction } from '../db/connection.js';
 import { listDayRoutines, putDayRoutine } from '../db/day-routines.js';
 import {
   createGoalPhase,
+  existingGoalPhase,
   followFormulaCalories,
   listGoalPhases,
   lockGoalPhases,
@@ -65,11 +66,7 @@ export const PLAN_RANGE_MAX_DAYS = 31;
 
 /** What the plan routes read: the profile, the bodyweight targets are set at, and the setup. */
 async function planContext(db: Queryable, userId: string) {
-  const profile = await getProfile(db, userId);
-  const timezone = profile?.timezone ?? 'Asia/Tokyo';
-  const today = localDateIn(timezone)(new Date());
-  const days = weightTrend(dailyWeights(await listWeighIns(db, userId), timezone)).days;
-  const bodyweight = bodyweightForTargets(days, today);
+  const { profile, today, bodyweight } = await formulaContext(db, userId);
   const phase = await openGoalPhase(db, userId);
   const routines = await listDayRoutines(db, userId);
   const foods = await planFoods(db, userId);
@@ -90,13 +87,22 @@ async function planContext(db: Queryable, userId: string) {
   return { profile, today, bodyweight, phase, routines, foods, trainingWeekdays, missing };
 }
 
-type PlanContext = Awaited<ReturnType<typeof planContext>>;
+async function formulaContext(db: Queryable, userId: string) {
+  const profile = await getProfile(db, userId);
+  const timezone = profile?.timezone ?? 'Asia/Tokyo';
+  const today = localDateIn(timezone)(new Date());
+  const days = weightTrend(dailyWeights(await listWeighIns(db, userId), timezone)).days;
+  const bodyweight = bodyweightForTargets(days, today);
+  return { profile, today, bodyweight };
+}
+
+type FormulaContext = Awaited<ReturnType<typeof formulaContext>>;
 
 /**
  * The provisional calories for a phase type at a rate, or the type's default rate when null, from
  * the profile and bodyweight. Undefined until both are set up.
  */
-function formulaCalories(context: PlanContext, type: PhaseType, rate: number | null) {
+function formulaCalories(context: FormulaContext, type: PhaseType, rate: number | null) {
   const { profile, bodyweight } = context;
   if (
     profile === null ||
@@ -131,9 +137,9 @@ function formulaCalories(context: PlanContext, type: PhaseType, rate: number | n
  * the user set, or a measured one, is theirs and stays.
  */
 export async function followTrainingDays(tx: Transaction, userId: string): Promise<void> {
-  const context = await planContext(tx, userId);
-  const { phase } = context;
+  const phase = await openGoalPhase(tx, userId);
   if (phase === undefined || phase.calorieBasis !== 'provisional_formula') return;
+  const context = await formulaContext(tx, userId);
   const formula = formulaCalories(context, phase.type, phase.targetRatePctPerWeek);
   if (formula === undefined || formula.calories.kcal === phase.calorieTargetKcal) return;
   await followFormulaCalories(tx, userId, phase.id, phase.calorieTargetKcal, formula.calories.kcal);
@@ -407,8 +413,10 @@ export function planRoutes({ db }: RouteDeps) {
           if (input.calorieBasis !== 'provisional_formula') {
             return createGoalPhase(tx, userId, input, endPrevious === true);
           }
+          const existing = await existingGoalPhase(tx, userId, input);
+          if (existing !== undefined) return existing;
           const formula = formulaCalories(
-            await planContext(tx, userId),
+            await formulaContext(tx, userId),
             input.type,
             input.targetRatePctPerWeek,
           );
@@ -461,7 +469,7 @@ export function planRoutes({ db }: RouteDeps) {
             } as const;
           }
           const formula = formulaCalories(
-            await planContext(tx, userId),
+            await formulaContext(tx, userId),
             stored.type,
             patch.targetRatePctPerWeek === undefined
               ? stored.targetRatePctPerWeek
@@ -501,7 +509,7 @@ export function planRoutes({ db }: RouteDeps) {
       route: getDefaults,
       handler: async (c) => {
         const { type, targetRatePctPerWeek } = c.req.valid('query');
-        const context = await planContext(db, c.get('user').id);
+        const context = await formulaContext(db, c.get('user').id);
         const formula = formulaCalories(context, type, targetRatePctPerWeek ?? null);
         if (formula === undefined) return problem(c, 'setup_incomplete', { missing: ['profile'] });
         const { bodyweight, calories, age, trainingDaysPerWeek } = formula;

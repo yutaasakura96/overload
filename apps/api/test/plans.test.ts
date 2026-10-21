@@ -63,12 +63,14 @@ async function aboutYou(send: Send) {
       })
     ).status,
   ).toBe(200);
+  const weighInId = randomUUID();
   const weighed = await send('POST', '/api/weigh-ins', {
-    id: randomUUID(),
+    id: weighInId,
     measuredAt: new Date(Date.now() - 60_000).toISOString(),
     weightKg: 82.4,
   });
   expect(weighed.status).toBe(201);
+  return weighInId;
 }
 
 const per100 = (energyKcal: number, proteinG: number, carbG: number, fatG: number, fiberG = 0) => ({
@@ -434,6 +436,25 @@ describe('the formula’s calories on a phase write', () => {
     });
     const again = await send('POST', '/api/goal-phases', { ...body, calorieTargetKcal: 1600 });
     expect(again.status).toBe(200);
+  });
+
+  it('returns a stored provisional create after its last weigh-in is deleted', async () => {
+    const { send } = await member('retry-without-weight@example.test');
+    const weighInId = await aboutYou(send);
+    const body = provisionalCut();
+    const first = await send('POST', '/api/goal-phases', body);
+    expect(first.status).toBe(201);
+    const stored = await first.json();
+    expect((await send('DELETE', `/api/weigh-ins/${weighInId}`)).status).toBe(204);
+    const retry = await send('POST', '/api/goal-phases', { ...body, calorieTargetKcal: 1000 });
+    expect(retry.status).toBe(200);
+    expect(await retry.json()).toEqual(stored);
+    const conflict = await send('POST', '/api/goal-phases', {
+      ...body,
+      targetRatePctPerWeek: 1,
+    });
+    expect(conflict.status).toBe(409);
+    expect((await conflict.json()).code).toBe('id_conflict');
   });
 
   it('moves an open provisional phase’s calories to its new rate’s', async () => {

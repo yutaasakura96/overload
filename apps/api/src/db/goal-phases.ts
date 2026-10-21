@@ -97,6 +97,31 @@ export async function createGoalPhase(
 ): Promise<CreateGoalPhaseResult> {
   // One open phase at a time: a second create waits here for the first to commit.
   await lockGoalPhases(tx, userId);
+  const existing = await existingGoalPhase(tx, userId, input);
+  if (existing !== undefined) return existing;
+  const open = await openGoalPhase(tx, userId);
+  if (open !== undefined) {
+    if (!endPrevious) return { kind: 'phase_already_open', open };
+    if (input.startedOn <= open.startedOn) return { kind: 'phase_start_not_after_open' };
+    const end = dayBefore(input.startedOn);
+    await tx
+      .update(goalPhase)
+      .set({ endedOn: end, updatedAt: sql`now()` })
+      .where(and(eq(goalPhase.id, open.id), eq(goalPhase.userId, userId)));
+  }
+  const [created] = await tx
+    .insert(goalPhase)
+    .values({ ...input, userId })
+    .returning(columns);
+  if (created === undefined) throw new Error('goal phase insert returned no row');
+  return { kind: 'created', phase: created };
+}
+
+export async function existingGoalPhase(
+  tx: Transaction,
+  userId: string,
+  input: GoalPhaseInput,
+): Promise<Extract<CreateGoalPhaseResult, { kind: 'existing' | 'id_conflict' }> | undefined> {
   const [stored] = await tx.select(columns).from(goalPhase).where(eq(goalPhase.id, input.id));
   if (stored !== undefined) {
     const [mine] = await tx
@@ -115,22 +140,6 @@ export async function createGoalPhase(
       stored.calorieBasis === input.calorieBasis;
     return same ? { kind: 'existing', phase: stored } : { kind: 'id_conflict' };
   }
-  const open = await openGoalPhase(tx, userId);
-  if (open !== undefined) {
-    if (!endPrevious) return { kind: 'phase_already_open', open };
-    if (input.startedOn <= open.startedOn) return { kind: 'phase_start_not_after_open' };
-    const end = dayBefore(input.startedOn);
-    await tx
-      .update(goalPhase)
-      .set({ endedOn: end, updatedAt: sql`now()` })
-      .where(and(eq(goalPhase.id, open.id), eq(goalPhase.userId, userId)));
-  }
-  const [created] = await tx
-    .insert(goalPhase)
-    .values({ ...input, userId })
-    .returning(columns);
-  if (created === undefined) throw new Error('goal phase insert returned no row');
-  return { kind: 'created', phase: created };
 }
 
 /**
