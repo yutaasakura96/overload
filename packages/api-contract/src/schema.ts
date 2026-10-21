@@ -1510,7 +1510,10 @@ export interface paths {
       };
     };
     put?: never;
-    /** Save a weigh-in typed by hand */
+    /**
+     * Save a weigh-in typed by hand
+     * @description An open provisional phase whose calories missed a training-weekday change (`calorieTargetStale`) has them worked out again in the same request.
+     */
     post: {
       parameters: {
         query?: never;
@@ -3787,6 +3790,8 @@ export interface components {
        * @example 2026-11-11T09:01:40.000Z
        */
       calorieTargetSetAt: string;
+      /** @description The training weekdays changed while there was no bodyweight to work the formula from, so the provisional calories are for the old ones. Cleared when the calories are next set or worked out. */
+      calorieTargetStale: boolean;
     };
     /** @enum {string} */
     GoalPhaseType: 'cut' | 'bulk' | 'maintain';

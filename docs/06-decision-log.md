@@ -4097,8 +4097,18 @@ save. Every review round found another way to lose that record or send it to the
   against, defined once in the domain. A small member on a cut who drops to one training day gets
   1,000 kcal, not a figure the API would refuse from the device. *Rejected:* refusing the weekday
   change, which would fail a save about the routine over the phase.
+- **Without a bodyweight the weekdays still change, and the phase says its calories are stale.**
+  With no weigh-in left to work the formula from, the new weekdays are saved, the phase keeps its
+  calories, and `calorieTargetStale` is set on it (a column with a default, add-first). The next
+  weigh-in works them out again in its own request; any calories set or worked out clear it. Goal
+  phase says `Calories weren’t updated for your new training days. Log a weigh-in to
+  recalculate.` *Rejected:* refusing the weekday save, and falling back to a deleted weigh-in.
 - **A save waits for the answer to its inputs.** Goal phase and Your day keep the previous answer on
   screen while the next loads; their save buttons are `aria-disabled` until it arrives. For Goal
-  phase this is only so the figures on screen match what is saved.
+  phase this is only so the figures on screen match what is saved. Your day saves the meals of a
+  recommendation only once it is current: not while a cached answer is being asked for again, and
+  not after asking again failed.
+- **A Calories field the member changed is theirs**, labelled `Yours` and saved as `manual`, even
+  when the figure typed equals the measured one it replaced.
 
-**Changed:** `06`, `07` §2, §4, `10` §8.6.
+**Changed:** `04`, `06`, `07` §2, §4, §5, `10` §8.6.

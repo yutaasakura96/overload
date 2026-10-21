@@ -1,0 +1,1 @@
+ALTER TABLE "goal_phase" ADD COLUMN "calorie_target_stale" boolean DEFAULT false NOT NULL;

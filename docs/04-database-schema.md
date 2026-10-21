@@ -587,6 +587,7 @@ see what a previous cut actually did.
 | `calorie_target_kcal` | integer | no | — | |
 | `calorie_basis` | text | no | — | `provisional_formula` \| `measured` \| `manual`, `CHECK`. Drives the "provisional" label (S14) |
 | `calorie_target_set_at` | timestamptz | no | `now()` | When `calorie_target_kcal` was last set by the user. *Added 2026-09-21* (`docs/09` F13): current targets read the newer of this and the newest applied `expenditure_estimate` |
+| `calorie_target_stale` | boolean | no | `false` | The training weekdays changed with no bodyweight to work the formula from, so the provisional calories are for the old ones. Cleared when the calories are next set or worked out. *Added 2026-10-21* (`06`) |
 | `created_at` / `updated_at` | timestamptz | no | `now()` | |
 
 - `UNIQUE (user_id) WHERE ended_on IS NULL` — one open phase at a time (`goal_phase_user_id_open_key`).

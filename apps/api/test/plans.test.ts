@@ -345,7 +345,11 @@ async function formula(send: Send): Promise<number> {
 
 async function openPhase(send: Send) {
   const phases: {
-    items: (Phase & { calorieTargetKcal: number; calorieTargetSetAt: string })[];
+    items: (Phase & {
+      calorieTargetKcal: number;
+      calorieTargetSetAt: string;
+      calorieTargetStale: boolean;
+    })[];
   } = await (await send('GET', '/api/goal-phases')).json();
   return phases.items.find((phase) => phase.endedOn === null);
 }
@@ -402,6 +406,54 @@ describe('training weekdays and the open phase', () => {
     expect(await openPhase(send)).toMatchObject({
       calorieTargetKcal: 2200,
       calorieBasis: 'manual',
+    });
+  });
+
+  it('keeps the calories, marked stale, when there is no bodyweight, until a weigh-in', async () => {
+    const { send } = await member('follow-no-weight@example.test');
+    const weighInId = await aboutYou(send);
+    const created = await (await send('POST', '/api/goal-phases', provisionalCut())).json();
+    expect(created.calorieTargetStale).toBe(false);
+    expect((await send('DELETE', `/api/weigh-ins/${weighInId}`)).status).toBe(204);
+    const changed = await weekdays(send, [1, 2, 3, 4, 5, 6]);
+    expect(changed.status).toBe(200);
+    expect((await changed.json()).trainingWeekdays).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(await openPhase(send)).toMatchObject({
+      calorieTargetKcal: created.calorieTargetKcal,
+      calorieBasis: 'provisional_formula',
+      calorieTargetStale: true,
+    });
+    const weighed = await send('POST', '/api/weigh-ins', {
+      id: randomUUID(),
+      measuredAt: new Date(Date.now() - 30_000).toISOString(),
+      weightKg: 82.4,
+    });
+    expect(weighed.status).toBe(201);
+    const six = await formula(send);
+    expect(six).not.toBe(created.calorieTargetKcal);
+    expect(await openPhase(send)).toMatchObject({
+      calorieTargetKcal: six,
+      calorieBasis: 'provisional_formula',
+      calorieTargetStale: false,
+    });
+  });
+
+  it('clears the stale mark when the calories are next set', async () => {
+    const { send } = await member('stale-then-set@example.test');
+    const weighInId = await aboutYou(send);
+    const created = await (await send('POST', '/api/goal-phases', provisionalCut())).json();
+    expect((await send('DELETE', `/api/weigh-ins/${weighInId}`)).status).toBe(204);
+    expect((await weekdays(send, [1, 3])).status).toBe(200);
+    expect((await openPhase(send))?.calorieTargetStale).toBe(true);
+    const set = await send('PATCH', `/api/goal-phases/${created.id}`, {
+      calorieTargetKcal: 2100,
+      calorieBasis: 'manual',
+    });
+    expect(set.status).toBe(200);
+    expect(await set.json()).toMatchObject({
+      calorieTargetKcal: 2100,
+      calorieBasis: 'manual',
+      calorieTargetStale: false,
     });
   });
 

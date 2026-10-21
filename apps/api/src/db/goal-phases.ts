@@ -14,10 +14,14 @@ export type GoalPhase = {
   calorieTargetKcal: number;
   calorieBasis: 'provisional_formula' | 'measured' | 'manual';
   calorieTargetSetAt: Date;
+  calorieTargetStale: boolean;
 };
 
 /** A phase to open. Its id is made on the device (UUIDv7). */
-export type GoalPhaseInput = Omit<GoalPhase, 'endedOn' | 'calorieTargetSetAt' | 'calorieBasis'> & {
+export type GoalPhaseInput = Omit<
+  GoalPhase,
+  'endedOn' | 'calorieTargetSetAt' | 'calorieTargetStale' | 'calorieBasis'
+> & {
   calorieBasis: 'provisional_formula' | 'manual';
 };
 
@@ -43,6 +47,7 @@ const columns = {
   calorieTargetKcal: goalPhase.calorieTargetKcal,
   calorieBasis: goalPhase.calorieBasis,
   calorieTargetSetAt: goalPhase.calorieTargetSetAt,
+  calorieTargetStale: goalPhase.calorieTargetStale,
 };
 
 const newestFirst = [desc(goalPhase.startedOn), desc(goalPhase.id)];
@@ -160,6 +165,7 @@ export async function updateGoalPhase(
         ? {}
         : {
             calorieTargetSetAt: sql`CASE WHEN ${goalPhase.calorieTargetKcal} = ${patch.calorieTargetKcal} THEN ${goalPhase.calorieTargetSetAt} ELSE now() END`,
+            calorieTargetStale: false,
           }),
       updatedAt: sql`now()`,
     })
@@ -181,7 +187,12 @@ export async function followFormulaCalories(
 ): Promise<boolean> {
   const moved = await db
     .update(goalPhase)
-    .set({ calorieTargetKcal: to, calorieTargetSetAt: sql`now()`, updatedAt: sql`now()` })
+    .set({
+      calorieTargetKcal: to,
+      calorieTargetSetAt: sql`CASE WHEN ${goalPhase.calorieTargetKcal} = ${to} THEN ${goalPhase.calorieTargetSetAt} ELSE now() END`,
+      calorieTargetStale: false,
+      updatedAt: sql`now()`,
+    })
     .where(
       and(
         eq(goalPhase.id, id),
@@ -193,6 +204,21 @@ export async function followFormulaCalories(
     )
     .returning({ id: goalPhase.id });
   return moved.length > 0;
+}
+
+/** Marks the open provisional phase's calories as left behind by a weekday change. */
+export async function markCalorieTargetStale(db: Queryable, userId: string, id: string) {
+  await db
+    .update(goalPhase)
+    .set({ calorieTargetStale: true, updatedAt: sql`now()` })
+    .where(
+      and(
+        eq(goalPhase.id, id),
+        eq(goalPhase.userId, userId),
+        isNull(goalPhase.endedOn),
+        eq(goalPhase.calorieBasis, 'provisional_formula'),
+      ),
+    );
 }
 
 /** The export's `phases` section: by id, a page at a time (docs/07 §2). */

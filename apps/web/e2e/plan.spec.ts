@@ -459,6 +459,31 @@ test('a Your day save moves the phase’s calories only with the training days',
   release();
   await expect(use).toHaveAttribute('aria-disabled', 'false');
   expect(puts).toEqual([]);
+
+  // A cached answer that a goal phase save made out of date is shown while it is asked again, but
+  // never saved.
+  await page.unroute('**/api/day-routines/*/recommendation*');
+  const go = (path: string) =>
+    page.evaluate((to) => {
+      window.history.pushState({}, '', to);
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    }, path);
+  await go('/plan/phase');
+  await page.getByLabel('Protein').fill('2.6');
+  await page.getByRole('button', { name: 'Save targets' }).click();
+  await expect(page).toHaveURL(/\/$/);
+  const { promise: heldAgain, resolve: releaseAgain } = Promise.withResolvers<void>();
+  await page.route('**/api/day-routines/*/recommendation*', async (route) => {
+    await heldAgain;
+    await route.continue();
+  });
+  await go('/plan/day');
+  await expect(page.getByLabel('Wake')).toHaveValue('06:30');
+  await expect(use).toHaveAttribute('aria-disabled', 'true');
+  await use.click({ force: true });
+  releaseAgain();
+  await expect(use).toHaveAttribute('aria-disabled', 'false');
+  expect(puts).toEqual([]);
 });
 
 test('a goal phase save waits for the calories of the rate typed', async ({ page }) => {
@@ -610,6 +635,126 @@ test('editing an open provisional phase follows the rate unless Calories is edit
     calorieBasis: 'provisional_formula',
     targetRatePctPerWeek: 1.5,
   });
+});
+
+test('Goal phase says when the calories missed a change of training days', async ({ page }) => {
+  const headers = { Origin: WEB_ORIGIN };
+  expect(
+    (
+      await page.request.patch('/api/me/profile', {
+        headers,
+        data: { heightCm: 176, sex: 'male', birthDate: '1994-05-01', trainingWeekdays: [1, 3, 5] },
+      })
+    ).ok(),
+  ).toBe(true);
+  const weighIn = async () => {
+    const id = randomUUID();
+    const weighed = await page.request.post('/api/weigh-ins', {
+      headers,
+      data: { id, measuredAt: new Date().toISOString(), weightKg: 82.5 },
+    });
+    expect(weighed.ok()).toBe(true);
+    return id;
+  };
+  const weighInId = await weighIn();
+  expect(
+    (
+      await page.request.post('/api/goal-phases', {
+        headers,
+        data: {
+          id: randomUUID(),
+          type: 'cut',
+          startedOn: todayInZone().date,
+          targetRatePctPerWeek: 0.5,
+          proteinGPerKg: 2.2,
+          fatPctCalories: 25,
+          calorieTargetKcal: 2350,
+          calorieBasis: 'provisional_formula',
+        },
+      })
+    ).ok(),
+  ).toBe(true);
+  expect((await page.request.delete(`/api/weigh-ins/${weighInId}`, { headers })).ok()).toBe(true);
+  expect(
+    (
+      await page.request.patch('/api/me/profile', {
+        headers,
+        data: { trainingWeekdays: [1, 2, 3, 5] },
+      })
+    ).ok(),
+  ).toBe(true);
+
+  await page.goto('/plan/phase');
+  const notice = page.getByText('Calories weren’t updated for your new training days.');
+  await expect(notice).toBeVisible();
+  await weighIn();
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Save targets' })).toBeVisible();
+  await expect(notice).toBeHidden();
+});
+
+test('a measured figure typed again in Calories is saved as yours', async ({ page }) => {
+  const headers = { Origin: WEB_ORIGIN };
+  expect(
+    (
+      await page.request.patch('/api/me/profile', {
+        headers,
+        data: { heightCm: 176, sex: 'male', birthDate: '1994-05-01', trainingWeekdays: [1, 3, 5] },
+      })
+    ).ok(),
+  ).toBe(true);
+  expect(
+    (
+      await page.request.post('/api/weigh-ins', {
+        headers,
+        data: { id: randomUUID(), measuredAt: new Date().toISOString(), weightKg: 82.5 },
+      })
+    ).ok(),
+  ).toBe(true);
+  expect(
+    (
+      await page.request.post('/api/goal-phases', {
+        headers,
+        data: manualCut(todayInZone().date),
+      })
+    ).ok(),
+  ).toBe(true);
+  // No API sets a measured figure yet (the maintenance check, S18a): the screen is shown one.
+  await page.route('**/api/goal-phases', async (route) => {
+    if (route.request().method() !== 'GET') return route.continue();
+    const response = await route.fetch();
+    const body: { items: { endedOn: string | null; calorieBasis: string }[] } =
+      await response.json();
+    await route.fulfill({
+      response,
+      json: {
+        items: body.items.map((phase) =>
+          phase.endedOn === null ? { ...phase, calorieBasis: 'measured' } : phase,
+        ),
+      },
+    });
+  });
+  const sent: unknown[] = [];
+  page.on('request', (request) => {
+    if (request.method() === 'PATCH' && request.url().includes('/api/goal-phases/')) {
+      sent.push(request.postDataJSON());
+    }
+  });
+
+  await page.goto('/plan/phase');
+  const calories = page.getByRole('textbox', { name: 'Calories in kilocalories a day' });
+  const note = page.locator('.field__label-row', { hasText: /^Calories/ }).locator('.field__note');
+  await expect(note).toHaveText('Measured');
+  const figure = await calories.inputValue();
+  await calories.fill('');
+  await calories.fill(figure);
+  await expect(note).toHaveText('Yours');
+  await page.getByRole('button', { name: 'Save targets' }).click();
+  await expect
+    .poll(() => sent)
+    .toEqual([
+      expect.objectContaining({ calorieTargetKcal: Number(figure), calorieBasis: 'manual' }),
+    ]);
 });
 
 const dayFromToday = (offset: number) =>

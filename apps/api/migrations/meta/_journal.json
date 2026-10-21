@@ -141,6 +141,13 @@
       "when": 1792316918674,
       "tag": "0019_m2_slice4_plan",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1792588757490,
+      "tag": "0020_m2_goal_phase_calorie_target_stale",
+      "breakpoints": true
     }
   ]
 }

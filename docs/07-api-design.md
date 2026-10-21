@@ -165,7 +165,7 @@ only.
 | --- | --- | --- | --- | --- | --- |
 | `*` | `/api/auth/*` | — | Better Auth: Google sign-in, callback, `get-session`, `sign-out`, `list-sessions`, `revoke-other-sessions`, `revoke-sessions` (sign out everywhere, `08` §7), `delete-user` | Better Auth's | Better Auth's |
 | GET | `/api/me` | M | The signed-in user, their profile, and `isAdmin` | 200 | 401 |
-| PATCH | `/api/me/profile` | M | Timezone, weight unit, height, sex, birth date, training weekdays. Omitted fields are unchanged; the first save creates the profile. Changed training weekdays move the open goal phase's calories, while they are still the formula's, in the same transaction (S14). An unknown IANA zone is a 422 on `timezone` | 200 profile | 401, 422 |
+| PATCH | `/api/me/profile` | M | Timezone, weight unit, height, sex, birth date, training weekdays. Omitted fields are unchanged; the first save creates the profile. Changed training weekdays move the open goal phase's calories, while they are still the formula's, in the same transaction (S14); without a bodyweight the phase keeps them and is marked `calorieTargetStale`. An unknown IANA zone is a 422 on `timezone` | 200 profile | 401, 422 |
 | GET | `/api/me/export` | M | One section of the export (S10), paged | 200 | 400, 401 |
 | GET | `/api/admin/invites` | A | Every invite, newest first | 200 | 401, 404 |
 | POST | `/api/admin/invites` | A | Invite an email. A repeat of the same create returns the stored invite | 201 / 200 | 401, 404, 409 `invite_exists`, 409 `id_conflict`, 422 |
@@ -931,7 +931,7 @@ confirm endpoints return 409 `day_locked` (`docs/09` F11). A `PATCH /api/goal-ph
 | Method | Path | Auth | Purpose | Success | Failures |
 | --- | --- | --- | --- | --- | --- |
 | GET | `/api/weigh-ins?from=&to=` | M | Weigh-ins in a range, plus the derived daily weights and trend (S11) | 200 | 400, 401, 422 `setup_incomplete` |
-| POST | `/api/weigh-ins` | M | Weigh-in by hand `{ id, measuredAt, weightKg, bodyFatPct }` (`leanMassKg` joins with its M3 column) | 201 / 200 | 401, 409 `id_conflict`, 409 `weigh_in_exists`, 422 |
+| POST | `/api/weigh-ins` | M | Weigh-in by hand `{ id, measuredAt, weightKg, bodyFatPct }` (`leanMassKg` joins with its M3 column). An open phase marked `calorieTargetStale` has its provisional calories worked out again | 201 / 200 | 401, 409 `id_conflict`, 409 `weigh_in_exists`, 422 |
 | DELETE | `/api/weigh-ins/{id}` | M | Delete a hand-typed weigh-in | 204 | 401, 409 `managed_by_apple_health` |
 | GET | `/api/maintenance-check` | M | S18a over the trailing 14 calendar days, complete days only (`03` §8.3) | 200 | 401 |
 | GET | `/api/expenditure-estimates` | M | Weekly estimates, newest `weekStart` first, paged (S21) | 200 | 401 |

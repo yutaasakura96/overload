@@ -158,8 +158,12 @@ function DayForm({
     retry: (count, error) => !(error instanceof ApiError && error.status === 422) && count < 2,
   });
   const r = recommendation.data?.dayType === dayType ? recommendation.data : undefined;
-  // The answer for the inputs before the latest edit, shown while this one loads: never saved.
-  const stale = recommendation.isPlaceholderData;
+  // The answer for the inputs before the latest edit, or a cached one being fetched again or that
+  // failed to be, is shown but never saved: the slots saved are for the setup as it is now.
+  const stale =
+    recommendation.isPlaceholderData ||
+    recommendation.fetchStatus !== 'idle' ||
+    recommendation.isRefetchError;
 
   const save = async () => {
     if (r === undefined || stale) return;

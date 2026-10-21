@@ -1147,6 +1147,10 @@ export const GoalPhase = z
     calorieTargetKcal: CalorieTarget,
     calorieBasis: CalorieBasis,
     calorieTargetSetAt: Instant.openapi({ description: 'When the calories were last set.' }),
+    calorieTargetStale: z.boolean().openapi({
+      description:
+        'The training weekdays changed while there was no bodyweight to work the formula from, so the provisional calories are for the old ones. Cleared when the calories are next set or worked out.',
+    }),
   })
   .openapi('GoalPhase');
 

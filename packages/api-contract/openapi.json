@@ -1360,6 +1360,10 @@
             "format": "date-time",
             "example": "2026-11-11T09:01:40.000Z",
             "description": "When the calories were last set."
+          },
+          "calorieTargetStale": {
+            "type": "boolean",
+            "description": "The training weekdays changed while there was no bodyweight to work the formula from, so the provisional calories are for the old ones. Cleared when the calories are next set or worked out."
           }
         },
         "required": [
@@ -1372,7 +1376,8 @@
           "fatPctCalories",
           "calorieTargetKcal",
           "calorieBasis",
-          "calorieTargetSetAt"
+          "calorieTargetSetAt",
+          "calorieTargetStale"
         ]
       },
       "GoalPhaseType": {
@@ -6752,6 +6757,7 @@
       },
       "post": {
         "summary": "Save a weigh-in typed by hand",
+        "description": "An open provisional phase whose calories missed a training-weekday change (`calorieTargetStale`) has them worked out again in the same request.",
         "requestBody": {
           "required": true,
           "content": {

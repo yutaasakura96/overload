@@ -8,6 +8,7 @@ import {
   followFormulaCalories,
   listGoalPhases,
   lockGoalPhases,
+  markCalorieTargetStale,
   openGoalPhase,
   updateGoalPhase,
   type GoalPhase,
@@ -134,15 +135,30 @@ function formulaCalories(context: FormulaContext, type: PhaseType, rate: number 
  * Training days move the provisional calories, which count them in the activity level (S14). Called
  * in the transaction that changed the weekdays, holding the phase lock, so the open phase follows in
  * the same write or not at all: a phase still on the formula's figure takes its new one. A figure
- * the user set, or a measured one, is theirs and stays.
+ * the user set, or a measured one, is theirs and stays. Without a bodyweight the weekdays still
+ * change, and the phase keeps its calories marked stale until they are next worked out.
  */
 export async function followTrainingDays(tx: Transaction, userId: string): Promise<void> {
   const phase = await openGoalPhase(tx, userId);
   if (phase === undefined || phase.calorieBasis !== 'provisional_formula') return;
-  const context = await formulaContext(tx, userId);
-  const formula = formulaCalories(context, phase.type, phase.targetRatePctPerWeek);
-  if (formula === undefined || formula.calories.kcal === phase.calorieTargetKcal) return;
+  const formula = formulaCalories(
+    await formulaContext(tx, userId),
+    phase.type,
+    phase.targetRatePctPerWeek,
+  );
+  if (formula === undefined) {
+    await markCalorieTargetStale(tx, userId, phase.id);
+    return;
+  }
+  if (formula.calories.kcal === phase.calorieTargetKcal && !phase.calorieTargetStale) return;
   await followFormulaCalories(tx, userId, phase.id, phase.calorieTargetKcal, formula.calories.kcal);
+}
+
+/** A weigh-in lets stale calories follow the weekdays they missed. Holds the phase lock. */
+export async function followStaleCalories(tx: Transaction, userId: string): Promise<void> {
+  await lockGoalPhases(tx, userId);
+  const phase = await openGoalPhase(tx, userId);
+  if (phase?.calorieTargetStale === true) await followTrainingDays(tx, userId);
 }
 
 export const phaseJson = (phase: GoalPhase) => ({

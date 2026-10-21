@@ -78,6 +78,11 @@ export function GoalPhaseScreen({ me, navigate }: { me: Me; navigate: Navigate }
           Couldn’t reach Overload. Try again when you have signal.
         </Notice>
       )}
+      {open?.calorieTargetStale === true && (
+        <Notice tone="flag" word="Not updated">
+          Calories weren’t updated for your new training days. Log a weigh-in to recalculate.
+        </Notice>
+      )}
       {phases.data !== undefined && (
         <PhaseForm
           key={open?.id ?? 'new'}
@@ -207,15 +212,7 @@ function PhaseForm({
   const yours = kcalTyped !== null && (!sameType || caloriesEdited);
   const ownKept = sameType && open.calorieBasis !== 'provisional_formula' && !caloriesEdited;
   const calories = yours ? kcalTyped : ownKept ? open.calorieTargetKcal : d.calories.value;
-  const basis =
-    sameType &&
-    open.calorieBasis !== 'provisional_formula' &&
-    (ownKept || yours) &&
-    calories === open.calorieTargetKcal
-      ? open.calorieBasis
-      : yours
-        ? 'manual'
-        : 'provisional_formula';
+  const basis = yours ? 'manual' : ownKept ? open.calorieBasis : 'provisional_formula';
   const provisional = basis === 'provisional_formula';
   const weightKg = d.bodyweight.weightKg;
   const proteinG = Math.round(protein * weightKg);

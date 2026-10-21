@@ -6,6 +6,7 @@ import { createWeighIn, deleteWeighIn, listWeighIns, type WeighIn } from '../db/
 import { weightSection } from '../domain/weight.js';
 import { accountHeaders } from '../lib/account.js';
 import { problem, problemResponse } from '../lib/problem.js';
+import { followStaleCalories } from './plans.js';
 import { IdParam, WeighIn as WeighInSchema, WeighInCreate, WeighIns, jsonBody } from './schemas.js';
 
 // S11 (docs/07 §5): weigh-ins typed by hand, and the daily weights and trend derived from every
@@ -55,6 +56,8 @@ const postWeighIn = createRoute({
   method: 'post',
   path: '/api/weigh-ins',
   summary: 'Save a weigh-in typed by hand',
+  description:
+    'An open provisional phase whose calories missed a training-weekday change (`calorieTargetStale`) has them worked out again in the same request.',
   request: { body: jsonBody(WeighInCreate) },
   responses: {
     201: weighInResponse('Created'),
@@ -107,7 +110,11 @@ export function weighInRoutes({ db }: RouteDeps) {
     defineOpenAPIRoute<typeof postWeighIn, AppEnv>({
       route: postWeighIn,
       handler: async (c) => {
-        const result = await createWeighIn(db, c.get('user').id, c.req.valid('json'));
+        const userId = c.get('user').id;
+        const result = await createWeighIn(db, userId, c.req.valid('json'));
+        if (result.kind === 'created' || result.kind === 'existing') {
+          await db.transaction((tx) => followStaleCalories(tx, userId));
+        }
         if (result.kind === 'created') return c.json(weighInJson(result.weighIn), 201);
         if (result.kind === 'existing') return c.json(weighInJson(result.weighIn), 200);
         return problem(c, result.kind);

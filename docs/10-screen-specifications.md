@@ -1077,7 +1077,8 @@ changed count adds `Yours: 4 meals. The recommendation was 5.` in `flag`. `Use t
   `Yours`, `Provisional` or `Measured`. For a new phase the defaults are the fields' placeholders,
   not filled values, so the calories keep following the rate until one is typed. An open phase
   still on the formula shows the formula's figure for its rate as the placeholder too, and follows
-  a new rate the same way; a figure typed into Calories is the member's own, and clearing the
+  a new rate the same way; a figure typed into Calories is the member's own, noted `Yours` even when
+  it equals the measured figure it replaced, and clearing the
   field returns an own or measured figure to the formula, its figure the placeholder. Untyped calories are
   saved as provisional and the API works out their figure as it saves (`06`, 2026-10-21). Saving
   waits while the calories for a newly typed rate load, and Your day's `Use these meals` waits for
@@ -1089,7 +1090,9 @@ changed count adds `Yours: 4 meals. The recommendation was 5.` in `flag`. `Use t
   phase can start tomorrow.`; an attempted same-day start is refused.
 - Your day starts on `Training day` unless it is saved and the rest day is not. The weekday toggles
   change the profile's training weekdays; while the phase's calories are still the formula's, the
-  API moves them in the same write, and only when the weekdays change (`06`, 2026-10-21). When the
+  API moves them in the same write, and only when the weekdays change (`06`, 2026-10-21). With no
+  weigh-in to work them from, Goal phase says `Calories weren’t updated for your new training
+  days. Log a weigh-in to recalculate.` until the next weigh-in moves them. When the
   week needs both day types and one is unsaved, saving the first says `Training day saved. Now
   your rest day.` and switches to it. Without a goal phase the recommendation says
   `Set up first` with a link to it.
