@@ -915,7 +915,7 @@ GET /api/plan-days?from=2026-11-11&to=2026-11-11  →  200
 **The prep plan, as built 2026-10-26** (`#81`, `06`). `weekStart` must be a Monday, else 422
 `validation_failed`. Derived on every read from the week's plan days, the food list and each food's
 newest batch (`03` §8.2, cook days). `covers` is the plan days a cook day's batches keep for: the
-days `cookFor` assigns to that cook, sorted. A cook day with no batch-cooked cook (every cook's
+days `cookFor` assigns to that cook day, sorted. A cook day with no batch-cooked cook (every cook's
 `keepsDays` is null: no shelf life set, or stored cooked) skips `cookFor`, and its `covers` is the
 union of its cooks' `dates`. Each cook's `dates` are the plan days planned onto it, which include
 fallback days its batch does not keep for (a plan made before the food's shelf life was set, a food
