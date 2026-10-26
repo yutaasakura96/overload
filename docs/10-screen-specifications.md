@@ -403,7 +403,9 @@ the meal and still lets the day be complete.
     over `Bedtime is 22:15. Check the day before you sleep.`
   - Adjust: rows by what was eaten, a stepper of 5 g or one piece, the rotation group's other foods
     as swap chips (`Swap White rice for Potato, peeled` to a screen reader), the refusal at 0 g in
-    place, the before → after box, `Save as eaten, adjusted` and `Cancel`.
+    place, the before → after box, `Save as eaten, adjusted` and `Cancel`. Swapping back to the
+    starting food within one Adjust restores the row as opened, including through a planned food
+    (`07` §4).
   - Replaced: the two segments as radios; the list searched by name, eight rows at a time, each
     `ADD 100 G` again adding 100 g; `Eaten instead` with `Remove`; by hand, a name and calories are
     required, the macros default to 0, and a refused field takes focus. A food typed by hand reads as
