@@ -6,7 +6,6 @@ import {
   cookDaysOf,
   cookedPer100g,
   cookFor,
-  newestBatch,
   prepPlan,
   weekStartOf,
   weighDue,
@@ -36,6 +35,7 @@ const daily = (foodId: string, grams: number, extra: Partial<PrepItem> = {}): Pr
   week.map((date) => ({
     date,
     foodId,
+    batchId: null,
     plannedGrams: grams,
     pieceCount: null,
     cooked: true,
@@ -51,13 +51,12 @@ describe('the week and its cook days', () => {
   });
 
   it('cooks once, the Sunday before, when every batch keeps the week', () => {
-    expect(cookDaysOf(WEEK, [8, 10])).toEqual({ first: '2026-10-18', second: null });
+    expect(cookDaysOf(WEEK, [7, 10])).toEqual({ first: '2026-10-18', second: null });
     expect(cookDaysOf(WEEK, [])).toEqual({ first: '2026-10-18', second: null });
   });
 
   it('adds a second cook day when a batch would not last the week', () => {
-    // A batch keeping 7 days covers Sunday to Saturday: Sunday the 25th needs a second.
-    expect(cookDaysOf(WEEK, [7]).second).not.toBeNull();
+    expect(cookDaysOf(WEEK, [6]).second).toBe('2026-10-22');
     // Chicken 4, rice 3, potato 5, broccoli 4, as the approved prototype draws it: Thursday.
     expect(cookDaysOf(WEEK, [4, 3, 5, 4])).toEqual({ first: '2026-10-18', second: '2026-10-22' });
   });
@@ -69,16 +68,38 @@ describe('the week and its cook days', () => {
     expect(cookFor(days, 4, '2026-10-21')).toBe('first');
     expect(cookFor(days, 4, '2026-10-22')).toBe('second');
     expect(cookFor(days, 4, '2026-10-25')).toBe('second');
-    // Rice keeps 3: Monday and Tuesday from Sunday, Thursday to Saturday from Thursday.
+    // Rice keeps 3: Monday to Wednesday from Sunday, Thursday to Saturday from Thursday.
     expect(week.map((date) => cookFor(days, 3, date))).toEqual([
       'first',
       'first',
-      null,
+      'first',
       'second',
       'second',
       'second',
       null,
     ]);
+  });
+
+  it.each([1, 2, 3])('keeps %i days: cooks Sunday and Thursday and names the gap', (keepsDays) => {
+    const cookDays = cookDaysOf(WEEK, [keepsDays]);
+    expect(cookDays).toEqual({ first: '2026-10-18', second: '2026-10-22' });
+    expect(cookFor(cookDays, keepsDays, WEEK)).toBe('first');
+    expect(cookFor(cookDays, keepsDays, '2026-10-22')).toBe('second');
+    const plan = prepPlan({
+      weekStart: WEEK,
+      cookDays,
+      foods: [food('rice', { keepsDays })],
+      batches: [],
+      newestBatches: [],
+      items: daily('rice', 100).filter((item) => cookFor(cookDays, keepsDays, item.date) !== null),
+      listed: [{ id: 'rice', name: 'rice', keepsDays }],
+    });
+    expect(plan.cookDays.map((day) => [day.date, day.cooks[0]?.rawGrams])).toEqual([
+      ['2026-10-18', keepsDays * 140],
+      ['2026-10-22', keepsDays * 140],
+    ]);
+    expect(plan.grocery[0]?.quantity).toBe(keepsDays * 280);
+    expect(plan.uncovered[0]?.dates.length).toBe(7 - keepsDays * 2);
   });
 });
 
@@ -96,16 +117,6 @@ describe('the yield (S13)', () => {
       fatG: 2.53,
       fiberG: 0,
     });
-  });
-
-  it('uses the newest batch: the latest cook day, then the latest recorded', () => {
-    const batches = [
-      { id: '0192b001', cookedOn: '2026-10-11' },
-      { id: '0192b003', cookedOn: '2026-10-04' },
-      { id: '0192b002', cookedOn: '2026-10-11' },
-    ];
-    expect(newestBatch(batches)?.id).toBe('0192b002');
-    expect(newestBatch([])).toBeUndefined();
   });
 
   it('asks for a weigh when there is no batch from the last 7 days', () => {
@@ -132,6 +143,7 @@ describe('the prep plan and grocery list (S17)', () => {
       cookDays: cookDaysOf(WEEK, [4]),
       foods: [chicken],
       batches: [batch],
+      newestBatches: [batch],
       items: daily('chicken', 300),
       listed,
     });
@@ -169,12 +181,31 @@ describe('the prep plan and grocery list (S17)', () => {
     ]);
   });
 
+  it('uses each saved item’s batch yield before summing its cooks and groceries', () => {
+    const newer = { ...batch, id: 'b2', cookedWeightG: 700 };
+    const plan = prepPlan({
+      weekStart: WEEK,
+      cookDays: cookDaysOf(WEEK, [4]),
+      foods: [chicken],
+      batches: [batch, newer],
+      newestBatches: [newer],
+      items: daily('chicken', 100).map((item, index) => ({
+        ...item,
+        batchId: index < 3 ? batch.id : null,
+      })),
+      listed,
+    });
+    expect(plan.cookDays.map((day) => day.cooks[0]?.rawGrams)).toEqual([400, 800]);
+    expect(plan.grocery[0]).toEqual(expect.objectContaining({ quantity: 1200, cooks: [400, 800] }));
+  });
+
   it('cooks a food that keeps the week once', () => {
     const plan = prepPlan({
       weekStart: WEEK,
       cookDays: cookDaysOf(WEEK, [8]),
       foods: [{ ...chicken, keepsDays: 8 }],
       batches: [batch],
+      newestBatches: [batch],
       items: daily('chicken', 300),
       listed: [{ id: 'chicken', name: 'Chicken breast', keepsDays: 8 }],
     });
@@ -191,6 +222,7 @@ describe('the prep plan and grocery list (S17)', () => {
       cookDays: cookDaysOf(WEEK, [4]),
       foods: [chicken, oats, egg],
       batches: [batch],
+      newestBatches: [batch],
       items: [
         ...daily('chicken', 300),
         ...daily('oats', 80, { cooked: false }),
@@ -214,6 +246,7 @@ describe('the prep plan and grocery list (S17)', () => {
       cookDays: cookDaysOf(WEEK, [4]),
       foods: [chicken],
       batches: [],
+      newestBatches: [],
       // Planned at MEXT's boiled values, 140 kcal per 100 g, against 105 raw.
       items: daily('chicken', 300),
       listed,
@@ -230,11 +263,12 @@ describe('the prep plan and grocery list (S17)', () => {
       cookDays: cookDaysOf(WEEK, [4, 3]),
       foods: [chicken],
       batches: [batch],
+      newestBatches: [batch],
       items: daily('chicken', 300),
       listed: [...listed, { id: 'rice', name: 'White rice', keepsDays: 3 }],
     });
     expect(plan.uncovered).toEqual([
-      { foodId: 'rice', name: 'White rice', keepsDays: 3, dates: ['2026-10-21', '2026-10-25'] },
+      { foodId: 'rice', name: 'White rice', keepsDays: 3, dates: ['2026-10-25'] },
     ]);
   });
 });
@@ -302,11 +336,10 @@ describe('the planner keeps to the cook days (S16)', () => {
       days
         .filter((day) => day.meals.some((meal) => meal.items.some((item) => item.foodId === id)))
         .map((day) => day.date);
-    // Rice keeps 3 days: the cook days of Sunday and Thursday leave Wednesday and Sunday without.
-    expect(uses('rice')).not.toContain('2026-10-21');
+    // Rice keeps 3 days: the cook days of Sunday and Thursday leave Sunday without.
     expect(uses('rice')).not.toContain('2026-10-25');
     // Its group's potato stands in on those days.
-    expect(uses('potato')).toEqual(expect.arrayContaining(['2026-10-21', '2026-10-25']));
+    expect(uses('potato')).toContain('2026-10-25');
     expect(uses('chicken')).toEqual(week);
   });
 });

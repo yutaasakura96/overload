@@ -804,7 +804,8 @@ A stored food is always per 100 g. The response has no `basis`.
 
 **Batches, as built 2026-10-26** (`#81`, `06`). A batch is `{ id, foodId, rawWeightG, cookedWeightG,
 cookedOn, note, yield }`, `yield` to three decimals. `POST` refuses with `validation_failed` a weight
-of 0, a yield outside 0.1 to 10 (on `cookedWeightG`), and a food not on the caller's list (on
+of 0, a yield outside 0.1 to 10 (on `cookedWeightG`), a `cookedOn` after the member's local today,
+and a food not on the caller's list (on
 `foodId`); a repeat with the same content is 200, other content under the id 409 `id_conflict`.
 Cooked above raw is accepted. `Keeps for` is the food's `keepsDays`, changed with
 `PATCH /api/foods/{id}`. Plans generated after a batch use its yield; days already made keep theirs.
@@ -938,7 +939,8 @@ GET /api/prep-plan?weekStart=2026-10-19  →  200
       "quantity": 21, "cooks": [], "approximate": false } ] }
 ```
 
-- A cook's `rawGrams` is its days' cooked grams over the newest yield, to 5 g. With no batch, it is
+- A cook's `rawGrams` sums each saved item's cooked grams over its linked batch yield, or the newest
+  yield when the item has no batch, then rounds to 5 g. With no batch, it is
   worked out from the food table's cooked values and `approximate`; a food stored cooked has none
   (`null`), and one planned raw has no `cookedGrams`.
 - `weighDue` is "Weigh this week's batch" (`09` F12): no batch, or the newest cooked more than 7

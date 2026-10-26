@@ -239,6 +239,46 @@ describe('batches', () => {
     ]);
   });
 
+  it('refuses a cook date after the member’s local today', async () => {
+    const { send, chicken } = await setUp('batch-future@example.test');
+    const res = await send(
+      'POST',
+      '/api/batches',
+      batch(chicken, { cookedOn: addDays(today(), 1) }),
+    );
+    expect(res.status).toBe(422);
+    expect((await res.json()).errors).toEqual([{ path: 'cookedOn', message: 'A day up to today' }]);
+  });
+
+  it('keeps the saved batch yield in prep after a newer batch is recorded', async () => {
+    const { send, chicken } = await setUp('prep-saved-yield@example.test');
+    const first = batch(chicken, { cookedOn: addDays(today(), -1) });
+    expect((await send('POST', '/api/batches', first)).status).toBe(201);
+    const weekStart = nextMonday();
+    const days = await generate(send, weekStart, addDays(weekStart, 6));
+    const cooked = itemsOf(days, chicken).reduce((sum, item) => sum + item.plannedGrams, 0);
+    expect(cooked).toBeGreaterThan(0);
+    expect(itemsOf(days, chicken).every((item) => item.batchId === first.id)).toBe(true);
+    const newer = batch(chicken, { cookedWeightG: 700 });
+    expect((await send('POST', '/api/batches', newer)).status).toBe(201);
+    const prep = await prepFor(send, weekStart);
+    const cooks = prep.cookDays
+      .flatMap((day) => day.cooks)
+      .filter((cook) => cook.foodId === chicken);
+    expect(cooks.reduce((sum, cook) => sum + (cook.cookedGrams ?? 0), 0)).toBe(cooked);
+    expect(prep.grocery.find((item) => item.foodId === chicken)?.quantity).toBe(
+      cooks.reduce((sum, cook) => sum + (cook.rawGrams ?? 0), 0),
+    );
+    expect(
+      cooks.some(
+        (cook) =>
+          cook.rawGrams !== null &&
+          cook.cookedGrams !== null &&
+          Math.abs(cook.rawGrams - toStep(cook.cookedGrams / 0.75)) <= 5,
+      ),
+    ).toBe(true);
+  });
+
   it('gives plans made later the new yield, while days already made keep their snapshot', async () => {
     const { send, chicken } = await setUp('batch-yield@example.test');
     const from = today();

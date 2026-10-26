@@ -446,7 +446,7 @@ everything downstream does one kind of arithmetic.
 | `fat_g` | numeric(6,2) | no | — | Per 100 g |
 | `fiber_g` | numeric(6,2) | no | `0` | Per 100 g |
 | `piece_weight_g` | numeric(6,2) | yes | — | Set for foods counted in units. One egg = 55 g. `NULL` means grams only. `CHECK > 0` |
-| `keeps_days` | smallint | yes | — | How many days a cooked batch of this food keeps (S13); S16 limits planned servings to days covered by the week's at most two cook days. `NULL` for a food not batch-cooked. `CHECK` 1–30. *Added 2026-10-16* (`06`) |
+| `keeps_days` | smallint | yes | — | How many days a cooked batch of this food keeps (S13), counted from Monday for Sunday's cook; S16 limits planned servings to days covered by the week's Sunday and, when needed, Thursday cooks. `NULL` for a food not batch-cooked. `CHECK` 1–30. *Added 2026-10-16* (`06`) |
 | `source` | text | no | — | `mext` \| `open_food_facts` \| `label_photo` \| `manual`, `CHECK` |
 | `source_ref` | text | yes | — | MEXT food code, or the barcode |
 | `rotation_group_id` | uuid | yes | — | → `rotation_group.id`, `ON DELETE SET NULL` |
@@ -715,7 +715,7 @@ One food in one meal, planned and as eaten (S16, S18).
 | `cooked` | boolean | no | `false` | *Added 2026-10-18.* The grams are a cooked weight |
 | `approximate` | boolean | no | `false` | *Added 2026-10-18.* A cooked weight planned from the MEXT cooked counterpart of a raw batch-cooked food, with no batch yield recorded yet (`06`, 2026-10-18). Screen 3 marks it `approx.` |
 | `no_cooked_match` | boolean | no | `false` | *Added 2026-10-18.* A raw batch-cooked food with no MEXT cooked counterpart, planned raw by its raw values (`06`, 2026-10-18). Screen 3 marks it `raw, no cooked match` |
-| `batch_id` | uuid | yes | — | → `batch.id`, `ON DELETE SET NULL`. The yield used to convert raw → cooked macros. *Created 2026-10-26* (`#81`), with `INDEX (batch_id)` for the `SET NULL`. Deleting the batch leaves the item's snapshot as it was |
+| `batch_id` | uuid | yes | — | → `batch.id`, `ON DELETE SET NULL`. The yield used to convert raw → cooked macros and the saved item's prep raw grams. *Created 2026-10-26* (`#81`), with `INDEX (batch_id)` for the `SET NULL`. Deleting the batch leaves the item's macro snapshot as it was |
 | `energy_kcal_per_100g` | numeric(7,2) | no | — | **Snapshot** of the food's macros at plan time |
 | `protein_g_per_100g` | numeric(6,2) | no | — | Snapshot |
 | `carb_g_per_100g` | numeric(6,2) | no | — | Snapshot |

@@ -344,13 +344,13 @@ at its MEXT cooked counterpart's values and marked approximate, or with no count
 and marked `noCookedMatch`.
 
 **Cook days, as built 2026-10-26** (`#81`, `06`), in `domain/prep.ts`. A week runs Monday to
-Sunday and its first cook day is the Sunday before it; a batch covers `keeps_days` calendar days
-from its cook day. When a batch-cooked food on the list would not last the week, the week has a
-second cook day, chosen once for the whole list: the day inside the week that covers the most
-food-days, the later of equals. The planner offers a batch-cooked food only on days one of the two
+Sunday and its first cook day is the Sunday before it; that cook covers Monday onward for
+`keeps_days` calendar days. When a batch-cooked food on the list keeps for fewer than seven days,
+the second cook is Thursday. The planner offers a batch-cooked food only on days one of the two
 batches keeps for, so a rotation group gives those days another of its foods. The prep plan serves
 each plan day from the first cook while its batch keeps, else from the second, and turns the cooked
-grams back into raw by the newest yield, to 5 g; with no batch, by the ratio of the food's raw
+grams back into raw by each saved item's batch yield, or the newest yield when it has no batch,
+to 5 g; with no batch, by the ratio of the food's raw
 calories to the cooked values it was planned at, marked approximate.
 
 ### 8.3 Weight trend and expenditure (S11, S18a, S21, S23), method `weight_trend_balance_v1`

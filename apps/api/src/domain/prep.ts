@@ -2,10 +2,9 @@
 // routes read the plan, the foods and the batches, and this works out what to cook on which day.
 //
 // A week runs Monday to Sunday. Its first cook day is the Sunday before it; a cooked batch covers
-// `keeps_days` calendar days from its cook day (docs/02 S16). When a batch-cooked food would not
-// last the week, the week has a second cook day, chosen once for the whole food list: the day that
-// lets the most food-days be covered, the later of equals, so the second batch is as fresh as it
-// can be. Each plan day is served by the first cook when its batch still keeps, else by the second
+// `keeps_days` calendar days from Monday (docs/02 S16). When a batch-cooked food would not
+// last the week, the second cook is Thursday. Each plan day is served by the first cook until
+// Thursday when its batch still keeps, else by the second
 // (docs/06, 2026-10-16, Q8: B). Counting down each batch's portions was rejected.
 
 import type { Per100g } from './planner.js';
@@ -42,38 +41,24 @@ export const keepsOn = (cookDay: string, keepsDays: number, date: string) => {
 
 /**
  * The cook days of the week starting `weekStart`, from how long each batch-cooked food keeps. One
- * cook day when every batch keeps the whole week; otherwise the second day, inside the week, that
- * covers the most days summed over the foods, the later of equals.
+ * cook day when every batch keeps the whole week; otherwise Thursday is the second day.
  */
 export function cookDaysOf(weekStart: string, keeps: number[]): CookDays {
   const first = addDays(weekStart, -1);
-  const week = Array.from({ length: WEEK_DAYS }, (_, index) => addDays(weekStart, index));
-  const covered = (second: string | null) =>
-    keeps.reduce(
-      (total, days) =>
-        total +
-        week.filter(
-          (date) => keepsOn(first, days, date) || (second !== null && keepsOn(second, days, date)),
-        ).length,
-      0,
-    );
-  const alone = covered(null);
-  let best: { date: string; covered: number } | undefined;
-  for (const date of week) {
-    const count = covered(date);
-    if (best === undefined || count >= best.covered) best = { date, covered: count };
-  }
-  if (best === undefined || best.covered === alone) return { first, second: null };
-  return { first, second: best.date };
+  return { first, second: keeps.some((days) => days < WEEK_DAYS) ? addDays(weekStart, 3) : null };
 }
 
-/** Which cook serves a food on a plan day: the first while its batch keeps, else the second. */
+/** Which cook serves a food on a plan day. */
 export function cookFor(
   cookDays: CookDays,
   keepsDays: number,
   date: string,
 ): 'first' | 'second' | null {
-  if (keepsOn(cookDays.first, keepsDays, date)) return 'first';
+  if (
+    (cookDays.second === null || date < cookDays.second) &&
+    keepsOn(addDays(cookDays.first, 1), keepsDays, date)
+  )
+    return 'first';
   if (cookDays.second !== null && keepsOn(cookDays.second, keepsDays, date)) return 'second';
   return null;
 }
@@ -123,21 +108,6 @@ export function cookedPer100g(raw: Per100g, yieldRatio: number): Per100g {
   };
 }
 
-/** A food's newest batch, the one in use (S13): the latest cook day, then the latest recorded. */
-export function newestBatch<T extends { cookedOn: string; id: string }>(
-  batches: T[],
-): T | undefined {
-  return batches.reduce<T | undefined>(
-    (newest, batch) =>
-      newest === undefined ||
-      batch.cookedOn > newest.cookedOn ||
-      (batch.cookedOn === newest.cookedOn && batch.id > newest.id)
-        ? batch
-        : newest,
-    undefined,
-  );
-}
-
 /** "Weigh this week's batch" (docs/09 F12): no batch, or the newest older than 7 days. */
 export const weighDue = (newestCookedOn: string | null, today: string) =>
   newestCookedOn === null || daysBetween(newestCookedOn, today) > WEIGH_AFTER_DAYS;
@@ -156,6 +126,7 @@ export type PrepFood = {
 export type PrepItem = {
   date: string;
   foodId: string;
+  batchId: string | null;
   plannedGrams: number;
   pieceCount: number | null;
   /** The grams are a cooked weight. */
@@ -250,15 +221,16 @@ function itemWeights(item: PrepItem, food: PrepFood, yieldRatio: number | null) 
 
 /**
  * S17: the week's prep plan and grocery list. Each batch-cooked food's planned cooked grams are
- * turned back into raw grams by its newest batch, assigned to the cook that serves each day, and
+ * turned back into raw grams by its saved batch, assigned to the cook that serves each day, and
  * summed per cook; the grocery list sums both cooks per food, and every other food over the week.
  */
 export function prepPlan(input: {
   weekStart: string;
   cookDays: CookDays;
   foods: PrepFood[];
-  /** The newest batch of each food that has one. */
+  /** Saved batches, including those used by earlier plan items. */
   batches: Batch[];
+  newestBatches: Batch[];
   /** Every planned item on the week's days. */
   items: PrepItem[];
   /** The batch-cooked foods on the list, which the week's cook days are chosen for. */
@@ -268,7 +240,8 @@ export function prepPlan(input: {
   const weekEnd = addDays(weekStart, WEEK_DAYS - 1);
   const week = input.items.filter((item) => item.date >= weekStart && item.date <= weekEnd);
   const foodOf = new Map(input.foods.map((food) => [food.id, food]));
-  const yieldOf = new Map(input.batches.map((batch) => [batch.foodId, batchYield(batch)]));
+  const batchOf = new Map(input.batches.map((batch) => [batch.id, batch]));
+  const newestOf = new Map(input.newestBatches.map((batch) => [batch.foodId, batch]));
 
   type Share = { raw: number | null; cooked: number | null; approximate: boolean; date: string };
   const shares = new Map<string, Share[]>();
@@ -291,7 +264,9 @@ export function prepPlan(input: {
     const which =
       cookFor(cookDays, food.keepsDays, item.date) ??
       (cookDays.second !== null && item.date >= cookDays.second ? 'second' : 'first');
-    const weights = itemWeights(item, food, yieldOf.get(food.id) ?? null);
+    const batch =
+      (item.batchId === null ? undefined : batchOf.get(item.batchId)) ?? newestOf.get(food.id);
+    const weights = itemWeights(item, food, batch === undefined ? null : batchYield(batch));
     const key = `${which}:${food.id}`;
     shares.set(key, [...(shares.get(key) ?? []), { ...weights, date: item.date }]);
   }
@@ -339,10 +314,7 @@ export function prepPlan(input: {
     });
   }
   if (cookDays.second !== null && second.length > 0) {
-    const runsOut = (keeps: number) => addDays(cookDays.first, keeps - 1);
-    const reason =
-      second.find((cook) => runsOut(cook.keepsDays) === addDays(cookDays.second ?? '', -1)) ??
-      second.toSorted((a, b) => a.keepsDays - b.keepsDays)[0];
+    const reason = second.toSorted((a, b) => a.keepsDays - b.keepsDays)[0];
     days.push({
       date: cookDays.second,
       which: 'second',

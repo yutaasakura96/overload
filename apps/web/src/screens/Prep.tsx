@@ -23,14 +23,7 @@ import {
   wordList,
   yieldNote,
 } from '../prep';
-import {
-  addLocalDays,
-  planToday,
-  prepPlanQuery,
-  queryClient,
-  regeneratePlan,
-  useAccount,
-} from '../query';
+import { planToday, prepPlanQuery, queryClient, regeneratePlan, useAccount } from '../query';
 import { deviceTimezone } from '../timezones';
 
 // The Food tab's prep plan and grocery list (S17; docs/10 §5, the M2 prototype's screens 11 and
@@ -135,7 +128,6 @@ export function Prep({ me, navigate }: { me: Me; navigate: Navigate }) {
   const foodOf = new Map((plan?.foods ?? []).map((food) => [food.foodId, food]));
   const week = (plan?.grocery ?? []).filter((item) => item.section === 'week');
   const twoCooks = cookDays.length === 2;
-  const firstCook = addLocalDays(weekStart, -1);
 
   const tick = (key: string, cook: PrepPlan['cookDays'][number]['cooks'][number], day: string) => {
     if (ticks.ticks.has(key)) {
@@ -212,7 +204,7 @@ export function Prep({ me, navigate }: { me: Me; navigate: Navigate }) {
                 Covers {weekdayOf(day.coversFrom)}
                 {day.coversTo === day.coversFrom ? '' : ` to ${weekdayOf(day.coversTo)}`}.
                 {day.because !== null &&
-                  ` ${day.because.name} keeps ${day.because.keepsDays} days, so ${weekdayOf(firstCook)}’s batch runs out after ${weekdayOf(addLocalDays(firstCook, day.because.keepsDays - 1))}.`}
+                  ` ${day.because.name} keeps ${day.because.keepsDays} days; cook again for the rest of the week.`}
               </p>
               <ul className="cook__rows">
                 {day.cooks.map((cook) => {
@@ -282,9 +274,8 @@ export function Prep({ me, navigate }: { me: Me; navigate: Navigate }) {
               )}
               {plan.uncovered.map((food) => (
                 <p key={food.foodId} className="food-hint">
-                  {food.name} keeps {food.keepsDays} {food.keepsDays === 1 ? 'day' : 'days'}, so{' '}
-                  {wordList(food.dates.map(weekdayOf))} {food.dates.length === 1 ? 'uses' : 'use'}{' '}
-                  other foods.
+                  {food.name} won’t keep until the next cook; {wordList(food.dates.map(weekdayOf))}{' '}
+                  {food.dates.length === 1 ? 'uses' : 'use'} other foods.
                 </p>
               ))}
             </section>

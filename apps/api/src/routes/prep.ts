@@ -141,6 +141,13 @@ export function prepRoutes({ db }: RouteDeps) {
       route: postBatch,
       handler: async (c) => {
         const body = c.req.valid('json');
+        const profile = await getProfile(db, c.get('user').id);
+        const today = localDateIn(profile?.timezone ?? 'Asia/Tokyo')(new Date());
+        if (body.cookedOn > today) {
+          return problem(c, 'validation_failed', {
+            errors: [{ path: 'cookedOn', message: 'A day up to today' }],
+          });
+        }
         const ratio = body.cookedWeightG / body.rawWeightG;
         if (ratio < MIN_YIELD || ratio > MAX_YIELD) {
           return problem(c, 'validation_failed', {
@@ -186,6 +193,7 @@ export function prepRoutes({ db }: RouteDeps) {
         const days = await listPlanDays(db, userId, { from: weekStart, to: weekEnd });
         const foods = await listFoods(db, userId, { includeArchived: true });
         const batches = await newestBatches(db, userId);
+        const allBatches = await listBatches(db, userId);
         const listed = foods.flatMap((food) =>
           food.archivedAt === null && food.keepsDays !== null
             ? [{ id: food.id, name: food.name, keepsDays: food.keepsDays }]
@@ -206,7 +214,8 @@ export function prepRoutes({ db }: RouteDeps) {
             pieceWeightG: food.pieceWeightG,
             energyKcalPer100g: food.energyKcal,
           })),
-          batches,
+          batches: allBatches,
+          newestBatches: batches,
           items: days.flatMap((day) =>
             day.meals.flatMap((meal) =>
               meal.items.flatMap((item) =>
@@ -216,6 +225,7 @@ export function prepRoutes({ db }: RouteDeps) {
                       {
                         date: day.date,
                         foodId: item.foodId,
+                        batchId: item.batchId,
                         plannedGrams: item.plannedGrams,
                         pieceCount: item.pieceCount,
                         cooked: item.cooked,

@@ -365,8 +365,9 @@ incomplete until it is confirmed or locks.
 
 ### F12. Weekly prep
 
-1. Prep screen → the prep plan for the coming week: raw grams per food, from the plan and the current
-   batch yield (S17). It lists the plan's at most two cook days, naming the second when used; planned
+1. Prep screen → the prep plan for the coming week: raw grams per food, from each saved item's batch
+   yield, or the current yield when it has no batch (S17). It lists Sunday's cook before the week and
+   Thursday's second cook when a food keeps for fewer than seven days; planned
    servings fall only on days covered by each food's `keeps_days` (`02` S16–S17).
 2. **Grocery list** → the same, summed per food to buy.
 3. After cooking → **Record batch**: food, raw weight, cooked weight, date → save. Future plan items
@@ -381,6 +382,7 @@ values, marked approximate (PRD empty state).
 | 1 | No plan days generated for next week yet | The client calls `generate` for the week first |
 | 1 | Setup not complete, so nothing can be generated | `No plan to prep from yet`, and `Go to Today` |
 | 3 | Cooked weight greater than raw for a food that loses water | Accepted (rice gains water). A yield outside 0.1 to 10 is refused under the cooked weight as a slip |
+| 3 | Cook date is after the member's local today | Refused under `Cooked on` |
 
 **Abandon:** a batch is saved only on **Save**.
 
