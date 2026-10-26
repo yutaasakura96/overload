@@ -55,6 +55,15 @@ async function ok(response: Promise<{ ok: () => boolean }>) {
   expect((await response).ok()).toBe(true);
 }
 
+async function adjustLunch(page: Page) {
+  const lunch = page
+    .getByRole('region', { name: 'The day', exact: true })
+    .getByRole('button', { name: /^Lunch/ });
+  if ((await lunch.getAttribute('aria-expanded')) !== 'true') await lunch.click();
+  await page.getByRole('button', { name: 'Adjust Lunch' }).click();
+  await expect(page.getByRole('heading', { name: 'Adjust Lunch' })).toBeVisible();
+}
+
 test.use({ serviceWorkers: 'block' });
 
 test.afterAll(() => {
@@ -221,4 +230,110 @@ test('leaves a day incomplete once, and the card does not ask again', async ({ p
   await expect(page.getByRole('region', { name: 'The day’s totals' })).toBeVisible();
   await expect(page.locator('.eod-card')).toHaveCount(0);
   expect((await readDay(page, today)).complete).toBe(false);
+});
+
+test('swap back after saving restores the planned item', async ({ page }) => {
+  const today = todayInZone();
+  const read: {
+    days: {
+      meals: {
+        id: string;
+        label: string;
+        items: {
+          id: string;
+          foodId: string | null;
+          plannedGrams: number | null;
+          actualGrams: number | null;
+        }[];
+      }[];
+    }[];
+  } = await (await page.request.get(`/api/plan-days?from=${today}&to=${today}`)).json();
+  const meal = read.days[0]?.meals.find((each) => each.label === 'Lunch');
+  const planned = meal?.items.find((item) => item.plannedGrams !== null && item.foodId !== null);
+  if (meal === undefined || planned?.foodId === null || planned === undefined) {
+    throw new Error('no planned food for Lunch');
+  }
+  const listed: { items: { id: string; name: string }[] } = await (
+    await page.request.get('/api/foods')
+  ).json();
+  const alternative = listed.items.find(
+    (food) => food.id !== planned.foodId && !meal.items.some((item) => item.foodId === food.id),
+  );
+  if (alternative === undefined) throw new Error('no alternative food');
+  await ok(
+    page.request.post('/api/rotation-groups', {
+      headers,
+      data: { id: randomUUID(), name: 'Lunch swaps', foodIds: [planned.foodId, alternative.id] },
+    }),
+  );
+  await page.goto('/');
+  await adjustLunch(page);
+  const original = listed.items.find((food) => food.id === planned.foodId);
+  if (original === undefined) throw new Error('planned food missing');
+  await page
+    .getByRole('button', { name: `Swap ${original.name} for ${alternative.name}` })
+    .first()
+    .click();
+  await page.getByRole('button', { name: 'Save as eaten, adjusted' }).click();
+  await expect(
+    page.getByText('Saved as eaten, adjusted. It replaces the plan for this meal.'),
+  ).toBeVisible();
+  await adjustLunch(page);
+  await page
+    .getByRole('button', { name: `Swap ${alternative.name} for ${original.name}` })
+    .first()
+    .click();
+  await page.getByRole('button', { name: 'Save as eaten, adjusted' }).click();
+  await expect(
+    page.getByText('Saved as eaten, adjusted. It replaces the plan for this meal.'),
+  ).toBeVisible();
+  const after: typeof read = await (
+    await page.request.get(`/api/plan-days?from=${today}&to=${today}`)
+  ).json();
+  const items = after.days[0]?.meals.find((each) => each.id === meal.id)?.items ?? [];
+  expect(items.find((item) => item.id === planned.id)?.actualGrams).toBeGreaterThan(0);
+  expect(items.some((item) => item.foodId === alternative.id)).toBe(false);
+});
+
+test('shows zero eaten before adjusting a skipped meal', async ({ page }) => {
+  const today = todayInZone();
+  const read: { days: { meals: { id: string; label: string }[] }[] } = await (
+    await page.request.get(`/api/plan-days?from=${today}&to=${today}`)
+  ).json();
+  const meal = read.days[0]?.meals.find((each) => each.label === 'Lunch');
+  if (meal === undefined) throw new Error('no Lunch');
+  await ok(
+    page.request.post(`/api/plan-meals/${meal.id}/confirm`, {
+      headers,
+      data: { status: 'skipped' },
+    }),
+  );
+  await page.goto('/');
+  await adjustLunch(page);
+  await expect(page.locator('.adjust__sum-fig').first()).toContainText('0 →');
+  await expect(page.locator('.adjust__sum-fig').nth(1)).toContainText('0 →');
+});
+
+test('keeps the end-of-day choice open when device storage refuses it', async ({ page }) => {
+  const today = todayInZone();
+  await page.clock.install({ time: new Date(`${today}T22:30:00+09:00`) });
+  await page.goto('/');
+  await page.getByRole('button', { name: /5 meals not confirmed yet/ }).click();
+  await page.evaluate(() => {
+    Object.defineProperty(IDBObjectStore.prototype, 'put', {
+      configurable: true,
+      value: () => {
+        throw new Error('storage refused');
+      },
+    });
+  });
+  await page.getByRole('button', { name: 'Leave day incomplete' }).click();
+  await expect(
+    page.getByText('Couldn’t save this choice on your device. Try again.'),
+  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: '5 meals are not confirmed' })).toBeVisible();
+  await page.getByRole('button', { name: 'Back to Today' }).click();
+  await expect(page.locator('.eod-card')).toHaveCount(1);
+  await page.reload();
+  await expect(page.locator('.eod-card')).toHaveCount(1);
 });

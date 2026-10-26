@@ -163,7 +163,7 @@ function AdjustForm({
   const [saving, setSaving] = useState(false);
   const [problem, setProblem] = useState<ConfirmProblem>();
   const locked = dayLocked(date, today);
-  const before = mealTotals(meal);
+  const before = meal.status === 'skipped' ? { energyKcal: 0, proteinG: 0 } : mealTotals(meal);
   const after = rowTotals(rows);
   const listed = (foods.data ?? []).filter((food) => food.archivedAt === null);
 
@@ -182,26 +182,49 @@ function AdjustForm({
 
   const swap = (row: Row, food: Food) => {
     setRefused(undefined);
-    update(row.key, (each) => {
-      if (each.plannedId !== undefined && food.id === each.original.foodId) {
-        return { ...each, ...each.original, id: each.plannedId };
-      }
-      const pieceWeight = food.pieceWeightG;
-      const grams =
-        pieceWeight === null
-          ? each.grams
-          : Math.max(1, Math.round(each.grams / pieceWeight)) * pieceWeight;
-      return {
-        ...each,
-        id: newId(),
-        foodId: food.id,
-        name: food.name,
-        cooked: food.state === 'cooked',
-        pieceWeight,
-        grams,
-        per100g: valuesOf(food),
-      };
-    });
+    setRows((current) =>
+      current.map((each) => {
+        if (each.key !== row.key) return each;
+        if (each.plannedId !== undefined && food.id === each.original.foodId) {
+          return { ...each, ...each.original, id: each.plannedId };
+        }
+        const planned = meal.items.find(
+          (item) =>
+            item.plannedGrams !== null &&
+            item.actualGrams === 0 &&
+            item.foodId === food.id &&
+            !current.some((other) => other.key !== each.key && other.id === item.id),
+        );
+        if (planned !== undefined) {
+          const original = {
+            foodId: planned.foodId,
+            name: planned.name,
+            cooked: planned.cooked,
+            pieceWeight:
+              planned.pieceCount === null || planned.pieceCount <= 0
+                ? null
+                : (planned.plannedGrams ?? 0) / planned.pieceCount,
+            per100g: planned.per100g,
+          };
+          return { ...each, ...original, original, plannedId: planned.id, id: planned.id };
+        }
+        const pieceWeight = food.pieceWeightG;
+        const grams =
+          pieceWeight === null
+            ? each.grams
+            : Math.max(1, Math.round(each.grams / pieceWeight)) * pieceWeight;
+        return {
+          ...each,
+          id: newId(),
+          foodId: food.id,
+          name: food.name,
+          cooked: food.state === 'cooked',
+          pieceWeight,
+          grams,
+          per100g: valuesOf(food),
+        };
+      }),
+    );
   };
 
   const save = async () => {

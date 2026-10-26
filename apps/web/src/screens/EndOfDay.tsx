@@ -53,6 +53,7 @@ export function EndOfDay({ me, date, navigate }: { me: Me; date: string; navigat
   const online = useOnline();
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<ConfirmProblem>();
+  const [leaveFailed, setLeaveFailed] = useState(false);
   const heading = useRef<HTMLHeadingElement>(null);
   const today = activePlanDay(timeZone, me.profile?.trainingWeekdays ?? [], routines.data ?? []);
   const day = read.data?.days.find((each) => each.date === date);
@@ -71,6 +72,20 @@ export function EndOfDay({ me, date, navigate }: { me: Me; date: string; navigat
       else after();
     } catch (error) {
       setProblem(confirmProblem(error));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const leave = async () => {
+    setBusy(true);
+    setLeaveFailed(false);
+    try {
+      await leaveDayIncomplete(me.user.id, date, today);
+      flashNext(`${dateLabel(date)} is left incomplete. It won’t ask again.`);
+      back();
+    } catch {
+      setLeaveFailed(true);
     } finally {
       setBusy(false);
     }
@@ -162,11 +177,16 @@ export function EndOfDay({ me, date, navigate }: { me: Me; date: string; navigat
           <p className="notice__line">
             If you leave {left.length === 1 ? 'it' : 'them'}, the day is{' '}
             <b className="eod__incomplete">incomplete</b>: it stays out of the maintenance check,
-            and only the unconfirmed meals count nothing as eaten.
+            and the unconfirmed meals count nothing as eaten.
           </p>
         </div>
       )}
       <ConfirmNotice problem={problem} />
+      {leaveFailed && (
+        <Notice tone="error" word="Not saved">
+          Couldn’t save this choice on your device. Try again.
+        </Notice>
+      )}
       <section className="today__section" aria-labelledby="eod-list">
         <h2 id="eod-list" className="section-label">
           Not confirmed
@@ -243,14 +263,7 @@ export function EndOfDay({ me, date, navigate }: { me: Me; date: string; navigat
               type="button"
               className="button button--tertiary eod__leave"
               disabled={busy}
-              onClick={() =>
-                void leaveDayIncomplete(me.user.id, date, today)
-                  .catch(() => undefined)
-                  .then(() => {
-                    flashNext(`${dateLabel(date)} is left incomplete. It won’t ask again.`);
-                    back();
-                  })
-              }
+              onClick={() => void leave()}
             >
               Leave day incomplete
             </button>

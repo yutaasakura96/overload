@@ -115,9 +115,9 @@ export async function leaveDayIncomplete(userId: string, date: string, today: st
   dates.add(date);
   // Kept only while a card could still ask: a day past its 7 days is never asked about.
   const kept = [...dates].filter((each) => addLocalDays(each, KEPT_DAYS) >= today);
+  await deviceStore.setLeftIncomplete(userId, kept);
   left.set(userId, new Set(kept));
   for (const listener of listeners) listener();
-  await deviceStore.setLeftIncomplete(userId, kept);
 }
 
 const subscribe = (listener: () => void) => {

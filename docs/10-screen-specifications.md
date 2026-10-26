@@ -408,8 +408,9 @@ the meal and still lets the day be complete.
     `ADD 100 G` again adding 100 g; `Eaten instead` with `Remove`; by hand, a name and calories are
     required, the macros default to 0, and a refused field takes focus. A food typed by hand reads as
     its calories on the meal, not its weight.
-  - Offline, every action is disabled with `Confirming needs a connection. Nothing is lost: the meal
-    waits as planned.` A confirm that fails says `Not confirmed` (not reached) or `Refused` with why.
+  - Offline, every action is disabled. An unconfirmed meal waits as planned; an already confirmed
+    meal keeps its confirmation until a change saves. A confirm that fails says `Not confirmed` (not
+    reached) or `Refused` with why.
   - The actions are disabled while Today is making the week.
 
 ---
@@ -426,7 +427,7 @@ end-of-day card on Today (§3).
 | --- | --- |
 | App bar | Back chevron, `END OF DAY` over `FRI 16 OCT · 22:05` (or `· YESTERDAY`); right: the data-state slot |
 | Headline | `2` 38px mono/500/`-0.02em`/0.9 in `flag` + `meals are not confirmed` 15px |
-| Consequence | `notice--flag` with the info icon: `If you leave them, the day is incomplete (the word in flag): it stays out of the maintenance check, and nothing is counted as eaten.` |
+| Consequence | `notice--flag` with the info icon: `If you leave them, the day is incomplete (the word in flag): it stays out of the maintenance check, and the unconfirmed meals count nothing as eaten.` |
 | Not confirmed | `NOT CONFIRMED` label, then a card per meal (`line/border`, 12px padding): time 12px mono, name 15px, kcal 12px mono on the right; the foods as rows at 12px; four secondaries, `As planned` (with the check), `Adjust`, `Replaced`, `Skipped` |
 | If you confirm them all | `line/hairline` box: `2,331 / 2,350` `kcal eaten` and `183 / 181` `g protein` at 19px mono over 11px labels; a hairline; `Complete days this phase` with `30 → 31` |
 | Actions | Pinned to the foot over a `line/hairline` top edge on `surface/ground` (§7.3): `Confirm all as planned`, 60px primary with a 20px check; `Leave day incomplete`, 46px tertiary |
