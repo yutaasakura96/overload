@@ -310,8 +310,8 @@ test('shows zero eaten before adjusting a skipped meal', async ({ page }) => {
   );
   await page.goto('/');
   await adjustLunch(page);
-  await expect(page.locator('.adjust__sum-fig').first()).toContainText('0 →');
-  await expect(page.locator('.adjust__sum-fig').nth(1)).toContainText('0 →');
+  await expect(page.locator('.adjust__sum-fig').first()).toHaveText(/^0 →/);
+  await expect(page.locator('.adjust__sum-fig').nth(1)).toHaveText(/^0 →/);
 });
 
 test('keeps the end-of-day choice open when device storage refuses it', async ({ page }) => {
