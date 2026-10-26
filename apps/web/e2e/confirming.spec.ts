@@ -295,6 +295,82 @@ test('swap back after saving restores the planned item', async ({ page }) => {
   expect(items.some((item) => item.foodId === alternative.id)).toBe(false);
 });
 
+test('swapping an eaten food away and back keeps what was stored', async ({ page }) => {
+  const today = todayInZone();
+  type Item = {
+    id: string;
+    foodId: string | null;
+    plannedGrams: number | null;
+    actualGrams: number | null;
+    per100g: { energyKcal: number };
+  };
+  const readLunch = async () => {
+    const read: { days: { meals: { id: string; label: string; items: Item[] }[] }[] } = await (
+      await page.request.get(`/api/plan-days?from=${today}&to=${today}`)
+    ).json();
+    const lunch = read.days[0]?.meals.find((each) => each.label === 'Lunch');
+    if (lunch === undefined) throw new Error('no Lunch');
+    return lunch;
+  };
+  const lunch = await readLunch();
+  const planned = lunch.items.find((item) => item.plannedGrams !== null && item.foodId !== null);
+  if (planned?.foodId === null || planned === undefined) throw new Error('no planned food');
+  const listed: { items: { id: string; name: string; energyKcal: number }[] } = await (
+    await page.request.get('/api/foods')
+  ).json();
+  const [eaten, other] = listed.items.filter(
+    (food) => food.id !== planned.foodId && !lunch.items.some((item) => item.foodId === food.id),
+  );
+  const start = listed.items.find((food) => food.id === planned.foodId);
+  if (eaten === undefined || other === undefined || start === undefined) {
+    throw new Error('not enough foods');
+  }
+  const groups: { items: { id: string; name: string }[] } = await (
+    await page.request.get('/api/rotation-groups')
+  ).json();
+  const foodIds = [planned.foodId, eaten.id, other.id];
+  const group = groups.items.find((each) => each.name === 'Lunch swaps');
+  await ok(
+    group === undefined
+      ? page.request.post('/api/rotation-groups', {
+          headers,
+          data: { id: randomUUID(), name: 'Lunch swaps', foodIds },
+        })
+      : page.request.patch(`/api/rotation-groups/${group.id}`, { headers, data: { foodIds } }),
+  );
+  await page.goto('/');
+  const saved = page.getByText('Saved as eaten, adjusted. It replaces the plan for this meal.');
+  const swap = (from: string, to: string) =>
+    page
+      .getByRole('button', { name: `Swap ${from} for ${to}` })
+      .first()
+      .click();
+
+  // Swap the planned food for F and save: F is stored as eaten, at its values of that moment.
+  await adjustLunch(page);
+  await swap(start.name, eaten.name);
+  await page.getByRole('button', { name: 'Save as eaten, adjusted' }).click();
+  await expect(saved).toBeVisible();
+  const stored = (await readLunch()).items.find((item) => item.foodId === eaten.id);
+  if (stored === undefined) throw new Error('the eaten food was not stored');
+  expect(stored.per100g.energyKcal).toBe(eaten.energyKcal);
+
+  // F is edited afterwards; the stored item must not follow it.
+  const edited = eaten.energyKcal + 100;
+  await ok(page.request.patch(`/api/foods/${eaten.id}`, { headers, data: { energyKcal: edited } }));
+
+  // Swap F to G and back to F, and save: nothing changed, so the snapshot stays.
+  await page.goto('/');
+  await adjustLunch(page);
+  await swap(eaten.name, other.name);
+  await swap(other.name, eaten.name);
+  await page.getByRole('button', { name: 'Save as eaten, adjusted' }).click();
+  await expect(saved).toBeVisible();
+  const after = (await readLunch()).items.find((item) => item.foodId === eaten.id);
+  expect(after?.id).toBe(stored.id);
+  expect(after?.per100g.energyKcal).toBe(eaten.energyKcal);
+});
+
 test('shows zero eaten before adjusting a skipped meal', async ({ page }) => {
   const today = todayInZone();
   const read: { days: { meals: { id: string; label: string }[] }[] } = await (

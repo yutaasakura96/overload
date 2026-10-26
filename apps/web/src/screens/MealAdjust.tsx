@@ -48,7 +48,9 @@ type Row = {
   pieceWeight: number | null;
   grams: number;
   per100g: Values;
-  /** The food the row began with, so swapping back sends the planned item again. */
+  /** The id the row began with: the planned item's, or the eaten item's stored one. */
+  originalId: string;
+  /** The food the row began with, so swapping back sends that item again, not a new one. */
   original: {
     foodId: string | null;
     name: string;
@@ -72,7 +74,15 @@ function rowsOf(meal: PlanMeal): Row[] {
       pieceWeight,
       per100g: item.per100g,
     };
-    return { key: item.id, plannedId: planned, id: item.id, grams, ...food, original: food };
+    return {
+      key: item.id,
+      plannedId: planned,
+      id: item.id,
+      originalId: item.id,
+      grams,
+      ...food,
+      original: food,
+    };
   });
 }
 
@@ -185,8 +195,8 @@ function AdjustForm({
     setRows((current) =>
       current.map((each) => {
         if (each.key !== row.key) return each;
-        if (each.plannedId !== undefined && food.id === each.original.foodId) {
-          return { ...each, ...each.original, id: each.plannedId };
+        if (food.id === each.original.foodId) {
+          return { ...each, ...each.original, id: each.originalId };
         }
         const planned = meal.items.find(
           (item) =>
