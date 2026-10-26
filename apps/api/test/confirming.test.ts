@@ -249,7 +249,8 @@ describe('POST /api/plan-meals/{id}/confirm', () => {
     expect((await send('DELETE', `/api/foods/${foodId}`)).status).toBe(204);
     const repeat = await confirm(send, meal.id, body);
     expect(repeat.status).toBe(200);
-    expect(((await repeat.json()) as Confirmed).items.find((item) => item.id === id)).toEqual(
+    const repeated: Confirmed = await repeat.json();
+    expect(repeated.items.find((item) => item.id === id)).toEqual(
       first.items.find((item) => item.id === id),
     );
     const regrammed = await confirm(send, meal.id, {
@@ -257,7 +258,8 @@ describe('POST /api/plan-meals/{id}/confirm', () => {
       items: [{ id, foodId, actualGrams: 250 }],
     });
     expect(regrammed.status).toBe(200);
-    expect(((await regrammed.json()) as Confirmed).items.find((item) => item.id === id)).toEqual({
+    const regrammedBody: Confirmed = await regrammed.json();
+    expect(regrammedBody.items.find((item) => item.id === id)).toEqual({
       ...first.items.find((item) => item.id === id),
       actualGrams: 250,
     });
