@@ -345,7 +345,7 @@ function ReplaceForm({
             <CheckIcon size={18} color="currentColor" />
             Save as replaced
           </button>
-          {!online && <OfflineLine />}
+          {!online && <OfflineLine confirmed={meal.status !== 'planned'} />}
         </div>
       )}
     </form>

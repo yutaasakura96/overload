@@ -980,7 +980,10 @@ new totals.
 
 - Every confirm removes the items only ever eaten and sets the planned ones back to their plan,
   then writes what the body says, under the plan lock a generation holds. A retry with the same
-  item ids is the same confirmation; an id another meal's item uses is 409 `id_conflict`.
+  item ids and unchanged values keeps the stored name and nutrition snapshot, even after a food
+  edit or archive. Adjust also keeps that snapshot for an unchanged eaten item. A changed item
+  resolves against the current food list; an archived food cannot be newly chosen. An id another
+  meal's item uses is 409 `id_conflict`.
 - `pieceCount` on a planned unit food is stored as `actualGrams` at the planned piece weight;
   `pieceCount` itself keeps the planned count. A swap is the planned item at `actualGrams: 0` and the
   food swapped in. `adjusted` also takes a by-hand item `{ id, name, actualGrams, per100g }`, kept

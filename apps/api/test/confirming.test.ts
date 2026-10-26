@@ -197,6 +197,72 @@ describe('POST /api/plan-meals/{id}/confirm', () => {
     near(back.day.confirmed.energyKcal, once);
   });
 
+  it('keeps an unchanged eaten food snapshot after an edit, including Adjust', async () => {
+    const { send, foods } = await planned('snapshot-edit@example.test');
+    const meal = firstMeal(await readDay(send));
+    const id = randomUUID();
+    const foodId = foods.get('Greek yogurt');
+    const body = { status: 'replaced', items: [{ id, foodId, actualGrams: 200 }] };
+    const first: Confirmed = await (await confirm(send, meal.id, body)).json();
+    const snapshot = first.items.find((item) => item.id === id);
+    expect(snapshot?.name).toBe('Greek yogurt');
+    expect(
+      (await send('PATCH', `/api/foods/${foodId}`, { name: 'New yogurt', energyKcal: 80 })).status,
+    ).toBe(200);
+    const repeat: Confirmed = await (await confirm(send, meal.id, body)).json();
+    expect(repeat.items.find((item) => item.id === id)).toEqual(snapshot);
+    expect(repeat.day.confirmed).toEqual(first.day.confirmed);
+    const plannedItem = meal.items[0];
+    if (plannedItem === undefined) throw new Error('no planned item');
+    const adjusted: Confirmed = await (
+      await confirm(send, meal.id, {
+        status: 'adjusted',
+        items: [
+          { id: plannedItem.id, actualGrams: 0 },
+          { id, foodId, actualGrams: 200 },
+        ],
+      })
+    ).json();
+    expect(adjusted.items.find((item) => item.id === id)).toEqual(snapshot);
+    const changed: Confirmed = await (
+      await confirm(send, meal.id, {
+        status: 'adjusted',
+        items: [
+          { id: plannedItem.id, actualGrams: 0 },
+          { id, foodId, actualGrams: 210 },
+        ],
+      })
+    ).json();
+    expect(changed.items.find((item) => item.id === id)).toMatchObject({
+      name: 'New yogurt',
+      actualGrams: 210,
+      per100g: { energyKcal: 80 },
+    });
+  });
+
+  it('keeps an unchanged eaten food snapshot after archive and refuses a new choice', async () => {
+    const { send, foods } = await planned('snapshot-archive@example.test');
+    const meal = firstMeal(await readDay(send));
+    const id = randomUUID();
+    const foodId = foods.get('Greek yogurt');
+    const body = { status: 'replaced', items: [{ id, foodId, actualGrams: 200 }] };
+    const first: Confirmed = await (await confirm(send, meal.id, body)).json();
+    expect((await send('DELETE', `/api/foods/${foodId}`)).status).toBe(204);
+    const repeat = await confirm(send, meal.id, body);
+    expect(repeat.status).toBe(200);
+    expect(((await repeat.json()) as Confirmed).items.find((item) => item.id === id)).toEqual(
+      first.items.find((item) => item.id === id),
+    );
+    expect(
+      (
+        await confirm(send, meal.id, {
+          status: 'replaced',
+          items: [{ id: randomUUID(), foodId, actualGrams: 200 }],
+        })
+      ).status,
+    ).toBe(422);
+  });
+
   it('adjusts grams, and swaps a food in from the list', async () => {
     const { send, foods } = await planned('adjust@example.test');
     const meal = firstMeal(await readDay(send));

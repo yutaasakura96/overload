@@ -334,7 +334,43 @@ export async function findPlanMeal(db: Queryable, userId: string, mealId: string
     })
     .from(planMealItem)
     .where(and(eq(planMealItem.planMealId, mealId), isNotNull(planMealItem.plannedGrams)));
-  return { ...meal, items };
+  const eaten = await db
+    .select({
+      id: planMealItem.id,
+      foodId: planMealItem.foodId,
+      name: planMealItem.name,
+      actualGrams: planMealItem.actualGrams,
+      cooked: planMealItem.cooked,
+      approximate: planMealItem.approximate,
+      noCookedMatch: planMealItem.noCookedMatch,
+      energyKcal: planMealItem.energyKcalPer100g,
+      proteinG: planMealItem.proteinGPer100g,
+      carbG: planMealItem.carbGPer100g,
+      fatG: planMealItem.fatGPer100g,
+      fiberG: planMealItem.fiberGPer100g,
+    })
+    .from(planMealItem)
+    .where(and(eq(planMealItem.planMealId, mealId), isNull(planMealItem.plannedGrams)));
+  return {
+    ...meal,
+    items,
+    eaten: eaten.map((item) => ({
+      id: item.id,
+      foodId: item.foodId,
+      name: item.name,
+      actualGrams: item.actualGrams ?? 0,
+      cooked: item.cooked,
+      approximate: item.approximate,
+      noCookedMatch: item.noCookedMatch,
+      per100g: {
+        energyKcal: item.energyKcal,
+        proteinG: item.proteinG,
+        carbG: item.carbG,
+        fatG: item.fatG,
+        fiberG: item.fiberG,
+      },
+    })),
+  };
 }
 
 /** The caller's plan day on a date, whole, or undefined when that date has no plan. */

@@ -162,7 +162,7 @@ export function EndOfDay({ me, date, navigate }: { me: Me; date: string; navigat
           <p className="notice__line">
             If you leave {left.length === 1 ? 'it' : 'them'}, the day is{' '}
             <b className="eod__incomplete">incomplete</b>: it stays out of the maintenance check,
-            and nothing is counted as eaten.
+            and only the unconfirmed meals count nothing as eaten.
           </p>
         </div>
       )}
@@ -219,7 +219,7 @@ export function EndOfDay({ me, date, navigate }: { me: Me; date: string; navigat
             )}
           </section>
           <div className="eod__actions">
-            {!online && <OfflineLine />}
+            {!online && <OfflineLine confirmed={false} />}
             <button
               type="button"
               className="button button--primary eod__all"

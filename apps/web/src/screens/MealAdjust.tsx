@@ -359,7 +359,7 @@ function AdjustForm({
           <button type="button" className="button button--tertiary" onClick={onCancel}>
             Cancel
           </button>
-          {!online && <OfflineLine />}
+          {!online && <OfflineLine confirmed={meal.status !== 'planned'} />}
         </div>
       )}
     </>

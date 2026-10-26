@@ -771,7 +771,12 @@ export function planRoutes({ db }: RouteDeps) {
           if (dayLocked(meal.date, await localToday(tx, userId))) {
             return { kind: 'day_locked' } as const;
           }
-          const resolved = resolveConfirmation(body, meal.items, await planFoods(tx, userId));
+          const resolved = resolveConfirmation(
+            body,
+            meal.items,
+            await planFoods(tx, userId),
+            meal.eaten,
+          );
           if (resolved.kind === 'invalid') return resolved;
           const added = resolved.confirmation.added.map((item) => item.id);
           if ((await itemIdsElsewhere(tx, id, added)).length > 0) {

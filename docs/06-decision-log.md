@@ -4175,7 +4175,9 @@ already had what a confirmation writes.
   only ever eaten and sets every planned item back to its plan, then writes the new amounts and
   items, under the plan lock a generation holds. A repeat, a retry or a change of kind therefore
   never adds to what the meal counts. A food eaten instead carries a client-made id; an id already
-  used by another meal's item is 409 `id_conflict`.
+  used by another meal's item is 409 `id_conflict`. An unchanged eaten item keeps its stored name
+  and nutrition snapshot on repeat or Adjust, even after its food is edited or archived. A changed
+  item resolves against the current food list; archived foods cannot be newly chosen.
 - **Undo is `status: "planned"`** on the same endpoint, because the prototype draws `Undo` on a
   confirmed meal and `07` had no way to take a confirmation back. *Rejected:* a separate
   `DELETE /api/plan-meals/{id}/confirmation`, a second route for the same write.
@@ -4204,9 +4206,9 @@ already had what a confirmation writes.
 - **`Complete days this phase`** on screen 4 is read from the phase's plan days in windows of 31,
   and shown once every window has answered. It counts the phase's complete days before this one;
   the maintenance check's own count comes with `#82`.
-- **Offline**, the actions are disabled with the line that confirming needs a connection and the
-  meal waits as planned. Meals are not queued (`06`, offline scope). The data-state slot is
-  unchanged.
+- **Offline**, the actions are disabled with the line that confirming needs a connection. An
+  unconfirmed meal waits as planned; an existing confirmation stays until a change saves. Meals
+  are not queued (`06`, offline scope). The data-state slot is unchanged.
 - **The 7-day lock** is counted in the profile's time zone: a day is confirmable through its date +
   7, and the screens show a locked day read-only.
 

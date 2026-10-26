@@ -59,6 +59,7 @@ export function resolveConfirmation(
   body: { status: ConfirmStatus; items?: ConfirmEntry[] | undefined },
   planned: { id: string; plannedGrams: number | null; pieceCount: number | null }[],
   foods: ConfirmFood[],
+  eaten: EatenItem[] = [],
 ): { kind: 'confirmed'; confirmation: Confirmation } | { kind: 'invalid'; errors: ConfirmError[] } {
   const actual = new Map<string, number>();
   const added: EatenItem[] = [];
@@ -120,6 +121,16 @@ export function resolveConfirmation(
         errors.push({ path: at('foodId'), message: 'A food from the list, or by hand, not both' });
         return;
       }
+      const previous = eaten.find(
+        (each) =>
+          each.id === entry.id &&
+          each.foodId === entry.foodId &&
+          each.actualGrams === entry.actualGrams,
+      );
+      if (previous !== undefined) {
+        added.push(previous);
+        return;
+      }
       const food = foods.find((each) => each.id === entry.foodId);
       if (food === undefined) {
         errors.push({ path: at('foodId'), message: 'Not on your food list' });
@@ -139,6 +150,22 @@ export function resolveConfirmation(
     }
     if (entry.name === undefined || entry.per100g === undefined) {
       errors.push({ path: at('name'), message: 'A food from the list, or a name and its values' });
+      return;
+    }
+    const previous = eaten.find(
+      (each) =>
+        each.id === entry.id &&
+        each.foodId === null &&
+        each.actualGrams === entry.actualGrams &&
+        each.name === entry.name &&
+        each.per100g.energyKcal === entry.per100g?.energyKcal &&
+        each.per100g.proteinG === entry.per100g?.proteinG &&
+        each.per100g.carbG === entry.per100g?.carbG &&
+        each.per100g.fatG === entry.per100g?.fatG &&
+        each.per100g.fiberG === entry.per100g?.fiberG,
+    );
+    if (previous !== undefined) {
+      added.push(previous);
       return;
     }
     added.push({

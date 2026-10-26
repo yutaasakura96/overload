@@ -316,7 +316,7 @@ function MealCard({
                 {said}
               </button>
             </div>
-            {actions.offline && <OfflineLine />}
+            {actions.offline && <OfflineLine confirmed={false} />}
           </div>
         )}
         {open && actions !== undefined && confirmed && (
@@ -351,7 +351,7 @@ function MealCard({
               Undo
               {said}
             </button>
-            {actions.offline && <OfflineLine />}
+            {actions.offline && <OfflineLine confirmed />}
           </div>
         )}
       </article>
@@ -392,11 +392,13 @@ export function ConfirmNotice({ problem }: { problem: ConfirmProblem | undefined
 }
 
 /** Under disabled actions: why, and that nothing is lost (docs/10 §3, Offline). */
-export function OfflineLine() {
+export function OfflineLine({ confirmed = false }: { confirmed?: boolean }) {
   return (
     <p className="meal__offline">
       <InfoIcon size={12} color="var(--text-secondary)" />
-      Confirming needs a connection. Nothing is lost: the meal waits as planned.
+      {confirmed
+        ? 'Changing this meal needs a connection. Its confirmation stays until the change saves.'
+        : 'Confirming needs a connection. Nothing is lost: the meal waits as planned.'}
     </p>
   );
 }
