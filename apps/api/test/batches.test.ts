@@ -380,6 +380,7 @@ describe('the prep plan', () => {
       [addDays(weekStart, 3), 'second'],
     ]);
     const [first, second] = prep.cookDays;
+    expect(first?.covers).toEqual([0, 1, 2].map((n) => addDays(weekStart, n)));
     expect(second?.covers).toEqual([3, 4, 5, 6].map((n) => addDays(weekStart, n)));
     expect(second?.because).toEqual({ foodId: chicken, name: 'Chicken breast', keepsDays: 4 });
 

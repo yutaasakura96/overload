@@ -176,12 +176,9 @@ export function Prep({ me, navigate }: { me: Me; navigate: Navigate }) {
           {cookDays.length === 0 && (
             <section className="empty-state" aria-labelledby="no-cooks">
               <h2 id="no-cooks" className="empty-state__title">
-                Nothing to batch-cook this week
+                Nothing to cook this week
               </h2>
-              <p className="empty-state__body">
-                A food you cook ahead is listed here once it says how many days a cooked batch
-                keeps. Set that on the food.
-              </p>
+              <p className="empty-state__body">The week’s plan has no foods in it yet.</p>
             </section>
           )}
 

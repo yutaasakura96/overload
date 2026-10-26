@@ -443,16 +443,18 @@ because the data says it differently:
   ticking it does not open `Record a batch`. `Not batch-cooked` shows only when a batch-cooked food
   cannot be covered on some days, one line each: `White rice won’t keep until the next cook; Sunday
   uses other foods.`
-- `Covers` and a row's `For` list the days the cook actually serves (`Covers Monday, Tuesday and
-  Wednesday.`, `For Mon 19, Tue 20 and Wed 21`), not a range, since a short-keeping batch can skip
-  days.
+- `Covers` lists the days the cook day's batch-cooked foods serve, so a food with no shelf life on
+  the first cook day does not widen it and the two cook days never overlap; only a cook day with
+  no batch-cooked food lists its other foods' days. A row's `For` lists the days that cook serves
+  (`Covers Monday, Tuesday and Wednesday.`, `For Mon 19, Tue 20 and Wed 21`), not a range, since a
+  short-keeping batch can skip days.
 - `Record a batch` refuses a food stored cooked under `Food`: `Batches need a food with raw
   values.`
 - The footnote is `Plan made Mon 26 Oct` / `7 days · 2 cook days`.
 - `Record a batch` has no `FROM THE PLAN` note over the raw weight: at 390px it pushed the two
   weights out of line, and the app bar already says `FROM THE PREP PLAN`. `Cooked on` goes up to
   today. The batches list has no delete; the API has one (`07` §4).
-- Empty states: `No plan to prep from yet` (setup not done), `Nothing to batch-cook this week`, `Nothing
+- Empty states: `No plan to prep from yet` (setup not done), `Nothing to cook this week` (the week's plan has no foods), `Nothing
   to buy`, and on Batches `No batch-cooked foods`.
 
 ### Prep (S17, Q8)
