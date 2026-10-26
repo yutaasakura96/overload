@@ -446,7 +446,8 @@ end-of-day card on Today (§3).
   `Skipped` confirm in place and focus the headline; `Adjust` and `Replaced` open their screens and
   come back here. `Complete days this phase` is shown when the day belongs to the open phase, from
   the phase's plan days. A day past its 7 days is read-only: its meals without actions and no foot.
-  The foot clears the home indicator. Reached with no plan, it says so.
+  The foot clears the home indicator. Reached with no plan, it says so. If the device refuses to
+  store `Leave day incomplete`, the screen stays open with `Not saved` and asks to try again.
 
 ---
 
