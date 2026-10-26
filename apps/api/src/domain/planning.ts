@@ -53,6 +53,13 @@ export function datesBetween(from: string, to: string): string[] {
   return dates;
 }
 
+/** How many days after its date a plan day can still be confirmed (docs/09 F11). */
+export const CONFIRMABLE_DAYS = 7;
+
+/** A plan day is read-only once `today` is more than 7 days after its date, both local dates. */
+export const dayLocked = (date: string, today: string) =>
+  Date.parse(`${today}T00:00:00Z`) - Date.parse(`${date}T00:00:00Z`) > CONFIRMABLE_DAYS * DAY_MS;
+
 export type PlanningFood = {
   id: string;
   name: string;

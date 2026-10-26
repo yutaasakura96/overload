@@ -14,18 +14,30 @@ import {
   type GoalPhase,
 } from '../db/goal-phases.js';
 import {
+  confirmAllAsPlanned,
   confirmedDates,
+  findPlanDay,
+  findPlanMeal,
+  itemIdsElsewhere,
   listPlanDays,
   planFoods,
   replacePlanDays,
   withPlanLock,
+  writeConfirmation,
   type StoredPlanDay,
 } from '../db/plans.js';
 import { getProfile } from '../db/profile.js';
 import { localDateIn } from '../db/training.js';
 import { listWeighIns } from '../db/weigh-ins.js';
+import { resolveConfirmation } from '../domain/confirming.js';
 import { PROTEIN_PER_MEAL_G_PER_KG, recommendMeals } from '../domain/meals.js';
-import { datesBetween, dayTotals, missingSetup, planDates } from '../domain/planning.js';
+import {
+  datesBetween,
+  dayLocked,
+  dayTotals,
+  missingSetup,
+  planDates,
+} from '../domain/planning.js';
 import {
   ageOn,
   bodyweightForTargets,
@@ -52,13 +64,18 @@ import {
   LocalTime,
   MealRecommendation,
   PhaseDefaults,
+  PlanDateParam,
+  PlanDay,
   PlanDays,
+  PlanMealConfirm,
+  PlanMealConfirmed,
   PlanRange,
   jsonBody,
 } from './schemas.js';
 
-// S14 to S16 (docs/07 §4, Phase, routine and targets; Plan days): the goal phase and its defaults
-// with their sources, the day's routine and its meals, the targets in force, and the generated plan.
+// S14 to S16 and S18 (docs/07 §4, Phase, routine and targets; Plan days): the goal phase and its
+// defaults with their sources, the day's routine and its meals, the targets in force, the generated
+// plan, and confirming its meals.
 // Every figure here is the domain's (docs/03 §8.2); this file reads its inputs and writes its days.
 // A food, weight or target value never reaches a log or a problem detail (docs/03 §7).
 
@@ -403,6 +420,52 @@ const generatePlanDays = createRoute({
   },
 });
 
+const confirmMeal = createRoute({
+  method: 'post',
+  path: '/api/plan-meals/{id}/confirm',
+  summary:
+    'Confirm one meal: as planned, adjusted, replaced or skipped. A repeat replaces the earlier confirmation',
+  request: { params: IdParam, body: jsonBody(PlanMealConfirm) },
+  responses: {
+    200: {
+      description: 'The meal, with its day’s new totals',
+      headers: accountHeaders,
+      content: { 'application/json': { schema: PlanMealConfirmed } },
+    },
+    400: problemResponse('A malformed id'),
+    401: problemResponse('No session'),
+    404: problemResponse('No such meal of the caller’s'),
+    409: problemResponse(
+      '`day_locked`: more than 7 days after the day’s date; `id_conflict`: an item id in use elsewhere',
+    ),
+    422: problemResponse('`validation_failed`: an item that is not the meal’s, or not on the list'),
+  },
+});
+
+const confirmAll = createRoute({
+  method: 'post',
+  path: '/api/plan-days/{date}/confirm-all',
+  summary: 'The end-of-day check: every meal of the day still planned is eaten as planned',
+  request: { params: PlanDateParam },
+  responses: {
+    200: {
+      description: 'The day',
+      headers: accountHeaders,
+      content: { 'application/json': { schema: PlanDay } },
+    },
+    400: problemResponse('A malformed date'),
+    401: problemResponse('No session'),
+    404: problemResponse('No plan on that date'),
+    409: problemResponse('`day_locked`: more than 7 days after the date'),
+  },
+});
+
+/** Today in the caller's time zone, the day boundary the 7-day lock is counted in (docs/09 F11). */
+async function localToday(db: Queryable, userId: string) {
+  const profile = await getProfile(db, userId);
+  return localDateIn(profile?.timezone ?? 'Asia/Tokyo')(new Date());
+}
+
 async function readRange(db: Database, userId: string, range: { from: string; to: string }) {
   const days = await listPlanDays(db, userId, range);
   const planned = new Set(days.map((day) => day.date));
@@ -699,6 +762,64 @@ export function planRoutes({ db }: RouteDeps) {
         });
         if (missing !== undefined) return problem(c, 'setup_incomplete', { missing });
         return c.json(await readRange(db, userId, range), 200);
+      },
+    }),
+    defineOpenAPIRoute<typeof confirmMeal, AppEnv>({
+      route: confirmMeal,
+      handler: async (c) => {
+        const userId = c.get('user').id;
+        const { id } = c.req.valid('param');
+        const body = c.req.valid('json');
+        // Under the plan lock, so a generation never remakes the day between the read and the write.
+        const result = await withPlanLock(db, userId, async (tx) => {
+          const meal = await findPlanMeal(tx, userId, id);
+          if (meal === undefined) return { kind: 'not_found' } as const;
+          if (dayLocked(meal.date, await localToday(tx, userId))) {
+            return { kind: 'day_locked' } as const;
+          }
+          const resolved = resolveConfirmation(body, meal.items, await planFoods(tx, userId));
+          if (resolved.kind === 'invalid') return resolved;
+          const added = resolved.confirmation.added.map((item) => item.id);
+          if ((await itemIdsElsewhere(tx, id, added)).length > 0) {
+            return { kind: 'id_conflict' } as const;
+          }
+          await writeConfirmation(tx, userId, id, resolved.confirmation);
+          return { kind: 'confirmed', date: meal.date } as const;
+        });
+        if (result.kind === 'invalid') {
+          return problem(c, 'validation_failed', { errors: result.errors });
+        }
+        if (result.kind !== 'confirmed') return problem(c, result.kind);
+        const day = await findPlanDay(db, userId, result.date);
+        const json = day === undefined ? undefined : planDayJson(day);
+        const meal = json?.meals.find((each) => each.id === id);
+        if (json === undefined || meal === undefined) return problem(c, 'not_found');
+        return c.json(
+          {
+            ...meal,
+            day: { date: json.date, complete: json.complete, confirmed: json.confirmed },
+          },
+          200,
+        );
+      },
+    }),
+    defineOpenAPIRoute<typeof confirmAll, AppEnv>({
+      route: confirmAll,
+      handler: async (c) => {
+        const userId = c.get('user').id;
+        const { date } = c.req.valid('param');
+        const result = await withPlanLock(db, userId, async (tx) => {
+          if ((await findPlanDay(tx, userId, date)) === undefined) {
+            return { kind: 'not_found' } as const;
+          }
+          if (dayLocked(date, await localToday(tx, userId))) return { kind: 'day_locked' } as const;
+          await confirmAllAsPlanned(tx, userId, date);
+          return { kind: 'confirmed' } as const;
+        });
+        if (result.kind !== 'confirmed') return problem(c, result.kind);
+        const day = await findPlanDay(db, userId, date);
+        if (day === undefined) return problem(c, 'not_found');
+        return c.json(planDayJson(day), 200);
       },
     }),
   ] as const;

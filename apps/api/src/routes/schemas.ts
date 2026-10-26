@@ -1580,6 +1580,63 @@ export const PrepPlan = z
   })
   .openapi('PrepPlan', { description: 'The week’s prep plan and grocery list, derived (S17).' });
 
+const EatenGrams = z.number().min(0).max(5000).multipleOf(0.01).openapi({ example: 200 });
+
+const ConfirmEntry = z
+  .object({
+    id: Uuid.openapi({
+      description:
+        'A planned item of the meal, to change its amount, or a new id for a food eaten that was not planned.',
+    }),
+    foodId: Uuid.optional().openapi({ description: 'A food from the list, eaten instead.' }),
+    name: z.string().trim().min(1).max(120).optional().openapi({
+      description: 'A food typed by hand, with `per100g`.',
+    }),
+    actualGrams: EatenGrams.optional(),
+    pieceCount: z.number().min(0).max(100).multipleOf(0.01).optional().openapi({
+      description: 'Whole pieces of a planned unit food, turned into grams at its piece weight.',
+    }),
+    per100g: z.object({ ...Per100gFields }).optional(),
+  })
+  .openapi('PlanMealConfirmItem');
+
+export const PlanMealConfirm = z
+  .discriminatedUnion('status', [
+    z.object({ status: z.enum(['as_planned', 'skipped', 'planned']) }),
+    z.object({
+      status: z.literal('adjusted'),
+      items: z.array(ConfirmEntry).min(1).max(40).openapi({
+        description:
+          'Planned items with `actualGrams` or `pieceCount`, and foods swapped in `{ id, foodId, actualGrams }`. A planned item left out keeps its planned amount.',
+      }),
+    }),
+    z.object({
+      status: z.literal('replaced'),
+      items: z.array(ConfirmEntry).min(1).max(40).openapi({
+        description:
+          'Every item eaten instead: `{ id, foodId, actualGrams }` from the list, or `{ id, name, actualGrams, per100g }` by hand. The planned items stay at 0 g.',
+      }),
+    }),
+  ])
+  .openapi('PlanMealConfirm', {
+    description:
+      'Replaces any earlier confirmation of the meal. `planned` takes the confirmation back.',
+  });
+
+export const PlanMealConfirmed = PlanMeal.extend({
+  day: z.object({
+    date: LocalDate,
+    complete: z.boolean(),
+    confirmed: PlanPer100g,
+  }),
+}).openapi('PlanMealConfirmed', {
+  description: 'The meal as `GET /api/plan-days` returns it, with its day’s new totals.',
+});
+
+export const PlanDateParam = z.object({
+  date: LocalDate.openapi({ param: { name: 'date', in: 'path' } }),
+});
+
 // The export (S10, docs/07 §2): one section a call, each item as the API's normal read returns it.
 
 export const EXPORT_SECTIONS = [
