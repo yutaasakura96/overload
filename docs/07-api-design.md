@@ -800,13 +800,13 @@ A stored food is always per 100 g. The response has no `basis`.
 | GET | `/api/batches` | M | Every batch, newest `cookedOn` first, each with its derived `yield` | 200 | 401 |
 | GET | `/api/foods/{id}/batches` | M | Batches of one food, newest `cookedOn` first, each with its derived `yield` | 200 | 401, 404 |
 | POST | `/api/batches` | M | Record a batch `{ id, foodId, rawWeightG, cookedWeightG, cookedOn, note }` | 201 / 200 | 401, 409, 422 |
-| DELETE | `/api/batches/{id}` | M | Delete. Plan items that used it keep their macro snapshot | 204 | 401 |
+| DELETE | `/api/batches/{id}` | M | Delete. Plan items that used it keep their macro snapshot and `yieldRatio` | 204 | 401 |
 
 **Batches, as built 2026-10-26** (`#81`, `06`). A batch is `{ id, foodId, rawWeightG, cookedWeightG,
 cookedOn, note, yield }`, `yield` to three decimals. `POST` refuses with `validation_failed` a weight
 of 0, a yield outside 0.1 to 10 (on `cookedWeightG`), a `cookedOn` after the member's local today,
-and a food not on the caller's list (on
-`foodId`); a repeat with the same content is 200, other content under the id 409 `id_conflict`.
+a food not on the caller's list, and a food stored cooked (`Batches need a food with raw values`),
+both on `foodId`; a repeat with the same content is 200, other content under the id 409 `id_conflict`.
 Cooked above raw is accepted. `Keeps for` is the food's `keepsDays`, changed with
 `PATCH /api/foods/{id}`. Plans generated after a batch use its yield; days already made keep theirs.
 
@@ -874,7 +874,8 @@ puts the "provisional" label on screen (S14).
   missing, or the prep screen's week is, and again
   after a food, a rotation group or a batch changes, or a save on About you, Goal phase or Your day.
   The daily job is not built. Confirming (below) is slice 5 (`#80`); `estimateId` is not in the item
-  yet, and `cooked` is. `batchId` is, since slice 6 (`#81`, 2026-10-26).
+  yet, and `cooked` is. `batchId` and `yieldRatio`, the yield the item was planned with, are, since slice 6 (`#81`,
+  2026-10-26).
 
 ```json
 GET /api/plan-days?from=2026-11-11&to=2026-11-11  →  200
@@ -891,10 +892,10 @@ GET /api/plan-days?from=2026-11-11&to=2026-11-11  →  200
       "evidence": [ { "claim": "carbohydrate around training", "strength": "moderate", "sourceKey": "carb_timing_training" } ],
       "items": [
         { "id": "0192i071-…", "foodId": "0192f001-…", "name": "鶏むね肉（皮なし、加熱後）", "plannedGrams": 180, "actualGrams": null,
-          "pieceCount": null, "cooked": true, "batchId": "0192b004-…", "approximate": false, "estimateId": null,
+          "pieceCount": null, "cooked": true, "batchId": "0192b004-…", "yieldRatio": 0.75, "approximate": false, "estimateId": null,
           "per100g": { "energyKcal": 140.0, "proteinG": 31.1, "carbG": 0, "fatG": 2.0, "fiberG": 0 } },
         { "id": "0192i072-…", "foodId": "0192f003-…", "name": "白米（炊飯後）", "plannedGrams": 250, "actualGrams": null,
-          "pieceCount": null, "cooked": true, "batchId": null, "approximate": false, "estimateId": null,
+          "pieceCount": null, "cooked": true, "batchId": null, "yieldRatio": null, "approximate": false, "estimateId": null,
           "per100g": { "energyKcal": 156.0, "proteinG": 2.5, "carbG": 37.1, "fatG": 0.3, "fiberG": 1.5 } }
       ] } ]
   } ] }
@@ -913,18 +914,20 @@ GET /api/plan-days?from=2026-11-11&to=2026-11-11  →  200
 
 **The prep plan, as built 2026-10-26** (`#81`, `06`). `weekStart` must be a Monday, else 422
 `validation_failed`. Derived on every read from the week's plan days, the food list and each food's
-newest batch (`03` §8.2, cook days):
+newest batch (`03` §8.2, cook days). `covers` and each cook's `dates` are the plan days it actually
+serves, not a range:
 
 ```json
 GET /api/prep-plan?weekStart=2026-10-19  →  200
 { "weekStart": "2026-10-19", "missing": [], "generatedAt": "2026-10-16T09:12:00.000Z",
   "cookDays": [
-    { "date": "2026-10-18", "which": "first", "coversFrom": "2026-10-19", "coversTo": "2026-10-21",
+    { "date": "2026-10-18", "which": "first", "covers": ["2026-10-19", "2026-10-20", "2026-10-21"],
       "because": null,
       "cooks": [ { "foodId": "0192f001-…", "name": "Chicken breast, skinless", "keepsDays": 4,
                    "rawGrams": 1400, "cookedGrams": 1050, "approximate": false,
-                   "from": "2026-10-19", "to": "2026-10-21" } ] },
-    { "date": "2026-10-22", "which": "second", "coversFrom": "2026-10-22", "coversTo": "2026-10-25",
+                   "dates": ["2026-10-19", "2026-10-20", "2026-10-21"] } ] },
+    { "date": "2026-10-22", "which": "second",
+      "covers": ["2026-10-22", "2026-10-23", "2026-10-24", "2026-10-25"],
       "because": { "foodId": "0192f001-…", "name": "Chicken breast, skinless", "keepsDays": 4 },
       "cooks": [ { "foodId": "0192f001-…", "rawGrams": 1850, "cookedGrams": 1390, "…": "…" } ] } ],
   "foods": [ { "foodId": "0192f001-…", "name": "Chicken breast, skinless", "keepsDays": 4,
@@ -939,13 +942,17 @@ GET /api/prep-plan?weekStart=2026-10-19  →  200
       "quantity": 21, "cooks": [], "approximate": false } ] }
 ```
 
-- A cook's `rawGrams` sums each saved item's cooked grams over its linked batch yield, or the newest
-  yield when the item has no batch, then rounds to 5 g. With no batch, it is
+- A cook's `rawGrams` sums each saved item's cooked grams over the `yieldRatio` it was planned with,
+  so a newer or deleted batch changes nothing saved, then rounds to 5 g. With no yield, it is
   worked out from the food table's cooked values and `approximate`; a food stored cooked has none
   (`null`), and one planned raw has no `cookedGrams`.
 - `weighDue` is "Weigh this week's batch" (`09` F12): no batch, or the newest cooked more than 7
   days ago, by the profile's time zone.
-- A food with no `keepsDays` is never split: one `week` line, in pieces when it is counted in them.
+- A food with no `keepsDays`, or one stored cooked, is never split: one cook on the first cook day
+  for the whole week, with `keepsDays: null`, and one `week` grocery line, in pieces when it is
+  counted in them.
+- A food keeping fewer days than the week is two cooks, Sunday and Thursday, even when the Sunday
+  batch serves only Monday; the days neither keeps for are its `uncovered` dates.
 
 **Confirming a meal.** The body depends on `status`:
 

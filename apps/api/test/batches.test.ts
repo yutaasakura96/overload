@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { localDateIn } from '../src/db/training';
+import { planFoods } from '../src/db/plans';
 import { sender } from './account-fixture';
 import { useTestApp } from './harness';
 
@@ -17,6 +18,7 @@ type Item = {
   approximate: boolean;
   noCookedMatch: boolean;
   batchId: string | null;
+  yieldRatio: number | null;
   per100g: { energyKcal: number; proteinG: number };
 };
 type Day = { date: string; meals: { items: Item[] }[] };
@@ -25,8 +27,7 @@ type Cook = {
   rawGrams: number | null;
   cookedGrams: number | null;
   approximate: boolean;
-  from: string;
-  to: string;
+  dates: string[];
 };
 type Prep = {
   weekStart: string;
@@ -35,8 +36,7 @@ type Prep = {
   cookDays: {
     date: string;
     which: string;
-    coversFrom: string;
-    coversTo: string;
+    covers: string[];
     because: { foodId: string; keepsDays: number } | null;
     cooks: Cook[];
   }[];
@@ -250,6 +250,28 @@ describe('batches', () => {
     expect((await res.json()).errors).toEqual([{ path: 'cookedOn', message: 'A day up to today' }]);
   });
 
+  it('refuses a batch for a food whose values are cooked', async () => {
+    const { send, user } = await setUp('batch-cooked-food@example.test');
+    const cooked = await addFood(send, {
+      name: 'Cooked rice',
+      state: 'cooked',
+      keepsDays: 3,
+      ...per100(156, 2.5, 37.1, 0.3),
+    });
+    const res = await send('POST', '/api/batches', batch(cooked));
+    expect(res.status).toBe(422);
+    expect((await res.json()).errors).toEqual([
+      { path: 'foodId', message: 'Batches need a food with raw values' },
+    ]);
+    expect((await planFoods(t.db, user.id)).find((food) => food.id === cooked)).toMatchObject({
+      cooked: true,
+      keepsDays: null,
+      batchId: null,
+      yieldRatio: null,
+      per100g: { energyKcal: 156 },
+    });
+  });
+
   it('keeps the saved batch yield in prep after a newer batch is recorded', async () => {
     const { send, chicken } = await setUp('prep-saved-yield@example.test');
     const first = batch(chicken, { cookedOn: addDays(today(), -1) });
@@ -269,14 +291,17 @@ describe('batches', () => {
     expect(prep.grocery.find((item) => item.foodId === chicken)?.quantity).toBe(
       cooks.reduce((sum, cook) => sum + (cook.rawGrams ?? 0), 0),
     );
-    expect(
-      cooks.some(
-        (cook) =>
-          cook.rawGrams !== null &&
-          cook.cookedGrams !== null &&
-          Math.abs(cook.rawGrams - toStep(cook.cookedGrams / 0.75)) <= 5,
-      ),
-    ).toBe(true);
+    expect(cooks.every((cook) => cook.rawGrams === toStep((cook.cookedGrams ?? 0) / 0.75))).toBe(
+      true,
+    );
+    expect((await send('DELETE', `/api/batches/${first.id}`)).status).toBe(204);
+    const kept = itemsOf(await readDays(send, weekStart, addDays(weekStart, 6)), chicken);
+    expect(kept.every((item) => item.batchId === null && item.yieldRatio === 0.75)).toBe(true);
+    const afterDelete = await prepFor(send, weekStart);
+    expect(afterDelete.cookDays.map((day) => day.cooks)).toEqual(
+      prep.cookDays.map((day) => day.cooks),
+    );
+    expect(afterDelete.grocery).toEqual(prep.grocery);
   });
 
   it('gives plans made later the new yield, while days already made keep their snapshot', async () => {
@@ -287,7 +312,12 @@ describe('batches', () => {
     const before = itemsOf(await generate(send, from, to), chicken);
     expect(before.length).toBeGreaterThan(0);
     for (const item of before) {
-      expect(item).toMatchObject({ cooked: false, noCookedMatch: true, batchId: null });
+      expect(item).toMatchObject({
+        cooked: false,
+        noCookedMatch: true,
+        batchId: null,
+        yieldRatio: null,
+      });
       expect(item.per100g.energyKcal).toBe(105);
     }
 
@@ -304,6 +334,7 @@ describe('batches', () => {
         approximate: false,
         noCookedMatch: false,
         batchId: recorded.id,
+        yieldRatio: 0.75,
       });
       // 105 kcal raw at a yield of 0.75: 140 kcal per 100 g cooked.
       expect(item.per100g.energyKcal).toBe(140);
@@ -313,8 +344,8 @@ describe('batches', () => {
     // Deleting the batch leaves the values the days were planned with.
     expect((await send('DELETE', `/api/batches/${recorded.id}`)).status).toBe(204);
     const kept = itemsOf(await readDays(send, from, to), chicken);
-    expect(kept.map((item) => [item.batchId, item.per100g.energyKcal])).toEqual(
-      after.map(() => [null, 140]),
+    expect(kept.map((item) => [item.batchId, item.yieldRatio, item.per100g.energyKcal])).toEqual(
+      after.map(() => [null, 0.75, 140]),
     );
   });
 });
@@ -349,7 +380,7 @@ describe('the prep plan', () => {
       [addDays(weekStart, 3), 'second'],
     ]);
     const [first, second] = prep.cookDays;
-    expect(first?.coversTo).toBe(addDays(weekStart, 2));
+    expect(second?.covers).toEqual([3, 4, 5, 6].map((n) => addDays(weekStart, n)));
     expect(second?.because).toEqual({ foodId: chicken, name: 'Chicken breast', keepsDays: 4 });
 
     // Each cook's raw grams are its days' cooked grams over the yield, to 5 g.
@@ -362,18 +393,17 @@ describe('the prep plan', () => {
     const secondDays = [3, 4, 5, 6].map((n) => addDays(weekStart, n));
     const firstRaw = toStep(cookedOn(firstDays) / 0.75);
     const secondRaw = toStep(cookedOn(secondDays) / 0.75);
-    expect(first?.cooks).toEqual([
+    expect(first?.cooks.find((cook) => cook.foodId === chicken)).toEqual(
       expect.objectContaining({
         foodId: chicken,
         rawGrams: firstRaw,
         cookedGrams: cookedOn(firstDays),
         approximate: false,
-        from: weekStart,
-        to: addDays(weekStart, 2),
+        dates: firstDays,
       }),
-    ]);
+    );
     expect(second?.cooks).toEqual([
-      expect.objectContaining({ foodId: chicken, rawGrams: secondRaw, to: addDays(weekStart, 6) }),
+      expect.objectContaining({ foodId: chicken, rawGrams: secondRaw, dates: secondDays }),
     ]);
     expect(prep.grocery.find((item) => item.foodId === chicken)).toEqual(
       expect.objectContaining({

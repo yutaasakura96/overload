@@ -31,6 +31,7 @@ const per100g = (
 const FOODS = [
   { name: 'Chicken breast, skinless', state: 'raw', keepsDays: 4, ...per100g(105, 23.3, 0.1, 1.9) },
   { name: 'Rolled oats', state: 'raw', ...per100g(350, 13.7, 69.1, 5.7, 9.4) },
+  { name: 'Cooked rice', state: 'cooked', keepsDays: 3, ...per100g(156, 2.5, 37.1, 0.3) },
   { name: 'Olive oil', state: 'raw', ...per100g(894, 0, 0, 100) },
 ];
 
@@ -117,16 +118,14 @@ test('records a batch, reads the prep plan’s second cook day and the grocery l
   await expect(page.getByRole('heading', { name: /First cook day/ })).toBeVisible();
   await expect(page.getByRole('heading', { name: /Second cook day/ })).toBeVisible();
   await expect(
-    page.getByText(
-      'Chicken breast, skinless keeps 4 days, so Sunday’s batch runs out after Wednesday.',
-      {
-        exact: false,
-      },
-    ),
+    page.getByText('Chicken breast, skinless keeps 4 days; cook again for the rest of the week.', {
+      exact: false,
+    }),
   ).toBeVisible();
   const cooks = page.locator('.cook__row', { hasText: 'Chicken breast, skinless' });
   await expect(cooks).toHaveCount(2);
   await expect(cooks.first()).toContainText('Yield 75% from your batch of');
+  await expect(page.locator('.cook__row', { hasText: 'Rolled oats' })).toHaveCount(1);
   const raws = (await cooks.locator('.cook__raw').allInnerTexts()).map((text) =>
     Number(text.replace(/[^0-9]/g, '')),
   );
@@ -158,4 +157,13 @@ test('records a batch, reads the prep plan’s second cook day and the grocery l
     'aria-pressed',
     'true',
   );
+});
+
+test('refuses a batch for a cooked-state food in the form', async ({ page }) => {
+  await page.goto('/food/batches/new');
+  await page.getByLabel('Food').selectOption({ label: 'Cooked rice' });
+  await page.getByRole('textbox', { name: /Raw weight/ }).fill('100');
+  await page.getByRole('textbox', { name: /Cooked weight/ }).fill('200');
+  await page.getByRole('button', { name: 'Save batch' }).click();
+  await expect(page.getByText('Batches need a food with raw values.')).toBeVisible();
 });

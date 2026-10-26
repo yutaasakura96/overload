@@ -126,7 +126,7 @@ export type PrepFood = {
 export type PrepItem = {
   date: string;
   foodId: string;
-  batchId: string | null;
+  yieldRatio: number | null;
   plannedGrams: number;
   pieceCount: number | null;
   /** The grams are a cooked weight. */
@@ -138,24 +138,20 @@ export type PrepItem = {
 export type Cook = {
   foodId: string;
   name: string;
-  keepsDays: number;
+  keepsDays: number | null;
   /** Raw grams to cook, to 5 g. Null for a food stored cooked with no batch to convert by. */
   rawGrams: number | null;
   /** The cooked grams the plan asks for. Null for a food planned raw with no batch weighed. */
   cookedGrams: number | null;
   /** No batch weighed: the raw grams are worked out from the food table's cooked values. */
   approximate: boolean;
-  /** The first and last plan day this cook feeds. */
-  from: string;
-  to: string;
+  dates: string[];
 };
 
 export type CookDay = {
   date: string;
   which: 'first' | 'second';
-  /** The days of the week this cook day feeds. */
-  coversFrom: string;
-  coversTo: string;
+  covers: string[];
   /** On the second day, the food whose first batch runs out and so makes it needed. */
   because: { foodId: string; name: string; keepsDays: number } | null;
   cooks: Cook[];
@@ -228,9 +224,6 @@ export function prepPlan(input: {
   weekStart: string;
   cookDays: CookDays;
   foods: PrepFood[];
-  /** Saved batches, including those used by earlier plan items. */
-  batches: Batch[];
-  newestBatches: Batch[];
   /** Every planned item on the week's days. */
   items: PrepItem[];
   /** The batch-cooked foods on the list, which the week's cook days are chosen for. */
@@ -240,8 +233,6 @@ export function prepPlan(input: {
   const weekEnd = addDays(weekStart, WEEK_DAYS - 1);
   const week = input.items.filter((item) => item.date >= weekStart && item.date <= weekEnd);
   const foodOf = new Map(input.foods.map((food) => [food.id, food]));
-  const batchOf = new Map(input.batches.map((batch) => [batch.id, batch]));
-  const newestOf = new Map(input.newestBatches.map((batch) => [batch.foodId, batch]));
 
   type Share = { raw: number | null; cooked: number | null; approximate: boolean; date: string };
   const shares = new Map<string, Share[]>();
@@ -249,7 +240,7 @@ export function prepPlan(input: {
   for (const item of week) {
     const food = foodOf.get(item.foodId);
     if (food === undefined) continue;
-    if (food.keepsDays === null) {
+    if (food.keepsDays === null || food.state === 'cooked') {
       const sum = loose.get(food.id) ?? { grams: 0, pieces: 0 };
       sum.grams += item.plannedGrams;
       sum.pieces =
@@ -257,6 +248,11 @@ export function prepPlan(input: {
           ? null
           : sum.pieces + item.pieceCount;
       loose.set(food.id, sum);
+      const key = `first:${food.id}`;
+      shares.set(key, [
+        ...(shares.get(key) ?? []),
+        { ...itemWeights(item, food, item.yieldRatio), date: item.date },
+      ]);
       continue;
     }
     // A day no batch keeps for (a plan made before the food's shelf life was set) is cooked for by
@@ -264,9 +260,7 @@ export function prepPlan(input: {
     const which =
       cookFor(cookDays, food.keepsDays, item.date) ??
       (cookDays.second !== null && item.date >= cookDays.second ? 'second' : 'first');
-    const batch =
-      (item.batchId === null ? undefined : batchOf.get(item.batchId)) ?? newestOf.get(food.id);
-    const weights = itemWeights(item, food, batch === undefined ? null : batchYield(batch));
+    const weights = itemWeights(item, food, item.yieldRatio);
     const key = `${which}:${food.id}`;
     shares.set(key, [...(shares.get(key) ?? []), { ...weights, date: item.date }]);
   }
@@ -276,20 +270,19 @@ export function prepPlan(input: {
       .filter(([key]) => key.startsWith(`${which}:`))
       .flatMap(([key, list]) => {
         const food = foodOf.get(key.slice(which.length + 1));
-        if (food === undefined || food.keepsDays === null) return [];
+        if (food === undefined) return [];
         const raw = sumOrNull(list.map((share) => share.raw));
         const cooked = sumOrNull(list.map((share) => share.cooked));
-        const dates = list.map((share) => share.date).toSorted();
+        const dates = [...new Set(list.map((share) => share.date))].toSorted();
         return [
           {
             foodId: food.id,
             name: food.name,
-            keepsDays: food.keepsDays,
+            keepsDays: food.state === 'raw' ? food.keepsDays : null,
             rawGrams: raw === null ? null : toStep(raw),
             cookedGrams: cooked === null ? null : Math.round(cooked),
             approximate: list.some((share) => share.approximate),
-            from: dates[0] ?? weekStart,
-            to: dates.at(-1) ?? weekStart,
+            dates,
           },
         ];
       })
@@ -302,26 +295,19 @@ export function prepPlan(input: {
     days.push({
       date: cookDays.first,
       which: 'first',
-      coversFrom: weekStart,
-      coversTo:
-        cookDays.second === null || second.length === 0
-          ? weekEnd
-          : addDays(cookDays.second, -1) < weekStart
-            ? weekStart
-            : addDays(cookDays.second, -1),
+      covers: [...new Set(first.flatMap((cook) => cook.dates))].toSorted(),
       because: null,
       cooks: first,
     });
   }
   if (cookDays.second !== null && second.length > 0) {
-    const reason = second.toSorted((a, b) => a.keepsDays - b.keepsDays)[0];
+    const reason = second.toSorted((a, b) => (a.keepsDays ?? 0) - (b.keepsDays ?? 0))[0];
     days.push({
       date: cookDays.second,
       which: 'second',
-      coversFrom: cookDays.second,
-      coversTo: weekEnd,
+      covers: [...new Set(second.flatMap((cook) => cook.dates))].toSorted(),
       because:
-        reason === undefined
+        reason === undefined || reason.keepsDays === null
           ? null
           : { foodId: reason.foodId, name: reason.name, keepsDays: reason.keepsDays },
       cooks: second,
@@ -330,6 +316,7 @@ export function prepPlan(input: {
 
   const cooked = new Map<string, Cook[]>();
   for (const cook of days.flatMap((day) => day.cooks)) {
+    if (cook.keepsDays === null) continue;
     cooked.set(cook.foodId, [...(cooked.get(cook.foodId) ?? []), cook]);
   }
   const forCookDays: GroceryItem[] = [...cooked.values()]

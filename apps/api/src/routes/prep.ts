@@ -167,6 +167,11 @@ export function prepRoutes({ db }: RouteDeps) {
             errors: [{ path: 'foodId', message: 'Not a food on your list' }],
           });
         }
+        if (result.kind === 'cooked_food') {
+          return problem(c, 'validation_failed', {
+            errors: [{ path: 'foodId', message: 'Batches need a food with raw values' }],
+          });
+        }
         return problem(c, result.kind);
       },
     }),
@@ -193,9 +198,8 @@ export function prepRoutes({ db }: RouteDeps) {
         const days = await listPlanDays(db, userId, { from: weekStart, to: weekEnd });
         const foods = await listFoods(db, userId, { includeArchived: true });
         const batches = await newestBatches(db, userId);
-        const allBatches = await listBatches(db, userId);
         const listed = foods.flatMap((food) =>
-          food.archivedAt === null && food.keepsDays !== null
+          food.archivedAt === null && food.state === 'raw' && food.keepsDays !== null
             ? [{ id: food.id, name: food.name, keepsDays: food.keepsDays }]
             : [],
         );
@@ -214,8 +218,6 @@ export function prepRoutes({ db }: RouteDeps) {
             pieceWeightG: food.pieceWeightG,
             energyKcalPer100g: food.energyKcal,
           })),
-          batches: allBatches,
-          newestBatches: batches,
           items: days.flatMap((day) =>
             day.meals.flatMap((meal) =>
               meal.items.flatMap((item) =>
@@ -225,7 +227,7 @@ export function prepRoutes({ db }: RouteDeps) {
                       {
                         date: day.date,
                         foodId: item.foodId,
-                        batchId: item.batchId,
+                        yieldRatio: item.yieldRatio,
                         plannedGrams: item.plannedGrams,
                         pieceCount: item.pieceCount,
                         cooked: item.cooked,

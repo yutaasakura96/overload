@@ -66,6 +66,7 @@ export type CreateBatchResult =
   | { kind: 'created'; batch: Batch }
   | { kind: 'existing'; batch: Batch }
   | { kind: 'id_conflict' }
+  | { kind: 'cooked_food' }
   /** The food is not on the caller's list. */
   | { kind: 'unknown_food' };
 
@@ -80,7 +81,7 @@ export async function createBatch(
 ): Promise<CreateBatchResult> {
   const note = input.note ?? null;
   const [owned] = await db
-    .select({ id: food.id })
+    .select({ id: food.id, state: food.state })
     .from(food)
     .where(and(eq(food.id, input.foodId), eq(food.userId, userId), isNull(food.archivedAt)));
   const [stored] = await db
@@ -88,6 +89,7 @@ export async function createBatch(
     .from(batch)
     .where(eq(batch.id, input.id));
   if (stored === undefined && owned === undefined) return { kind: 'unknown_food' };
+  if (stored === undefined && owned?.state === 'cooked') return { kind: 'cooked_food' };
   if (stored === undefined) {
     const [inserted] = await db
       .insert(batch)

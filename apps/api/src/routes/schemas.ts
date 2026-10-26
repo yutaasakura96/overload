@@ -1392,6 +1392,9 @@ export const PlanItem = z
       description:
         'The batch whose yield gave the cooked values. Null without one, or once it is deleted.',
     }),
+    yieldRatio: z.number().nullable().openapi({
+      description: 'The yield used when this item was planned; kept after batch deletion.',
+    }),
     per100g: PlanPer100g.openapi({ description: 'The food’s values as the plan used them.' }),
   })
   .openapi('PlanItem');
@@ -1493,7 +1496,7 @@ const PrepCook = z
   .object({
     foodId: Uuid,
     name: z.string(),
-    keepsDays: z.int(),
+    keepsDays: z.int().nullable(),
     rawGrams: z.number().nullable().openapi({
       description:
         'Raw grams to cook, to 5 g. Null for a food stored cooked with no batch weighed to convert by.',
@@ -1504,8 +1507,7 @@ const PrepCook = z
     approximate: z.boolean().openapi({
       description: 'No batch weighed: raw grams worked out from the food table’s cooked values.',
     }),
-    from: LocalDate.openapi({ description: 'The first plan day this cook feeds.' }),
-    to: LocalDate.openapi({ description: 'The last plan day this cook feeds.' }),
+    dates: z.array(LocalDate).openapi({ description: 'The plan days this cook feeds.' }),
   })
   .openapi('PrepCook');
 
@@ -1521,8 +1523,7 @@ export const PrepPlan = z
         z.object({
           date: LocalDate,
           which: z.enum(['first', 'second']),
-          coversFrom: LocalDate,
-          coversTo: LocalDate,
+          covers: z.array(LocalDate),
           because: z
             .object({ foodId: Uuid, name: z.string(), keepsDays: z.int() })
             .nullable()

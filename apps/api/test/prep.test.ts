@@ -35,7 +35,7 @@ const daily = (foodId: string, grams: number, extra: Partial<PrepItem> = {}): Pr
   week.map((date) => ({
     date,
     foodId,
-    batchId: null,
+    yieldRatio: null,
     plannedGrams: grams,
     pieceCount: null,
     cooked: true,
@@ -89,8 +89,6 @@ describe('the week and its cook days', () => {
       weekStart: WEEK,
       cookDays,
       foods: [food('rice', { keepsDays })],
-      batches: [],
-      newestBatches: [],
       items: daily('rice', 100).filter((item) => cookFor(cookDays, keepsDays, item.date) !== null),
       listed: [{ id: 'rice', name: 'rice', keepsDays }],
     });
@@ -100,6 +98,10 @@ describe('the week and its cook days', () => {
     ]);
     expect(plan.grocery[0]?.quantity).toBe(keepsDays * 280);
     expect(plan.uncovered[0]?.dates.length).toBe(7 - keepsDays * 2);
+    expect(plan.cookDays.map((day) => day.covers)).toEqual([
+      week.slice(0, keepsDays),
+      week.slice(3, 3 + keepsDays),
+    ]);
   });
 });
 
@@ -129,22 +131,12 @@ describe('the yield (S13)', () => {
 describe('the prep plan and grocery list (S17)', () => {
   const chicken = food('chicken', { name: 'Chicken breast', keepsDays: 4, energyKcalPer100g: 105 });
   const listed = [{ id: 'chicken', name: 'Chicken breast', keepsDays: 4 }];
-  const batch = {
-    id: 'b1',
-    foodId: 'chicken',
-    cookedOn: '2026-10-11',
-    rawWeightG: 1400,
-    cookedWeightG: 1050,
-  };
-
   it('splits a food into two cooks at its keeps_days boundary, and the grocery list sums both', () => {
     const plan = prepPlan({
       weekStart: WEEK,
       cookDays: cookDaysOf(WEEK, [4]),
       foods: [chicken],
-      batches: [batch],
-      newestBatches: [batch],
-      items: daily('chicken', 300),
+      items: daily('chicken', 300, { yieldRatio: 0.75 }),
       listed,
     });
     expect(plan.cookDays.map((day) => [day.date, day.which])).toEqual([
@@ -159,13 +151,12 @@ describe('the prep plan and grocery list (S17)', () => {
         rawGrams: 1200,
         cookedGrams: 900,
         approximate: false,
-        from: '2026-10-19',
-        to: '2026-10-21',
+        dates: week.slice(0, 3),
       }),
     ]);
-    expect(first?.coversTo).toBe('2026-10-21');
+    expect(first?.covers).toEqual(week.slice(0, 3));
     expect(second?.cooks).toEqual([
-      expect.objectContaining({ rawGrams: 1600, cookedGrams: 1200, from: '2026-10-22' }),
+      expect.objectContaining({ rawGrams: 1600, cookedGrams: 1200, dates: week.slice(3) }),
     ]);
     expect(second?.because).toEqual({ foodId: 'chicken', name: 'Chicken breast', keepsDays: 4 });
     expect(plan.grocery).toEqual([
@@ -182,16 +173,13 @@ describe('the prep plan and grocery list (S17)', () => {
   });
 
   it('uses each saved item’s batch yield before summing its cooks and groceries', () => {
-    const newer = { ...batch, id: 'b2', cookedWeightG: 700 };
     const plan = prepPlan({
       weekStart: WEEK,
       cookDays: cookDaysOf(WEEK, [4]),
       foods: [chicken],
-      batches: [batch, newer],
-      newestBatches: [newer],
       items: daily('chicken', 100).map((item, index) => ({
         ...item,
-        batchId: index < 3 ? batch.id : null,
+        yieldRatio: index < 3 ? 0.75 : 0.5,
       })),
       listed,
     });
@@ -204,9 +192,7 @@ describe('the prep plan and grocery list (S17)', () => {
       weekStart: WEEK,
       cookDays: cookDaysOf(WEEK, [8]),
       foods: [{ ...chicken, keepsDays: 8 }],
-      batches: [batch],
-      newestBatches: [batch],
-      items: daily('chicken', 300),
+      items: daily('chicken', 300, { yieldRatio: 0.75 }),
       listed: [{ id: 'chicken', name: 'Chicken breast', keepsDays: 8 }],
     });
     expect(plan.cookDays).toHaveLength(1);
@@ -214,17 +200,15 @@ describe('the prep plan and grocery list (S17)', () => {
     expect(plan.grocery[0]?.cooks).toEqual([2800]);
   });
 
-  it('lists a food with no keeps_days once, for the week, and never splits it', () => {
+  it('cooks foods without keeps_days once on Sunday and lists them for the week', () => {
     const oats = food('oats', { name: 'Rolled oats' });
     const egg = food('egg', { name: 'Egg', pieceWeightG: 55 });
     const plan = prepPlan({
       weekStart: WEEK,
       cookDays: cookDaysOf(WEEK, [4]),
       foods: [chicken, oats, egg],
-      batches: [batch],
-      newestBatches: [batch],
       items: [
-        ...daily('chicken', 300),
+        ...daily('chicken', 300, { yieldRatio: 0.75 }),
         ...daily('oats', 80, { cooked: false }),
         ...daily('egg', 110, { cooked: false, pieceCount: 2 }),
       ],
@@ -232,8 +216,14 @@ describe('the prep plan and grocery list (S17)', () => {
     });
     expect(plan.cookDays.flatMap((day) => day.cooks.map((cook) => cook.foodId))).toEqual([
       'chicken',
+      'egg',
+      'oats',
       'chicken',
     ]);
+    expect(plan.cookDays[0]?.date).toBe('2026-10-18');
+    expect(plan.cookDays[0]?.cooks.find((cook) => cook.foodId === 'oats')).toEqual(
+      expect.objectContaining({ keepsDays: null, rawGrams: 560, dates: week }),
+    );
     expect(plan.grocery.filter((item) => item.section === 'week')).toEqual([
       expect.objectContaining({ foodId: 'egg', unit: 'pieces', quantity: 14, cooks: [] }),
       expect.objectContaining({ foodId: 'oats', unit: 'g', quantity: 560, cooks: [] }),
@@ -245,8 +235,6 @@ describe('the prep plan and grocery list (S17)', () => {
       weekStart: WEEK,
       cookDays: cookDaysOf(WEEK, [4]),
       foods: [chicken],
-      batches: [],
-      newestBatches: [],
       // Planned at MEXT's boiled values, 140 kcal per 100 g, against 105 raw.
       items: daily('chicken', 300),
       listed,
@@ -262,9 +250,7 @@ describe('the prep plan and grocery list (S17)', () => {
       weekStart: WEEK,
       cookDays: cookDaysOf(WEEK, [4, 3]),
       foods: [chicken],
-      batches: [batch],
-      newestBatches: [batch],
-      items: daily('chicken', 300),
+      items: daily('chicken', 300, { yieldRatio: 0.75 }),
       listed: [...listed, { id: 'rice', name: 'White rice', keepsDays: 3 }],
     });
     expect(plan.uncovered).toEqual([
@@ -294,6 +280,7 @@ const planningFood = (
   approximate: false,
   noCookedMatch: false,
   batchId: null,
+  yieldRatio: null,
   ...extra,
 });
 

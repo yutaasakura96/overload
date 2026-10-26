@@ -738,6 +738,7 @@ export const planMealItem = pgTable(
     noCookedMatch: boolean('no_cooked_match').notNull().default(false),
     // The batch whose yield turned the food's raw values into these cooked ones (S13).
     batchId: uuid('batch_id').references(() => batch.id, { onDelete: 'set null' }),
+    yieldRatio: numeric('yield_ratio', { precision: 15, scale: 12, mode: 'number' }),
     energyKcalPer100g: numeric('energy_kcal_per_100g', {
       precision: 7,
       scale: 2,

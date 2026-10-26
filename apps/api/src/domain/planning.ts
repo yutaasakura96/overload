@@ -66,6 +66,7 @@ export type PlanningFood = {
   noCookedMatch: boolean;
   /** The batch whose yield gave the cooked values. */
   batchId: string | null;
+  yieldRatio: number | null;
 };
 
 export type PlanningRoutine = {
@@ -95,6 +96,7 @@ export type PlannedDay = {
       approximate: boolean;
       noCookedMatch: boolean;
       batchId: string | null;
+      yieldRatio: number | null;
       per100g: Per100g;
     }[];
   }[];
@@ -159,6 +161,7 @@ export function planDates(input: {
                 approximate: each.approximate,
                 noCookedMatch: each.noCookedMatch,
                 batchId: each.batchId,
+                yieldRatio: each.yieldRatio,
                 per100g: each.per100g,
               },
             ];

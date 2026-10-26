@@ -1890,6 +1890,13 @@
             "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11",
             "description": "The batch whose yield gave the cooked values. Null without one, or once it is deleted."
           },
+          "yieldRatio": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "The yield used when this item was planned; kept after batch deletion."
+          },
           "per100g": {
             "type": "object",
             "properties": {
@@ -1930,6 +1937,7 @@
           "approximate",
           "noCookedMatch",
           "batchId",
+          "yieldRatio",
           "per100g"
         ]
       },
@@ -4600,15 +4608,13 @@
                     "second"
                   ]
                 },
-                "coversFrom": {
-                  "type": "string",
-                  "format": "date",
-                  "example": "2026-10-16"
-                },
-                "coversTo": {
-                  "type": "string",
-                  "format": "date",
-                  "example": "2026-10-16"
+                "covers": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "format": "date",
+                    "example": "2026-10-16"
+                  }
                 },
                 "because": {
                   "type": [
@@ -4646,8 +4652,7 @@
               "required": [
                 "date",
                 "which",
-                "coversFrom",
-                "coversTo",
+                "covers",
                 "because",
                 "cooks"
               ]
@@ -4812,7 +4817,10 @@
             "type": "string"
           },
           "keepsDays": {
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "rawGrams": {
             "type": [
@@ -4832,17 +4840,14 @@
             "type": "boolean",
             "description": "No batch weighed: raw grams worked out from the food table’s cooked values."
           },
-          "from": {
-            "type": "string",
-            "format": "date",
-            "example": "2026-10-16",
-            "description": "The first plan day this cook feeds."
-          },
-          "to": {
-            "type": "string",
-            "format": "date",
-            "example": "2026-10-16",
-            "description": "The last plan day this cook feeds."
+          "dates": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "date",
+              "example": "2026-10-16"
+            },
+            "description": "The plan days this cook feeds."
           }
         },
         "required": [
@@ -4852,8 +4857,7 @@
           "rawGrams",
           "cookedGrams",
           "approximate",
-          "from",
-          "to"
+          "dates"
         ]
       },
       "GoalPhaseList": {

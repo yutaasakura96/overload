@@ -4263,6 +4263,8 @@ export interface components {
        * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
        */
       batchId: string | null;
+      /** @description The yield used when this item was planned; kept after batch deletion. */
+      yieldRatio: number | null;
       /** @description The food’s values as the plan used them. */
       per100g: {
         energyKcal: number;
@@ -5359,16 +5361,7 @@ export interface components {
         date: string;
         /** @enum {string} */
         which: 'first' | 'second';
-        /**
-         * Format: date
-         * @example 2026-10-16
-         */
-        coversFrom: string;
-        /**
-         * Format: date
-         * @example 2026-10-16
-         */
-        coversTo: string;
+        covers: string[];
         /** @description On the second day: the food whose first batch runs out first. */
         because: {
           /**
@@ -5431,25 +5424,15 @@ export interface components {
        */
       foodId: string;
       name: string;
-      keepsDays: number;
+      keepsDays: number | null;
       /** @description Raw grams to cook, to 5 g. Null for a food stored cooked with no batch weighed to convert by. */
       rawGrams: number | null;
       /** @description The cooked grams the plan asks for. Null for a food planned raw with no batch. */
       cookedGrams: number | null;
       /** @description No batch weighed: raw grams worked out from the food table’s cooked values. */
       approximate: boolean;
-      /**
-       * Format: date
-       * @description The first plan day this cook feeds.
-       * @example 2026-10-16
-       */
-      from: string;
-      /**
-       * Format: date
-       * @description The last plan day this cook feeds.
-       * @example 2026-10-16
-       */
-      to: string;
+      /** @description The plan days this cook feeds. */
+      dates: string[];
     };
     GoalPhaseList: {
       items: components['schemas']['GoalPhase'][];

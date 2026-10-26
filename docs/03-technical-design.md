@@ -348,10 +348,14 @@ Sunday and its first cook day is the Sunday before it; that cook covers Monday o
 `keeps_days` calendar days. When a batch-cooked food on the list keeps for fewer than seven days,
 the second cook is Thursday. The planner offers a batch-cooked food only on days one of the two
 batches keeps for, so a rotation group gives those days another of its foods. The prep plan serves
-each plan day from the first cook while its batch keeps, else from the second, and turns the cooked
-grams back into raw by each saved item's batch yield, or the newest yield when it has no batch,
-to 5 g; with no batch, by the ratio of the food's raw
-calories to the cooked values it was planned at, marked approximate.
+each plan day from the first cook while its batch keeps, else from the second, so a food keeping
+fewer days than the week is two cooks, Sunday and Thursday, each with the days it serves and its
+raw grams; days neither keeps for are named as won't-keep days. It turns the cooked grams back into
+raw by the yield each item was planned with (`plan_meal_item.yield_ratio`, kept when its batch is
+deleted), to 5 g; with no yield, by the ratio of the food's raw calories to the cooked values it
+was planned at, marked approximate. A food with no `keeps_days`, or one stored cooked, is one
+Sunday cook for the week and a `week` grocery line. Batches are for raw foods only: a food stored
+cooked keeps its own values.
 
 ### 8.3 Weight trend and expenditure (S11, S18a, S21, S23), method `weight_trend_balance_v1`
 

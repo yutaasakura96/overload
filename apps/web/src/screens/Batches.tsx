@@ -91,7 +91,7 @@ export function Batches({ me, navigate }: { me: Me; navigate: Navigate }) {
   const batches = useQuery({ ...batchesQuery, enabled: confirmed });
   const note = useEntryNote();
   const today = planToday(me.profile?.timezone ?? deviceTimezone());
-  const listed = batchCooked(foods.data);
+  const listed = batchCooked(foods.data).filter((food) => food.state === 'raw');
   const record = () => navigate('/food/batches/new', { returns: true });
 
   return (
@@ -270,6 +270,9 @@ function BatchForm({
           : [];
     const onDevice = refusedOnDevice([
       ...weights,
+      ...(food?.state === 'cooked'
+        ? ([['foodId', 'Batches need a food with raw values.']] as [string, string][])
+        : []),
       ...(on === '' || on > today
         ? ([['cookedOn', 'A day up to today.']] as [string, string][])
         : []),
@@ -353,6 +356,8 @@ function BatchForm({
             id={foodField}
             className="field__input field__select"
             value={foodId}
+            aria-invalid={refused('foodId') === undefined ? undefined : true}
+            aria-describedby={refused('foodId') === undefined ? undefined : `${foodField}-error`}
             onChange={(event) => chooseFood(event.target.value)}
           >
             {foods.map((each) => (
@@ -361,6 +366,9 @@ function BatchForm({
               </option>
             ))}
           </select>
+          {refused('foodId') !== undefined && (
+            <FieldError id={`${foodField}-error`} message={refused('foodId') ?? ''} />
+          )}
         </div>
         <div className="field">
           <FieldLabel htmlFor={dateField} label="Cooked on" />

@@ -126,7 +126,6 @@ export function Prep({ me, navigate }: { me: Me; navigate: Navigate }) {
   const plan = prep.data;
   const cookDays = (plan?.cookDays ?? []).filter((day) => day.cooks.length > 0);
   const foodOf = new Map((plan?.foods ?? []).map((food) => [food.foodId, food]));
-  const week = (plan?.grocery ?? []).filter((item) => item.section === 'week');
   const twoCooks = cookDays.length === 2;
 
   const tick = (key: string, cook: PrepPlan['cookDays'][number]['cooks'][number], day: string) => {
@@ -135,6 +134,7 @@ export function Prep({ me, navigate }: { me: Me; navigate: Navigate }) {
       return;
     }
     ticks.add(key);
+    if (cook.keepsDays === null) return;
     // Ticking a cook opens Record a batch with its raw grams filled in (Q12).
     const query = new URLSearchParams({
       food: cook.foodId,
@@ -201,8 +201,7 @@ export function Prep({ me, navigate }: { me: Me; navigate: Navigate }) {
                 </div>
               </div>
               <p className="cook__covers">
-                Covers {weekdayOf(day.coversFrom)}
-                {day.coversTo === day.coversFrom ? '' : ` to ${weekdayOf(day.coversTo)}`}.
+                Covers {wordList(day.covers.map(weekdayOf))}.
                 {day.because !== null &&
                   ` ${day.because.name} keeps ${day.because.keepsDays} days; cook again for the rest of the week.`}
               </p>
@@ -224,10 +223,7 @@ export function Prep({ me, navigate }: { me: Me; navigate: Navigate }) {
                         >
                           {yieldLine.text}
                         </span>
-                        <span className="cook__span">
-                          For {shortDay(cook.from)}
-                          {cook.to === cook.from ? '' : ` to ${shortDay(cook.to)}`}
-                        </span>
+                        <span className="cook__span">For {wordList(cook.dates.map(shortDay))}</span>
                       </div>
                       <span className="cook__raw">
                         <span className="visually-hidden">Raw </span>
@@ -261,17 +257,11 @@ export function Prep({ me, navigate }: { me: Me; navigate: Navigate }) {
             </section>
           ))}
 
-          {(week.length > 0 || plan.uncovered.length > 0) && (
+          {plan.uncovered.length > 0 && (
             <section className="today__section" aria-labelledby="not-batch">
               <h2 id="not-batch" className="section-label">
                 Not batch-cooked
               </h2>
-              {week.length > 0 && (
-                <p className="food-hint">
-                  The other {week.length === 1 ? 'food is' : `${week.length} foods are`} bought for
-                  the week, from the grocery list, and weighed at each meal.
-                </p>
-              )}
               {plan.uncovered.map((food) => (
                 <p key={food.foodId} className="food-hint">
                   {food.name} won’t keep until the next cook; {wordList(food.dates.map(weekdayOf))}{' '}

@@ -566,7 +566,8 @@ One cook-up: how much went in raw, how much came out cooked (S13).
 - *Created 2026-10-26* (M2 slice 6, migration `0021`), as above. Its id is made on the device. The
   API takes a yield from 0.1 to 10 only; a figure past either is a slip, and a yield near zero would
   plan thousands of calories a portion (`06`, 2026-10-26). The newest batch is the latest
-  `cooked_on`, then the latest id.
+  `cooked_on`, then the latest id. Only a food stored raw takes a batch; one stored cooked is
+  refused, as it has no raw values for a yield to convert.
 
 | food_id | raw_weight_g | cooked_weight_g | cooked_on |
 | --- | --- | --- | --- |
@@ -716,6 +717,7 @@ One food in one meal, planned and as eaten (S16, S18).
 | `approximate` | boolean | no | `false` | *Added 2026-10-18.* A cooked weight planned from the MEXT cooked counterpart of a raw batch-cooked food, with no batch yield recorded yet (`06`, 2026-10-18). Screen 3 marks it `approx.` |
 | `no_cooked_match` | boolean | no | `false` | *Added 2026-10-18.* A raw batch-cooked food with no MEXT cooked counterpart, planned raw by its raw values (`06`, 2026-10-18). Screen 3 marks it `raw, no cooked match` |
 | `batch_id` | uuid | yes | — | → `batch.id`, `ON DELETE SET NULL`. The yield used to convert raw → cooked macros and the saved item's prep raw grams. *Created 2026-10-26* (`#81`), with `INDEX (batch_id)` for the `SET NULL`. Deleting the batch leaves the item's macro snapshot as it was |
+| `yield_ratio` | numeric(15,12) | yes | — | **Snapshot** of the batch yield (`cooked ÷ raw`) the item was planned with; the prep plan's raw grams come from it, so deleting or superseding the batch changes nothing saved. *Added 2026-10-26* (`#81`, migration `0022`), filled from `batch_id` for existing rows |
 | `energy_kcal_per_100g` | numeric(7,2) | no | — | **Snapshot** of the food's macros at plan time |
 | `protein_g_per_100g` | numeric(6,2) | no | — | Snapshot |
 | `carb_g_per_100g` | numeric(6,2) | no | — | Snapshot |

@@ -151,7 +151,7 @@ export async function fillAccount(t: TestApp, cookie: string) {
     send('POST', '/api/foods', {
       id: foodId,
       name: 'White rice',
-      state: 'cooked',
+      state: 'raw',
       basis: { kind: 'per_100g', grams: null },
       energyKcal: 156,
       proteinG: 2.5,

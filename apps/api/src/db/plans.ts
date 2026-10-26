@@ -29,6 +29,7 @@ export type PlanItem = {
   noCookedMatch: boolean;
   /** The batch whose yield gave the cooked values (S13). */
   batchId: string | null;
+  yieldRatio: number | null;
   per100g: Per100g;
 };
 
@@ -149,6 +150,7 @@ async function withMeals(
             approximate: planMealItem.approximate,
             noCookedMatch: planMealItem.noCookedMatch,
             batchId: planMealItem.batchId,
+            yieldRatio: planMealItem.yieldRatio,
             energyKcal: planMealItem.energyKcalPer100g,
             proteinG: planMealItem.proteinGPer100g,
             carbG: planMealItem.carbGPer100g,
@@ -193,6 +195,7 @@ async function withMeals(
             approximate: item.approximate,
             noCookedMatch: item.noCookedMatch,
             batchId: item.batchId,
+            yieldRatio: item.yieldRatio,
             per100g: {
               energyKcal: item.energyKcal,
               proteinG: item.proteinG,
@@ -302,6 +305,7 @@ export async function replacePlanDays(
         approximate: item.approximate,
         noCookedMatch: item.noCookedMatch,
         batchId: item.batchId,
+        yieldRatio: item.yieldRatio,
         energyKcalPer100g: item.per100g.energyKcal,
         proteinGPer100g: item.per100g.proteinG,
         carbGPer100g: item.per100g.carbG,
@@ -327,6 +331,7 @@ export type PlanFood = {
   noCookedMatch: boolean;
   /** The batch whose yield gave the cooked values. */
   batchId: string | null;
+  yieldRatio: number | null;
 };
 
 /**
@@ -420,9 +425,15 @@ export async function planFoods(db: Queryable, userId: string): Promise<PlanFood
       name: each.name,
       pieceWeightG: each.pieceWeightG,
       rotationGroupId: each.rotationGroupId,
-      keepsDays: each.keepsDays,
+      keepsDays: each.state === 'raw' ? each.keepsDays : null,
     };
-    const asWeighed = { per100g: own, approximate: false, noCookedMatch: false, batchId: null };
+    const asWeighed = {
+      per100g: own,
+      approximate: false,
+      noCookedMatch: false,
+      batchId: null,
+      yieldRatio: null,
+    };
     if (each.state === 'cooked') return { ...base, ...asWeighed, cooked: true };
     if (each.keepsDays === null) return { ...base, ...asWeighed, cooked: false };
     const batch = batches.get(each.id);
@@ -434,6 +445,7 @@ export async function planFoods(db: Queryable, userId: string): Promise<PlanFood
         approximate: false,
         noCookedMatch: false,
         batchId: batch.id,
+        yieldRatio: batchYield(batch),
       };
     }
     const raw = raws.find((row) => each.source === 'mext' && row.code === each.sourceRef);
@@ -458,6 +470,7 @@ export async function planFoods(db: Queryable, userId: string): Promise<PlanFood
       approximate: true,
       noCookedMatch: false,
       batchId: null,
+      yieldRatio: null,
     };
   });
 }
