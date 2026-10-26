@@ -295,7 +295,7 @@ test('swap back after saving restores the planned item', async ({ page }) => {
   expect(items.some((item) => item.foodId === alternative.id)).toBe(false);
 });
 
-test('swapping an eaten food away and back keeps what was stored', async ({ page }) => {
+test('swapping through planned and eaten foods keeps each stored snapshot', async ({ page }) => {
   const today = todayInZone();
   type Item = {
     id: string;
@@ -369,6 +369,38 @@ test('swapping an eaten food away and back keeps what was stored', async ({ page
   const after = (await readLunch()).items.find((item) => item.foodId === eaten.id);
   expect(after?.id).toBe(stored.id);
   expect(after?.per100g.energyKcal).toBe(eaten.energyKcal);
+
+  // The zero-gram planned food must not replace F as this row's starting item.
+  await page.goto('/');
+  await adjustLunch(page);
+  await swap(eaten.name, start.name);
+  await swap(start.name, eaten.name);
+  await page.getByRole('button', { name: 'Save as eaten, adjusted' }).click();
+  await expect(saved).toBeVisible();
+  const backToEaten = (await readLunch()).items.find((item) => item.foodId === eaten.id);
+  expect(backToEaten?.id).toBe(stored.id);
+  expect(backToEaten?.per100g.energyKcal).toBe(eaten.energyKcal);
+
+  // Returning to the planned food through G must keep the planned item's id and snapshot.
+  await ok(
+    page.request.patch(`/api/foods/${start.id}`, {
+      headers,
+      data: { energyKcal: start.energyKcal + 100 },
+    }),
+  );
+  await page.goto('/');
+  await adjustLunch(page);
+  await swap(eaten.name, start.name);
+  await swap(start.name, other.name);
+  await swap(other.name, start.name);
+  await page.getByRole('button', { name: 'Save as eaten, adjusted' }).click();
+  await expect(saved).toBeVisible();
+  const backToPlanned = (await readLunch()).items;
+  expect(backToPlanned.find((item) => item.id === planned.id)?.actualGrams).toBeGreaterThan(0);
+  expect(backToPlanned.find((item) => item.id === planned.id)?.per100g.energyKcal).toBe(
+    planned.per100g.energyKcal,
+  );
+  expect(backToPlanned.some((item) => item.foodId === eaten.id)).toBe(false);
 });
 
 test('shows zero eaten before adjusting a skipped meal', async ({ page }) => {

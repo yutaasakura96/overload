@@ -34,12 +34,10 @@ const GRAM_STEP = 5;
 
 type Values = { energyKcal: number; proteinG: number; carbG: number; fatG: number; fiberG: number };
 
-/** One food as eaten: the planned item it began as, and what it is now. */
+/** One food as eaten: the item it began as, and what it is now. */
 type Row = {
   key: string;
-  /** The planned item this row stands for, if it began as one. */
-  plannedId: string | undefined;
-  /** The item id sent: the planned item's while its food is the planned one, else a new one. */
+  /** The item id sent: a planned or original item's while selected, else a new one. */
   id: string;
   foodId: string | null;
   name: string;
@@ -62,7 +60,6 @@ type Row = {
 
 function rowsOf(meal: PlanMeal): Row[] {
   return eatenItems(meal).map(({ item, grams }) => {
-    const planned = item.plannedGrams === null ? undefined : item.id;
     const pieceWeight =
       item.pieceCount !== null && item.pieceCount > 0 && item.plannedGrams !== null
         ? item.plannedGrams / item.pieceCount
@@ -76,7 +73,6 @@ function rowsOf(meal: PlanMeal): Row[] {
     };
     return {
       key: item.id,
-      plannedId: planned,
       id: item.id,
       originalId: item.id,
       grams,
@@ -216,7 +212,7 @@ function AdjustForm({
                 : (planned.plannedGrams ?? 0) / planned.pieceCount,
             per100g: planned.per100g,
           };
-          return { ...each, ...original, original, plannedId: planned.id, id: planned.id };
+          return { ...each, ...original, id: planned.id };
         }
         const pieceWeight = food.pieceWeightG;
         const grams =
@@ -246,7 +242,9 @@ function AdjustForm({
       const row = rows.find((each) => each.id === item.id);
       items.push({ id: item.id, actualGrams: row === undefined ? 0 : hundredths(row.grams) });
     }
-    for (const row of rows.filter((each) => each.id !== each.plannedId)) {
+    for (const row of rows.filter(
+      (each) => !meal.items.some((item) => item.plannedGrams !== null && item.id === each.id),
+    )) {
       items.push(
         row.foodId === null
           ? { id: row.id, name: row.name, actualGrams: hundredths(row.grams), per100g: row.per100g }
