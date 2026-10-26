@@ -339,10 +339,19 @@ type in `domain/planning.ts`.
 Provisional calories are Mifflin–St Jeor × (1.45 + 0.05 per training day) ± the rate × bodyweight ×
 7,700 ÷ 7, to the nearest 10 and held to 1,000–6,000 kcal; protein is g/kg of the trend weight
 (the latest weigh-in before there is a trend), fat a share of calories, carbohydrate the rest. A raw
-batch-cooked food is planned at its MEXT cooked counterpart's values and marked approximate until
-batches (`#81`), or with no
-counterpart planned raw and marked `noCookedMatch`; the cook-day
-limit above comes with them.
+batch-cooked food is planned by its raw values over the yield of its newest batch; with no batch,
+at its MEXT cooked counterpart's values and marked approximate, or with no counterpart planned raw
+and marked `noCookedMatch`.
+
+**Cook days, as built 2026-10-26** (`#81`, `06`), in `domain/prep.ts`. A week runs Monday to
+Sunday and its first cook day is the Sunday before it; a batch covers `keeps_days` calendar days
+from its cook day. When a batch-cooked food on the list would not last the week, the week has a
+second cook day, chosen once for the whole list: the day inside the week that covers the most
+food-days, the later of equals. The planner offers a batch-cooked food only on days one of the two
+batches keeps for, so a rotation group gives those days another of its foods. The prep plan serves
+each plan day from the first cook while its batch keeps, else from the second, and turns the cooked
+grams back into raw by the newest yield, to 5 g; with no batch, by the ratio of the food's raw
+calories to the cooked values it was planned at, marked approximate.
 
 ### 8.3 Weight trend and expenditure (S11, S18a, S21, S23), method `weight_trend_balance_v1`
 

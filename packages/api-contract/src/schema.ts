@@ -2369,6 +2369,299 @@ export interface paths {
     };
     trace?: never;
   };
+  '/api/batches': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Every batch, newest cook day first, each with its yield */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Every batch */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['BatchList'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    put?: never;
+    /** Record a batch. Plans made from now on use its yield; past ones keep theirs */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['BatchCreate'];
+        };
+      };
+      responses: {
+        /** @description A repeat of the same batch: the stored row */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['Batch'];
+          };
+        };
+        /** @description Created */
+        201: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['Batch'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `id_conflict`: the id is in use with other content */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `validation_failed`, including a food not on the caller’s list or a yield outside 0.1 to 10 */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/foods/{id}/batches': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** One food’s batches, newest cook day first, each with its yield */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description The food’s batches */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['BatchList'];
+          };
+        };
+        /** @description A malformed id */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description The caller has no food with that id */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/batches/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Delete a batch. Plan items that used it keep their values */
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description The caller has no batch with that id */
+        204: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description A malformed id */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/prep-plan': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** The week’s prep plan and grocery list, derived from its plan days */
+    get: {
+      parameters: {
+        query: {
+          /** @description The Monday the week starts on. */
+          weekStart: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description The cook days, the batch-cooked foods and the grocery list */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['PrepPlan'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `validation_failed`: `weekStart` is not a Monday */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/goal-phases': {
     parameters: {
       query?: never;
@@ -3753,6 +4046,13 @@ export interface components {
           items: components['schemas']['PlanDay'][];
           /** @description Opaque. Send it back as `cursor` for the next page. */
           nextCursor: string | null;
+        }
+      | {
+          /** @enum {string} */
+          section: 'batches';
+          items: components['schemas']['Batch'][];
+          /** @description Opaque. Send it back as `cursor` for the next page. */
+          nextCursor: string | null;
         };
     GoalPhase: {
       /**
@@ -3957,6 +4257,12 @@ export interface components {
       approximate: boolean;
       /** @description A batch-cooked food with no cooked values in the food table: planned raw, by its raw values. */
       noCookedMatch: boolean;
+      /**
+       * Format: uuid
+       * @description The batch whose yield gave the cooked values. Null without one, or once it is deleted.
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      batchId: string | null;
       /** @description The food’s values as the plan used them. */
       per100g: {
         energyKcal: number;
@@ -3966,8 +4272,36 @@ export interface components {
         fiberG: number;
       };
     };
+    /** @description One cook-up of a food, weighed raw and cooked. */
+    Batch: {
+      /**
+       * Format: uuid
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      id: string;
+      /**
+       * Format: uuid
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      foodId: string;
+      /** @example 1400 */
+      rawWeightG: number;
+      /** @example 1050 */
+      cookedWeightG: number;
+      /**
+       * Format: date
+       * @example 2026-10-16
+       */
+      cookedOn: string;
+      note: string | null;
+      /**
+       * @description Cooked weight over raw, derived and never stored.
+       * @example 0.75
+       */
+      yield: number;
+    };
     /** @enum {string} */
-    PlanningExportSection: 'phases' | 'dayRoutines' | 'planDays';
+    PlanningExportSection: 'phases' | 'dayRoutines' | 'planDays' | 'batches';
     ExerciseList: {
       items: components['schemas']['Exercise'][];
     };
@@ -4970,6 +5304,152 @@ export interface components {
       name?: string;
       /** @description The whole membership. A food left out stays on the list, ungrouped. */
       foodIds?: string[];
+    };
+    BatchList: {
+      /** @description Newest `cookedOn` first. */
+      items: components['schemas']['Batch'][];
+    };
+    BatchCreate: {
+      /**
+       * Format: uuid
+       * @description Made on the device (UUIDv7). A repeat returns the row.
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      id: string;
+      /**
+       * Format: uuid
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      foodId: string;
+      /** @example 1400 */
+      rawWeightG: number;
+      /**
+       * @description May be above the raw weight: rice takes up water.
+       * @example 1050
+       */
+      cookedWeightG: number;
+      /**
+       * Format: date
+       * @example 2026-10-16
+       */
+      cookedOn: string;
+      note?: string | null;
+    };
+    /** @description The week’s prep plan and grocery list, derived (S17). */
+    PrepPlan: {
+      /**
+       * Format: date
+       * @example 2026-10-16
+       */
+      weekStart: string;
+      /** @description Days of the week with no plan yet. */
+      missing: string[];
+      /**
+       * Format: date-time
+       * @description When the week’s newest plan day was made.
+       * @example 2026-11-11T09:01:40.000Z
+       */
+      generatedAt: string | null;
+      /** @description At most two: the Sunday before the week, and a second when needed. */
+      cookDays: {
+        /**
+         * Format: date
+         * @example 2026-10-16
+         */
+        date: string;
+        /** @enum {string} */
+        which: 'first' | 'second';
+        /**
+         * Format: date
+         * @example 2026-10-16
+         */
+        coversFrom: string;
+        /**
+         * Format: date
+         * @example 2026-10-16
+         */
+        coversTo: string;
+        /** @description On the second day: the food whose first batch runs out first. */
+        because: {
+          /**
+           * Format: uuid
+           * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+           */
+          foodId: string;
+          name: string;
+          keepsDays: number;
+        } | null;
+        /** @description By name. */
+        cooks: components['schemas']['PrepCook'][];
+      }[];
+      /** @description Every batch-cooked food on the list, by name, with its newest batch: the one in use. */
+      foods: {
+        /**
+         * Format: uuid
+         * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+         */
+        foodId: string;
+        name: string;
+        keepsDays: number;
+        batch: components['schemas']['Batch'] | null;
+        /** @description No batch, or the newest cooked more than 7 days ago (docs/09 F12). */
+        weighDue: boolean;
+      }[];
+      /** @description Batch-cooked foods no batch keeps for on these days of the week. */
+      uncovered: {
+        /**
+         * Format: uuid
+         * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+         */
+        foodId: string;
+        name: string;
+        keepsDays: number;
+        dates: string[];
+      }[];
+      /** @description The cook days’ foods by name, then the week’s by name. */
+      grocery: {
+        /**
+         * Format: uuid
+         * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+         */
+        foodId: string;
+        name: string;
+        /** @enum {string} */
+        section: 'cook_days' | 'week';
+        /** @enum {string} */
+        unit: 'g' | 'pieces';
+        quantity: number | null;
+        /** @description Each cook’s raw grams, summed into `quantity`. */
+        cooks: (number | null)[];
+        approximate: boolean;
+      }[];
+    };
+    PrepCook: {
+      /**
+       * Format: uuid
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      foodId: string;
+      name: string;
+      keepsDays: number;
+      /** @description Raw grams to cook, to 5 g. Null for a food stored cooked with no batch weighed to convert by. */
+      rawGrams: number | null;
+      /** @description The cooked grams the plan asks for. Null for a food planned raw with no batch. */
+      cookedGrams: number | null;
+      /** @description No batch weighed: raw grams worked out from the food table’s cooked values. */
+      approximate: boolean;
+      /**
+       * Format: date
+       * @description The first plan day this cook feeds.
+       * @example 2026-10-16
+       */
+      from: string;
+      /**
+       * Format: date
+       * @description The last plan day this cook feeds.
+       * @example 2026-10-16
+       */
+      to: string;
     };
     GoalPhaseList: {
       items: components['schemas']['GoalPhase'][];

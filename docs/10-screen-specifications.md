@@ -428,6 +428,26 @@ end-of-day card on Today (§3).
 holds `Foods` only. With one section the segments are not drawn; they come with Prep and Grocery
 (`#81`), and the tab opens on `Prep` then. Five tabs fit 390px with the tabs' tracking at 0.04em.
 
+**As built in M2 slice 6** (`#81`, `06` 2026-10-26): the four sections are links, as Progress's
+are: `Prep` at `/food`, `Grocery` at `/food/grocery`, `Foods` at `/food/list` and `Batches` at
+`/food/batches`; `Record a batch` is `/food/batches/new`. Departures from the prototype, each
+because the data says it differently:
+
+- Without a batch, the raw figure is the approximate one (`≈ 245`), since the plan's cooked grams
+  are what is known; the yield note says `No batch weighed yet, so raw grams are approximate (from
+  the food table's cooked values).` A food planned raw for want of cooked values shows `—` cooked.
+- The second day's reason names the food whose first batch runs out the day before it, by name, in
+  the `Covers` line.
+- `Not batch-cooked` says how many other foods are bought for the week rather than naming them,
+  since food names carry commas; then one line per batch-cooked food a batch cannot cover on some
+  days: `White rice keeps 3 days, so Wednesday and Sunday use other foods.`
+- The footnote is `Plan made Mon 26 Oct` / `7 days · 2 cook days`.
+- `Record a batch` has no `FROM THE PLAN` note over the raw weight: at 390px it pushed the two
+  weights out of line, and the app bar already says `FROM THE PREP PLAN`. `Cooked on` goes up to
+  today. The batches list has no delete; the API has one (`07` §4).
+- Empty states: `No plan to prep from yet` (setup not done), `Nothing to batch-cook this week`, `Nothing
+  to buy`, and on Batches `No batch-cooked foods`.
+
 ### Prep (S17, Q8)
 
 | Block | Content |
@@ -1028,7 +1048,8 @@ and `+ Add a food to starch`. A secondary `New group`.
 - MEXT's own name is printed without its leading food group (`＜魚類＞`), which the English name
   already says, and with one space between words. A food MEXT gives no English name is listed by
   that name.
-- One food leaves out its batches and `Record a batch` until `#81`. `Archive` asks first, with
+- A batch-cooked food's page lists its batches, newest first with `CURRENT`, and a secondary
+  `Record a batch` (`#81`, 2026-10-26). `Archive` asks first, with
   `05`'s delete confirmation (`Keep` / `Archive`); archived, the list says `Archived. Past plans
   still name it.` once, and the food's page says it is archived.
 - Both camera boxes are `surface/status-bar`, the one colour the same in both themes, with a

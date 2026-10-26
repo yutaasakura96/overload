@@ -66,7 +66,7 @@ describe('GET /api/me/export', () => {
 
   it('keeps planning sections on the new endpoint', async () => {
     const { cookie } = await t.createSignedInUser('planning-export@example.test');
-    for (const section of ['phases', 'dayRoutines', 'planDays']) {
+    for (const section of ['phases', 'dayRoutines', 'planDays', 'batches']) {
       const oldRoute = await t.app.request(`/api/me/export?section=${section}`, {
         headers: { cookie },
       });
@@ -182,6 +182,24 @@ describe('GET /api/me/export', () => {
     expect(groups).toEqual({
       section: 'rotationGroups',
       items: [{ id: made.groupId, name: 'Starch', foodIds: [made.foodId] }],
+      nextCursor: null,
+    });
+    const batches = await t.app.request('/api/me/export/planning?section=batches', {
+      headers: { cookie },
+    });
+    expect(await batches.json()).toEqual({
+      section: 'batches',
+      items: [
+        {
+          id: made.batchId,
+          foodId: made.foodId,
+          rawWeightG: 600,
+          cookedWeightG: 1680,
+          cookedOn: '2026-10-14',
+          note: null,
+          yield: 2.8,
+        },
+      ],
       nextCursor: null,
     });
   });
@@ -342,5 +360,10 @@ describe('GET /api/me/export', () => {
     expect((await exportOf(other.cookie, 'section=weighIns')).items).toEqual([]);
     expect((await exportOf(other.cookie, 'section=foods')).items).toEqual([]);
     expect((await exportOf(other.cookie, 'section=rotationGroups')).items).toEqual([]);
+    const batches = await t.app.request('/api/me/export/planning?section=batches', {
+      headers: { cookie: other.cookie },
+    });
+    const theirs: { items: unknown[] } = await batches.json();
+    expect(theirs.items).toEqual([]);
   });
 });

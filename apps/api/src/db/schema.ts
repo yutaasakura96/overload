@@ -512,6 +512,33 @@ export const modelCallCount = pgTable(
   (t) => [primaryKey({ name: 'model_call_count_pkey', columns: [t.userId, t.day] })],
 );
 
+/**
+ * One cook-up of a food, weighed raw and cooked (S13). The newest by `cooked_on` is the one in use;
+ * its yield, cooked over raw, is computed and never stored. Its id is made on the device.
+ */
+export const batch = pgTable(
+  'batch',
+  {
+    id: id(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    foodId: uuid('food_id')
+      .notNull()
+      .references(() => food.id, { onDelete: 'cascade' }),
+    rawWeightG: numeric('raw_weight_g', { precision: 8, scale: 2, mode: 'number' }).notNull(),
+    cookedWeightG: numeric('cooked_weight_g', { precision: 8, scale: 2, mode: 'number' }).notNull(),
+    cookedOn: date('cooked_on', { mode: 'string' }).notNull(),
+    note: text('note'),
+    ...timestamps,
+  },
+  (t) => [
+    index('batch_user_id_food_id_cooked_on_idx').on(t.userId, t.foodId, t.cookedOn.desc()),
+    index('batch_food_id_idx').on(t.foodId),
+    check('batch_weights_check', sql`${t.rawWeightG} > 0 AND ${t.cookedWeightG} > 0`),
+  ],
+);
+
 export const goalPhaseTypeValues = ['cut', 'bulk', 'maintain'] as const;
 export const calorieBasisValues = ['provisional_formula', 'measured', 'manual'] as const;
 export const dayTypeValues = ['training', 'rest'] as const;
@@ -709,6 +736,8 @@ export const planMealItem = pgTable(
     approximate: boolean('approximate').notNull().default(false),
     // Batch-cooked, but the MEXT table has no cooked counterpart: planned raw, and said so.
     noCookedMatch: boolean('no_cooked_match').notNull().default(false),
+    // The batch whose yield turned the food's raw values into these cooked ones (S13).
+    batchId: uuid('batch_id').references(() => batch.id, { onDelete: 'set null' }),
     energyKcalPer100g: numeric('energy_kcal_per_100g', {
       precision: 7,
       scale: 2,
@@ -729,5 +758,6 @@ export const planMealItem = pgTable(
   (t) => [
     index('plan_meal_item_plan_meal_id_idx').on(t.planMealId),
     index('plan_meal_item_food_id_idx').on(t.foodId),
+    index('plan_meal_item_batch_id_idx').on(t.batchId),
   ],
 );

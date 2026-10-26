@@ -106,7 +106,7 @@ export function FoodCheck({ navigate }: { navigate: Navigate }) {
         onDiscard={back}
         onSaved={() => {
           dropCandidate();
-          navigate('/food', { replace: true, note: 'food-saved' });
+          navigate('/food/list', { replace: true, note: 'food-saved' });
         }}
       />
     </main>

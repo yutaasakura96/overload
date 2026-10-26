@@ -42,7 +42,7 @@ test.beforeEach(async ({ context, page }) => {
 });
 
 test('adds a food from the MEXT table, checked before saving', async ({ page }) => {
-  await page.goto('/food');
+  await page.goto('/food/list');
   await expect(page.getByRole('heading', { name: 'No foods yet' })).toBeVisible();
   await page.getByRole('button', { name: 'Add a food' }).click();
 
@@ -81,7 +81,7 @@ test('drops a food candidate when the account changes in the same tab', async ({
   const email = 'other-foods@example.test';
   const other: { userId: string } = JSON.parse(apiFixture('user', email));
   try {
-    await page.goto('/food');
+    await page.goto('/food/list');
     await page.getByRole('button', { name: 'Add a food' }).click();
     await page
       .getByRole('searchbox', { name: 'Search the MEXT food table' })
@@ -173,7 +173,7 @@ test('groups two foods as alternatives', async ({ page }) => {
     });
     expect(res.status()).toBe(201);
   }
-  await page.goto('/food');
+  await page.goto('/food/list');
   await page.getByRole('link', { name: /Rotation groups/ }).click();
   await page.getByRole('button', { name: 'New group' }).click();
   await page.getByRole('textbox', { name: 'Group name' }).fill('Green vegetable');

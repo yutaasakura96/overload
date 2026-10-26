@@ -49,6 +49,15 @@ sections; About you, Goal phase and Your day; Today as the whole day, its meals 
 the workout in it; and Weight's `Since` span and phase row (`06`, 2026-10-18). Confirming meals,
 batches and the maintenance check are slices 5 to 7 (`#80`–`#82`).
 
+**M2 slice 6 is built, 2026-10-26** (`#81`), on `fm/overload-81`, in review against `develop`:
+batches, the prep plan and the grocery list (S13, S17). `batch` and `plan_meal_item.batch_id`
+(migration `0021`); `GET /api/batches`, `GET /api/foods/{id}/batches`, `POST` and
+`DELETE /api/batches`, and `GET /api/prep-plan?weekStart=`; shelf life in `domain/prep.ts`, the
+week's second cook day and the planner keeping each batch-cooked food to the days a batch keeps
+for; the newest batch's yield in plans made after it; the export's `batches` section; and the Food
+tab's `Prep`, `Grocery`, `Foods` and `Batches`, with `Record a batch` (`06`, 2026-10-26). Checked
+at 390px on invented foods and batches.
+
 Building comes first: seeded or fake data is fine until the app is built. Owed, and Yuta's: the two
 weight hardware tests (`06`, 2026-09-19) and an Anthropic API key with a small balance for label
 reads. #69 is built on `fm/overload-69b` (`06`, 2026-10-17): bodyweight lifts count the

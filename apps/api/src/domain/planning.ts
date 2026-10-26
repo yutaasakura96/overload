@@ -4,6 +4,7 @@
 
 import { trainingMeals, type DayType } from './meals.js';
 import { generateDayPlan, type Per100g, type Shortfall } from './planner.js';
+import { cookDaysOf, plannableOn, weekStartOf } from './prep.js';
 import type { Targets } from './targets.js';
 
 /** The four prerequisites of a plan, in the order Today asks for them (docs/09 F10). */
@@ -58,9 +59,13 @@ export type PlanningFood = {
   per100g: Per100g;
   pieceWeightG: number | null;
   rotationGroupId: string | null;
+  /** How many days a cooked batch keeps; null for a food not batch-cooked (S13). */
+  keepsDays: number | null;
   cooked: boolean;
   approximate: boolean;
   noCookedMatch: boolean;
+  /** The batch whose yield gave the cooked values. */
+  batchId: string | null;
 };
 
 export type PlanningRoutine = {
@@ -89,12 +94,16 @@ export type PlannedDay = {
       cooked: boolean;
       approximate: boolean;
       noCookedMatch: boolean;
+      batchId: string | null;
       per100g: Per100g;
     }[];
   }[];
 };
 
-/** S16: each date's plan, from the targets in force, the routine of its day type and the foods. */
+/**
+ * S16: each date's plan, from the targets in force, the routine of its day type and the foods. A
+ * batch-cooked food is offered only on days a batch from its week's cook days keeps for.
+ */
 export function planDates(input: {
   dates: string[];
   trainingWeekdays: number[];
@@ -103,6 +112,7 @@ export function planDates(input: {
   goalPhaseId: string | null;
   foods: PlanningFood[];
 }): PlannedDay[] {
+  const keeps = input.foods.flatMap((each) => (each.keepsDays === null ? [] : [each.keepsDays]));
   return input.dates.flatMap((date) => {
     const dayType = dayTypeOf(date, input.trainingWeekdays);
     const routine = input.routines[dayType];
@@ -119,7 +129,9 @@ export function planDates(input: {
       isPreTraining: index === pre,
       isPostTraining: index === post,
     }));
-    const plan = generateDayPlan({ date, targets: input.targets, meals, foods: input.foods });
+    const cookDays = cookDaysOf(weekStartOf(date), keeps);
+    const foods = input.foods.filter((each) => plannableOn(each.keepsDays, cookDays, date));
+    const plan = generateDayPlan({ date, targets: input.targets, meals, foods });
     const foodOf = new Map(input.foods.map((each) => [each.id, each]));
     return [
       {
@@ -146,6 +158,7 @@ export function planDates(input: {
                 cooked: each.cooked,
                 approximate: each.approximate,
                 noCookedMatch: each.noCookedMatch,
+                batchId: each.batchId,
                 per100g: each.per100g,
               },
             ];

@@ -3918,3 +3918,271 @@ html:has(.m2-stick) {
   line-height: 1.55;
   color: var(--text-tertiary);
 }
+
+/* The Food tab's prep plan (docs/10 §5, the M2 prototype's screen 11): a section per cook day, its
+   head stuck at the top while its rows pass (Q9), then one row per food to cook. */
+.cook {
+  margin-top: 18px;
+}
+.cook__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 10px;
+  padding: 10px var(--gutter) 7px;
+  border-bottom: 1px solid var(--line-hairline);
+}
+.cook__title {
+  margin: 0;
+  font-weight: 400;
+}
+.cook__day {
+  display: block;
+  font-size: 15px;
+  color: var(--text-primary);
+}
+.cook__which {
+  display: block;
+  margin-top: 2px;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.cook__cols {
+  display: grid;
+  grid-template-columns: 70px 56px 44px;
+  gap: 8px;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-align: right;
+  color: var(--text-quaternary);
+}
+.cook__covers {
+  margin: 8px var(--gutter) 2px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-tertiary);
+}
+.cook__rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.cook__row {
+  display: grid;
+  grid-template-columns: 1fr 70px 56px 44px;
+  align-items: center;
+  gap: 8px;
+  padding: 11px var(--gutter);
+  border-bottom: 1px solid var(--line-row);
+}
+.cook__name {
+  display: block;
+  font-size: 15px;
+  color: var(--text-primary);
+}
+.cook__row--done .cook__name {
+  color: var(--text-tertiary);
+}
+.cook__note {
+  display: block;
+  margin-top: 3px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-tertiary);
+}
+.cook__note--flag {
+  color: var(--flag);
+}
+.cook__span {
+  display: block;
+  margin-top: 3px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-quaternary);
+}
+.cook__raw {
+  font-family: var(--font-mono);
+  font-size: 17px;
+  font-weight: 500;
+  text-align: right;
+  white-space: nowrap;
+}
+.cook__unit {
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--text-quaternary);
+}
+.cook__cooked {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  text-align: right;
+  white-space: nowrap;
+  color: var(--text-quaternary);
+}
+.cook__check {
+  width: 44px;
+}
+.today__section .food-hint + .food-hint {
+  margin-top: 6px;
+}
+
+/* The grocery list (screen 12): one list for the week, ticks kept on the phone (Q11). */
+.grocery__count {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin: 16px var(--gutter) 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.grocery__count b {
+  font-family: var(--font-mono);
+  font-size: 17px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.grocery__basis {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-quaternary);
+}
+.grocery,
+.batch-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.grocery {
+  margin: 0 calc(-1 * var(--gutter));
+  border-top: 1px solid var(--line-hairline);
+}
+.grocery__row {
+  display: grid;
+  grid-template-columns: 44px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 60px;
+  padding: 8px var(--gutter);
+  border: 0;
+  border-bottom: 1px solid var(--line-row);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+.grocery__row .check-cell {
+  width: 44px;
+}
+.grocery__name {
+  display: block;
+  font-size: 15px;
+  color: var(--text-primary);
+}
+.grocery__note {
+  display: block;
+  margin-top: 2px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-quaternary);
+}
+.grocery__qty {
+  font-family: var(--font-mono);
+  font-size: 17px;
+  font-weight: 500;
+  white-space: nowrap;
+  color: var(--text-primary);
+}
+.grocery__unit {
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--text-quaternary);
+}
+.grocery__row--done .grocery__name,
+.grocery__row--done .grocery__qty {
+  color: var(--text-quaternary);
+  text-decoration: line-through;
+}
+
+/* Batches (screens 13 and 14): one row per batch, newest first, the one in use marked CURRENT. */
+.batch-list__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line-row);
+}
+.batch-list__name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+.batch-list__current {
+  padding: 1px 5px;
+  border: 1px solid var(--line-accent);
+  border-radius: var(--radius);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+}
+.batch-list__meta {
+  display: block;
+  margin-top: 3px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+.batch-list__yield {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 500;
+}
+.batch-flag {
+  margin: 0 0 6px;
+}
+.batch-actions {
+  margin-top: 12px;
+}
+.yield-box {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 14px;
+  align-items: baseline;
+  padding: 11px 12px;
+  border: 1px solid var(--line-hairline);
+  border-radius: var(--radius);
+}
+.yield-box__label {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-quaternary);
+}
+.yield-box__fig {
+  grid-row: 2;
+  font-family: var(--font-mono);
+  font-size: 26px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+}
+.yield-box__text {
+  grid-row: 1 / span 2;
+  grid-column: 2;
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+/* A long food name wraps inside its column instead of pushing the figures off the row. */
+.cook__row > div,
+.grocery__row > span:nth-child(2),
+.batch-list__row > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}

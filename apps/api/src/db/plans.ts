@@ -1,5 +1,7 @@
 import { and, asc, eq, gte, inArray, isNull, lte, ne, sql } from 'drizzle-orm';
 import type { Shortfall } from '../domain/planner.js';
+import { batchYield, cookedPer100g } from '../domain/prep.js';
+import { newestBatches } from './batches.js';
 import type { Database, Queryable, Transaction } from './connection.js';
 import { food, planDay, planMeal, planMealItem, referenceFood } from './schema.js';
 
@@ -25,6 +27,8 @@ export type PlanItem = {
   approximate: boolean;
   /** A batch-cooked food the MEXT table has no cooked values for: planned raw (S16). */
   noCookedMatch: boolean;
+  /** The batch whose yield gave the cooked values (S13). */
+  batchId: string | null;
   per100g: Per100g;
 };
 
@@ -144,6 +148,7 @@ async function withMeals(
             cooked: planMealItem.cooked,
             approximate: planMealItem.approximate,
             noCookedMatch: planMealItem.noCookedMatch,
+            batchId: planMealItem.batchId,
             energyKcal: planMealItem.energyKcalPer100g,
             proteinG: planMealItem.proteinGPer100g,
             carbG: planMealItem.carbGPer100g,
@@ -187,6 +192,7 @@ async function withMeals(
             cooked: item.cooked,
             approximate: item.approximate,
             noCookedMatch: item.noCookedMatch,
+            batchId: item.batchId,
             per100g: {
               energyKcal: item.energyKcal,
               proteinG: item.proteinG,
@@ -295,6 +301,7 @@ export async function replacePlanDays(
         cooked: item.cooked,
         approximate: item.approximate,
         noCookedMatch: item.noCookedMatch,
+        batchId: item.batchId,
         energyKcalPer100g: item.per100g.energyKcal,
         proteinGPer100g: item.per100g.proteinG,
         carbGPer100g: item.per100g.carbG,
@@ -313,9 +320,13 @@ export type PlanFood = {
   per100g: Per100g;
   pieceWeightG: number | null;
   rotationGroupId: string | null;
+  /** How many days a cooked batch keeps; null for a food not batch-cooked (S13). */
+  keepsDays: number | null;
   cooked: boolean;
   approximate: boolean;
   noCookedMatch: boolean;
+  /** The batch whose yield gave the cooked values. */
+  batchId: string | null;
 };
 
 /**
@@ -334,11 +345,11 @@ export function cookedNames(raw: string): string[] {
 
 /**
  * The unarchived foods, as the plan weighs them (S16). A food stored cooked is planned cooked. One
- * stored raw and batch-cooked (`keeps_days` set) is planned in cooked weight; with no batch yield
- * recorded, which until batches are built (#81) is every one, by the MEXT table's cooked values for
- * the same food, marked approximate (docs/02, Empty states). With no cooked counterpart it is
- * planned raw by its own values, and says so; raw values are never presented as cooked (docs/06,
- * 2026-10-18). Any other food is planned as it is weighed, raw.
+ * stored raw and batch-cooked (`keeps_days` set) is planned in cooked weight, by its raw values and
+ * the yield of its newest batch (S13). With no batch recorded, it is planned by the MEXT table's
+ * cooked values for the same food, marked approximate (docs/02, Empty states); with no cooked
+ * counterpart either, raw by its own values, and says so: raw values are never presented as cooked
+ * (docs/06, 2026-10-18). Any other food is planned as it is weighed, raw.
  */
 export async function planFoods(db: Queryable, userId: string): Promise<PlanFood[]> {
   const foods = await db
@@ -361,7 +372,10 @@ export async function planFoods(db: Queryable, userId: string): Promise<PlanFood
     .where(and(eq(food.userId, userId), isNull(food.archivedAt)))
     .orderBy(asc(food.id));
 
-  const batchCooked = foods.filter((each) => each.state === 'raw' && each.keepsDays !== null);
+  const batches = new Map((await newestBatches(db, userId)).map((batch) => [batch.foodId, batch]));
+  const batchCooked = foods.filter(
+    (each) => each.state === 'raw' && each.keepsDays !== null && !batches.has(each.id),
+  );
   const codes = batchCooked
     .filter((each) => each.source === 'mext' && each.sourceRef !== null)
     .map((each) => each.sourceRef ?? '');
@@ -406,10 +420,22 @@ export async function planFoods(db: Queryable, userId: string): Promise<PlanFood
       name: each.name,
       pieceWeightG: each.pieceWeightG,
       rotationGroupId: each.rotationGroupId,
+      keepsDays: each.keepsDays,
     };
-    const asWeighed = { per100g: own, approximate: false, noCookedMatch: false };
+    const asWeighed = { per100g: own, approximate: false, noCookedMatch: false, batchId: null };
     if (each.state === 'cooked') return { ...base, ...asWeighed, cooked: true };
     if (each.keepsDays === null) return { ...base, ...asWeighed, cooked: false };
+    const batch = batches.get(each.id);
+    if (batch !== undefined) {
+      return {
+        ...base,
+        per100g: cookedPer100g(own, batchYield(batch)),
+        cooked: true,
+        approximate: false,
+        noCookedMatch: false,
+        batchId: batch.id,
+      };
+    }
     const raw = raws.find((row) => each.source === 'mext' && row.code === each.sourceRef);
     const match =
       raw === undefined
@@ -425,7 +451,14 @@ export async function planFoods(db: Queryable, userId: string): Promise<PlanFood
       fatG: match.fatG,
       fiberG: match.fiberG,
     };
-    return { ...base, per100g, cooked: true, approximate: true, noCookedMatch: false };
+    return {
+      ...base,
+      per100g,
+      cooked: true,
+      approximate: true,
+      noCookedMatch: false,
+      batchId: null,
+    };
   });
 }
 
