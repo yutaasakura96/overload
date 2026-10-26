@@ -14,10 +14,11 @@ import {
 import { macroLine } from '../food';
 import { useEntryNote, type Navigate } from '../navigation';
 import { foodsQuery, rotationGroupsQuery, useAccount } from '../query';
+import { FoodSections } from './Prep';
 
 // The food list (S12; docs/10 §8.6, approved in the M2 prototype, screens 15 and 16): one flat
 // list by name (Q13), each food tagged with its rotation group and how the plan uses it. The plan
-// is built only from these foods. Prep, Grocery and Batches join this tab as their slices land.
+// is built only from these foods. The third of the Food tab's sections, after Prep and Grocery.
 
 export function Foods({ me, navigate }: { me: Me; navigate: Navigate }) {
   // The saved copy shows until /api/me confirms the account; no fetch runs under an unconfirmed one.
@@ -49,6 +50,7 @@ export function Foods({ me, navigate }: { me: Me; navigate: Navigate }) {
         slot={<DataState at={foods.dataUpdatedAt} />}
       />
       <ScreenTabs current="/food" navigate={navigate} />
+      <FoodSections current="/food/list" navigate={navigate} />
 
       {foods.isError && (
         <Notice tone="flag" word="Not updated">

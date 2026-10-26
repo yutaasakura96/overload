@@ -2,21 +2,30 @@ import type { Food } from '@overload/api-contract';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { api, expectOk } from '../api';
-import { AppBar, DataState, DeleteConfirm, Notice } from '../components';
+import { AppBar, CheckIcon, DataState, DeleteConfirm, Notice } from '../components';
 import { figure, nutrientFigure, NUTRIENTS, sourceLine } from '../food';
-import { goBack, type Navigate } from '../navigation';
-import { foodsQuery, forAccount, refreshFoods, rotationGroupsQuery, useAccount } from '../query';
+import { goBack, useEntryNote, type Navigate } from '../navigation';
+import {
+  batchesQuery,
+  foodsQuery,
+  forAccount,
+  refreshFoods,
+  rotationGroupsQuery,
+  useAccount,
+} from '../query';
 import { saveProblem, SaveNotice, type SaveProblem } from '../saving';
+import { BatchRows } from './Batches';
 
 // One food (docs/10 §8.6, the M2 prototype's screen 17): its values per 100 g, how the plan uses
-// it, and Edit and Archive. Batches join it with their slice (S13).
+// it, a batch-cooked food's batches (S13), and Edit and Archive.
 
 export function FoodPage({ id, navigate }: { id: string; navigate: Navigate }) {
   const confirmed = useAccount().status === 'confirmed';
   const foods = useQuery({ ...foodsQuery, enabled: confirmed });
   const groups = useQuery({ ...rotationGroupsQuery, enabled: confirmed });
   const food = foods.data?.find((each) => each.id === id);
-  const back = () => goBack(navigate, '/food');
+  const back = () => goBack(navigate, '/food/list');
+  const note = useEntryNote();
 
   return (
     <main>
@@ -26,6 +35,12 @@ export function FoodPage({ id, navigate }: { id: string; navigate: Navigate }) {
         slot={<DataState at={foods.dataUpdatedAt} />}
         back={{ label: 'Back to your foods', onClick: back }}
       />
+      {note === 'batch-saved' && (
+        <output className="saved-line">
+          <CheckIcon size={13} color="var(--done)" />
+          Batch saved. Plans made from now on use its yield.
+        </output>
+      )}
       {foods.isError && foods.data === undefined && (
         <Notice tone="flag" word="Not updated">
           Couldn’t reach Overload. Try again when you have signal.
@@ -78,7 +93,7 @@ function FoodDetail({
       );
       saved = true;
       await refreshFoods();
-      navigate('/food', { replace: true, note: 'food-archived' });
+      navigate('/food/list', { replace: true, note: 'food-archived' });
     } catch (error) {
       setProblem(saved ? { kind: 'plan_failed' } : saveProblem(error));
       setBusy(false);
@@ -132,6 +147,7 @@ function FoodDetail({
           </div>
         </dl>
       </section>
+      {food.keepsDays !== null && !archived && <FoodBatches food={food} navigate={navigate} />}
       {!archived && (
         <>
           <div className="section-actions">
@@ -158,5 +174,36 @@ function FoodDetail({
         </>
       )}
     </>
+  );
+}
+
+/** A batch-cooked food's batches, newest first, and the way to record one (S13). */
+function FoodBatches({ food, navigate }: { food: Food; navigate: Navigate }) {
+  const confirmed = useAccount().status === 'confirmed';
+  const batches = useQuery({ ...batchesQuery, enabled: confirmed });
+  const own = (batches.data ?? []).filter((batch) => batch.foodId === food.id);
+  return (
+    <section className="today__section" aria-labelledby="food-batches">
+      <h2 id="food-batches" className="section-label">
+        Batches
+      </h2>
+      {batches.data !== undefined && own.length === 0 ? (
+        <p className="food-hint">
+          No batch weighed yet. Cooked amounts use the food table’s cooked values, marked
+          approximate.
+        </p>
+      ) : (
+        <BatchRows food={food} batches={own} />
+      )}
+      <div className="section-actions section-actions--flush batch-actions">
+        <button
+          type="button"
+          className="button button--secondary"
+          onClick={() => navigate(`/food/batches/new?food=${food.id}&from=food`, { returns: true })}
+        >
+          Record a batch
+        </button>
+      </div>
+    </section>
   );
 }

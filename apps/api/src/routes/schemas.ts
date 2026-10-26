@@ -1388,6 +1388,13 @@ export const PlanItem = z
       description:
         'A batch-cooked food with no cooked values in the food table: planned raw, by its raw values.',
     }),
+    batchId: Uuid.nullable().openapi({
+      description:
+        'The batch whose yield gave the cooked values. Null without one, or once it is deleted.',
+    }),
+    yieldRatio: z.number().nullable().openapi({
+      description: 'The yield used when this item was planned; kept after batch deletion.',
+    }),
     per100g: PlanPer100g.openapi({ description: 'The food’s values as the plan used them.' }),
   })
   .openapi('PlanItem');
@@ -1440,6 +1447,139 @@ export const PlanRange = z
   .object({ from: LocalDate, to: LocalDate })
   .openapi('PlanRange', { description: 'Local dates, both included, at most 31 days.' });
 
+// Batches and the prep plan (S13, S17, docs/07 §4).
+
+const BatchWeightG = z.number().positive().max(100000).multipleOf(0.01);
+
+export const Batch = z
+  .object({
+    id: Uuid,
+    foodId: Uuid,
+    rawWeightG: z.number().openapi({ example: 1400 }),
+    cookedWeightG: z.number().openapi({ example: 1050 }),
+    cookedOn: LocalDate,
+    note: z.string().nullable(),
+    yield: z.number().openapi({
+      description: 'Cooked weight over raw, derived and never stored.',
+      example: 0.75,
+    }),
+  })
+  .openapi('Batch', { description: 'One cook-up of a food, weighed raw and cooked.' });
+
+export const BatchList = z
+  .object({ items: z.array(Batch).openapi({ description: 'Newest `cookedOn` first.' }) })
+  .openapi('BatchList');
+
+export const BatchCreate = z
+  .object({
+    id: Uuid.openapi({ description: 'Made on the device (UUIDv7). A repeat returns the row.' }),
+    foodId: Uuid,
+    rawWeightG: BatchWeightG.openapi({ example: 1400 }),
+    cookedWeightG: BatchWeightG.openapi({
+      description: 'May be above the raw weight: rice takes up water.',
+      example: 1050,
+    }),
+    cookedOn: LocalDate,
+    note: z.string().trim().min(1).max(200).nullable().optional(),
+  })
+  .openapi('BatchCreate');
+
+export const PrepPlanQuery = z.object({
+  weekStart: LocalDate.openapi({
+    param: { name: 'weekStart', in: 'query' },
+    description: 'The Monday the week starts on.',
+    example: '2026-10-19',
+  }),
+});
+
+const PrepCook = z
+  .object({
+    foodId: Uuid,
+    name: z.string(),
+    keepsDays: z.int().nullable(),
+    rawGrams: z.number().nullable().openapi({
+      description:
+        'Raw grams to cook, to 5 g. Null for a food stored cooked with no batch weighed to convert by.',
+    }),
+    cookedGrams: z.number().nullable().openapi({
+      description: 'The cooked grams the plan asks for. Null for a food planned raw with no batch.',
+    }),
+    approximate: z.boolean().openapi({
+      description: 'No batch weighed: raw grams worked out from the food table’s cooked values.',
+    }),
+    dates: z.array(LocalDate).openapi({ description: 'The plan days this cook feeds.' }),
+  })
+  .openapi('PrepCook');
+
+export const PrepPlan = z
+  .object({
+    weekStart: LocalDate,
+    missing: z.array(LocalDate).openapi({ description: 'Days of the week with no plan yet.' }),
+    generatedAt: Instant.nullable().openapi({
+      description: 'When the week’s newest plan day was made.',
+    }),
+    cookDays: z
+      .array(
+        z.object({
+          date: LocalDate,
+          which: z.enum(['first', 'second']),
+          covers: z.array(LocalDate),
+          because: z
+            .object({ foodId: Uuid, name: z.string(), keepsDays: z.int() })
+            .nullable()
+            .openapi({
+              description: 'On the second day: the food whose first batch runs out first.',
+            }),
+          cooks: z.array(PrepCook).openapi({ description: 'By name.' }),
+        }),
+      )
+      .openapi({
+        description: 'At most two: the Sunday before the week, and a second when needed.',
+      }),
+    foods: z
+      .array(
+        z.object({
+          foodId: Uuid,
+          name: z.string(),
+          keepsDays: z.int(),
+          batch: z.union([Batch, z.null()]),
+          weighDue: z.boolean().openapi({
+            description: 'No batch, or the newest cooked more than 7 days ago (docs/09 F12).',
+          }),
+        }),
+      )
+      .openapi({
+        description:
+          'Every batch-cooked food on the list, by name, with its newest batch: the one in use.',
+      }),
+    uncovered: z
+      .array(
+        z.object({
+          foodId: Uuid,
+          name: z.string(),
+          keepsDays: z.int(),
+          dates: z.array(LocalDate),
+        }),
+      )
+      .openapi({ description: 'Batch-cooked foods no batch keeps for on these days of the week.' }),
+    grocery: z
+      .array(
+        z.object({
+          foodId: Uuid,
+          name: z.string(),
+          section: z.enum(['cook_days', 'week']),
+          unit: z.enum(['g', 'pieces']),
+          quantity: z.number().nullable(),
+          cooks: z
+            .array(z.number().nullable())
+            .openapi({ description: 'Each cook’s raw grams, summed into `quantity`.' }),
+          approximate: z.boolean(),
+        }),
+      )
+      .openapi({ description: 'The cook days’ foods by name, then the week’s by name.' }),
+  })
+  .openapi('PrepPlan', { description: 'The week’s prep plan and grocery list, derived (S17).' });
+
 // The export (S10, docs/07 §2): one section a call, each item as the API's normal read returns it.
 
 export const EXPORT_SECTIONS = [
@@ -1456,7 +1596,7 @@ export const ExportSection = z.enum(EXPORT_SECTIONS).openapi('ExportSection', {
   description: 'The sections built so far. Later milestones add theirs (docs/07 §2).',
 });
 
-export const PLANNING_EXPORT_SECTIONS = ['phases', 'dayRoutines', 'planDays'] as const;
+export const PLANNING_EXPORT_SECTIONS = ['phases', 'dayRoutines', 'planDays', 'batches'] as const;
 export const PlanningExportSection = z
   .enum(PLANNING_EXPORT_SECTIONS)
   .openapi('PlanningExportSection');
@@ -1496,5 +1636,6 @@ export const PlanningExportPage = z
     exportPage('phases', GoalPhase),
     exportPage('dayRoutines', DayRoutine),
     exportPage('planDays', PlanDay),
+    exportPage('batches', Batch),
   ])
   .openapi('PlanningExportPage');

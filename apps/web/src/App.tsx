@@ -19,6 +19,8 @@ import { Invites } from './screens/Invites';
 import { PastWorkout } from './screens/PastWorkout';
 import { Progress } from './screens/Progress';
 import { Balance } from './screens/Balance';
+import { Batches, RecordBatch } from './screens/Batches';
+import { Grocery, Prep } from './screens/Prep';
 import { RoutineScreen } from './screens/RoutineEditor';
 import { RoutineList } from './screens/RoutineList';
 import { RotationGroups } from './screens/RotationGroups';
@@ -106,7 +108,12 @@ export function App() {
       return <Balance me={me.data} searchParams={searchParams} navigate={navigate} />;
     if (route.screen === 'weight') return <Weight me={me.data} navigate={navigate} />;
     if (route.screen === 'weigh-in') return <WeighIn me={me.data} navigate={navigate} />;
+    if (route.screen === 'prep') return <Prep me={me.data} navigate={navigate} />;
+    if (route.screen === 'grocery') return <Grocery me={me.data} navigate={navigate} />;
     if (route.screen === 'foods') return <Foods me={me.data} navigate={navigate} />;
+    if (route.screen === 'batches') return <Batches me={me.data} navigate={navigate} />;
+    if (route.screen === 'batch-new')
+      return <RecordBatch me={me.data} searchParams={searchParams} navigate={navigate} />;
     if (route.screen === 'food')
       return <FoodPage key={route.id} id={route.id} navigate={navigate} />;
     if (route.screen === 'food-edit')

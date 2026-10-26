@@ -148,6 +148,20 @@
       "when": 1792588757490,
       "tag": "0020_m2_goal_phase_calorie_target_stale",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1793017323050,
+      "tag": "0021_m2_slice6_batch",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1793020730437,
+      "tag": "0022_m2_slice6_plan_item_yield",
+      "breakpoints": true
     }
   ]
 }

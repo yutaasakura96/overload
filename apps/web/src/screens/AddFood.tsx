@@ -37,7 +37,7 @@ export function AddFood({ navigate }: { navigate: Navigate }) {
   const q = usePaused(search.trim());
   const searching = q.length >= MIN_QUERY;
   const found = useQuery({ ...referenceFoodsQuery(q), enabled: confirmed && searching });
-  const back = () => goBack(navigate, '/food');
+  const back = () => goBack(navigate, '/food/list');
 
   const pick = (entry: ReferenceFood) => {
     const values = valuesOf(entry);

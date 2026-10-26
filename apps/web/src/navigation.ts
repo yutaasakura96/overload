@@ -15,7 +15,8 @@ export type Note =
   | 'weighed'
   | 'food-saved'
   | 'food-archived'
-  | 'plan-saved';
+  | 'plan-saved'
+  | 'batch-saved';
 
 /**
  * What one history entry remembers. `returns`: the entry before it is the screen the user came
@@ -33,6 +34,7 @@ const NOTES: readonly unknown[] = [
   'food-saved',
   'food-archived',
   'plan-saved',
+  'batch-saved',
 ];
 const isNote = (value: unknown): value is Note => NOTES.includes(value);
 
@@ -113,7 +115,11 @@ export type Route =
   | { screen: 'balance' }
   | { screen: 'weight' }
   | { screen: 'weigh-in' }
+  | { screen: 'prep' }
+  | { screen: 'grocery' }
   | { screen: 'foods' }
+  | { screen: 'batches' }
+  | { screen: 'batch-new' }
   | { screen: 'food'; id: string }
   | { screen: 'food-edit'; id: string }
   | { screen: 'food-add' }
@@ -135,7 +141,12 @@ export function routeOf(pathname: string): Route {
   if (first === 'progress' && second === 'weight' && rest.length === 1 && rest[0] === 'new')
     return { screen: 'weigh-in' };
   if (first === 'food') {
-    if (second === undefined) return { screen: 'foods' };
+    if (second === undefined) return { screen: 'prep' };
+    if (second === 'grocery' && rest.length === 0) return { screen: 'grocery' };
+    if (second === 'list' && rest.length === 0) return { screen: 'foods' };
+    if (second === 'batches' && rest.length === 0) return { screen: 'batches' };
+    if (second === 'batches' && rest.length === 1 && rest[0] === 'new')
+      return { screen: 'batch-new' };
     if (second === 'groups' && rest.length === 0) return { screen: 'rotation-groups' };
     if (second === 'new' && rest.length === 0) return { screen: 'food-add' };
     if (second === 'new' && rest.length === 1 && rest[0] === 'barcode')

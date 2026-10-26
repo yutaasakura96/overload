@@ -553,10 +553,36 @@ export const planDaysQuery = (from: string, to: string) =>
       ),
   });
 
+/** Every batch, newest cook day first, each with its yield (S13). */
+export const batchesQuery = queryOptions({
+  queryKey: ['batches'],
+  refetchOnWindowFocus: false,
+  refetchOnReconnect: false,
+  queryFn: async ({ signal }) =>
+    (await confirmedAccountData(() => api.GET('/api/batches', { signal }))).items,
+});
+
+/** A week's prep plan and grocery list, derived from its plan days (S17). */
+export const prepPlanQuery = (weekStart: string) =>
+  queryOptions({
+    queryKey: ['plan', 'prep', weekStart],
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    queryFn: async ({ signal }) =>
+      confirmedAccountData(() =>
+        api.GET('/api/prep-plan', { params: { query: { weekStart } }, signal }),
+      ),
+  });
+
+/** The Monday of the week a local date is in. */
+export const weekStartOf = (date: string) =>
+  addLocalDays(date, -((new Date(`${date}T00:00:00Z`).getUTCDay() + 6) % 7));
+
 /**
- * Makes the week from today again after its inputs changed: the food list, the phase, the routine
- * or the profile (docs/07 §4, Plan days). Days with a confirmed meal are left by the server. Until
- * setup is complete the server answers `setup_incomplete`, which is nothing to report.
+ * Makes the plan from today to the end of next week again after its inputs changed: the food list,
+ * a batch, the phase, the routine or the profile (docs/07 §4, Plan days), so the prep plan for the
+ * coming week reads the same inputs as Today. Days with a confirmed meal are left by the server.
+ * Until setup is complete the server answers `setup_incomplete`, which is nothing to report.
  */
 export async function regeneratePlan(): Promise<void> {
   const profile = queryClient.getQueryData<Me>(ME_KEY)?.profile;
@@ -569,7 +595,9 @@ export async function regeneratePlan(): Promise<void> {
   try {
     await forAccount(async () =>
       unwrap(
-        await api.POST('/api/plan-days/generate', { body: { from, to: addLocalDays(from, 6) } }),
+        await api.POST('/api/plan-days/generate', {
+          body: { from, to: addLocalDays(weekStartOf(from), 13) },
+        }),
       ),
     );
   } catch (error) {
@@ -721,6 +749,17 @@ export const refreshWeighIns = () =>
       query.queryKey[0] === 'strength' ||
       query.queryKey[0] === 'last-time',
   });
+/**
+ * After a batch is recorded: the batches, the food list that names them, and the plan, made again
+ * so days not yet confirmed use the new yield (S13).
+ */
+export const refreshBatches = async () => {
+  await queryClient.invalidateQueries({
+    predicate: (query) => query.queryKey[0] === 'batches' || query.queryKey[0] === 'foods',
+  });
+  await regeneratePlan();
+};
+
 /**
  * After a food or a group is saved, archived or deleted: both lists, since a food names its group
  * and a group its foods, and any search, which marks the foods already on the list. The week's plan

@@ -365,9 +365,11 @@ incomplete until it is confirmed or locks.
 
 ### F12. Weekly prep
 
-1. Prep screen → the prep plan for the coming week: raw grams per food, from the plan and the current
-   batch yield (S17). It lists the plan's at most two cook days, naming the second when used; planned
-   servings fall only on days covered by each food's `keeps_days` (`02` S16–S17).
+1. Prep screen → the prep plan for the coming week: raw grams per food, from the yield each saved
+   item was planned with (S17). It lists Sunday's cook before the week and Thursday's second cook
+   when a food keeps for fewer than seven days, each with the days it serves; planned servings fall
+   only on days covered by each food's `keeps_days` (`02` S16–S17), and the other days get a
+   won't-keep notice. A food with no `keeps_days` is one Sunday cook for the week.
 2. **Grocery list** → the same, summed per food to buy.
 3. After cooking → **Record batch**: food, raw weight, cooked weight, date → save. Future plan items
    use the new yield; past ones keep their snapshot.
@@ -379,9 +381,20 @@ values, marked approximate (PRD empty state).
 | Step | Goes wrong | User sees |
 | --- | --- | --- |
 | 1 | No plan days generated for next week yet | The client calls `generate` for the week first |
-| 3 | Cooked weight greater than raw for a food that loses water | Accepted (rice gains water); no validation beyond both > 0 |
+| 1 | Setup not complete, so nothing can be generated | `No plan to prep from yet`, and `Go to Today` |
+| 3 | Cooked weight greater than raw for a food that loses water | Accepted (rice gains water). A yield outside 0.1 to 10 is refused under the cooked weight as a slip |
+| 3 | Cook date is after the member's local today | Refused under `Cooked on` |
+| 3 | The food is stored cooked | Refused under `Food`: `Batches need a food with raw values.` |
 
 **Abandon:** a batch is saved only on **Save**.
+
+**As built, 2026-10-26** (`#81`, `06`). "The coming week" is this week while one of its cook days
+is today or later, else the next; from Sunday, the next, whose first cook day it is. Ticking a cook
+on the prep screen opens **Record batch** with that cook's food and raw grams filled in, dated the
+cook day or today if the cook day is still ahead (Q12); unticking undoes the tick. Prep and grocery
+ticks are kept on the phone, per account and week, and the sign-out wipe clears them (Q11).
+`Keeps for` on **Record batch** changes the food's `keeps_days` for every batch. Saving makes the
+plan again from today to the end of next week, so days not yet confirmed use the new yield.
 
 ### F13. Maintenance check → apply by hand
 

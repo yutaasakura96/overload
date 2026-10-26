@@ -10,9 +10,16 @@ const SIGNED_IN_USER = 'signed-in-user';
 // Days left incomplete at the end-of-day check (docs/03 §6) will live here too from M2, and the
 // wipe below already covers them.
 const QUERY_CACHE = 'query-cache';
+// The prep and grocery ticks of each account's week, kept on this phone only (Q11).
+const TICKS = 'ticks';
 const WIPE_PENDING = 'overload:wipe-pending';
 
 export type SignedInUser = Me['user'];
+
+/** One list of ticks: the prep plan's cooks or the grocery list, of one account's week. */
+export type TickList = { userId: string; weekStart: string; list: 'prep' | 'grocery' };
+const tickKey = ({ userId, weekStart, list }: TickList) =>
+  `${TICKS}:${userId}:${weekStart}:${list}`;
 
 export const deviceStore = {
   /** The last confirmed signed-in user, so an offline launch can open as them (docs/08 §5). */
@@ -26,6 +33,12 @@ export const deviceStore = {
     removeItem: (key: string) => del(`${QUERY_CACHE}:${key}`, store),
   },
 
+  /** The food ids ticked on one list of one account's week. */
+  ticks: {
+    get: async (key: TickList) => (await get<string[]>(tickKey(key), store)) ?? [],
+    set: (key: TickList, ids: string[]) => set(tickKey(key), ids, store),
+  },
+
   wipePending: () => {
     try {
       return localStorage.getItem(WIPE_PENDING) === '1';
@@ -35,8 +48,8 @@ export const deviceStore = {
   },
 
   /**
-   * Removes everything this store holds: the signed-in user, the incomplete days and the persisted
-   * query cache. Weight, food and health numbers must not stay readable after sign-out (docs/08 §7).
+   * Removes everything this store holds: the signed-in user, the incomplete days, the prep and
+   * grocery ticks and the persisted query cache. Weight, food and health numbers must not stay readable after sign-out (docs/08 §7).
    */
   wipe: async () => {
     await Promise.resolve()

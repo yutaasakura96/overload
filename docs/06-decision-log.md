@@ -4112,3 +4112,54 @@ save. Every review round found another way to lose that record or send it to the
   when the figure typed equals the measured one it replaced.
 
 **Changed:** `04`, `06`, `07` §2, §4, §5, `10` §8.6.
+
+### 2026-10-26 — M2 slice 6: batches, the prep plan with a second cook day, and the grocery list
+
+Issue `#81`, S13 and S17, built as `04` `batch`, `07` §4 and `10` §5 describe, with the screens from
+the approved M2 prototype (screens 11 to 14). Checked at 390px on invented foods and batches.
+
+- **The week and its cook days.** A week runs Monday to Sunday, as the training weekdays do; its
+  first cook day is the Sunday before it, and a batch covers `keeps_days` calendar days from its cook
+  day (`02` S16), counted from Monday for Sunday's cook, so it is never an empty first cook. When a
+  batch-cooked food would not last the week, the second cook day is Thursday, as the prototype
+  drew it; a food keeping a single day is still two cooks, Sunday for Monday and Thursday for
+  Thursday, with a won't-keep notice for the rest (Firstmate, no-mistakes review). Chosen from the
+  food list, not from the plan, so the planner and the prep plan agree without either reading the
+  other. *Rejected:* a cook day per
+  food, which `02` S16's at most two cook days rules out.
+- **The planner keeps to the cook days** (`02` S16, `03` §8.2): a batch-cooked food is offered only
+  on days a batch from the two cook days keeps for; a rotation group gives those days another of its
+  foods. Owed since slice 4.
+- **A day is served by the first cook while its batch keeps, else by the second.** The prep plan
+  sums each cook's days' cooked grams and turns them into raw by the yield each item was planned
+  with, to 5 g. Each cook and cook day lists the days it actually serves rather than a range, which
+  would claim days a short-keeping batch does not reach. A food with no `keeps_days`, or one stored
+  cooked, is one Sunday cook for the week and a `week` grocery line, as `#81` asks.
+  *Rejected (Q8):* counting down each batch's portions.
+- **The yield.** Plans made after a batch is recorded take its yield: a raw batch-cooked food's
+  cooked values are its raw values over the yield, and the item names the batch and stores the
+  yield (`plan_meal_item.yield_ratio`). Days already made keep their snapshot; deleting the batch
+  clears the link and keeps the values and the yield, so the prep plan's raw grams do not move.
+  *Rejected:* falling back to the newest batch when the link is gone, which re-prices saved items.
+- **Batches are for raw foods only.** A food stored cooked has no raw values for a yield to
+  convert, so the API and the form refuse a batch of it, and it keeps its own values. With no batch, the
+  plan stays on the MEXT cooked values, `approximate`, and the prep plan works the raw grams out by
+  the ratio of the food's raw calories to those values, marked `≈`. *Rejected:* showing the raw
+  figure as exact and the cooked as approximate, as the prototype drew it, which is the other way
+  round from what is known.
+- **A yield from 0.1 to 10** is accepted. `09` F12 accepts cooked above raw; past ten times, or
+  under a tenth, a figure is a slip, and a yield near zero would plan thousands of calories a
+  portion.
+- **"Weigh this week's batch"** shows when a batch-cooked food has no batch, or its newest was
+  cooked more than 7 days ago, by the profile's time zone (`09` F12).
+- **Which week the prep screens show:** this week while one of its cook days is today or later,
+  else the next. *Rejected:* always the next week, which hides a second cook day still to come.
+- **Generation reaches next week.** After a food, group, batch or setup change, and when Today or
+  Prep finds a day missing, the client generates from today to the end of next week, so the prep
+  plan reads the same inputs as Today.
+- **Ticks stay on the phone** (Q11), per account and week, in the device store the sign-out wipe
+  clears. Ticking a cook opens `Record a batch` with its raw grams (Q12).
+- **`GET /api/batches`** lists every batch for the Batches screen, beside `07`'s per-food route. The
+  export gains `batches` on its planning route.
+
+**Changed:** `00`, `03` §8.2, `04`, `06`, `07` §2, §4, `09` F12, `10` §5, §8.6, `11` §2.

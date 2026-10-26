@@ -71,7 +71,7 @@ ahead of the current slice, not a description of the database.**
 | **2** | `routine` · `routine_exercise` |
 | **3** | `workout` · `workout_exercise` · `set` |
 | **4** | `sync_tombstone` |
-| **M2** | Everything under *M2 — meal plan + weight*, slice by slice. M2 slice 1 (`#76`): `body_measurement`, without M3's `lean_mass_kg` (`06`, 2026-10-16). M2 slice 3 (`#78`): `food`, `reference_food` with its seed, `rotation_group` and `model_call_count` (`06`, 2026-10-17). M2 slice 4 (`#79`): `goal_phase`, `day_routine`, `meal_slot`, `plan_day`, `plan_meal` and `plan_meal_item`, migration `0019`, without `plan_meal_item.batch_id` until `batch` exists (`#81`) (`06`, 2026-10-18) |
+| **M2** | Everything under *M2 — meal plan + weight*, slice by slice. M2 slice 1 (`#76`): `body_measurement`, without M3's `lean_mass_kg` (`06`, 2026-10-16). M2 slice 3 (`#78`): `food`, `reference_food` with its seed, `rotation_group` and `model_call_count` (`06`, 2026-10-17). M2 slice 4 (`#79`): `goal_phase`, `day_routine`, `meal_slot`, `plan_day`, `plan_meal` and `plan_meal_item`, migration `0019`, without `plan_meal_item.batch_id` until `batch` exists (`#81`) (`06`, 2026-10-18). M2 slice 6 (`#81`): `batch` and `plan_meal_item.batch_id`, migration `0021` (`06`, 2026-10-26) |
 | **M3** | Everything under *M3 — health + coaching*, and `ingest_token`. Its revoke on an invite's revoke and the two tests that go with it come with the table (`06`, 2026-10-15) |
 
 Each slice's GitHub issue names the tables it creates, so the gap between this document and the
@@ -446,7 +446,7 @@ everything downstream does one kind of arithmetic.
 | `fat_g` | numeric(6,2) | no | — | Per 100 g |
 | `fiber_g` | numeric(6,2) | no | `0` | Per 100 g |
 | `piece_weight_g` | numeric(6,2) | yes | — | Set for foods counted in units. One egg = 55 g. `NULL` means grams only. `CHECK > 0` |
-| `keeps_days` | smallint | yes | — | How many days a cooked batch of this food keeps (S13); S16 limits planned servings to days covered by the week's at most two cook days. `NULL` for a food not batch-cooked. `CHECK` 1–30. *Added 2026-10-16* (`06`) |
+| `keeps_days` | smallint | yes | — | How many days a cooked batch of this food keeps (S13), counted from Monday for Sunday's cook; S16 limits planned servings to days covered by the week's Sunday and, when needed, Thursday cooks. `NULL` for a food not batch-cooked. `CHECK` 1–30. *Added 2026-10-16* (`06`) |
 | `source` | text | no | — | `mext` \| `open_food_facts` \| `label_photo` \| `manual`, `CHECK` |
 | `source_ref` | text | yes | — | MEXT food code, or the barcode |
 | `rotation_group_id` | uuid | yes | — | → `rotation_group.id`, `ON DELETE SET NULL` |
@@ -562,6 +562,12 @@ One cook-up: how much went in raw, how much came out cooked (S13).
 - `INDEX (user_id, food_id, cooked_on DESC)` — "the current batch" is the newest row for that food.
 - The yield (`cooked ÷ raw`) is computed, not stored. Two stored numbers that must agree is one too
   many.
+- `INDEX (food_id)`, for the food's `ON DELETE CASCADE`.
+- *Created 2026-10-26* (M2 slice 6, migration `0021`), as above. Its id is made on the device. The
+  API takes a yield from 0.1 to 10 only; a figure past either is a slip, and a yield near zero would
+  plan thousands of calories a portion (`06`, 2026-10-26). The newest batch is the latest
+  `cooked_on`, then the latest id. Only a food stored raw takes a batch; one stored cooked is
+  refused, as it has no raw values for a yield to convert.
 
 | food_id | raw_weight_g | cooked_weight_g | cooked_on |
 | --- | --- | --- | --- |
@@ -710,7 +716,8 @@ One food in one meal, planned and as eaten (S16, S18).
 | `cooked` | boolean | no | `false` | *Added 2026-10-18.* The grams are a cooked weight |
 | `approximate` | boolean | no | `false` | *Added 2026-10-18.* A cooked weight planned from the MEXT cooked counterpart of a raw batch-cooked food, with no batch yield recorded yet (`06`, 2026-10-18). Screen 3 marks it `approx.` |
 | `no_cooked_match` | boolean | no | `false` | *Added 2026-10-18.* A raw batch-cooked food with no MEXT cooked counterpart, planned raw by its raw values (`06`, 2026-10-18). Screen 3 marks it `raw, no cooked match` |
-| `batch_id` | uuid | yes | — | → `batch.id`, `ON DELETE SET NULL`. The yield used to convert cooked → raw macros. **Not yet created**: it comes with `batch` in slice 6 (`#81`) |
+| `batch_id` | uuid | yes | — | → `batch.id`, `ON DELETE SET NULL`. The yield used to convert raw → cooked macros and the saved item's prep raw grams. *Created 2026-10-26* (`#81`), with `INDEX (batch_id)` for the `SET NULL`. Deleting the batch leaves the item's macro snapshot as it was |
+| `yield_ratio` | numeric(15,12) | yes | — | **Snapshot** of the batch yield (`cooked ÷ raw`) the item was planned with; the prep plan's raw grams come from it, so deleting or superseding the batch changes nothing saved. *Added 2026-10-26* (`#81`, migration `0022`), filled from `batch_id` for existing rows |
 | `energy_kcal_per_100g` | numeric(7,2) | no | — | **Snapshot** of the food's macros at plan time |
 | `protein_g_per_100g` | numeric(6,2) | no | — | Snapshot |
 | `carb_g_per_100g` | numeric(6,2) | no | — | Snapshot |

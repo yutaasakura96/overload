@@ -1296,6 +1296,35 @@
               "items",
               "nextCursor"
             ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "section": {
+                "type": "string",
+                "enum": [
+                  "batches"
+                ]
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Batch"
+                }
+              },
+              "nextCursor": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Opaque. Send it back as `cursor` for the next page."
+              }
+            },
+            "required": [
+              "section",
+              "items",
+              "nextCursor"
+            ]
           }
         ]
       },
@@ -1852,6 +1881,22 @@
             "type": "boolean",
             "description": "A batch-cooked food with no cooked values in the food table: planned raw, by its raw values."
           },
+          "batchId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11",
+            "description": "The batch whose yield gave the cooked values. Null without one, or once it is deleted."
+          },
+          "yieldRatio": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "The yield used when this item was planned; kept after batch deletion."
+          },
           "per100g": {
             "type": "object",
             "properties": {
@@ -1891,15 +1936,67 @@
           "cooked",
           "approximate",
           "noCookedMatch",
+          "batchId",
+          "yieldRatio",
           "per100g"
         ]
+      },
+      "Batch": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+          },
+          "foodId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+          },
+          "rawWeightG": {
+            "type": "number",
+            "example": 1400
+          },
+          "cookedWeightG": {
+            "type": "number",
+            "example": 1050
+          },
+          "cookedOn": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-10-16"
+          },
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "yield": {
+            "type": "number",
+            "description": "Cooked weight over raw, derived and never stored.",
+            "example": 0.75
+          }
+        },
+        "required": [
+          "id",
+          "foodId",
+          "rawWeightG",
+          "cookedWeightG",
+          "cookedOn",
+          "note",
+          "yield"
+        ],
+        "description": "One cook-up of a food, weighed raw and cooked."
       },
       "PlanningExportSection": {
         "type": "string",
         "enum": [
           "phases",
           "dayRoutines",
-          "planDays"
+          "planDays",
+          "batches"
         ]
       },
       "ExerciseList": {
@@ -4403,6 +4500,365 @@
             "description": "The whole membership. A food left out stays on the list, ungrouped."
           }
         }
+      },
+      "BatchList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Batch"
+            },
+            "description": "Newest `cookedOn` first."
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "BatchCreate": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11",
+            "description": "Made on the device (UUIDv7). A repeat returns the row."
+          },
+          "foodId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+          },
+          "rawWeightG": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 100000,
+            "example": 1400
+          },
+          "cookedWeightG": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 100000,
+            "description": "May be above the raw weight: rice takes up water.",
+            "example": 1050
+          },
+          "cookedOn": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-10-16"
+          },
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "id",
+          "foodId",
+          "rawWeightG",
+          "cookedWeightG",
+          "cookedOn"
+        ]
+      },
+      "PrepPlan": {
+        "type": "object",
+        "properties": {
+          "weekStart": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-10-16"
+          },
+          "missing": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "date",
+              "example": "2026-10-16"
+            },
+            "description": "Days of the week with no plan yet."
+          },
+          "generatedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "example": "2026-11-11T09:01:40.000Z",
+            "description": "When the week’s newest plan day was made."
+          },
+          "cookDays": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "date": {
+                  "type": "string",
+                  "format": "date",
+                  "example": "2026-10-16"
+                },
+                "which": {
+                  "type": "string",
+                  "enum": [
+                    "first",
+                    "second"
+                  ]
+                },
+                "covers": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "format": "date",
+                    "example": "2026-10-16"
+                  }
+                },
+                "because": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "foodId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "keepsDays": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "foodId",
+                    "name",
+                    "keepsDays"
+                  ],
+                  "description": "On the second day: the food whose first batch runs out first."
+                },
+                "cooks": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PrepCook"
+                  },
+                  "description": "By name."
+                }
+              },
+              "required": [
+                "date",
+                "which",
+                "covers",
+                "because",
+                "cooks"
+              ]
+            },
+            "description": "At most two: the Sunday before the week, and a second when needed."
+          },
+          "foods": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "foodId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "keepsDays": {
+                  "type": "integer"
+                },
+                "batch": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/Batch"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "weighDue": {
+                  "type": "boolean",
+                  "description": "No batch, or the newest cooked more than 7 days ago (docs/09 F12)."
+                }
+              },
+              "required": [
+                "foodId",
+                "name",
+                "keepsDays",
+                "batch",
+                "weighDue"
+              ]
+            },
+            "description": "Every batch-cooked food on the list, by name, with its newest batch: the one in use."
+          },
+          "uncovered": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "foodId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "keepsDays": {
+                  "type": "integer"
+                },
+                "dates": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "format": "date",
+                    "example": "2026-10-16"
+                  }
+                }
+              },
+              "required": [
+                "foodId",
+                "name",
+                "keepsDays",
+                "dates"
+              ]
+            },
+            "description": "Batch-cooked foods no batch keeps for on these days of the week."
+          },
+          "grocery": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "foodId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "section": {
+                  "type": "string",
+                  "enum": [
+                    "cook_days",
+                    "week"
+                  ]
+                },
+                "unit": {
+                  "type": "string",
+                  "enum": [
+                    "g",
+                    "pieces"
+                  ]
+                },
+                "quantity": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "cooks": {
+                  "type": "array",
+                  "items": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "description": "Each cook’s raw grams, summed into `quantity`."
+                },
+                "approximate": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "foodId",
+                "name",
+                "section",
+                "unit",
+                "quantity",
+                "cooks",
+                "approximate"
+              ]
+            },
+            "description": "The cook days’ foods by name, then the week’s by name."
+          }
+        },
+        "required": [
+          "weekStart",
+          "missing",
+          "generatedAt",
+          "cookDays",
+          "foods",
+          "uncovered",
+          "grocery"
+        ],
+        "description": "The week’s prep plan and grocery list, derived (S17)."
+      },
+      "PrepCook": {
+        "type": "object",
+        "properties": {
+          "foodId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+          },
+          "name": {
+            "type": "string"
+          },
+          "keepsDays": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "rawGrams": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Raw grams to cook, to 5 g. Null for a food stored cooked with no batch weighed to convert by."
+          },
+          "cookedGrams": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "The cooked grams the plan asks for. Null for a food planned raw with no batch."
+          },
+          "approximate": {
+            "type": "boolean",
+            "description": "No batch weighed: raw grams worked out from the food table’s cooked values."
+          },
+          "dates": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "date",
+              "example": "2026-10-16"
+            },
+            "description": "The plan days this cook feeds."
+          }
+        },
+        "required": [
+          "foodId",
+          "name",
+          "keepsDays",
+          "rawGrams",
+          "cookedGrams",
+          "approximate",
+          "dates"
+        ]
       },
       "GoalPhaseList": {
         "type": "object",
@@ -7715,6 +8171,316 @@
           },
           "401": {
             "description": "No session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/batches": {
+      "get": {
+        "summary": "Every batch, newest cook day first, each with its yield",
+        "responses": {
+          "200": {
+            "description": "Every batch",
+            "headers": {
+              "Overload-User": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "The id of the user whose session answered. Keep the body for that account only."
+                },
+                "required": true,
+                "description": "The id of the user whose session answered. Keep the body for that account only."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Record a batch. Plans made from now on use its yield; past ones keep theirs",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "A repeat of the same batch: the stored row",
+            "headers": {
+              "Overload-User": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "The id of the user whose session answered. Keep the body for that account only."
+                },
+                "required": true,
+                "description": "The id of the user whose session answered. Keep the body for that account only."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Batch"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Created",
+            "headers": {
+              "Overload-User": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "The id of the user whose session answered. Keep the body for that account only."
+                },
+                "required": true,
+                "description": "The id of the user whose session answered. Keep the body for that account only."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Batch"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`id_conflict`: the id is in use with other content",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`validation_failed`, including a food not on the caller’s list or a yield outside 0.1 to 10",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/foods/{id}/batches": {
+      "get": {
+        "summary": "One food’s batches, newest cook day first, each with its yield",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The food’s batches",
+            "headers": {
+              "Overload-User": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "The id of the user whose session answered. Keep the body for that account only."
+                },
+                "required": true,
+                "description": "The id of the user whose session answered. Keep the body for that account only."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A malformed id",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The caller has no food with that id",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/batches/{id}": {
+      "delete": {
+        "summary": "Delete a batch. Plan items that used it keep their values",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "The caller has no batch with that id",
+            "headers": {
+              "Overload-User": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "The id of the user whose session answered. Keep the body for that account only."
+                },
+                "required": true,
+                "description": "The id of the user whose session answered. Keep the body for that account only."
+              }
+            }
+          },
+          "400": {
+            "description": "A malformed id",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/prep-plan": {
+      "get": {
+        "summary": "The week’s prep plan and grocery list, derived from its plan days",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "example": "2026-10-19",
+              "description": "The Monday the week starts on."
+            },
+            "required": true,
+            "description": "The Monday the week starts on.",
+            "name": "weekStart",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The cook days, the batch-cooked foods and the grocery list",
+            "headers": {
+              "Overload-User": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "The id of the user whose session answered. Keep the body for that account only."
+                },
+                "required": true,
+                "description": "The id of the user whose session answered. Keep the body for that account only."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrepPlan"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`validation_failed`: `weekStart` is not a Monday",
             "content": {
               "application/problem+json": {
                 "schema": {

@@ -206,7 +206,7 @@ the file in the browser as `overload-export-2026-11-04.json`.
 
 - `?section=` on `/api/me/export` is one of `profile`, `exercises`, `routines`, `workouts`,
   `weighIns`, `foods` or `rotationGroups`. `/api/me/export/planning` takes `phases`,
-  `dayRoutines` or `planDays`. Later slices add `batches`, `healthSamples`, `appleWorkouts`,
+  `dayRoutines`, `planDays` or `batches`. Later slices add `healthSamples`, `appleWorkouts`,
   `expenditureEstimates`, `mealEstimates`, `protocolSuggestions` and `ingestTokens` (labels and
   dates only, never hashes).
 - Paged as in §1.4. Each item is the row as the API's normal read returns it, with its children
@@ -219,7 +219,8 @@ the file in the browser as `overload-export-2026-11-04.json`.
   `/api/me/export/planning` route for `phases`
   (newest `startedOn` then id first, as `GET /api/goal-phases` lists them), `dayRoutines` (by day
   type, each with its meals, as `GET /api/day-routines`) and `planDays` (newest date first, each as
-  `GET /api/plan-days` returns a day, meals and items nested) (`06`, 2026-10-18). `profile` is one item, `{ user, profile }`, as `/api/me` without
+  `GET /api/plan-days` returns a day, meals and items nested) (`06`, 2026-10-18). M2 slice 6 adds
+  `batches` to it, by id, each as `GET /api/batches` lists it (`06`, 2026-10-26). `profile` is one item, `{ user, profile }`, as `/api/me` without
   `isAdmin`. `exercises` pages by name then id; `routines` pages by position then id; `workouts`
   pages newest `startedAt` then id first, a workout in progress included, each as
   `GET /api/workouts/{id}` returns it.
@@ -796,9 +797,18 @@ A stored food is always per 100 g. The response has no `basis`.
 | POST | `/api/rotation-groups` | M | Create `{ id, name, foodIds[] }`. A food in another group moves to this one | 201 / 200 | 401, 409, 422 |
 | PATCH | `/api/rotation-groups/{id}` | M | Rename, or replace `foodIds`. A food not on the caller's list is 422 on `foodIds.N` | 200 | 400, 401, 404, 422 |
 | DELETE | `/api/rotation-groups/{id}` | M | Delete. Its foods stay, ungrouped | 204 | 400, 401 |
+| GET | `/api/batches` | M | Every batch, newest `cookedOn` first, each with its derived `yield` | 200 | 401 |
 | GET | `/api/foods/{id}/batches` | M | Batches of one food, newest `cookedOn` first, each with its derived `yield` | 200 | 401, 404 |
 | POST | `/api/batches` | M | Record a batch `{ id, foodId, rawWeightG, cookedWeightG, cookedOn, note }` | 201 / 200 | 401, 409, 422 |
-| DELETE | `/api/batches/{id}` | M | Delete. Plan items that used it keep their macro snapshot | 204 | 401 |
+| DELETE | `/api/batches/{id}` | M | Delete. Plan items that used it keep their macro snapshot and `yieldRatio` | 204 | 401 |
+
+**Batches, as built 2026-10-26** (`#81`, `06`). A batch is `{ id, foodId, rawWeightG, cookedWeightG,
+cookedOn, note, yield }`, `yield` to three decimals. `POST` refuses with `validation_failed` a weight
+of 0, a yield outside 0.1 to 10 (on `cookedWeightG`), a `cookedOn` after the member's local today,
+a food not on the caller's list, and a food stored cooked (`Batches need a food with raw values`),
+both on `foodId`; a repeat with the same content is 200, other content under the id 409 `id_conflict`.
+Cooked above raw is accepted. `Keeps for` is the food's `keepsDays`, changed with
+`PATCH /api/foods/{id}`. Plans generated after a batch use its yield; days already made keep theirs.
 
 ### Phase, routine and targets
 
@@ -860,10 +870,12 @@ puts the "provisional" label on screen (S14).
 - **As built, 2026-10-18** (`#79`): `from` after `to`, or more than 31 days, is a 400 on the read
   and a 422 `validation_failed` on `generate`. One generation at a time per user: it reads its inputs
   and writes its days under one lock, so a waiting one never writes from an older food list. The
-  client generates today through today + 6 when `missing` is not empty, and again after a food or a rotation group changes, or a
-  save on About you, Goal phase or Your day. The daily job is not built. Confirming (below) and the
-  prep plan are slices 5 and 6 (`#80`, `#81`); `batchId` and `estimateId` are not in the item yet,
-  and `cooked` is.
+  client generates from today to the end of next week when a day of today through today + 6 is
+  missing, or the prep screen's week is, and again
+  after a food, a rotation group or a batch changes, or a save on About you, Goal phase or Your day.
+  The daily job is not built. Confirming (below) is slice 5 (`#80`); `estimateId` is not in the item
+  yet, and `cooked` is. `batchId` and `yieldRatio`, the yield the item was planned with, are, since slice 6 (`#81`,
+  2026-10-26).
 
 ```json
 GET /api/plan-days?from=2026-11-11&to=2026-11-11  →  200
@@ -880,10 +892,10 @@ GET /api/plan-days?from=2026-11-11&to=2026-11-11  →  200
       "evidence": [ { "claim": "carbohydrate around training", "strength": "moderate", "sourceKey": "carb_timing_training" } ],
       "items": [
         { "id": "0192i071-…", "foodId": "0192f001-…", "name": "鶏むね肉（皮なし、加熱後）", "plannedGrams": 180, "actualGrams": null,
-          "pieceCount": null, "cooked": true, "batchId": "0192b004-…", "approximate": false, "estimateId": null,
+          "pieceCount": null, "cooked": true, "batchId": "0192b004-…", "yieldRatio": 0.75, "approximate": false, "estimateId": null,
           "per100g": { "energyKcal": 140.0, "proteinG": 31.1, "carbG": 0, "fatG": 2.0, "fiberG": 0 } },
         { "id": "0192i072-…", "foodId": "0192f003-…", "name": "白米（炊飯後）", "plannedGrams": 250, "actualGrams": null,
-          "pieceCount": null, "cooked": true, "batchId": null, "approximate": false, "estimateId": null,
+          "pieceCount": null, "cooked": true, "batchId": null, "yieldRatio": null, "approximate": false, "estimateId": null,
           "per100g": { "energyKcal": 156.0, "proteinG": 2.5, "carbG": 37.1, "fatG": 0.3, "fiberG": 1.5 } }
       ] } ]
   } ] }
@@ -897,8 +909,50 @@ GET /api/plan-days?from=2026-11-11&to=2026-11-11  →  200
   nothing more to give, with `suggestion: "add_food"`. Protein is never padded; a protein shortfall
   still fills the calories from carbohydrate and fat.
 - `approximate: true` is set, in M2 slice 4, on a raw batch-cooked food planned at the cooked
-  weight of its MEXT cooked counterpart (`06`, 2026-10-18), until slice 6's batch yield. With no
+  weight of its MEXT cooked counterpart (`06`, 2026-10-18), until a batch of it is recorded. With no
   counterpart the item is `cooked: false`, by the food's raw values, with `noCookedMatch: true`.
+
+**The prep plan, as built 2026-10-26** (`#81`, `06`). `weekStart` must be a Monday, else 422
+`validation_failed`. Derived on every read from the week's plan days, the food list and each food's
+newest batch (`03` §8.2, cook days). `covers` and each cook's `dates` are the plan days it actually
+serves, not a range:
+
+```json
+GET /api/prep-plan?weekStart=2026-10-19  →  200
+{ "weekStart": "2026-10-19", "missing": [], "generatedAt": "2026-10-16T09:12:00.000Z",
+  "cookDays": [
+    { "date": "2026-10-18", "which": "first", "covers": ["2026-10-19", "2026-10-20", "2026-10-21"],
+      "because": null,
+      "cooks": [ { "foodId": "0192f001-…", "name": "Chicken breast, skinless", "keepsDays": 4,
+                   "rawGrams": 1400, "cookedGrams": 1050, "approximate": false,
+                   "dates": ["2026-10-19", "2026-10-20", "2026-10-21"] } ] },
+    { "date": "2026-10-22", "which": "second",
+      "covers": ["2026-10-22", "2026-10-23", "2026-10-24", "2026-10-25"],
+      "because": { "foodId": "0192f001-…", "name": "Chicken breast, skinless", "keepsDays": 4 },
+      "cooks": [ { "foodId": "0192f001-…", "rawGrams": 1850, "cookedGrams": 1390, "…": "…" } ] } ],
+  "foods": [ { "foodId": "0192f001-…", "name": "Chicken breast, skinless", "keepsDays": 4,
+               "batch": { "id": "0192b004-…", "cookedOn": "2026-10-11", "yield": 0.75, "…": "…" },
+               "weighDue": false } ],
+  "uncovered": [ { "foodId": "0192f003-…", "name": "White rice", "keepsDays": 3,
+                   "dates": ["2026-10-21", "2026-10-25"] } ],
+  "grocery": [
+    { "foodId": "0192f001-…", "name": "Chicken breast, skinless", "section": "cook_days", "unit": "g",
+      "quantity": 3250, "cooks": [1400, 1850], "approximate": false },
+    { "foodId": "0192f005-…", "name": "Egg, M", "section": "week", "unit": "pieces",
+      "quantity": 21, "cooks": [], "approximate": false } ] }
+```
+
+- A cook's `rawGrams` sums each saved item's cooked grams over the `yieldRatio` it was planned with,
+  so a newer or deleted batch changes nothing saved, then rounds to 5 g. With no yield, it is
+  worked out from the food table's cooked values and `approximate`; a food stored cooked has none
+  (`null`), and one planned raw has no `cookedGrams`.
+- `weighDue` is "Weigh this week's batch" (`09` F12): no batch, or the newest cooked more than 7
+  days ago, by the profile's time zone.
+- A food with no `keepsDays`, or one stored cooked, is never split: one cook on the first cook day
+  for the whole week, with `keepsDays: null`, and one `week` grocery line, in pieces when it is
+  counted in them.
+- A food keeping fewer days than the week is two cooks, Sunday and Thursday, even when the Sunday
+  batch serves only Monday; the days neither keeps for are its `uncovered` dates.
 
 **Confirming a meal.** The body depends on `status`:
 

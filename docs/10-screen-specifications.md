@@ -428,15 +428,44 @@ end-of-day card on Today (§3).
 holds `Foods` only. With one section the segments are not drawn; they come with Prep and Grocery
 (`#81`), and the tab opens on `Prep` then. Five tabs fit 390px with the tabs' tracking at 0.04em.
 
+**As built in M2 slice 6** (`#81`, `06` 2026-10-26): the four sections are links, as Progress's
+are: `Prep` at `/food`, `Grocery` at `/food/grocery`, `Foods` at `/food/list` and `Batches` at
+`/food/batches`; `Record a batch` is `/food/batches/new`. Departures from the prototype, each
+because the data says it differently:
+
+- Without a batch, the raw figure is the approximate one (`≈ 245`), since the plan's cooked grams
+  are what is known; the yield note says `No batch weighed yet, so raw grams are approximate (from
+  the food table's cooked values).` A food planned raw for want of cooked values shows `—` cooked.
+- The second day's reason names the food whose first batch runs out the day before it, by name, in
+  the `Covers` line.
+- A food with no shelf life, or one stored cooked, is a row on the first cook day for the whole
+  week, its note `For the week.` (or `For the week, weighed raw at meals.` with no cooked figure);
+  ticking it does not open `Record a batch`. `Not batch-cooked` shows only when a batch-cooked food
+  cannot be covered on some days, one line each: `White rice won’t keep until the next cook; Sunday
+  uses other foods.`
+- `Covers` lists the days the cook day's batch-cooked foods serve, so a food with no shelf life on
+  the first cook day does not widen it and the two cook days never overlap; only a cook day with
+  no batch-cooked food lists its other foods' days. A row's `For` lists the days that cook serves
+  (`Covers Monday, Tuesday and Wednesday.`, `For Mon 19, Tue 20 and Wed 21`), not a range, since a
+  short-keeping batch can skip days.
+- `Record a batch` refuses a food stored cooked under `Food`: `Batches need a food with raw
+  values.`
+- The footnote is `Plan made Mon 26 Oct` / `7 days · 2 cook days`.
+- `Record a batch` has no `FROM THE PLAN` note over the raw weight: at 390px it pushed the two
+  weights out of line, and the app bar already says `FROM THE PREP PLAN`. `Cooked on` goes up to
+  today. The batches list has no delete; the API has one (`07` §4).
+- Empty states: `No plan to prep from yet` (setup not done), `Nothing to cook this week` (the week's plan has no foods), `Nothing
+  to buy`, and on Batches `No batch-cooked foods`.
+
 ### Prep (S17, Q8)
 
 | Block | Content |
 | --- | --- |
 | App bar | `FOOD` over `PREP FOR THE WEEK OF 19 OCT`; right: the data-state slot |
-| Lede | 13px: raw grams to cook, from next week's plan and each food's last weighed batch; shop and cook by the raw figure |
-| A cook day | One section per cook day (Q10). Its head sticks under the app bar while its rows pass (§7.3): `Sunday 18 Oct` 15px over `FIRST COOK DAY` (or `SECOND COOK DAY`) 10px `accent`, and the column heads `RAW · COOKED`. Then one 11px line on what it covers, `Covers Monday to Wednesday.`, and on the second day why it exists: `Chicken keeps 4 days, so Sunday's batch runs out after Wednesday.` |
-| Cook row | Grid `1fr 70px 56px 44px`: the food 15px over the yield note 11px and `For Mon 19 to Wed 21` 10px mono; raw 17px mono/500 with `g`; cooked 13px mono `text/quaternary` (`≈ 644` without a batch); the 44 × 44 check cell |
-| Not batch-cooked | A section saying which foods are cooked on the day by the meal's grams, and which days use another food from the group because a batch would not keep (rice keeps 3 days, so Wednesday and Sunday use potato) |
+| Lede | 13px: raw grams to cook, from next week's plan and the batch each item used; shop and cook by the raw figure |
+| A cook day | One section per cook day (Q10). Its head sticks under the app bar while its rows pass (§7.3): `Sunday 18 Oct` 15px over `FIRST COOK DAY` (or `SECOND COOK DAY`) 10px `accent`, and the column heads `RAW · COOKED`. Then one 11px line on what it covers, `Covers Monday, Tuesday and Wednesday.`, and on the second day why it exists: `Chicken keeps 4 days; cook again for the rest of the week.` |
+| Cook row | Grid `1fr 70px 56px 44px`: the food 15px over the yield note 11px and `For Mon 19, Tue 20 and Wed 21` 10px mono; raw 17px mono/500 with `g`; cooked 13px mono `text/quaternary` (`≈ 644` without a batch); the 44 × 44 check cell |
+| Not batch-cooked | A section saying which foods are cooked on the day by the meal's grams, and which days use another food from the group because a batch would not keep (`White rice won’t keep until the next cook; Sunday uses other foods.`) |
 | Grocery link | Link row `Grocery list` over `13 items, raw weight, both cook days summed` |
 | Footnote | `Next week's plan, made Fri 16 Oct` / `7 days · 2 cook days` (`05` §4.15, as a normal block) |
 
@@ -1028,7 +1057,8 @@ and `+ Add a food to starch`. A secondary `New group`.
 - MEXT's own name is printed without its leading food group (`＜魚類＞`), which the English name
   already says, and with one space between words. A food MEXT gives no English name is listed by
   that name.
-- One food leaves out its batches and `Record a batch` until `#81`. `Archive` asks first, with
+- A batch-cooked food's page lists its batches, newest first with `CURRENT`, and a secondary
+  `Record a batch` (`#81`, 2026-10-26). `Archive` asks first, with
   `05`'s delete confirmation (`Keep` / `Archive`); archived, the list says `Archived. Past plans
   still name it.` once, and the food's page says it is archived.
 - Both camera boxes are `surface/status-bar`, the one colour the same in both themes, with a

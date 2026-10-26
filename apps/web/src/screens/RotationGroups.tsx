@@ -31,7 +31,7 @@ export function RotationGroups({ navigate }: { navigate: Navigate }) {
   };
   const listed = (foods.data ?? []).filter((food) => food.archivedAt === null);
   const names = new Map(listed.map((food) => [food.id, food.name]));
-  const back = () => goBack(navigate, '/food');
+  const back = () => goBack(navigate, '/food/list');
 
   const run = async (write: () => Promise<unknown>) => {
     setBusy(true);

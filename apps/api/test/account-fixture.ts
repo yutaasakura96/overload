@@ -5,8 +5,8 @@ import { WEB_ORIGIN, type useTestApp } from './harness';
 // An account with a row in every table a member writes, for the export and the deletion (S10): a
 // profile, a custom exercise with its setting, a hidden seeded exercise, a routine using the custom
 // exercise, a finished workout that logged it, one still in progress, a set deleted through the
-// sync batch so its tombstone exists, a typed weigh-in (M2), and a food in a rotation group with a
-// second food archived (M2 slice 3).
+// sync batch so its tombstone exists, a typed weigh-in (M2), a food in a rotation group with a
+// second food archived (M2 slice 3), and a batch of the first (M2 slice 6).
 
 type TestApp = ReturnType<typeof useTestApp>;
 
@@ -151,7 +151,7 @@ export async function fillAccount(t: TestApp, cookie: string) {
     send('POST', '/api/foods', {
       id: foodId,
       name: 'White rice',
-      state: 'cooked',
+      state: 'raw',
       basis: { kind: 'per_100g', grams: null },
       energyKcal: 156,
       proteinG: 2.5,
@@ -183,6 +183,17 @@ export async function fillAccount(t: TestApp, cookie: string) {
   );
   const archived = await send('DELETE', `/api/foods/${archivedFoodId}`);
   expect(archived.status).toBe(204);
+  const batchId = randomUUID();
+  await ok(
+    send('POST', '/api/batches', {
+      id: batchId,
+      foodId,
+      rawWeightG: 600,
+      cookedWeightG: 1680,
+      cookedOn: '2026-10-14',
+    }),
+    201,
+  );
 
   return {
     customId,
@@ -195,5 +206,6 @@ export async function fillAccount(t: TestApp, cookie: string) {
     groupId,
     foodId,
     archivedFoodId,
+    batchId,
   };
 }
