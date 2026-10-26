@@ -252,6 +252,23 @@ describe('the prep plan and grocery list (S17)', () => {
     expect(plan.uncovered[0]?.dates).toEqual([week[1], week[2], week[4], week[5], week[6]]);
   });
 
+  it('claims only the days a batch keeps for when the plan predates a one-day shelf life', () => {
+    const cookDays = cookDaysOf(WEEK, [1]);
+    const plan = prepPlan({
+      weekStart: WEEK,
+      cookDays,
+      foods: [food('rice', { name: 'White rice', keepsDays: 1 })],
+      items: daily('rice', 100),
+      listed: [{ id: 'rice', name: 'White rice', keepsDays: 1 }],
+    });
+    expect(plan.cookDays.map((day) => [day.covers, day.cooks[0]?.dates])).toEqual([
+      [[week[0]], week.slice(0, 3)],
+      [[week[3]], week.slice(3)],
+    ]);
+    expect(plan.grocery[0]?.cooks).toEqual([420, 560]);
+    expect(plan.uncovered[0]?.dates).toEqual([week[1], week[2], week[4], week[5], week[6]]);
+  });
+
   it('without a batch, works raw grams out from the food table’s cooked values, approximately', () => {
     const plan = prepPlan({
       weekStart: WEEK,

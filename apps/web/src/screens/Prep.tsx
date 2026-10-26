@@ -198,7 +198,7 @@ export function Prep({ me, navigate }: { me: Me; navigate: Navigate }) {
                 </div>
               </div>
               <p className="cook__covers">
-                Covers {wordList(day.covers.map(weekdayOf))}.
+                {day.covers.length > 0 && `Covers ${wordList(day.covers.map(weekdayOf))}.`}
                 {day.because !== null &&
                   ` ${day.because.name} keeps ${day.because.keepsDays} days; cook again for the rest of the week.`}
               </p>

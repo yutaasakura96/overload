@@ -151,7 +151,7 @@ export type Cook = {
 export type CookDay = {
   date: string;
   which: 'first' | 'second';
-  /** The days its batch-cooked foods serve; only with none, the days its other foods are for. */
+  /** The days its batch-cooked foods' batch keeps for; only with none, the days its other foods are for. */
   covers: string[];
   /** On the second day, the food whose first batch runs out and so makes it needed. */
   because: { foodId: string; name: string; keepsDays: number } | null;
@@ -289,10 +289,17 @@ export function prepPlan(input: {
       })
       .toSorted(byName);
 
-  const coversOf = (cooks: Cook[]) => {
-    const batchCooked = cooks.filter((cook) => cook.keepsDays !== null);
-    const from = batchCooked.length > 0 ? batchCooked : cooks;
-    return [...new Set(from.flatMap((cook) => cook.dates))].toSorted();
+  const coversOf = (which: 'first' | 'second', cooks: Cook[]) => {
+    const batchCooked = cooks.flatMap((cook) =>
+      cook.keepsDays === null ? [] : [{ keepsDays: cook.keepsDays, dates: cook.dates }],
+    );
+    const dates =
+      batchCooked.length === 0
+        ? cooks.flatMap((cook) => cook.dates)
+        : batchCooked.flatMap((cook) =>
+            cook.dates.filter((date) => cookFor(cookDays, cook.keepsDays, date) === which),
+          );
+    return [...new Set(dates)].toSorted();
   };
   const first = cooksOn('first');
   const second = cooksOn('second');
@@ -301,7 +308,7 @@ export function prepPlan(input: {
     days.push({
       date: cookDays.first,
       which: 'first',
-      covers: coversOf(first),
+      covers: coversOf('first', first),
       because: null,
       cooks: first,
     });
@@ -311,7 +318,7 @@ export function prepPlan(input: {
     days.push({
       date: cookDays.second,
       which: 'second',
-      covers: coversOf(second),
+      covers: coversOf('second', second),
       because:
         reason === undefined || reason.keepsDays === null
           ? null
