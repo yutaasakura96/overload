@@ -5433,6 +5433,216 @@
         ],
         "description": "Local dates, both included, at most 31 days."
       },
+      "PlanMealConfirmed": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PlanMeal"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "day": {
+                "type": "object",
+                "properties": {
+                  "date": {
+                    "type": "string",
+                    "format": "date",
+                    "example": "2026-10-16"
+                  },
+                  "complete": {
+                    "type": "boolean"
+                  },
+                  "confirmed": {
+                    "type": "object",
+                    "properties": {
+                      "energyKcal": {
+                        "type": "number"
+                      },
+                      "proteinG": {
+                        "type": "number"
+                      },
+                      "carbG": {
+                        "type": "number"
+                      },
+                      "fatG": {
+                        "type": "number"
+                      },
+                      "fiberG": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "energyKcal",
+                      "proteinG",
+                      "carbG",
+                      "fatG",
+                      "fiberG"
+                    ]
+                  }
+                },
+                "required": [
+                  "date",
+                  "complete",
+                  "confirmed"
+                ]
+              }
+            },
+            "required": [
+              "day"
+            ]
+          }
+        ],
+        "description": "The meal as `GET /api/plan-days` returns it, with its day’s new totals."
+      },
+      "PlanMealConfirm": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "as_planned",
+                  "skipped",
+                  "planned"
+                ]
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "adjusted"
+                ]
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PlanMealConfirmItem"
+                },
+                "minItems": 1,
+                "maxItems": 40,
+                "description": "Planned items with `actualGrams` or `pieceCount`, and foods swapped in `{ id, foodId, actualGrams }` (or kept from an earlier replace by hand, `{ id, name, actualGrams, per100g }`). A planned item left out keeps its planned amount."
+              }
+            },
+            "required": [
+              "status",
+              "items"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "replaced"
+                ]
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PlanMealConfirmItem"
+                },
+                "minItems": 1,
+                "maxItems": 40,
+                "description": "Every item eaten instead: `{ id, foodId, actualGrams }` from the list, or `{ id, name, actualGrams, per100g }` by hand. The planned items stay at 0 g."
+              }
+            },
+            "required": [
+              "status",
+              "items"
+            ]
+          }
+        ],
+        "description": "Replaces any earlier confirmation of the meal. `planned` takes the confirmation back."
+      },
+      "PlanMealConfirmItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11",
+            "description": "A planned item of the meal, to change its amount, or a new id for a food eaten that was not planned."
+          },
+          "foodId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11",
+            "description": "A food from the list, eaten instead."
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "description": "A food typed by hand, with `per100g`."
+          },
+          "actualGrams": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 5000,
+            "example": 200
+          },
+          "pieceCount": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "description": "Whole pieces of a planned unit food, turned into grams at its piece weight."
+          },
+          "per100g": {
+            "type": "object",
+            "properties": {
+              "energyKcal": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 900,
+                "example": 105
+              },
+              "proteinG": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100,
+                "example": 23.3
+              },
+              "carbG": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100,
+                "example": 0.1
+              },
+              "fatG": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100,
+                "example": 1.9
+              },
+              "fiberG": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100,
+                "example": 0
+              }
+            },
+            "required": [
+              "energyKcal",
+              "proteinG",
+              "carbG",
+              "fatG",
+              "fiberG"
+            ]
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
       "InviteList": {
         "type": "object",
         "properties": {
@@ -9180,6 +9390,186 @@
           },
           "422": {
             "description": "`setup_incomplete` with `missing`; `validation_failed` for `from` after `to` or more than 31 days",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/plan-meals/{id}/confirm": {
+      "post": {
+        "summary": "Confirm one meal: as planned, adjusted, replaced or skipped. A repeat replaces the earlier confirmation",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanMealConfirm"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The meal, with its day’s new totals",
+            "headers": {
+              "Overload-User": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "The id of the user whose session answered. Keep the body for that account only."
+                },
+                "required": true,
+                "description": "The id of the user whose session answered. Keep the body for that account only."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanMealConfirmed"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A malformed id",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such meal of the caller’s",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`day_locked`: more than 7 days after the day’s date; `id_conflict`: an item id in use elsewhere",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`validation_failed`: an item that is not the meal’s, or not on the list",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/plan-days/{date}/confirm-all": {
+      "post": {
+        "summary": "The end-of-day check: every meal of the day still planned is eaten as planned",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "example": "2026-10-16"
+            },
+            "required": true,
+            "name": "date",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The day",
+            "headers": {
+              "Overload-User": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "The id of the user whose session answered. Keep the body for that account only."
+                },
+                "required": true,
+                "description": "The id of the user whose session answered. Keep the body for that account only."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanDay"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A malformed date",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No plan on that date",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`day_locked`: more than 7 days after the date",
             "content": {
               "application/problem+json": {
                 "schema": {

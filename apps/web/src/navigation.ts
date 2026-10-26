@@ -130,6 +130,9 @@ export type Route =
   | { screen: 'about-you' }
   | { screen: 'goal-phase' }
   | { screen: 'your-day' }
+  | { screen: 'end-of-day'; date: string }
+  | { screen: 'meal-adjust'; id: string }
+  | { screen: 'meal-replace'; id: string }
   | { screen: 'past-workout'; id: string }
   | { screen: 'invites' }
   | { screen: 'account' };
@@ -160,6 +163,14 @@ export function routeOf(pathname: string): Route {
       return { screen: 'food-edit', id: second };
     return { screen: 'today' };
   }
+  // Confirming a meal (docs/09 F11): Adjust and Replaced, with the meal's date in `?date=`, and the
+  // end-of-day check for a date.
+  if (first === 'plan' && second === 'meals' && rest.length === 2 && rest[0] !== undefined) {
+    if (rest[1] === 'adjust') return { screen: 'meal-adjust', id: rest[0] };
+    if (rest[1] === 'replace') return { screen: 'meal-replace', id: rest[0] };
+  }
+  if (first === 'plan' && second === 'check' && rest.length === 1 && rest[0] !== undefined)
+    return { screen: 'end-of-day', date: rest[0] };
   if (rest.length > 0) return { screen: 'today' };
   // Plan setup (docs/09 F10): about you, the goal phase and your day.
   if (first === 'plan' && second === 'about') return { screen: 'about-you' };

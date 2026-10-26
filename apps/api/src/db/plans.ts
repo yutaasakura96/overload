@@ -1,4 +1,5 @@
-import { and, asc, eq, gte, inArray, isNull, lte, ne, sql } from 'drizzle-orm';
+import { and, asc, eq, gte, inArray, isNotNull, isNull, lte, ne, sql } from 'drizzle-orm';
+import type { Confirmation } from '../domain/confirming.js';
 import type { Shortfall } from '../domain/planner.js';
 import { batchYield, cookedPer100g } from '../domain/prep.js';
 import { newestBatches } from './batches.js';
@@ -315,6 +316,157 @@ export async function replacePlanDays(
     });
     if (items.length > 0) await tx.insert(planMealItem).values(items);
   }
+}
+
+/** One of the caller's plan meals, with its day's date and the items the plan gave it. */
+export async function findPlanMeal(db: Queryable, userId: string, mealId: string) {
+  const [meal] = await db
+    .select({ id: planMeal.id, planDayId: planMeal.planDayId, date: planDay.planDate })
+    .from(planMeal)
+    .innerJoin(planDay, eq(planDay.id, planMeal.planDayId))
+    .where(and(eq(planMeal.id, mealId), eq(planDay.userId, userId)));
+  if (meal === undefined) return undefined;
+  const items = await db
+    .select({
+      id: planMealItem.id,
+      plannedGrams: planMealItem.plannedGrams,
+      pieceCount: planMealItem.pieceCount,
+    })
+    .from(planMealItem)
+    .where(and(eq(planMealItem.planMealId, mealId), isNotNull(planMealItem.plannedGrams)));
+  const eaten = await db
+    .select({
+      id: planMealItem.id,
+      foodId: planMealItem.foodId,
+      name: planMealItem.name,
+      actualGrams: planMealItem.actualGrams,
+      cooked: planMealItem.cooked,
+      approximate: planMealItem.approximate,
+      noCookedMatch: planMealItem.noCookedMatch,
+      energyKcal: planMealItem.energyKcalPer100g,
+      proteinG: planMealItem.proteinGPer100g,
+      carbG: planMealItem.carbGPer100g,
+      fatG: planMealItem.fatGPer100g,
+      fiberG: planMealItem.fiberGPer100g,
+    })
+    .from(planMealItem)
+    .where(and(eq(planMealItem.planMealId, mealId), isNull(planMealItem.plannedGrams)));
+  return {
+    ...meal,
+    items,
+    eaten: eaten.map((item) => ({
+      id: item.id,
+      foodId: item.foodId,
+      name: item.name,
+      actualGrams: item.actualGrams ?? 0,
+      cooked: item.cooked,
+      approximate: item.approximate,
+      noCookedMatch: item.noCookedMatch,
+      per100g: {
+        energyKcal: item.energyKcal,
+        proteinG: item.proteinG,
+        carbG: item.carbG,
+        fatG: item.fatG,
+        fiberG: item.fiberG,
+      },
+    })),
+  };
+}
+
+/** The caller's plan day on a date, whole, or undefined when that date has no plan. */
+export async function findPlanDay(db: Queryable, userId: string, date: string) {
+  const [day] = await listPlanDays(db, userId, { from: date, to: date });
+  return day;
+}
+
+/**
+ * The ids among `ids` already used by an item outside the meal, the caller's or another user's:
+ * ids are made on the device and unique across everyone, so a reuse is a conflict (docs/07 §1).
+ */
+export async function itemIdsElsewhere(
+  db: Queryable,
+  mealId: string,
+  ids: string[],
+): Promise<string[]> {
+  if (ids.length === 0) return [];
+  const rows = await db
+    .select({ id: planMealItem.id })
+    .from(planMealItem)
+    .where(and(inArray(planMealItem.id, ids), ne(planMealItem.planMealId, mealId)));
+  return rows.map((row) => row.id);
+}
+
+/**
+ * Writes a meal's confirmation in place of any earlier one (S18): items only ever eaten are
+ * removed and every planned item goes back to its plan, then the new amounts and items are set.
+ * `planned` clears the confirmation.
+ */
+export async function writeConfirmation(
+  tx: Transaction,
+  userId: string,
+  mealId: string,
+  confirmation: Confirmation,
+): Promise<void> {
+  const owned = await findPlanMeal(tx, userId, mealId);
+  if (owned === undefined) throw new Error('confirming a meal that is not the caller’s');
+  await tx
+    .delete(planMealItem)
+    .where(and(eq(planMealItem.planMealId, mealId), isNull(planMealItem.plannedGrams)));
+  await tx
+    .update(planMealItem)
+    .set({ actualGrams: null, updatedAt: new Date() })
+    .where(eq(planMealItem.planMealId, mealId));
+  for (const [id, grams] of confirmation.actual) {
+    await tx
+      .update(planMealItem)
+      .set({ actualGrams: grams })
+      .where(and(eq(planMealItem.id, id), eq(planMealItem.planMealId, mealId)));
+  }
+  if (confirmation.added.length > 0) {
+    await tx.insert(planMealItem).values(
+      confirmation.added.map((item) => ({
+        id: item.id,
+        planMealId: mealId,
+        foodId: item.foodId,
+        name: item.name,
+        plannedGrams: null,
+        actualGrams: item.actualGrams,
+        cooked: item.cooked,
+        approximate: item.approximate,
+        noCookedMatch: item.noCookedMatch,
+        energyKcalPer100g: item.per100g.energyKcal,
+        proteinGPer100g: item.per100g.proteinG,
+        carbGPer100g: item.per100g.carbG,
+        fatGPer100g: item.per100g.fatG,
+        fiberGPer100g: item.per100g.fiberG,
+      })),
+    );
+  }
+  const planned = confirmation.status === 'planned';
+  await tx
+    .update(planMeal)
+    .set({
+      status: confirmation.status,
+      confirmedAt: planned ? null : new Date(),
+      updatedAt: new Date(),
+    })
+    .where(eq(planMeal.id, mealId));
+}
+
+/** The end-of-day check (S18): every meal of the day still `planned` is eaten as planned. */
+export async function confirmAllAsPlanned(
+  tx: Transaction,
+  userId: string,
+  date: string,
+): Promise<void> {
+  const own = tx
+    .select({ id: planDay.id })
+    .from(planDay)
+    .where(and(eq(planDay.userId, userId), eq(planDay.planDate, date)));
+  await tx
+    .update(planMeal)
+    .set({ status: 'as_planned', confirmedAt: new Date(), updatedAt: new Date() })
+    .where(and(inArray(planMeal.planDayId, own), eq(planMeal.status, 'planned')));
 }
 
 /** A food as the planner reads it: its values per 100 g of the weight the plan gives. */

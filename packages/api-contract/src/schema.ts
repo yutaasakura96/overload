@@ -3289,6 +3289,171 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/plan-meals/{id}/confirm': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Confirm one meal: as planned, adjusted, replaced or skipped. A repeat replaces the earlier confirmation */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['PlanMealConfirm'];
+        };
+      };
+      responses: {
+        /** @description The meal, with its day’s new totals */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['PlanMealConfirmed'];
+          };
+        };
+        /** @description A malformed id */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No such meal of the caller’s */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `day_locked`: more than 7 days after the day’s date; `id_conflict`: an item id in use elsewhere */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `validation_failed`: an item that is not the meal’s, or not on the list */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/plan-days/{date}/confirm-all': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** The end-of-day check: every meal of the day still planned is eaten as planned */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          date: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description The day */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['PlanDay'];
+          };
+        };
+        /** @description A malformed date */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description No plan on that date */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+        /** @description `day_locked`: more than 7 days after the date */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/admin/invites': {
     parameters: {
       query?: never;
@@ -5619,6 +5784,74 @@ export interface components {
        * @example 2026-10-16
        */
       to: string;
+    };
+    /** @description The meal as `GET /api/plan-days` returns it, with its day’s new totals. */
+    PlanMealConfirmed: components['schemas']['PlanMeal'] & {
+      day: {
+        /**
+         * Format: date
+         * @example 2026-10-16
+         */
+        date: string;
+        complete: boolean;
+        confirmed: {
+          energyKcal: number;
+          proteinG: number;
+          carbG: number;
+          fatG: number;
+          fiberG: number;
+        };
+      };
+    };
+    /** @description Replaces any earlier confirmation of the meal. `planned` takes the confirmation back. */
+    PlanMealConfirm:
+      | {
+          /** @enum {string} */
+          status: 'as_planned' | 'skipped' | 'planned';
+        }
+      | {
+          /** @enum {string} */
+          status: 'adjusted';
+          /** @description Planned items with `actualGrams` or `pieceCount`, and foods swapped in `{ id, foodId, actualGrams }` (or kept from an earlier replace by hand, `{ id, name, actualGrams, per100g }`). A planned item left out keeps its planned amount. */
+          items: components['schemas']['PlanMealConfirmItem'][];
+        }
+      | {
+          /** @enum {string} */
+          status: 'replaced';
+          /** @description Every item eaten instead: `{ id, foodId, actualGrams }` from the list, or `{ id, name, actualGrams, per100g }` by hand. The planned items stay at 0 g. */
+          items: components['schemas']['PlanMealConfirmItem'][];
+        };
+    PlanMealConfirmItem: {
+      /**
+       * Format: uuid
+       * @description A planned item of the meal, to change its amount, or a new id for a food eaten that was not planned.
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      id: string;
+      /**
+       * Format: uuid
+       * @description A food from the list, eaten instead.
+       * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+       */
+      foodId?: string;
+      /** @description A food typed by hand, with `per100g`. */
+      name?: string;
+      /** @example 200 */
+      actualGrams?: number;
+      /** @description Whole pieces of a planned unit food, turned into grams at its piece weight. */
+      pieceCount?: number;
+      per100g?: {
+        /** @example 105 */
+        energyKcal: number;
+        /** @example 23.3 */
+        proteinG: number;
+        /** @example 0.1 */
+        carbG: number;
+        /** @example 1.9 */
+        fatG: number;
+        /** @example 0 */
+        fiberG: number;
+      };
     };
     InviteList: {
       items: components['schemas']['Invite'][];

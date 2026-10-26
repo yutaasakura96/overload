@@ -363,6 +363,18 @@ first one missing as its empty state, in this order:
 **Abandon:** each confirm is saved alone. An unconfirmed meal is not counted, and the day is
 incomplete until it is confirmed or locks.
 
+*As built, 2026-10-26* (`#80`, `06` 2026-10-26):
+- Step 2 is the meal's card on Today: the first meal not yet confirmed is open with `Eaten as
+  planned` and `Adjust`, `Replaced`, `Skipped`; any card opens with a tap. A confirmed meal opened
+  offers `Adjust`, `Replaced` and `Undo`, which makes it unconfirmed again. Adjust and Replaced are
+  their own screens and come back to where they were opened, Today or screen 4, saying what they
+  saved.
+- Step 3's card shows from 60 minutes before the day type's bedtime; step 4's shows on Today
+  whenever yesterday has an unconfirmed meal it was not left with, until it locks.
+- While Today is making the week, the actions wait: a generation remakes the day's unconfirmed
+  meals. A confirm that reaches a meal remade meanwhile says so and changes nothing.
+- A confirm that cannot reach the server says `Not confirmed` and leaves the meal as it was.
+
 ### F12. Weekly prep
 
 1. Prep screen → the prep plan for the coming week: raw grams per food, from the yield each saved

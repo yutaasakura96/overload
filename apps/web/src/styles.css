@@ -3676,6 +3676,407 @@ html:has(.m2-stick) {
   font-size: 12px;
   color: var(--text-tertiary);
 }
+
+/* Confirming a meal (S18; the approved M2 prototype, screens 01, 03 to 05, 09 and 10). A closed
+   card opens from anywhere on it: its title's button covers the card. */
+.meal {
+  position: relative;
+}
+.meal__toggle {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.meal:not(.meal--open) .meal__toggle::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius);
+}
+.meal__toggle:focus-visible {
+  outline: none;
+}
+.meal:has(.meal__toggle:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.meal--confirmed:not(.meal--open) {
+  padding-block: 9px;
+}
+.meal--confirmed .meal__title {
+  color: var(--text-secondary);
+}
+.meal__done {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--done);
+  white-space: nowrap;
+}
+.meal__actions {
+  display: grid;
+  gap: 6px;
+  margin-top: 4px;
+}
+.meal__eaten {
+  min-height: 48px;
+}
+.meal__more {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.meal__more .button,
+.meal__actions--change .button {
+  gap: 6px;
+  padding: 0 6px;
+}
+.meal__actions--change {
+  grid-template-columns: repeat(3, 1fr);
+}
+.meal__change-note {
+  grid-column: 1 / -1;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-tertiary);
+}
+.meal__offline {
+  display: flex;
+  grid-column: 1 / -1;
+  gap: 6px;
+  margin: 2px 0 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+.meal__offline .notice__icon {
+  margin-top: 2px;
+}
+
+/* What a confirm just did, said once under the tabs. */
+.m2-flash {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin: 14px var(--gutter) 0;
+  padding: 10px 11px;
+  border: 1px solid var(--line-done);
+  border-radius: var(--radius);
+  background: var(--surface-done);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+.m2-flash svg {
+  flex: none;
+  margin-top: 2px;
+}
+
+/* The end-of-day cards at the top of Today (docs/09 F11). */
+.eod-card {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  width: calc(100% - 2 * var(--gutter));
+  margin: 14px var(--gutter) 0;
+  padding: 12px;
+  border: 1px solid var(--line-flag);
+  border-radius: var(--radius);
+  background: var(--surface-flag);
+  font: inherit;
+  text-align: left;
+  color: var(--text-tertiary);
+  cursor: pointer;
+}
+.eod-card__count {
+  font-family: var(--font-mono);
+  font-size: 26px;
+  font-weight: 500;
+  color: var(--flag);
+}
+.eod-card__title {
+  display: block;
+  font-size: 15px;
+  color: var(--text-primary);
+}
+.eod-card__meta {
+  display: block;
+  margin-top: 3px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+/* The end-of-day check (screen 4). Its two actions stay at the foot (docs/10 §7.3). */
+.eod {
+  padding-bottom: 170px;
+}
+.eod__head {
+  padding: 22px var(--gutter) 0;
+}
+.eod__headline {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0;
+  font-weight: 400;
+}
+.eod__count {
+  font-family: var(--font-mono);
+  font-size: 38px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 0.9;
+  color: var(--flag);
+}
+.eod__words {
+  font-size: 15px;
+  color: var(--text-primary);
+}
+.eod__incomplete {
+  font-weight: 400;
+  color: var(--flag);
+}
+.eod__list {
+  display: grid;
+  gap: 9px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.eod-meal {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--line-border);
+  border-radius: var(--radius);
+}
+.eod-meal__head {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: baseline;
+  gap: 9px;
+}
+.eod-meal__time {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+.eod-meal__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 400;
+  color: var(--text-primary);
+}
+.eod-meal__kcal {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+.eod-meal__actions {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr 1fr;
+  gap: 5px;
+}
+.eod-meal__actions .button {
+  gap: 4px;
+  padding: 0 4px;
+}
+.eod__if {
+  display: grid;
+  gap: 11px;
+  margin: 20px var(--gutter) 0;
+  padding: 13px;
+  border: 1px solid var(--line-hairline);
+  border-radius: var(--radius);
+}
+.eod__if .section-label {
+  margin: 0;
+}
+.eod__if-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.eod__if-fig {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 19px;
+  font-weight: 500;
+}
+.eod__if-fig--small {
+  display: inline;
+  font-size: 15px;
+}
+.eod__if-of {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-quaternary);
+}
+.eod__if-label {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+.eod__if-days {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding-top: 11px;
+  border-top: 1px solid var(--line-hairline);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+/* What takes focus on screen 4 comes to rest clear of the pinned foot. */
+html:has(.eod__actions) {
+  scroll-padding-bottom: calc(170px + env(safe-area-inset-bottom));
+}
+.eod__actions {
+  position: fixed;
+  inset: auto 0 0;
+  z-index: 2;
+  display: grid;
+  gap: 9px;
+  padding: 12px var(--gutter) calc(20px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line-hairline);
+  background: var(--surface-ground);
+}
+.eod__all {
+  min-height: 60px;
+  font-size: 13px;
+}
+.eod__leave {
+  min-height: 46px;
+}
+
+/* Adjust and Replaced (docs/10 §3, Actions). */
+.adjust {
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line-hairline);
+}
+.adjust__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 11px var(--gutter);
+  border-bottom: 1px solid var(--line-row);
+}
+.adjust__name {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 15px;
+  color: var(--text-primary);
+}
+.adjust__meta {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--text-quaternary);
+}
+.adjust__swaps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.adjust__swap {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: var(--target-min);
+  padding: 0 9px;
+  border: 1px solid var(--line-field);
+  border-radius: var(--radius);
+  background: none;
+  font: inherit;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  cursor: pointer;
+}
+.adjust__row .stepper {
+  grid-template-columns: 44px 72px 44px;
+}
+.adjust__row .stepper__btn:disabled {
+  color: var(--text-quaternary);
+  cursor: not-allowed;
+}
+.adjust__sum {
+  display: grid;
+  gap: 6px;
+  margin: 16px var(--gutter) 0;
+  padding: 11px 12px;
+  border: 1px solid var(--line-hairline);
+  border-radius: var(--radius);
+}
+.adjust__sum-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+.adjust__sum-fig {
+  font-family: var(--font-mono);
+}
+.adjust__sum-fig b {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.m2-seg-wrap {
+  margin: 14px var(--gutter) 0;
+}
+.m2-field-wrap {
+  padding: 16px var(--gutter) 0;
+}
+.m2-hint {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--text-tertiary);
+}
+.pick__row--add {
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 10px;
+}
+.pick__row--add .pick__meta {
+  grid-column: 1;
+}
+.pick__add {
+  grid-row: 1 / span 2;
+  grid-column: 2;
+  align-self: center;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+}
+.pick__none {
+  padding: 14px var(--gutter);
+  font-size: 13px;
+  color: var(--text-tertiary);
+}
+.replace__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.replace__picked {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
 .workout-slot {
   display: grid;
   grid-template-columns: 1fr auto;

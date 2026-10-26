@@ -712,7 +712,7 @@ One food in one meal, planned and as eaten (S16, S18).
 | `name` | text | no | — | Copied from the food, or typed |
 | `planned_grams` | numeric(7,2) | yes | — | Cooked weight for batch-cooked foods. `NULL` on an item that was only ever eaten, never planned |
 | `actual_grams` | numeric(7,2) | yes | — | Set when adjusted or replaced |
-| `piece_count` | numeric(5,2) | yes | — | For unit foods; grams follow from `food.piece_weight_g` |
+| `piece_count` | numeric(5,2) | yes | — | For unit foods; grams follow from `food.piece_weight_g`. The planned count: pieces eaten are stored as `actual_grams` (`06`, 2026-10-26) |
 | `cooked` | boolean | no | `false` | *Added 2026-10-18.* The grams are a cooked weight |
 | `approximate` | boolean | no | `false` | *Added 2026-10-18.* A cooked weight planned from the MEXT cooked counterpart of a raw batch-cooked food, with no batch yield recorded yet (`06`, 2026-10-18). Screen 3 marks it `approx.` |
 | `no_cooked_match` | boolean | no | `false` | *Added 2026-10-18.* A raw batch-cooked food with no MEXT cooked counterpart, planned raw by its raw values (`06`, 2026-10-18). Screen 3 marks it `raw, no cooked match` |

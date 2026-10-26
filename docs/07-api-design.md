@@ -858,7 +858,7 @@ puts the "provisional" label on screen (S14).
 | --- | --- | --- | --- | --- | --- |
 | GET | `/api/plan-days?from=&to=` | M | Plan days in a range (at most 31), meals and items included. **Read-only**: dates with no plan are listed in `missing` | 200 | 400, 401 |
 | POST | `/api/plan-days/generate` | M | Generate `{ from, to }`. Days that have no confirmed meal are generated, or regenerated from current inputs; days with any confirmed meal, and past days that already have a plan, are left alone | 200 with the days | 401, 422 `setup_incomplete` \| `validation_failed` |
-| POST | `/api/plan-meals/{id}/confirm` | M | Confirm one meal (below). Repeating it replaces the earlier confirmation, never adds to it | 200 with the meal | 401, 404, 409 `day_locked`, 422 |
+| POST | `/api/plan-meals/{id}/confirm` | M | Confirm one meal (below). Repeating it replaces the earlier confirmation, never adds to it; `planned` takes it back | 200 with the meal | 401, 404, 409 `day_locked` \| `id_conflict`, 422 |
 | POST | `/api/plan-days/{date}/confirm-all` | M | The end-of-day check: every `planned` meal on that day becomes `as_planned` | 200 with the day | 401, 404, 409 `day_locked` |
 | GET | `/api/prep-plan?weekStart=` | M | Prep plan and grocery list for the week (S17), derived | 200 | 401, 422 |
 
@@ -873,9 +873,9 @@ puts the "provisional" label on screen (S14).
   client generates from today to the end of next week when a day of today through today + 6 is
   missing, or the prep screen's week is, and again
   after a food, a rotation group or a batch changes, or a save on About you, Goal phase or Your day.
-  The daily job is not built. Confirming (below) is slice 5 (`#80`); `estimateId` is not in the item
-  yet, and `cooked` is. `batchId` and `yieldRatio`, the yield the item was planned with, are, since slice 6 (`#81`,
-  2026-10-26).
+  The daily job is not built. Confirming (below) is slice 5 (`#80`, built 2026-10-26); `estimateId`
+  is not in the item yet, and `cooked` is. `batchId` and `yieldRatio`, the yield the item was planned
+  with, are, since slice 6 (`#81`, 2026-10-26).
 
 ```json
 GET /api/plan-days?from=2026-11-11&to=2026-11-11  →  200
@@ -969,10 +969,31 @@ POST /api/plan-meals/0192m031-…/confirm
 | --- | --- |
 | `as_planned` | Omitted |
 | `skipped` | Omitted |
+| `planned` | Omitted. Takes the confirmation back: the meal is unconfirmed again (the prototype's `Undo`) |
 | `adjusted` | Existing item ids with `actualGrams` or `pieceCount`, plus optional new items from the food list `{ id, foodId, actualGrams }` to swap one in. An existing item left out keeps its planned amount |
 | `replaced` | Every item eaten instead: `{ id, foodId, actualGrams }` from the list, or `{ id, name, actualGrams, per100g }` by hand. Planned items are kept with `actualGrams: 0`, so the plan stays readable |
 
-The response is the meal as `GET` returns it, with the day's new `confirmed` totals.
+The response is the meal as `GET` returns it, with `day: { date, complete, confirmed }`, the day's
+new totals.
+
+*As built, 2026-10-26* (`#80`, `06` 2026-10-26):
+
+- Every confirm removes the items only ever eaten and sets the planned ones back to their plan,
+  then writes what the body says, under the plan lock a generation holds. A retry with the same
+  item ids and unchanged values keeps the stored name and nutrition snapshot, even after a food
+  edit or archive. An eaten item sent again with its id and the same `foodId` keeps that snapshot,
+  on a repeat or in Adjust; new grams scale its stored per-100 g values, even for a food archived
+  since. Only a different food resolves against the current food list, where an archived food
+  cannot be newly chosen. An id another meal's item uses is 409 `id_conflict`.
+- `pieceCount` on a planned unit food is stored as `actualGrams` at the planned piece weight;
+  `pieceCount` itself keeps the planned count. A swap is the planned item at `actualGrams: 0` and the
+  food swapped in. `adjusted` also takes a by-hand item `{ id, name, actualGrams, per100g }`, kept
+  from an earlier replace.
+- 422 `validation_failed` names the item: an id that is not the meal's planned item on a change of
+  amount, a food not on the caller's list, or archived, grams and pieces both or neither, a
+  food eaten instead at 0 g, an id named twice, or `items` on a kind that takes none.
+- `confirm-all` is 404 for a date with no plan of the caller's. Both endpoints count the 7 days in
+  `user_profile.timezone`: a day is confirmable through its date + 7.
 
 A plan day is confirmable until 7 days after its date in `user_profile.timezone`; after that both
 confirm endpoints return 409 `day_locked` (`docs/09` F11). A `PATCH /api/goal-phases/{id}` that changes

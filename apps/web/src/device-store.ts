@@ -7,8 +7,8 @@ import type { Me } from '@overload/api-contract';
 const store = createStore('overload', 'device');
 
 const SIGNED_IN_USER = 'signed-in-user';
-// Days left incomplete at the end-of-day check (docs/03 §6) will live here too from M2, and the
-// wipe below already covers them.
+// Days left incomplete at the end-of-day check (docs/03 §6, docs/09 F11), one list per account.
+const LEFT_INCOMPLETE = 'left-incomplete';
 const QUERY_CACHE = 'query-cache';
 // The prep and grocery ticks of each account's week, kept on this phone only (Q11).
 const TICKS = 'ticks';
@@ -25,6 +25,12 @@ export const deviceStore = {
   /** The last confirmed signed-in user, so an offline launch can open as them (docs/08 §5). */
   rememberUser: (user: SignedInUser) => set(SIGNED_IN_USER, user, store),
   signedInUser: () => get<SignedInUser>(SIGNED_IN_USER, store),
+
+  /** The local dates an account left incomplete here, so the end-of-day cards ask once. */
+  leftIncomplete: async (userId: string) =>
+    (await get<string[]>(`${LEFT_INCOMPLETE}:${userId}`, store)) ?? [],
+  setLeftIncomplete: (userId: string, dates: string[]) =>
+    set(`${LEFT_INCOMPLETE}:${userId}`, dates, store),
 
   // The TanStack Query persisters' storage: one copy per account (see query.ts).
   queryCache: {
