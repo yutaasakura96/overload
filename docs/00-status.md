@@ -2,7 +2,7 @@
 
 **Project:** A weight-training progress tracker combining lift logging, meal planning, Apple Watch/iPhone health data, and bodyweight/diet coaching.
 **Phase:** 7 — Build (M1 first). Phase 6 — Review finished 2026-09-23.
-**Updated:** 2026-10-18
+**Updated:** 2026-10-26
 
 ## Done
 - Phase 1 — Brief + PRD: `docs/01-project-brief.md`, `docs/02-product-requirements.md`, `docs/06-decision-log.md`.
@@ -58,6 +58,13 @@ week's second cook day and the planner keeping each batch-cooked food to the day
 for; the newest batch's yield in plans made after it; the export's `batches` section; and the Food
 tab's `Prep`, `Grocery`, `Foods` and `Batches`, with `Record a batch` (`06`, 2026-10-26). Checked
 at 390px on invented foods and batches.
+
+**M2 slice 5 is built, 2026-10-26** (`#80`), on `fm/overload-80`, in review against `develop`:
+confirming meals (S18). `POST /api/plan-meals/{id}/confirm` (as planned, adjusted, replaced,
+skipped, and `planned` to undo) and `POST /api/plan-days/{date}/confirm-all`, each repeat in place
+of the last and the 7-day lock as 409 `day_locked`; the meal cards' actions on Today, Adjust,
+Replaced, the two end-of-day cards and the end-of-day check (screen 4), with a day left incomplete
+kept on the device (`06`, 2026-10-26). No migration. Checked on invented plan days.
 
 Building comes first: seeded or fake data is fine until the app is built. Owed, and Yuta's: the two
 weight hardware tests (`06`, 2026-09-19) and an Anthropic API key with a small balance for label

@@ -3933,6 +3933,10 @@ html:has(.m2-stick) {
   font-size: 12px;
   color: var(--text-secondary);
 }
+/* What takes focus on screen 4 comes to rest clear of the pinned foot. */
+html:has(.eod__actions) {
+  scroll-padding-bottom: calc(170px + env(safe-area-inset-bottom));
+}
 .eod__actions {
   position: fixed;
   inset: auto 0 0;

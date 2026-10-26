@@ -296,7 +296,10 @@ function AdjustForm({
                 </button>
                 <output className="stepper__value" aria-live="polite">
                   {amount}
-                  <span className="stepper__unit"> {unit === 'pc' ? 'pc' : 'g'}</span>
+                  <span className="stepper__unit" aria-hidden="true">
+                    {' '}
+                    {unit === 'pc' ? 'pc' : 'g'}
+                  </span>
                   <span className="visually-hidden">
                     {unit === 'pc' ? ' pieces' : ' grams'} of {row.name}
                   </span>

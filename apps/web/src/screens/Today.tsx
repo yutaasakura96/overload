@@ -434,7 +434,8 @@ export function Today({ me, navigate }: { me: Me; navigate: Navigate }) {
                 ? undefined
                 : {
                     offline: !online,
-                    busy: confirming,
+                    // A generation under way remakes the day's unconfirmed meals under new ids.
+                    busy: confirming || plan.generating,
                     onConfirm: (meal, status) => void confirmFromCard(meal, status),
                     onAdjust: (meal) => openMeal(meal, 'adjust'),
                     onReplace: (meal) => openMeal(meal, 'replace'),

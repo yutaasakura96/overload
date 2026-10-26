@@ -30,6 +30,9 @@ const FOODS = [
   { name: 'Olive oil', state: 'raw', ...per100g(894, 0, 0, 100) },
 ];
 
+const addDays = (date: string, days: number) =>
+  new Date(Date.parse(`${date}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
+
 const todayInZone = () =>
   new Intl.DateTimeFormat('en-CA', { timeZone: TIME_ZONE }).format(new Date());
 
@@ -131,7 +134,8 @@ test.beforeEach(async ({ context, page }) => {
   await ok(
     page.request.post('/api/plan-days/generate', {
       headers,
-      data: { from: today, to: today },
+      // The whole week, so Today has nothing to make and its meals keep their ids.
+      data: { from: today, to: addDays(today, 6) },
     }),
   );
 });
@@ -174,7 +178,7 @@ test('confirms meals from Today, then the rest from the end-of-day check', async
   // Replaced, from the food list.
   await page.getByRole('button', { name: 'Replaced Afternoon' }).click();
   await expect(page.getByRole('heading', { name: 'Replace Afternoon' })).toBeVisible();
-  await page.getByRole('textbox', { name: 'Search your foods' }).fill('oats');
+  await page.getByRole('searchbox', { name: 'Search your foods' }).fill('oats');
   await page.getByRole('button', { name: /^Rolled oats/ }).click();
   await expect(page.getByRole('region', { name: 'Eaten instead' })).toContainText('Rolled oats');
   await page.getByRole('button', { name: 'Save as replaced' }).click();

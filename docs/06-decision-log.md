@@ -4163,3 +4163,51 @@ the approved M2 prototype (screens 11 to 14). Checked at 390px on invented foods
   export gains `batches` on its planning route.
 
 **Changed:** `00`, `03` §8.2, `04`, `06`, `07` §2, §4, `09` F12, `10` §5, §8.6, `11` §2.
+
+### 2026-10-26 — M2 slice 5: confirming meals and the end-of-day check
+
+Issue `#80`, S18, built as `07` §4 (Confirming a meal), `09` F11 and `10` §3 and §4 describe, with
+the screens from the approved M2 prototype (its screens 01, 03 to 05, 09 and 10). Checked at 390px
+in both themes on invented foods and plan days. No migration: `plan_meal` and `plan_meal_item`
+already had what a confirmation writes.
+
+- **A confirmation is written in place of the last one.** Every confirm first removes the items
+  only ever eaten and sets every planned item back to its plan, then writes the new amounts and
+  items, under the plan lock a generation holds. A repeat, a retry or a change of kind therefore
+  never adds to what the meal counts. A food eaten instead carries a client-made id; an id already
+  used by another meal's item is 409 `id_conflict`.
+- **Undo is `status: "planned"`** on the same endpoint, because the prototype draws `Undo` on a
+  confirmed meal and `07` had no way to take a confirmation back. *Rejected:* a separate
+  `DELETE /api/plan-meals/{id}/confirmation`, a second route for the same write.
+- **Pieces are turned into grams** at the item's planned piece weight (planned grams over planned
+  pieces). `piece_count` keeps the planned count and `actual_grams` holds what was eaten, so the
+  plan stays readable. *Rejected:* overwriting `piece_count`, which loses the plan.
+- **A swap is the planned item at 0 g plus the food swapped in.** Adjust offers the other foods of
+  the item's rotation group; swapping back to the planned food sends the planned item again. An
+  adjust may also keep a food typed by hand on an earlier replace, as `{ id, name, actualGrams,
+  per100g }`.
+- **A portion typed by hand** is sent as one item whose weight keeps each value per 100 g inside
+  the API's limits (900 kcal, 100 g of a macro), so a 1,200 kcal meal is 200 g at 600 kcal per
+  100 g. The weight is never shown; the item reads as its calories. Fiber is 0.
+- **The meal due is the first not yet confirmed**, as the prototype draws it, in place of slice 4's
+  first-not-more-than-an-hour-past. A card opens by itself until another is chosen, and again once a
+  confirm changes the day. A closed card opens from anywhere on it: its title is a disclosure
+  button covering the card, so no list sits inside a button.
+- **Actions wait while Today makes the week.** A generation remakes the day's unconfirmed meals
+  under new ids, so a tap during one would answer 404; the actions are disabled until it returns.
+  A 404 still says the meal's plan was made again.
+- **The cards:** tonight's from 60 minutes before the day routine's bedtime (counted in the waking
+  day, so a bedtime after midnight works), and yesterday's whenever yesterday has an unconfirmed
+  meal, was not left incomplete here and is not locked. Both open screen 4.
+- **Leaving a day incomplete** is kept per account in IndexedDB (`device-store`), for 14 days, and
+  the sign-out wipe clears it. Nothing is written to the server (`09` F11).
+- **`Complete days this phase`** on screen 4 is read from the phase's plan days in windows of 31,
+  and shown once every window has answered. It counts the phase's complete days before this one;
+  the maintenance check's own count comes with `#82`.
+- **Offline**, the actions are disabled with the line that confirming needs a connection and the
+  meal waits as planned. Meals are not queued (`06`, offline scope). The data-state slot is
+  unchanged.
+- **The 7-day lock** is counted in the profile's time zone: a day is confirmable through its date +
+  7, and the screens show a locked day read-only.
+
+**Changed:** `00`, `04`, `06`, `07` §4, `09` F11, `10` §3, §4, `11` §2.

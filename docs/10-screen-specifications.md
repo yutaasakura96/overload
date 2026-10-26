@@ -372,7 +372,7 @@ the meal and still lets the day be complete.
     day it belongs to. It
     failing says `No plan yet`: `Couldn’t make today’s plan. Try again when you have signal.`
   - Meal cards are not buttons, and there are no actions, until confirming arrives (`#80`). The meal
-    due is open: the first no more than an hour past its time.
+    due is open: the first no more than an hour past its time. *Superseded by slice 5, below.*
   - The totals stick at the top of the scroll, below the status bar, since Today's app bar does not
     stick; what takes focus comes to rest below them. The setup screens' app bars stick (§7.3). `Fiber` shows
     its total with `no target`.
@@ -386,6 +386,31 @@ the meal and still lets the day be complete.
   - A `raw, no cooked match` item adds its own footnote: a batch-cooked food the food table has no
     cooked values for is planned at its raw weight, and weighing a batch gives it cooked amounts
     (`06`, 2026-10-18).
+
+- **As built in M2 slice 5** (`#80`, `06` 2026-10-26), checked at 390px in both themes on invented
+  foods and plan days:
+  - The meal due is the first not yet confirmed, open with its four actions; it opens by itself
+    until another card is chosen, and again after a confirm. A closed card opens from anywhere on
+    it: its title is a disclosure button stretched over the card. A confirmed card is one row with
+    the status in `done`; opened, it lists what was eaten and `Adjust` / `Replaced` / `Undo`.
+  - What a confirm did is said once in a `done` box under the tabs: `Eaten as planned. Counted in
+    the day.`, `Skipped. Nothing counted for it; the day can still be complete.`, `Undone. The meal
+    counts nothing until it is confirmed again.`, `Saved as eaten, adjusted. It replaces the plan for
+    this meal.`, `Saved as replaced. The planned meal no longer counts.`, and from screen 4 the day's
+    complete or left-incomplete line.
+  - Both end-of-day cards sit under the totals and shortfalls: `Yesterday: 2 meals not confirmed`
+    over `Sun 25 Oct. Confirm them or leave the day incomplete.`, and `2 meals not confirmed yet`
+    over `Bedtime is 22:15. Check the day before you sleep.`
+  - Adjust: rows by what was eaten, a stepper of 5 g or one piece, the rotation group's other foods
+    as swap chips (`Swap White rice for Potato, peeled` to a screen reader), the refusal at 0 g in
+    place, the before → after box, `Save as eaten, adjusted` and `Cancel`.
+  - Replaced: the two segments as radios; the list searched by name, eight rows at a time, each
+    `ADD 100 G` again adding 100 g; `Eaten instead` with `Remove`; by hand, a name and calories are
+    required, the macros default to 0, and a refused field takes focus. A food typed by hand reads as
+    its calories on the meal, not its weight.
+  - Offline, every action is disabled with `Confirming needs a connection. Nothing is lost: the meal
+    waits as planned.` A confirm that fails says `Not confirmed` (not reached) or `Refused` with why.
+  - The actions are disabled while Today is making the week.
 
 ---
 
@@ -415,6 +440,12 @@ end-of-day card on Today (§3).
 - **Confirming the last meal one by one** turns the screen into its done state: `Every meal is
   confirmed`, the day counted towards the maintenance check, and `Back to Today`.
 - **Zero unconfirmed meals** is never reached from a card (decided 2026-09-22, `09` F11).
+- **As built in M2 slice 5** (`#80`, `06` 2026-10-26), at `/plan/check/{date}`: the subline is
+  `MON 26 OCT · 21:36` for today and `SUN 25 OCT · YESTERDAY` for yesterday. `As planned` and
+  `Skipped` confirm in place and focus the headline; `Adjust` and `Replaced` open their screens and
+  come back here. `Complete days this phase` is shown when the day belongs to the open phase, from
+  the phase's plan days. A day past its 7 days is read-only: its meals without actions and no foot.
+  The foot clears the home indicator. Reached with no plan, it says so.
 
 ---
 
