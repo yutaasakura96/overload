@@ -1649,6 +1649,53 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/maintenance-check': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** The maintenance check over the trailing 14 calendar days, complete days only */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description One of four statuses; the figures only when `ready` */
+        200: {
+          headers: {
+            /** @description The id of the user whose session answered. Keep the body for that account only. */
+            'Overload-User': string;
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['MaintenanceCheck'];
+          };
+        };
+        /** @description No session */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/problem+json': components['schemas']['Problem'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/foods': {
     parameters: {
       query?: never;
@@ -5304,6 +5351,60 @@ export interface components {
        * @example 18.5
        */
       bodyFatPct?: number | null;
+    };
+    /** @description S18a over the trailing 14 calendar days, today included (docs/03 §8.3). Read-only. */
+    MaintenanceCheck: {
+      /**
+       * @description `collecting` under 14 complete days in total; `needs_logging` with no complete day in the window; `needs_weigh_in` with fewer than 3 weighed days in it or none in its newest 7; else `ready`.
+       * @enum {string}
+       */
+      status: 'collecting' | 'needs_logging' | 'needs_weigh_in' | 'ready';
+      /**
+       * Format: date
+       * @description The window’s first day. Null while collecting.
+       */
+      from: string | null;
+      /**
+       * Format: date
+       * @description Today. Null while collecting.
+       */
+      to: string | null;
+      /** @description Complete days up to today: the gate. */
+      completeDaysTotal: number;
+      /** @description Complete days still to go before the check shows. */
+      remaining: number;
+      completeDaysInWindow: number | null;
+      /** @description Complete days among the window’s newest 7. */
+      recentCompleteDays: number | null;
+      /** @description Fewer than 5 of the window’s newest 7 days are complete. */
+      lowRecentLogging: boolean | null;
+      /** @description Weighed days in the window. */
+      weighInsInWindow: number | null;
+      /**
+       * Format: date
+       * @description The newest weighed day, in the window or not.
+       */
+      lastWeighedOn: string | null;
+      /** @description Over the window’s complete days. */
+      meanIntakeKcal: number | null;
+      /** @description To the hundredth. */
+      trendChangeKgPerWeek: number | null;
+      /** @description To the nearest 10 kcal. */
+      maintenanceKcal: number | null;
+      /** @description Null unless ready with an open phase. */
+      apply: {
+        /**
+         * Format: uuid
+         * @example 0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11
+         */
+        goalPhaseId: string;
+        /** @description The deficit (negative) or surplus for the phase’s rate; 0 on maintenance. */
+        adjustmentKcal: number;
+        /** @description What `Apply to targets` sends as `calorieTargetKcal` with `calorieBasis: "measured"`. */
+        calorieTargetKcal: number;
+      } | null;
+      /** @enum {string} */
+      method: 'weight_trend_balance_v1';
     };
     FoodList: {
       items: components['schemas']['Food'][];

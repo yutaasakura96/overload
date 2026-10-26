@@ -876,6 +876,58 @@ export const WeighIns = z
   })
   .openapi('WeighIns');
 
+export const MaintenanceCheck = z
+  .object({
+    status: z.enum(['collecting', 'needs_logging', 'needs_weigh_in', 'ready']).openapi({
+      description:
+        '`collecting` under 14 complete days in total; `needs_logging` with no complete day in the window; `needs_weigh_in` with fewer than 3 weighed days in it or none in its newest 7; else `ready`.',
+    }),
+    from: z.iso
+      .date()
+      .nullable()
+      .openapi({ description: 'The window’s first day. Null while collecting.' }),
+    to: z.iso.date().nullable().openapi({ description: 'Today. Null while collecting.' }),
+    completeDaysTotal: z.int().openapi({ description: 'Complete days up to today: the gate.' }),
+    remaining: z
+      .int()
+      .openapi({ description: 'Complete days still to go before the check shows.' }),
+    completeDaysInWindow: z.int().nullable(),
+    recentCompleteDays: z
+      .int()
+      .nullable()
+      .openapi({ description: 'Complete days among the window’s newest 7.' }),
+    lowRecentLogging: z
+      .boolean()
+      .nullable()
+      .openapi({ description: 'Fewer than 5 of the window’s newest 7 days are complete.' }),
+    weighInsInWindow: z.int().nullable().openapi({ description: 'Weighed days in the window.' }),
+    lastWeighedOn: z.iso
+      .date()
+      .nullable()
+      .openapi({ description: 'The newest weighed day, in the window or not.' }),
+    meanIntakeKcal: z.int().nullable().openapi({ description: 'Over the window’s complete days.' }),
+    trendChangeKgPerWeek: z.number().nullable().openapi({ description: 'To the hundredth.' }),
+    maintenanceKcal: z.int().nullable().openapi({ description: 'To the nearest 10 kcal.' }),
+    apply: z
+      .object({
+        goalPhaseId: Uuid,
+        adjustmentKcal: z.int().openapi({
+          description: 'The deficit (negative) or surplus for the phase’s rate; 0 on maintenance.',
+        }),
+        calorieTargetKcal: z.int().openapi({
+          description:
+            'What `Apply to targets` sends as `calorieTargetKcal` with `calorieBasis: "measured"`.',
+        }),
+      })
+      .nullable()
+      .openapi({ description: 'Null unless ready with an open phase.' }),
+    method: z.literal('weight_trend_balance_v1'),
+  })
+  .openapi('MaintenanceCheck', {
+    description:
+      'S18a over the trailing 14 calendar days, today included (docs/03 §8.3). Read-only.',
+  });
+
 // The food list and its sources (S12, docs/07 §4). Every stored value is per 100 g of the state
 // named; a lookup's candidate carries its source's basis, and the API converts.
 

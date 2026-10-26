@@ -407,7 +407,10 @@ tdee          = mean_intake − rate × 7,700                                 kc
   it is why `method` is versioned.
 - **S18a (M2, read-only):** the same trailing 14 days as S21, shown once the user has 14 complete
   days in total. Before that it shows how many remain. If the newest 7 days hold fewer than 5
-  complete days, the figure is labelled as resting on too little recent logging.
+  complete days, the figure is labelled as resting on too little recent logging. *As built
+  2026-10-27* (`#82`, `06`): `domain/maintenance.ts`, the window ending today, today included; a
+  weigh-in for the gates is a weighed day; no complete day in the window is its own status; the
+  rate from the unrounded trend, the estimate to the nearest 10 kcal.
 - **S21 (M3, weekly):** recomputed every local Monday over the **trailing 14 days**.
 - **Applied only if the newest 7 days hold ≥ 5 complete days.** Otherwise the row is still written
   with `applied_at = NULL`, it is shown to the user, and the previous targets stay in force.

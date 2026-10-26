@@ -1,4 +1,17 @@
-import { and, asc, eq, gte, inArray, isNotNull, isNull, lte, ne, sql } from 'drizzle-orm';
+import {
+  and,
+  asc,
+  eq,
+  exists,
+  gte,
+  inArray,
+  isNotNull,
+  isNull,
+  lte,
+  ne,
+  notExists,
+  sql,
+} from 'drizzle-orm';
 import type { Confirmation } from '../domain/confirming.js';
 import type { Shortfall } from '../domain/planner.js';
 import { batchYield, cookedPer100g } from '../domain/prep.js';
@@ -661,4 +674,33 @@ export async function exportPlanDays(
     items,
     next: days.length > page.limit && last !== undefined ? { date: last.date } : null,
   };
+}
+
+/**
+ * How many of the user's days on or before `to` are complete: they have meals and none is left at
+ * `planned` (S18, docs/04 `plan_day`). The maintenance check's gate counts them (S18a).
+ */
+export async function completeDayCount(db: Queryable, userId: string, to: string): Promise<number> {
+  const meals = (status?: 'planned') =>
+    db
+      .select({ one: sql`1` })
+      .from(planMeal)
+      .where(
+        and(
+          eq(planMeal.planDayId, planDay.id),
+          ...(status === undefined ? [] : [eq(planMeal.status, status)]),
+        ),
+      );
+  const [row] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(planDay)
+    .where(
+      and(
+        eq(planDay.userId, userId),
+        lte(planDay.planDate, to),
+        exists(meals()),
+        notExists(meals('planned')),
+      ),
+    );
+  return row?.count ?? 0;
 }

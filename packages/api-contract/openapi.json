@@ -3892,6 +3892,152 @@
           "weightKg"
         ]
       },
+      "MaintenanceCheck": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "collecting",
+              "needs_logging",
+              "needs_weigh_in",
+              "ready"
+            ],
+            "description": "`collecting` under 14 complete days in total; `needs_logging` with no complete day in the window; `needs_weigh_in` with fewer than 3 weighed days in it or none in its newest 7; else `ready`."
+          },
+          "from": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date",
+            "description": "The window’s first day. Null while collecting."
+          },
+          "to": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date",
+            "description": "Today. Null while collecting."
+          },
+          "completeDaysTotal": {
+            "type": "integer",
+            "description": "Complete days up to today: the gate."
+          },
+          "remaining": {
+            "type": "integer",
+            "description": "Complete days still to go before the check shows."
+          },
+          "completeDaysInWindow": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "recentCompleteDays": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Complete days among the window’s newest 7."
+          },
+          "lowRecentLogging": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Fewer than 5 of the window’s newest 7 days are complete."
+          },
+          "weighInsInWindow": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Weighed days in the window."
+          },
+          "lastWeighedOn": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date",
+            "description": "The newest weighed day, in the window or not."
+          },
+          "meanIntakeKcal": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Over the window’s complete days."
+          },
+          "trendChangeKgPerWeek": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "To the hundredth."
+          },
+          "maintenanceKcal": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "To the nearest 10 kcal."
+          },
+          "apply": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "goalPhaseId": {
+                "type": "string",
+                "format": "uuid",
+                "example": "0192a001-7c1e-7a33-9c2d-4b6f1e0a9d11"
+              },
+              "adjustmentKcal": {
+                "type": "integer",
+                "description": "The deficit (negative) or surplus for the phase’s rate; 0 on maintenance."
+              },
+              "calorieTargetKcal": {
+                "type": "integer",
+                "description": "What `Apply to targets` sends as `calorieTargetKcal` with `calorieBasis: \"measured\"`."
+              }
+            },
+            "required": [
+              "goalPhaseId",
+              "adjustmentKcal",
+              "calorieTargetKcal"
+            ],
+            "description": "Null unless ready with an open phase."
+          },
+          "method": {
+            "type": "string",
+            "enum": [
+              "weight_trend_balance_v1"
+            ]
+          }
+        },
+        "required": [
+          "status",
+          "from",
+          "to",
+          "completeDaysTotal",
+          "remaining",
+          "completeDaysInWindow",
+          "recentCompleteDays",
+          "lowRecentLogging",
+          "weighInsInWindow",
+          "lastWeighedOn",
+          "meanIntakeKcal",
+          "trendChangeKgPerWeek",
+          "maintenanceKcal",
+          "apply",
+          "method"
+        ],
+        "description": "S18a over the trailing 14 calendar days, today included (docs/03 §8.3). Read-only."
+      },
       "FoodList": {
         "type": "object",
         "properties": {
@@ -7562,6 +7708,44 @@
           },
           "409": {
             "description": "`managed_by_apple_health`: it came from Apple Health, which would send it again; delete it there",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/maintenance-check": {
+      "get": {
+        "summary": "The maintenance check over the trailing 14 calendar days, complete days only",
+        "responses": {
+          "200": {
+            "description": "One of four statuses; the figures only when `ready`",
+            "headers": {
+              "Overload-User": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "The id of the user whose session answered. Keep the body for that account only."
+                },
+                "required": true,
+                "description": "The id of the user whose session answered. Keep the body for that account only."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaintenanceCheck"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session",
             "content": {
               "application/problem+json": {
                 "schema": {

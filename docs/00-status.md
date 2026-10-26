@@ -2,7 +2,7 @@
 
 **Project:** A weight-training progress tracker combining lift logging, meal planning, Apple Watch/iPhone health data, and bodyweight/diet coaching.
 **Phase:** 7 — Build (M1 first). Phase 6 — Review finished 2026-09-23.
-**Updated:** 2026-10-26
+**Updated:** 2026-10-27
 
 ## Done
 - Phase 1 — Brief + PRD: `docs/01-project-brief.md`, `docs/02-product-requirements.md`, `docs/06-decision-log.md`.
@@ -58,6 +58,14 @@ week's second cook day and the planner keeping each batch-cooked food to the day
 for; the newest batch's yield in plans made after it; the export's `batches` section; and the Food
 tab's `Prep`, `Grocery`, `Foods` and `Batches`, with `Record a batch` (`06`, 2026-10-26). Checked
 at 390px on invented foods and batches.
+
+**M2 slice 7 is built, 2026-10-27** (`#82`), on `fm/overload-82`, in review against `develop`:
+the maintenance check (S18a). `GET /api/maintenance-check` over the 14 days ending today, complete
+days only, as `collecting`, `needs_logging`, `needs_weigh_in` or `ready`, with what applying would
+set; the estimate and its gates in `domain/maintenance.ts`; the card on Weight and its apply sheet,
+which sets the phase's calories as measured through `PATCH /api/goal-phases/{id}` and plans the
+unconfirmed days again. On a bulk applying adds the surplus for the rate, on maintenance it sets the
+estimate (`06`, 2026-10-27). No migration. Checked at 390px on invented plan days and weigh-ins.
 
 **M2 slice 5 is built, 2026-10-26** (`#80`), on `fm/overload-80`, in review against `develop`:
 confirming meals (S18). `POST /api/plan-meals/{id}/confirm` (as planned, adjusted, replaced,
