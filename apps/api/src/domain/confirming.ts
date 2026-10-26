@@ -121,14 +121,9 @@ export function resolveConfirmation(
         errors.push({ path: at('foodId'), message: 'A food from the list, or by hand, not both' });
         return;
       }
-      const previous = eaten.find(
-        (each) =>
-          each.id === entry.id &&
-          each.foodId === entry.foodId &&
-          each.actualGrams === entry.actualGrams,
-      );
+      const previous = eaten.find((each) => each.id === entry.id && each.foodId === entry.foodId);
       if (previous !== undefined) {
-        added.push(previous);
+        added.push({ ...previous, actualGrams: entry.actualGrams });
         return;
       }
       const food = foods.find((each) => each.id === entry.foodId);

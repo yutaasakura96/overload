@@ -4175,9 +4175,11 @@ already had what a confirmation writes.
   only ever eaten and sets every planned item back to its plan, then writes the new amounts and
   items, under the plan lock a generation holds. A repeat, a retry or a change of kind therefore
   never adds to what the meal counts. A food eaten instead carries a client-made id; an id already
-  used by another meal's item is 409 `id_conflict`. An unchanged eaten item keeps its stored name
-  and nutrition snapshot on repeat or Adjust, even after its food is edited or archived. A changed
-  item resolves against the current food list; archived foods cannot be newly chosen.
+  used by another meal's item is 409 `id_conflict`. An eaten item keeps its stored name and
+  nutrition snapshot on repeat or Adjust, even after its food is edited or archived. Changing only
+  its grams is not choosing the food again: the stored per-100 g values scale to the new grams.
+  Only picking a different food resolves against the current food list, where archived foods
+  cannot be newly chosen.
 - **Undo is `status: "planned"`** on the same endpoint, because the prototype draws `Undo` on a
   confirmed meal and `07` had no way to take a confirmation back. *Rejected:* a separate
   `DELETE /api/plan-meals/{id}/confirmation`, a second route for the same write.
