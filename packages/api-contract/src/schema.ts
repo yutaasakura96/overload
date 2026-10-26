@@ -5812,7 +5812,7 @@ export interface components {
       | {
           /** @enum {string} */
           status: 'adjusted';
-          /** @description Planned items with `actualGrams` or `pieceCount`, and foods swapped in `{ id, foodId, actualGrams }`. A planned item left out keeps its planned amount. */
+          /** @description Planned items with `actualGrams` or `pieceCount`, and foods swapped in `{ id, foodId, actualGrams }` (or kept from an earlier replace by hand, `{ id, name, actualGrams, per100g }`). A planned item left out keeps its planned amount. */
           items: components['schemas']['PlanMealConfirmItem'][];
         }
       | {

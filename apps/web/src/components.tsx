@@ -163,6 +163,25 @@ export function CheckIcon({ size = 15, color }: { size?: number; color: string }
   );
 }
 
+/** The swap arrows on `Replaced` and on Adjust's swap chips (the approved M2 prototype). */
+export function SwapIcon({ size = 13 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M7 4 3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7" />
+    </svg>
+  );
+}
+
 /**
  * 6, the back chevron, turned for the other directions rather than adding an icon: forward on a row
  * that opens a screen, up and down on the move buttons.

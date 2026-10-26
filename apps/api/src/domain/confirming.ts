@@ -104,10 +104,7 @@ export function resolveConfirmation(
         errors.push({ path: at('pieceCount'), message: 'Not a food counted in pieces' });
         return;
       }
-      actual.set(
-        own.id,
-        hundredths(((entry.pieceCount ?? 0) * own.plannedGrams) / own.pieceCount),
-      );
+      actual.set(own.id, hundredths(((entry.pieceCount ?? 0) * own.plannedGrams) / own.pieceCount));
       return;
     }
     if (entry.pieceCount !== undefined) {
@@ -138,10 +135,6 @@ export function resolveConfirmation(
         noCookedMatch: food.noCookedMatch,
         per100g: food.per100g,
       });
-      return;
-    }
-    if (body.status === 'adjusted') {
-      errors.push({ path: at('foodId'), message: 'A swap is a food from the list' });
       return;
     }
     if (entry.name === undefined || entry.per100g === undefined) {

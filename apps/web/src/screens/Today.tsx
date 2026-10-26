@@ -4,6 +4,7 @@ import type {
   GoalPhase,
   Me,
   PlanDay,
+  PlanMeal,
   Routine,
   WeightUnit,
 } from '@overload/api-contract';
@@ -20,11 +21,29 @@ import {
   ScreenTabs,
   TextField,
 } from '../components';
+import {
+  confirmMeal,
+  dateLabel,
+  dayLocked,
+  unconfirmedMeals,
+  useFlash,
+  useLeftIncomplete,
+  useOnline,
+} from '../confirming';
 import { agoLabel, dayLabel, localDate, minutesBetween } from '../dates';
 import { historyOnDevice, removedOnDevice } from '../history';
 import { useEntryNote, type Navigate } from '../navigation';
 import { phaseLine } from '../plan';
-import { DayTotals, PlanSkeleton, Shortfalls, Timeline } from '../plan-day';
+import {
+  ConfirmNotice,
+  confirmProblem,
+  DayTotals,
+  PlanSkeleton,
+  Shortfalls,
+  Timeline,
+  wakingMinute,
+  type ConfirmProblem,
+} from '../plan-day';
 import {
   activePlanDay,
   addLocalDays,
@@ -75,8 +94,8 @@ import {
 // profile's time zone is the day boundary every local date is read against, and its weight unit is
 // how weights are shown (docs/06, 2026-09-23). The last workout is the way into History from here
 // (docs/10 §9). Today is the whole day (docs/10 §3, Q7): once the plan is set up, the day's meals
-// as a timeline with the workout marked in it, and until then the first setup step missing
-// (docs/09 F10).
+// as a timeline with the workout marked in it, each confirmed from its card (S18, docs/09 F11), and
+// until then the first setup step missing (docs/09 F10).
 
 const clock = (iso: string, timeZone: string) =>
   new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', timeZone }).format(
@@ -149,6 +168,13 @@ export function Today({ me, navigate }: { me: Me; navigate: Navigate }) {
 
   const plan = usePlan(me, confirmed);
   const note = useEntryNote();
+  const online = useOnline();
+  const left = useLeftIncomplete(userId);
+  // What a confirm just did, said once (docs/10 §3); a confirm from Adjust or Replaced leaves it.
+  const [flash, setFlash] = useFlash();
+  const [confirming, setConfirming] = useState(false);
+  const [refusedConfirm, setRefusedConfirm] = useState<ConfirmProblem>();
+  const now = clock(new Date().toISOString(), timeZone);
   // The day's routine is the one done longest ago, never done first: the next in the rotation. It
   // is started from its place in the timeline, and the others are listed under the day (Q5).
   const dayRoutine = items
@@ -204,6 +230,26 @@ export function Today({ me, navigate }: { me: Me; navigate: Navigate }) {
     }
   };
 
+  const confirmFromCard = async (meal: PlanMeal, status: 'as_planned' | 'skipped' | 'planned') => {
+    setConfirming(true);
+    setRefusedConfirm(undefined);
+    setFlash(undefined);
+    try {
+      await confirmMeal(meal.id, { status });
+      setFlash(CARD_FLASH[status]);
+      // The card closes to its row, which keeps focus where the tap was.
+      document.getElementById(`meal-${meal.id}`)?.focus();
+    } catch (error) {
+      setRefusedConfirm(confirmProblem(error));
+    } finally {
+      setConfirming(false);
+    }
+  };
+  const openMeal = (meal: PlanMeal, screen: 'adjust' | 'replace') => {
+    if (plan.day === undefined) return;
+    navigate(`/plan/meals/${meal.id}/${screen}?date=${plan.day.date}`, { returns: true });
+  };
+
   const startEmpty = async (name: string) => {
     setStarting(true);
     setStartFailed(undefined);
@@ -229,6 +275,12 @@ export function Today({ me, navigate }: { me: Me; navigate: Navigate }) {
       />
       <ScreenTabs current="/" navigate={navigate} />
 
+      {flash !== undefined && (
+        <output className="m2-flash">
+          <CheckIcon size={13} color="var(--done)" />
+          {flash}
+        </output>
+      )}
       {note === 'plan-saved' && (
         <output className="saved-line">
           <CheckIcon size={13} color="var(--done)" />
@@ -259,6 +311,21 @@ export function Today({ me, navigate }: { me: Me; navigate: Navigate }) {
         <>
           <DayTotals day={plan.day} />
           <Shortfalls day={plan.day} navigate={navigate} />
+          {left !== undefined && (
+            <EndOfDayCards
+              today={plan.day}
+              yesterday={plan.yesterday}
+              left={left}
+              evening={
+                plan.bedTime !== undefined &&
+                wakingMinute(now, plan.wakeTime) >=
+                  wakingMinute(plan.bedTime, plan.wakeTime) - EVENING_MINUTES
+              }
+              bedTime={plan.bedTime}
+              navigate={navigate}
+            />
+          )}
+          <ConfirmNotice problem={refusedConfirm} />
         </>
       )}
 
@@ -361,8 +428,18 @@ export function Today({ me, navigate }: { me: Me; navigate: Navigate }) {
           </h2>
           <Timeline
             day={plan.day}
-            now={clock(new Date().toISOString(), timeZone)}
             wakeTime={plan.wakeTime}
+            actions={
+              dayLocked(plan.day.date, plan.today)
+                ? undefined
+                : {
+                    offline: !online,
+                    busy: confirming,
+                    onConfirm: (meal, status) => void confirmFromCard(meal, status),
+                    onAdjust: (meal) => openMeal(meal, 'adjust'),
+                    onReplace: (meal) => openMeal(meal, 'replace'),
+                  }
+            }
             workout={
               inTimeline && plan.trainingTime !== null && loaded
                 ? {
@@ -929,6 +1006,9 @@ function usePlan(me: Me, confirmed: boolean) {
 
   const to = addLocalDays(today, 6);
   const days = useQuery({ ...planDaysQuery(today, to), enabled: confirmed && ready });
+  // Yesterday, for the morning's card about meals it left unconfirmed (docs/09 F11, step 4).
+  const before = addLocalDays(today, -1);
+  const yesterday = useQuery({ ...planDaysQuery(before, before), enabled: confirmed && ready });
   const targets = useQuery({ ...currentTargetsQuery, enabled: confirmed && ready });
   const [generating, setGenerating] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -950,6 +1030,10 @@ function usePlan(me: Me, confirmed: boolean) {
       .finally(() => setGenerating(false));
   }, [missing, failed, today, to]);
 
+  const dayRoutine = routines.data?.find(
+    (each) => each.dayType === days.data?.days.find((day) => day.date === today)?.dayType,
+  );
+
   return {
     today,
     step: step === undefined ? undefined : { ...step, number: SETUP.indexOf(step) + 1 },
@@ -969,10 +1053,9 @@ function usePlan(me: Me, confirmed: boolean) {
     mealCounts:
       routines.data?.map((each) => ({ dayType: each.dayType, meals: each.mealCount })) ?? [],
     trainingTime: routines.data?.find((each) => each.dayType === 'training')?.trainingTime ?? null,
-    wakeTime:
-      routines.data?.find(
-        (each) => each.dayType === days.data?.days.find((day) => day.date === today)?.dayType,
-      )?.wakeTime ?? '00:00',
+    wakeTime: dayRoutine?.wakeTime ?? '00:00',
+    bedTime: dayRoutine?.bedTime,
+    yesterday: ready ? yesterday.data?.days.find((day) => day.date === before) : undefined,
   };
 }
 
@@ -1121,6 +1204,74 @@ function WorkoutSlot({
         <span className="visually-hidden"> {routine.name}</span>
       </button>
     </div>
+  );
+}
+
+/** What Today says once a card's confirm is saved (the approved M2 prototype). */
+const CARD_FLASH = {
+  as_planned: 'Eaten as planned. Counted in the day.',
+  skipped: 'Skipped. Nothing counted for it; the day can still be complete.',
+  planned: 'Undone. The meal counts nothing until it is confirmed again.',
+} as const;
+
+/** The evening card shows from this long before the day routine's bedtime (docs/09 F11, step 3). */
+const EVENING_MINUTES = 60;
+
+const mealCount = (count: number) => `${count} ${count === 1 ? 'meal' : 'meals'}`;
+
+/**
+ * The end-of-day cards (docs/09 F11, steps 3 and 4): yesterday's, for meals it left unconfirmed, and
+ * tonight's from an hour before bed. Each opens the end-of-day check (screen 4) for its day, and
+ * shows only while a meal is unconfirmed and the day was not left incomplete here.
+ */
+function EndOfDayCards({
+  today,
+  yesterday,
+  left,
+  evening,
+  bedTime,
+  navigate,
+}: {
+  today: PlanDay;
+  yesterday: PlanDay | undefined;
+  left: Set<string>;
+  evening: boolean;
+  bedTime: string | undefined;
+  navigate: Navigate;
+}) {
+  const open = (date: string) => navigate(`/plan/check/${date}`, { returns: true });
+  const tonight = unconfirmedMeals(today).length;
+  const missed =
+    yesterday === undefined || left.has(yesterday.date) || dayLocked(yesterday.date, today.date)
+      ? 0
+      : unconfirmedMeals(yesterday).length;
+  return (
+    <>
+      {yesterday !== undefined && missed > 0 && (
+        <button type="button" className="eod-card" onClick={() => open(yesterday.date)}>
+          <span className="eod-card__count">{missed}</span>{' '}
+          <span>
+            <span className="eod-card__title">Yesterday: {mealCount(missed)} not confirmed</span>
+            <span className="eod-card__meta">
+              {dateLabel(yesterday.date)}. Confirm them or leave the day incomplete.
+            </span>
+          </span>
+          <Chevron direction="forward" />
+        </button>
+      )}
+      {evening && tonight > 0 && !left.has(today.date) && (
+        <button type="button" className="eod-card" onClick={() => open(today.date)}>
+          <span className="eod-card__count">{tonight}</span>{' '}
+          <span>
+            <span className="eod-card__title">{mealCount(tonight)} not confirmed yet</span>
+            <span className="eod-card__meta">
+              Bedtime is {bedTime}. Check the day before you sleep.
+            </span>
+          </span>
+          <Chevron direction="forward" />
+        </button>
+      )}
+    </>
   );
 }
 

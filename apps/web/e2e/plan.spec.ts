@@ -334,6 +334,18 @@ test('Today reports a failed plan generation', async ({ page }) => {
       })
     ).ok(),
   ).toBe(true);
+  // The meal due is the first not yet confirmed (S18): the evening's are eaten, so it is 00:15's.
+  const planned: { days: { meals: { id: string; plannedTime: string }[] }[] } = await (
+    await page.request.get(`/api/plan-days?from=${today}&to=${today}`)
+  ).json();
+  for (const meal of planned.days[0]?.meals ?? []) {
+    if (meal.plannedTime === '00:15') continue;
+    const eaten = await page.request.post(`/api/plan-meals/${meal.id}/confirm`, {
+      headers,
+      data: { status: 'as_planned' },
+    });
+    expect(eaten.ok()).toBe(true);
+  }
   await page.clock.setFixedTime(new Date(`${today}T14:00:00Z`));
   await page.reload();
   const timeline = page.getByRole('region', { name: 'The day', exact: true });

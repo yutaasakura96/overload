@@ -31,13 +31,7 @@ import { localDateIn } from '../db/training.js';
 import { listWeighIns } from '../db/weigh-ins.js';
 import { resolveConfirmation } from '../domain/confirming.js';
 import { PROTEIN_PER_MEAL_G_PER_KG, recommendMeals } from '../domain/meals.js';
-import {
-  datesBetween,
-  dayLocked,
-  dayTotals,
-  missingSetup,
-  planDates,
-} from '../domain/planning.js';
+import { datesBetween, dayLocked, dayTotals, missingSetup, planDates } from '../domain/planning.js';
 import {
   ageOn,
   bodyweightForTargets,

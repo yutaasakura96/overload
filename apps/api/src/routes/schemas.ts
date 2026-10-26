@@ -1607,7 +1607,7 @@ export const PlanMealConfirm = z
       status: z.literal('adjusted'),
       items: z.array(ConfirmEntry).min(1).max(40).openapi({
         description:
-          'Planned items with `actualGrams` or `pieceCount`, and foods swapped in `{ id, foodId, actualGrams }`. A planned item left out keeps its planned amount.',
+          'Planned items with `actualGrams` or `pieceCount`, and foods swapped in `{ id, foodId, actualGrams }` (or kept from an earlier replace by hand, `{ id, name, actualGrams, per100g }`). A planned item left out keeps its planned amount.',
       }),
     }),
     z.object({

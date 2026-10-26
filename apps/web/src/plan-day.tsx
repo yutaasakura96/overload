@@ -1,26 +1,17 @@
-import type { PlanDay, PlanItem, PlanMeal, PlanShortfall } from '@overload/api-contract';
-import { useEffect, useRef, type ReactNode } from 'react';
-import { InfoIcon, Notice } from './components';
+import type { PlanDay, PlanMeal, PlanShortfall } from '@overload/api-contract';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { CheckIcon, InfoIcon, Notice, SwapIcon } from './components';
+import { eatenItems, mealTotals, type Eaten } from './confirming';
 import { EVIDENCE, EvidenceTag } from './evidence';
 import type { Navigate } from './navigation';
+import { saveProblem } from './saving';
 
 // Today, the whole day (docs/10 §3; the approved M2 prototype, screens 01 to 08): the day's totals,
-// what the plan could not reach, and the timeline of meals with the workout marked in it. Confirming
-// a meal arrives with slice 5 (#80); until then a meal is shown, not acted on. Every figure is the
-// API's; this file adds up a meal's items for its line and words the meters.
+// what the plan could not reach, and the timeline of meals with the workout marked in it, each meal
+// confirmed from its card (S18). Every figure is the API's; this file adds up a meal's items for its
+// line and words the meters.
 
 const whole = (value: number) => Math.round(value).toLocaleString('en-US');
-
-/** A meal's calories and protein, from its planned items. */
-export function mealTotals(meal: PlanMeal) {
-  return meal.items.reduce(
-    (sum, item) => ({
-      energyKcal: sum.energyKcal + ((item.plannedGrams ?? 0) * item.per100g.energyKcal) / 100,
-      proteinG: sum.proteinG + ((item.plannedGrams ?? 0) * item.per100g.proteinG) / 100,
-    }),
-    { energyKcal: 0, proteinG: 0 },
-  );
-}
 
 /** `on target` within 2 g, else how far over or how far to go, uncoloured (Q8). */
 const meterWord = (value: number, target: number) => {
@@ -147,121 +138,305 @@ export function Shortfalls({ day, navigate }: { day: PlanDay; navigate: Navigate
   });
 }
 
-/** `120 g`, or `3 pieces` for a unit food. */
-function Amount({ item }: { item: PlanItem }) {
-  if (item.pieceCount !== null) {
+/** `120 g`, `3 pieces` for a unit food, or the calories of a food typed by hand. */
+function Amount({ eaten }: { eaten: Eaten }) {
+  const { item, grams, pieces } = eaten;
+  if (item.foodId === null && item.plannedGrams === null) {
     return (
       <span className="meal__grams">
-        {item.pieceCount}
-        <span className="meal__unit"> {item.pieceCount === 1 ? 'piece' : 'pieces'}</span>
+        {whole((grams * item.per100g.energyKcal) / 100)}
+        <span className="meal__unit"> kcal</span>
+      </span>
+    );
+  }
+  if (pieces !== null) {
+    return (
+      <span className="meal__grams">
+        {pieces}
+        <span className="meal__unit"> {pieces === 1 ? 'piece' : 'pieces'}</span>
       </span>
     );
   }
   return (
     <span className="meal__grams">
-      {whole(item.plannedGrams ?? 0)}
+      {whole(grams)}
       <span className="meal__unit"> g</span>
     </span>
   );
 }
 
-function Foods({ meal, dim }: { meal: PlanMeal; dim: boolean }) {
-  if (meal.items.length === 0) return <p className="meal__none">Nothing planned for this meal.</p>;
+export function Foods({ meal, dim }: { meal: PlanMeal; dim: boolean }) {
+  const eaten = eatenItems(meal);
+  if (eaten.length === 0) return <p className="meal__none">Nothing planned for this meal.</p>;
   return (
     <ul className={dim ? 'meal__foods meal__foods--dim' : 'meal__foods'}>
-      {meal.items.map((item) => (
-        <li key={item.id} className="meal__food">
+      {eaten.map((each) => (
+        <li key={each.item.id} className="meal__food">
           <span className="meal__name">
-            {item.name}{' '}
-            {item.cooked && (
-              <span className="meal__qual"> cooked{item.approximate ? ', approx.' : ''}</span>
+            {each.item.name}{' '}
+            {each.item.cooked && (
+              <span className="meal__qual"> cooked{each.item.approximate ? ', approx.' : ''}</span>
             )}
-            {item.noCookedMatch && <span className="meal__qual"> raw, no cooked match</span>}
+            {each.item.noCookedMatch && <span className="meal__qual"> raw, no cooked match</span>}
           </span>
-          <Amount item={item} />
+          <Amount eaten={each} />
         </li>
       ))}
     </ul>
   );
 }
 
-/** A meal's card: the next one due is open, as `05` §4.5's active card; the others are quieter. */
-function MealCard({ meal, due }: { meal: PlanMeal; due: boolean }) {
+const STATUS_WORD = {
+  as_planned: 'Eaten as planned',
+  adjusted: 'Eaten, adjusted',
+  replaced: 'Replaced',
+  skipped: 'Skipped',
+} as const;
+
+export const mealName = (meal: PlanMeal) => meal.label ?? `Meal ${meal.position}`;
+
+/** What a meal's actions do, given by Today; undefined on a day that is read-only. */
+export type MealActions = {
+  /** Confirming needs a connection (docs/09 F11): the actions wait, and say so. */
+  offline: boolean;
+  /** A confirm on its way: no second one until it answers. */
+  busy: boolean;
+  onConfirm: (meal: PlanMeal, status: 'as_planned' | 'skipped' | 'planned') => void;
+  onAdjust: (meal: PlanMeal) => void;
+  onReplace: (meal: PlanMeal) => void;
+};
+
+/**
+ * A meal's card (Q6): closed, the whole card opens it; open, its actions (S18). The meal due opens
+ * by itself, as `05` §4.5's active card. A confirmed meal is one row saying what became of it.
+ */
+function MealCard({
+  meal,
+  due,
+  open,
+  onToggle,
+  actions,
+}: {
+  meal: PlanMeal;
+  due: boolean;
+  open: boolean;
+  onToggle: () => void;
+  actions: MealActions | undefined;
+}) {
+  const confirmed = meal.status !== 'planned';
   const totals = mealTotals(meal);
+  const name = mealName(meal);
   const macros = (
     <span className="meal__macros">
       {whole(totals.energyKcal)} kcal · {whole(totals.proteinG)} g protein
     </span>
   );
   const tag =
-    meal.evidence[0] === undefined ? undefined : (
+    meal.evidence[0] === undefined || confirmed ? undefined : (
       <EvidenceTag evidence={EVIDENCE[meal.evidence[0].sourceKey]} />
     );
-  if (!due) {
-    return (
-      <>
-        <article className="meal">
-          <div className="meal__head">
-            <h3 className="meal__title">{meal.label ?? `Meal ${meal.position}`}</h3>
+  const done =
+    meal.status === 'planned' ? undefined : (
+      <span className="meal__done">
+        {meal.status !== 'skipped' && <CheckIcon size={13} color="var(--done)" />}
+        {STATUS_WORD[meal.status]}
+      </span>
+    );
+  const classes = [
+    'meal',
+    confirmed ? 'meal--confirmed' : due && open ? 'meal--active' : undefined,
+    open ? 'meal--open' : undefined,
+  ];
+  const disabled = actions === undefined || actions.offline || actions.busy;
+  const said = <span className="visually-hidden"> {name}</span>;
+  return (
+    <>
+      <article className={classes.filter(Boolean).join(' ')}>
+        <div className="meal__head">
+          <h3 className="meal__title">
+            <button
+              id={`meal-${meal.id}`}
+              type="button"
+              className="meal__toggle"
+              aria-expanded={open}
+              onClick={onToggle}
+            >
+              {name}
+              {due && <span className="visually-hidden">, next</span>}
+            </button>
+          </h3>
+          {done ?? (open ? undefined : macros)}
+        </div>
+        {open && !confirmed && (
+          <div className="meal__sub">
             {macros}
+            {tag}
           </div>
-          <Foods meal={meal} dim />
-        </article>
-        {tag !== undefined && <div className="meal__tag-row">{tag}</div>}
-      </>
+        )}
+        {(open || !confirmed) && <Foods meal={meal} dim={!open} />}
+        {open && actions !== undefined && !confirmed && (
+          <div className="meal__actions">
+            <button
+              type="button"
+              className="button button--primary meal__eaten"
+              disabled={disabled}
+              onClick={() => actions.onConfirm(meal, 'as_planned')}
+            >
+              <CheckIcon size={18} color="currentColor" />
+              Eaten as planned
+              {said}
+            </button>
+            <div className="meal__more">
+              <button
+                type="button"
+                className="button button--secondary"
+                disabled={disabled}
+                onClick={() => actions.onAdjust(meal)}
+              >
+                Adjust
+                {said}
+              </button>
+              <button
+                type="button"
+                className="button button--secondary"
+                disabled={disabled}
+                onClick={() => actions.onReplace(meal)}
+              >
+                <SwapIcon />
+                Replaced
+                {said}
+              </button>
+              <button
+                type="button"
+                className="button button--secondary"
+                disabled={disabled}
+                onClick={() => actions.onConfirm(meal, 'skipped')}
+              >
+                Skipped
+                {said}
+              </button>
+            </div>
+            {actions.offline && <OfflineLine />}
+          </div>
+        )}
+        {open && actions !== undefined && confirmed && (
+          <div className="meal__actions meal__actions--change">
+            <span className="meal__change-note">
+              Confirmed. Changing it replaces this, never adds to it.
+            </span>
+            <button
+              type="button"
+              className="button button--secondary"
+              disabled={disabled}
+              onClick={() => actions.onAdjust(meal)}
+            >
+              Adjust
+              {said}
+            </button>
+            <button
+              type="button"
+              className="button button--secondary"
+              disabled={disabled}
+              onClick={() => actions.onReplace(meal)}
+            >
+              Replaced
+              {said}
+            </button>
+            <button
+              type="button"
+              className="button button--tertiary"
+              disabled={disabled}
+              onClick={() => actions.onConfirm(meal, 'planned')}
+            >
+              Undo
+              {said}
+            </button>
+            {actions.offline && <OfflineLine />}
+          </div>
+        )}
+      </article>
+      {!open && tag !== undefined && <div className="meal__tag-row">{tag}</div>}
+    </>
+  );
+}
+
+export type ConfirmProblem = 'unreached' | 'day_locked' | 'not_found' | 'refused';
+
+/** Why a confirm did not save: not reached, past the 7 days, remade, or refused (docs/09 F11). */
+export function confirmProblem(error: unknown): ConfirmProblem {
+  const problem = saveProblem(error);
+  if (problem.kind === 'unreached') return 'unreached';
+  if (problem.code === 'day_locked' || problem.code === 'not_found') return problem.code;
+  return 'refused';
+}
+
+/** The notice for a confirm that did not save. The meal stays as it was in every case. */
+export function ConfirmNotice({ problem }: { problem: ConfirmProblem | undefined }) {
+  if (problem === undefined) return null;
+  if (problem === 'unreached') {
+    return (
+      <Notice tone="flag" word="Not confirmed">
+        Couldn’t reach Overload. The meal stays as it was; confirm it again when you have signal.
+      </Notice>
     );
   }
   return (
-    <article className="meal meal--active">
-      <div className="meal__head">
-        <h3 className="meal__title">
-          {meal.label ?? `Meal ${meal.position}`}
-          <span className="visually-hidden">, next</span>
-        </h3>
-      </div>
-      <div className="meal__sub">
-        {macros}
-        {tag}
-      </div>
-      <Foods meal={meal} dim={false} />
-    </article>
+    <Notice tone="error" word="Refused">
+      {problem === 'day_locked'
+        ? 'This day is more than 7 days old, so it can no longer be changed.'
+        : problem === 'not_found'
+          ? 'This meal’s plan was made again. Check the day and confirm it there.'
+          : 'Nothing was saved. The meal stays as it was.'}
+    </Notice>
+  );
+}
+
+/** Under disabled actions: why, and that nothing is lost (docs/10 §3, Offline). */
+export function OfflineLine() {
+  return (
+    <p className="meal__offline">
+      <InfoIcon size={12} color="var(--text-secondary)" />
+      Confirming needs a connection. Nothing is lost: the meal waits as planned.
+    </p>
   );
 }
 
 const minutes = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5));
 
+/** A clock time as minutes into the day that began at `wakeTime`: past midnight counts on. */
+export const wakingMinute = (time: string, wakeTime: string) => {
+  const minute = minutes(time);
+  return minute < minutes(wakeTime) ? minute + 1440 : minute;
+};
+
 /**
  * The day's meals in time order with the workout at its training time. The meal due is the first
- * not more than an hour past; before slice 5 nothing is confirmed, so the time alone says it.
+ * not yet confirmed (S18); it opens by itself until another is chosen, and again once a confirm
+ * changes the day.
  */
 export function Timeline({
   day,
-  now,
   wakeTime,
   workout,
+  actions,
 }: {
   day: PlanDay;
-  /** The local time now, `HH:MM`. */
-  now: string;
   wakeTime: string;
   workout: { time: string; node: ReactNode } | undefined;
+  actions: MealActions | undefined;
 }) {
-  const wake = minutes(wakeTime);
-  const wakingMinute = (time: string) => {
-    const minute = minutes(time);
-    return minute < wake ? minute + 1440 : minute;
-  };
-  const meals = day.meals.toSorted(
-    (a, b) => wakingMinute(a.plannedTime) - wakingMinute(b.plannedTime),
-  );
-  const due = meals.find((meal) => wakingMinute(meal.plannedTime) + 60 >= wakingMinute(now));
+  const at = (time: string) => wakingMinute(time, wakeTime);
+  const meals = day.meals.toSorted((a, b) => at(a.plannedTime) - at(b.plannedTime));
+  const due = meals.find((meal) => meal.status === 'planned');
+  // The card chosen, kept only while the day's meals stand as they did when it was chosen.
+  const statuses = meals.map((meal) => meal.status).join();
+  const [chosen, setChosen] = useState<{ id: string | null; statuses: string }>();
+  const openId = chosen?.statuses === statuses ? chosen.id : (due?.id ?? null);
   type Entry = { time: string; meal?: PlanMeal; workout?: ReactNode };
   const entries: Entry[] = [
     ...meals.map((meal): Entry => ({ time: meal.plannedTime, meal })),
     ...(workout === undefined ? [] : [{ time: workout.time, workout: workout.node }]),
-  ].toSorted(
-    (a, b) => wakingMinute(a.time) - wakingMinute(b.time) || (a.workout === undefined ? -1 : 1),
-  );
+  ].toSorted((a, b) => at(a.time) - at(b.time) || (a.workout === undefined ? -1 : 1));
 
   return (
     <ol className="timeline">
@@ -279,19 +454,30 @@ export function Timeline({
             </li>
           );
         }
-        const isDue = due?.id === entry.meal.id;
+        const { meal } = entry;
+        const isDue = due?.id === meal.id;
+        const open = openId === meal.id;
+        const dot =
+          meal.status !== 'planned'
+            ? 'timeline__dot timeline__dot--done'
+            : isDue
+              ? 'timeline__dot timeline__dot--active'
+              : 'timeline__dot';
         return (
-          <li key={entry.meal.id} className="timeline__entry">
+          <li key={meal.id} className="timeline__entry">
             <div className="timeline__rail">
               <span className="timeline__time">{entry.time}</span>
-              <span
-                className={isDue ? 'timeline__dot timeline__dot--active' : 'timeline__dot'}
-                aria-hidden="true"
-              />
+              <span className={dot} aria-hidden="true" />
               {!last && <span className="timeline__line" aria-hidden="true" />}
             </div>
             <div className="timeline__body">
-              <MealCard meal={entry.meal} due={isDue} />
+              <MealCard
+                meal={meal}
+                due={isDue}
+                open={open}
+                onToggle={() => setChosen({ id: open ? null : meal.id, statuses })}
+                actions={actions}
+              />
             </div>
           </li>
         );

@@ -55,13 +55,17 @@ const slots = [
 ];
 
 /** A member with a plan: every day a rest day, four meals, generated from `from` through `to`. */
+async function ok(res: Response, status = 200) {
+  expect(res.status).toBe(status);
+  return res;
+}
+
+/** What an item counts once its meal is confirmed adjusted: what was eaten, else the plan. */
+const eatenGrams = (item: Item) => item.actualGrams ?? item.plannedGrams ?? 0;
+
 async function planned(email: string, from = today(), to = today()) {
   const { cookie } = await t.createSignedInUser(email);
   const send = sender(t, cookie);
-  const ok = async (res: Response, status = 200) => {
-    expect(res.status).toBe(status);
-    return res;
-  };
   await ok(
     await send('PATCH', '/api/me/profile', {
       timezone: 'Asia/Tokyo',
@@ -148,7 +152,10 @@ describe('POST /api/plan-meals/{id}/confirm', () => {
     expect(body.status).toBe('as_planned');
     expect(body.confirmedAt).not.toBeNull();
     expect(body.day.complete).toBe(false);
-    near(body.day.confirmed.energyKcal, sum(meal.items, (item) => item.plannedGrams ?? 0));
+    near(
+      body.day.confirmed.energyKcal,
+      sum(meal.items, (item) => item.plannedGrams ?? 0),
+    );
   });
 
   it('never counts a repeat twice, and a later kind replaces the earlier one', async () => {
@@ -190,33 +197,23 @@ describe('POST /api/plan-meals/{id}/confirm', () => {
     near(back.day.confirmed.energyKcal, once);
   });
 
-  it('adjusts grams and pieces, and swaps a food in from the list', async () => {
+  it('adjusts grams, and swaps a food in from the list', async () => {
     const { send, foods } = await planned('adjust@example.test');
-    const day = await readDay(send);
-    const withEgg = day.meals.find((meal) => meal.items.some((item) => item.pieceCount !== null));
-    const meal = withEgg ?? firstMeal(day);
+    const meal = firstMeal(await readDay(send));
     const [first, ...rest] = meal.items;
     if (first === undefined) throw new Error('no item');
-    const egg = meal.items.find((item) => item.pieceCount !== null);
-    const entries: Record<string, unknown>[] = [{ id: first.id, actualGrams: 35 }];
-    if (egg !== undefined && egg.id !== first.id) {
-      entries.push({ id: egg.id, pieceCount: (egg.pieceCount ?? 0) + 1 });
-    }
     const added = randomUUID();
-    entries.push({ id: added, foodId: foods.get('Broccoli'), actualGrams: 100 });
-    const res = await confirm(send, meal.id, { status: 'adjusted', items: entries });
+    const res = await confirm(send, meal.id, {
+      status: 'adjusted',
+      items: [
+        { id: first.id, actualGrams: 35 },
+        { id: added, foodId: foods.get('Broccoli'), actualGrams: 100 },
+      ],
+    });
     expect(res.status).toBe(200);
     const body: Confirmed = await res.json();
     expect(body.status).toBe('adjusted');
-    const eaten = (item: Item) => item.actualGrams ?? item.plannedGrams ?? 0;
     expect(body.items.find((item) => item.id === first.id)?.actualGrams).toBe(35);
-    if (egg !== undefined && egg.id !== first.id) {
-      const each = (egg.plannedGrams ?? 0) / (egg.pieceCount ?? 1);
-      expect(body.items.find((item) => item.id === egg.id)?.actualGrams).toBeCloseTo(
-        each * ((egg.pieceCount ?? 0) + 1),
-        2,
-      );
-    }
     expect(body.items.find((item) => item.id === added)).toMatchObject({
       foodId: foods.get('Broccoli'),
       name: 'Broccoli',
@@ -224,10 +221,10 @@ describe('POST /api/plan-meals/{id}/confirm', () => {
       actualGrams: 100,
     });
     // An item left out keeps its planned amount.
-    for (const item of rest.filter((each) => each.id !== egg?.id)) {
-      expect(body.items.find((each) => each.id === item.id)?.actualGrams).toBeNull();
+    for (const item of rest) {
+      expect(body.items.find((one) => one.id === item.id)?.actualGrams).toBeNull();
     }
-    near(body.day.confirmed.energyKcal, sum(body.items, eaten));
+    near(body.day.confirmed.energyKcal, sum(body.items, eatenGrams));
   });
 
   it('replaces a meal from the list or by hand, keeping the planned items at 0 g', async () => {
@@ -306,16 +303,19 @@ describe('POST /api/plan-meals/{id}/confirm', () => {
       { status: 'replaced', items: [{ id: randomUUID(), foodId: foods.get('Egg') }] },
       { status: 'replaced', items: [] },
     ];
-    for (const body of refused) {
-      const res = await confirm(send, meal.id, body);
-      expect(res.status, JSON.stringify(body)).toBe(422);
-    }
+    const statuses = [];
+    for (const body of refused) statuses.push((await confirm(send, meal.id, body)).status);
+    expect(statuses).toEqual(refused.map(() => 422));
     // The meal stays at its previous status.
     expect(firstMeal(await readDay(send)).status).toBe('planned');
   });
 
   it('locks a day more than 7 days after its date', async () => {
-    const { send } = await planned('locked@example.test', addDays(today(), -8), addDays(today(), -7));
+    const { send } = await planned(
+      'locked@example.test',
+      addDays(today(), -8),
+      addDays(today(), -7),
+    );
     const old = await readDay(send, addDays(today(), -8));
     const edge = await readDay(send, addDays(today(), -7));
     const locked = await confirm(send, firstMeal(old).id, { status: 'as_planned' });

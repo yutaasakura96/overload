@@ -7,6 +7,7 @@ import { meQuery, useAccount } from './query';
 import { ExerciseScreen } from './screens/ExerciseForm';
 import { AboutYou } from './screens/AboutYou';
 import { AddFood } from './screens/AddFood';
+import { EndOfDay } from './screens/EndOfDay';
 import { ExerciseLibrary } from './screens/ExerciseLibrary';
 import { FoodBarcode } from './screens/FoodBarcode';
 import { FoodCheck, FoodEdit } from './screens/FoodCheck';
@@ -16,6 +17,8 @@ import { GoalPhaseScreen } from './screens/GoalPhase';
 import { Foods } from './screens/Foods';
 import { History } from './screens/History';
 import { Invites } from './screens/Invites';
+import { MealAdjust } from './screens/MealAdjust';
+import { MealReplace } from './screens/MealReplace';
 import { PastWorkout } from './screens/PastWorkout';
 import { Progress } from './screens/Progress';
 import { Balance } from './screens/Balance';
@@ -126,6 +129,16 @@ export function App() {
     if (route.screen === 'about-you') return <AboutYou me={me.data} navigate={navigate} />;
     if (route.screen === 'goal-phase') return <GoalPhaseScreen me={me.data} navigate={navigate} />;
     if (route.screen === 'your-day') return <YourDay me={me.data} navigate={navigate} />;
+    if (route.screen === 'end-of-day')
+      return <EndOfDay key={route.date} me={me.data} date={route.date} navigate={navigate} />;
+    if (route.screen === 'meal-adjust' || route.screen === 'meal-replace') {
+      const date = searchParams.get('date');
+      if (date === null) return <NotFound navigate={navigate} />;
+      const Screen = route.screen === 'meal-adjust' ? MealAdjust : MealReplace;
+      return (
+        <Screen key={route.id} me={me.data} date={date} mealId={route.id} navigate={navigate} />
+      );
+    }
     if (route.screen === 'invites') {
       // A member gets the not-found screen, not a forbidden one (docs/08 §5).
       if (!me.data.isAdmin) return <NotFound navigate={navigate} />;
