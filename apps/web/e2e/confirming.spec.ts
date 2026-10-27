@@ -218,6 +218,43 @@ test('confirms meals from Today, then the rest from the end-of-day check', async
   });
 });
 
+test('names the remaining meal and preserves earlier choices', async ({ page }) => {
+  const today = todayInZone();
+  const read: { days: { meals: { id: string; label: string }[] }[] } = await (
+    await page.request.get(`/api/plan-days?from=${today}&to=${today}`)
+  ).json();
+  const meals = read.days[0]?.meals;
+  if (meals === undefined) throw new Error('no plan');
+  for (const meal of meals.filter((each) => each.label !== 'Dinner')) {
+    await ok(
+      page.request.post(`/api/plan-meals/${meal.id}/confirm`, {
+        headers,
+        data: { status: meal.label === 'Breakfast' ? 'skipped' : 'as_planned' },
+      }),
+    );
+  }
+
+  await page.clock.install({ time: new Date(`${today}T22:30:00+09:00`) });
+  await page.goto('/');
+  await page.getByRole('button', { name: /1 meal not confirmed yet/ }).click();
+  await expect(page.getByRole('button', { name: 'Confirm Dinner as planned' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Eaten as planned Dinner' })).toBeVisible();
+  await page.getByRole('button', { name: 'Confirm Dinner as planned' }).click();
+  await expect(
+    page.getByText(/is a complete day\. It counts towards the maintenance check\./),
+  ).toBeVisible();
+
+  const day = await readDay(page, today);
+  expect(day.complete).toBe(true);
+  expect(Object.fromEntries(day.meals.map((meal) => [meal.label, meal.status]))).toEqual({
+    Breakfast: 'skipped',
+    Lunch: 'as_planned',
+    Afternoon: 'as_planned',
+    Dinner: 'as_planned',
+    Evening: 'as_planned',
+  });
+});
+
 test('leaves a day incomplete once, and the card does not ask again', async ({ page }) => {
   const today = todayInZone();
   await page.clock.install({ time: new Date(`${today}T22:30:00+09:00`) });

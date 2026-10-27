@@ -257,7 +257,9 @@ export function EndOfDay({ me, date, navigate }: { me: Me; date: string; navigat
               }
             >
               <CheckIcon size={20} color="currentColor" />
-              {left.length === 1 ? 'Confirm the day as planned' : 'Confirm all as planned'}
+              {left.length === 1
+                ? `Confirm ${mealName(left[0]!)} as planned`
+                : 'Confirm all as planned'}
             </button>
             <button
               type="button"
