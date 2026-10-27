@@ -541,6 +541,19 @@ export const currentTargetsQuery = queryOptions({
     confirmedAccountData(() => api.GET('/api/targets/current', { signal })),
 });
 
+/**
+ * The maintenance check (S18a, docs/07 §5). Under `plan`, so a confirmed meal, a weigh-in or a
+ * phase change reads it again.
+ */
+export const maintenanceCheckQuery = (date: string) =>
+  queryOptions({
+    queryKey: ['plan', 'maintenance-check', date],
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    queryFn: async ({ signal }) =>
+      confirmedAccountData(() => api.GET('/api/maintenance-check', { signal })),
+  });
+
 /** The plan days of a range of local dates (S16). Read-only: dates without a plan are `missing`. */
 export const planDaysQuery = (from: string, to: string) =>
   queryOptions({

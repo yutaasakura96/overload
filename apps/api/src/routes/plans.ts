@@ -31,7 +31,14 @@ import { localDateIn } from '../db/training.js';
 import { listWeighIns } from '../db/weigh-ins.js';
 import { resolveConfirmation } from '../domain/confirming.js';
 import { PROTEIN_PER_MEAL_G_PER_KG, recommendMeals } from '../domain/meals.js';
-import { datesBetween, dayLocked, dayTotals, missingSetup, planDates } from '../domain/planning.js';
+import {
+  dayComplete,
+  datesBetween,
+  dayLocked,
+  dayTotals,
+  missingSetup,
+  planDates,
+} from '../domain/planning.js';
 import {
   ageOn,
   bodyweightForTargets,
@@ -191,7 +198,7 @@ export const planDayJson = (day: StoredPlanDay) => {
     date: day.date,
     dayType: day.dayType,
     goalPhaseId: day.goalPhaseId,
-    complete: day.meals.length > 0 && day.meals.every((meal) => meal.status !== 'planned'),
+    complete: dayComplete(day.meals),
     targets: day.targets,
     ...totals,
     shortfalls: day.shortfalls,

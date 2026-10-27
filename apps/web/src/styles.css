@@ -2959,6 +2959,124 @@ fieldset.field > legend {
   background: none;
   border: 1.5px solid var(--line-control);
 }
+/* The maintenance check card (S18a, docs/10 §6), lifted from the M2 prototype. */
+.maint {
+  gap: 12px;
+}
+.maint p {
+  margin: 0;
+}
+.maint__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+}
+.maint__title {
+  margin: 0;
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.maint__ref {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  color: var(--text-quaternary);
+}
+.maint__figs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.maint__label {
+  display: block;
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+.maint__fig {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 500;
+}
+.maint__unit {
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--text-quaternary);
+}
+.maint__result {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line-hairline);
+}
+.maint__result-words {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.maint__result-fig {
+  font-family: var(--font-mono);
+  font-size: 24px;
+  font-weight: 500;
+  color: var(--accent);
+  white-space: nowrap;
+}
+.maint__low {
+  display: flex;
+  gap: 6px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--flag);
+}
+.maint__low .notice__icon {
+  flex: none;
+  margin-top: 1px;
+}
+.maint__caveat {
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--text-tertiary);
+}
+.maint__applied {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+}
+.maint__count {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+}
+.maint__count-fig {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 500;
+}
+.maint__count-words {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.maint__count-words--big {
+  font-size: 15px;
+  color: var(--text-primary);
+}
+.apply__compare {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+.apply__compare b {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  color: var(--text-primary);
+}
 .weighins {
   margin: 0;
   padding: 0;

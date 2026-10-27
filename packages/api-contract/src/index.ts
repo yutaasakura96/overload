@@ -25,6 +25,7 @@ export type GoalPhaseType = components['schemas']['GoalPhaseType'];
 export type Invite = components['schemas']['Invite'];
 export type LabelRead = components['schemas']['LabelRead'];
 export type LastTime = components['schemas']['LastTime'];
+export type MaintenanceCheck = components['schemas']['MaintenanceCheck'];
 export type Me = components['schemas']['Me'];
 export type MealRecommendation = components['schemas']['MealRecommendation'];
 // The generated component carries the `null` of the fields that use it, as `Profile` does.

@@ -217,3 +217,7 @@ export function dayTotals(
   }
   return { planned: roundTotals(planned), confirmed: roundTotals(confirmed) };
 }
+
+/** A day is complete when it has meals and none is left at `planned` (S18, docs/04 `plan_day`). */
+export const dayComplete = (meals: { status: string }[]) =>
+  meals.length > 0 && meals.every((meal) => meal.status !== 'planned');

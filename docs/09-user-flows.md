@@ -410,8 +410,9 @@ plan again from today to the end of next week, so days not yet confirmed use the
 
 ### F13. Maintenance check → apply by hand
 
-1. Weight screen → the maintenance check card (S18a), in one of `07` §5's three statuses:
+1. Weight screen → the maintenance check card (S18a), in one of `07` §5's four statuses:
    - `collecting` — fewer than 14 complete days in total: how many remain.
+   - `needs_logging` — no complete day in the window: "Confirm your meals to see this".
    - `needs_weigh_in` — fewer than 3 weigh-ins in the window, or none in its newest 7 days:
      "Weigh in to see this", with the window and its counts but no figures.
    - `ready` — mean intake, trend change and implied maintenance over the trailing 14 calendar days,
@@ -421,7 +422,9 @@ plan again from today to the end of next week, so days not yet confirmed use the
 2. **Apply to targets** (`ready` only) → `PATCH /api/goal-phases/{id}` with `calorieBasis: "measured"` → the client
    regenerates the unconfirmed plan days. Never automatic. It asks once first, showing the current and
    the new calorie target (`10` §6). On a cut the new target is the maintenance estimate less the
-   deficit for the phase's rate, rate × bodyweight × 7,700 ÷ 7 (`06`, 2026-10-16, Q17).
+   deficit for the phase's rate, rate × bodyweight × 7,700 ÷ 7 (`06`, 2026-10-16, Q17); on a bulk
+   the estimate plus the surplus for its rate, and on maintenance the estimate itself (`06`,
+   2026-10-27). The API gives the figure as `apply` (`07` §5).
 
 **A target set by hand wins until next Monday** (decided 2026-09-21, and applies equally to plain
 manual edits in F10): `plan_day` takes the newer of the newest applied `expenditure_estimate` and

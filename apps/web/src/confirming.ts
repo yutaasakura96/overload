@@ -22,6 +22,13 @@ import {
 // meals are not queued offline, only sets are (docs/06). What a meal counts is the API's; this file
 // reads the amounts eaten off its items for the screens, which add them up only to preview a change.
 
+/** A confirmation moves the day's totals and which days are complete (S18a). */
+const refreshConfirmed = () =>
+  Promise.all([
+    queryClient.invalidateQueries({ queryKey: ['plan', 'days'] }),
+    queryClient.invalidateQueries({ queryKey: ['plan', 'maintenance-check'] }),
+  ]);
+
 /** Confirms one meal. A repeat replaces the earlier confirmation; `planned` takes it back. */
 export async function confirmMeal(
   mealId: string,
@@ -32,7 +39,7 @@ export async function confirmMeal(
       api.POST('/api/plan-meals/{id}/confirm', { params: { path: { id: mealId } }, body }),
     );
   } finally {
-    await queryClient.invalidateQueries({ queryKey: ['plan', 'days'] });
+    await refreshConfirmed();
   }
 }
 
@@ -43,7 +50,7 @@ export async function confirmDay(date: string): Promise<PlanDay> {
       api.POST('/api/plan-days/{date}/confirm-all', { params: { path: { date } } }),
     );
   } finally {
-    await queryClient.invalidateQueries({ queryKey: ['plan', 'days'] });
+    await refreshConfirmed();
   }
 }
 

@@ -79,15 +79,14 @@ export function dailyWeights(readings: WeighInReading[], timezone: string): Dail
 }
 
 /**
- * The time-aware EWMA over the daily weights, oldest first: `a = 1 − 0.9^Δd` with `Δd` the days
- * since the previous weighed day, so a gap moves the trend as far as that many days of readings
- * would. The first day's trend is its weight.
+ * The time-aware EWMA over the daily weights, oldest first, unrounded: `a = 1 − 0.9^Δd` with `Δd`
+ * the days since the previous weighed day, so a gap moves the trend as far as that many days of
+ * readings would. The first day's trend is its weight.
  */
-export function weightTrend(days: DailyWeight[]): { days: TrendDay[]; trendAvailable: boolean } {
-  const trendAvailable = days.length >= TREND_MIN_DAYS;
+export function trendSeries(days: DailyWeight[]): (DailyWeight & { trendKg: number })[] {
   let trend: number | undefined;
   let previous: string | undefined;
-  const trended = days.map((each) => {
+  return days.map((each) => {
     if (trend === undefined || previous === undefined) {
       trend = each.weightKg;
     } else {
@@ -95,8 +94,17 @@ export function weightTrend(days: DailyWeight[]): { days: TrendDay[]; trendAvail
       trend += share * (each.weightKg - trend);
     }
     previous = each.date;
-    return { ...each, trendKg: trendAvailable ? round(trend, 2) : null };
+    return { ...each, trendKg: trend };
   });
+}
+
+/** The trend to the hundredth, or null on every day while fewer than 3 days are weighed. */
+export function weightTrend(days: DailyWeight[]): { days: TrendDay[]; trendAvailable: boolean } {
+  const trendAvailable = days.length >= TREND_MIN_DAYS;
+  const trended = trendSeries(days).map((each) => ({
+    ...each,
+    trendKg: trendAvailable ? round(each.trendKg, 2) : null,
+  }));
   return { days: trended, trendAvailable };
 }
 

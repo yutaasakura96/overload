@@ -1060,24 +1060,35 @@ GET /api/maintenance-check  →  200
 { "status": "ready",
   "from": "2026-10-27", "to": "2026-11-09",
   "completeDaysTotal": 31, "remaining": 0,
-  "completeDaysInWindow": 12, "lowRecentLogging": false,
+  "completeDaysInWindow": 12, "recentCompleteDays": 6, "lowRecentLogging": false,
+  "weighInsInWindow": 9, "lastWeighedOn": "2026-11-09",
   "meanIntakeKcal": 2450, "trendChangeKgPerWeek": -0.10, "maintenanceKcal": 2560,
+  "apply": { "goalPhaseId": "0192p001-…", "adjustmentKcal": -450, "calorieTargetKcal": 2110 },
   "method": "weight_trend_balance_v1" }
 ```
 
-The window is the trailing 14 calendar days, the same one S21 uses. Only complete
-days in it feed the mean. `status` is one of three:
+The window is the trailing 14 calendar days ending today, today included, the same length S21
+uses. Only complete days in it feed the mean. `status` is one of four:
 
 | `status` | When | Filled | `null` |
 | --- | --- | --- | --- |
 | `collecting` | Fewer than 14 complete days in total | `completeDaysTotal`, `remaining` | Everything else |
-| `needs_weigh_in` | Fewer than 3 weigh-ins in the window, or none in its newest 7 days. Screen 6 shows `Weigh in to see this` | Window, counts, `lowRecentLogging` | The three figures |
-| `ready` | Otherwise | Everything | — |
+| `needs_logging` | No complete day in the window | Window, counts, `lowRecentLogging` | The three figures, `apply` |
+| `needs_weigh_in` | Fewer than 3 weighed days in the window, or none in its newest 7. Screen 6 shows `Weigh in to see this` | Window, counts, `lowRecentLogging` | The three figures, `apply` |
+| `ready` | Otherwise | Everything (`apply` is null without an open phase) | — |
 
 - `completeDaysInWindow` is the header's count (`LAST 14 DAYS · 12 COMPLETE`, `10` §6).
-  `completeDaysTotal` is the gate.
-- `lowRecentLogging` is true when fewer than 5 of the window's newest 7 days are complete. The figure
-  is then labelled as resting on too little recent logging (S18a).
+  `completeDaysTotal` is the gate, every complete day up to today.
+- `lowRecentLogging` is true when fewer than 5 of the window's newest 7 days are complete
+  (`recentCompleteDays`). The figure is then labelled as resting on too little recent logging (S18a).
+- `weighInsInWindow` counts weighed days, and `lastWeighedOn` is the newest weighed day in or before
+  the window, for the card's `You have 2, the newest on 6 Oct`.
+- `meanIntakeKcal` is to the kcal, `trendChangeKgPerWeek` to the hundredth, `maintenanceKcal` to the
+  nearest 10.
+- `apply` is what `Apply to targets` sends to `PATCH /api/goal-phases/{id}` as `calorieTargetKcal`
+  with `calorieBasis: "measured"`: the estimate less the deficit for a cut's rate, plus the surplus
+  for a bulk's, the estimate itself on maintenance, held to 1,000–6,000 kcal (`09` F13). The check
+  never writes a target. *As built 2026-10-27* (`#82`, `06`).
 
 *Rewritten 2026-09-22* from "the newest 14 complete days", which contradicted S18a and `03` §8.3.
 

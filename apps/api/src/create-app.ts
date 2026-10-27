@@ -20,6 +20,7 @@ import { exerciseRoutes } from './routes/exercises.js';
 import { exportRoutes } from './routes/export.js';
 import { LABEL_PHOTO_MAX_BYTES, foodRoutes } from './routes/foods.js';
 import { healthRoutes } from './routes/health.js';
+import { maintenanceRoutes } from './routes/maintenance.js';
 import { meRoutes } from './routes/me.js';
 import { planRoutes } from './routes/plans.js';
 import { prepRoutes } from './routes/prep.js';
@@ -140,6 +141,7 @@ export function createApp({
   app.openapiRoutes(routineRoutes({ config, db }));
   app.openapiRoutes(trainingRoutes({ config, db }));
   app.openapiRoutes(weighInRoutes({ config, db }));
+  app.openapiRoutes(maintenanceRoutes({ config, db }));
   app.openapiRoutes(foodRoutes({ config, db, foodSources }));
   app.openapiRoutes(rotationGroupRoutes({ config, db }));
   app.openapiRoutes(prepRoutes({ config, db }));

@@ -4215,3 +4215,33 @@ already had what a confirmation writes.
   7, and the screens show a locked day read-only.
 
 **Changed:** `00`, `04`, `06`, `07` §4, `09` F11, `10` §3, §4, `11` §2.
+
+### 2026-10-27 — M2 slice 7: the maintenance check
+
+Issue `#82`, S18a, built as `03` §8.3, `07` §5, `09` F13 and `10` §6 describe, with the card and the
+apply sheet from the approved M2 prototype (its Weight screen, four card states). Checked at 390px on
+invented plan days and weigh-ins. No migration: the check is read from `plan_day`, `plan_meal`,
+`plan_meal_item` and `body_measurement` and never stored.
+
+- **The window is the 14 calendar days ending today**, today included, so a day confirmed tonight
+  counts at once. A complete day is one whose meals all have a status other than `planned` (`04`);
+  the gate counts every complete day up to today, the mean only the window's.
+- **A weigh-in, for the gates, is a weighed day**: the day's weight that stands in the trend, not
+  each reading. Two readings on one morning are one weigh-in.
+- **A fourth status, `needs_logging`**, for a user past the 14-day gate with no complete day in the
+  window: a mean of no days cannot be shown. The card says `Confirm your meals to see this`. Not
+  drawn in the prototype; it follows `Weigh in to see this`.
+- **Rounding.** The mean intake to the kcal, the trend's change to the hundredth of a kg a week,
+  the maintenance figure to the nearest 10 kcal (the card prints it with `≈`). The rate uses the
+  unrounded trend.
+- **What `Apply to targets` sets on a bulk or a maintenance phase** (owed since 2026-10-16): the
+  estimate plus the surplus for a bulk's rate, and the estimate itself on maintenance, by the same
+  rate × bodyweight × 7,700 ÷ 7 the provisional formula adjusts by (`03` §8.2), to the nearest 10 and
+  held to 1,000–6,000 kcal. The bodyweight is the one targets are set at. The API answers this as
+  `apply`, so the web app works out no target itself.
+- **Applying is the phase's own PATCH** with `calorieBasis: "measured"`, then the client plans the
+  unconfirmed days again, as a saved goal phase does. The check itself writes nothing. Once the open
+  phase holds the check's figure as measured, the card says `Applied` and the action goes; it comes
+  back when a later check differs.
+
+**Changed:** `00`, `03` §8.3, `06`, `07` §5, `09` F13, `10` §6, `11` §2.

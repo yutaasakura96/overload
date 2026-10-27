@@ -33,6 +33,7 @@ import {
 import { saveProblem, SaveNotice, type SaveProblem } from '../saving';
 import { fromKg, unitName } from '../units';
 import { ProgressSections } from './History';
+import { MaintenanceCard } from './MaintenanceCheck';
 
 // Weight, the fourth section of Progress (docs/10 §6, S11; approved in the M2 prototype). The daily
 // weights, the trend and the week's change are the API's (docs/07 §5, docs/03 §8.3); this screen
@@ -142,6 +143,17 @@ export function Weight({ me, navigate }: { me: Me; navigate: Navigate }) {
             setProblem(next);
           }}
         />
+      )}
+
+      {profile != null && (
+        <div className="today__section">
+          <MaintenanceCard
+            unit={profile.weightUnit}
+            timeZone={profile.timezone}
+            phase={phase}
+            onType={typeOne}
+          />
+        </div>
       )}
 
       <AccountFooter email={me.user.email} admin={me.isAdmin} navigate={navigate} />
