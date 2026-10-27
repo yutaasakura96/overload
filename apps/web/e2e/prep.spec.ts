@@ -136,6 +136,12 @@ test('records a batch, reads the prep plan’s second cook day and the grocery l
 
   await page.getByRole('link', { name: 'Prep' }).click();
   await expect(page.getByRole('heading', { name: /First cook day/ })).toBeVisible();
+  // The app bar, with the data-state slot, stays while the screen scrolls under it (docs/10 §7.3).
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  await expect
+    .poll(() => page.locator('header.app-bar').evaluate((bar) => bar.getBoundingClientRect().top))
+    .toBe(0);
+  await page.evaluate(() => window.scrollTo(0, 0));
   await expect(page.getByRole('heading', { name: /Second cook day/ })).toBeVisible();
   await expect(
     page.getByText('Chicken breast, skinless keeps 4 days; cook again for the rest of the week.', {
@@ -145,7 +151,8 @@ test('records a batch, reads the prep plan’s second cook day and the grocery l
   const cooks = page.locator('.cook__row', { hasText: 'Chicken breast, skinless' });
   await expect(cooks).toHaveCount(2);
   await expect(cooks.first()).toContainText('Yield 75% from your batch of');
-  await expect(page.locator('.cook__row', { hasText: 'Rolled oats' })).toHaveCount(1);
+  // A food with no shelf life is bought and weighed at its meals: not a row to cook, with no tick.
+  await expect(page.locator('.cook__row', { hasText: 'Rolled oats' })).toHaveCount(0);
   const raws = (await cooks.locator('.cook__raw').allInnerTexts()).map((text) =>
     Number(text.replace(/[^0-9]/g, '')),
   );
@@ -163,6 +170,9 @@ test('records a batch, reads the prep plan’s second cook day and the grocery l
   const tick = chicken.locator('.check-cell');
   const name = chicken.locator('.grocery__name');
   expect((await tick.boundingBox())!.x).toBeGreaterThan((await name.boundingBox())!.x);
+  // Each section names the weight its figures are in: raw to cook, as weighed at the meal otherwise.
+  await expect(page.getByText('RAW WEIGHT', { exact: true })).toHaveCount(1);
+  await expect(page.getByText('AS WEIGHED AT THE MEAL', { exact: true })).toHaveCount(1);
 
   // A tick stays on this phone, across a reload.
   await chicken.click();

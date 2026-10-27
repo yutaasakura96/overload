@@ -239,9 +239,9 @@ button {
   margin-top: 0;
 }
 
-/* Screen 1's bar stays while the screen scrolls under it (docs/10 §7.3): the same bar, on the
-   ground it already sits on, keeping its hairline. It reaches up under the status bar. */
-.app-bar--sticky {
+/* Every bar stays while its screen scrolls under it (docs/10 §7.3): the same bar, on the ground it
+   already sits on, keeping its hairline. It reaches up under the status bar. */
+.app-bar {
   position: sticky;
   top: 0;
   z-index: 2;
@@ -3524,18 +3524,19 @@ fieldset.field > legend {
 }
 
 /* The day's totals stick while the day scrolls under them (Q9): the ground, its hairline. They
-   stop below the status bar, and the ground reaches up behind it so nothing shows through. */
+   stop under the app bar, whose height AppBar publishes (the bar already covers the status bar). */
 .m2-stick {
   position: sticky;
-  top: env(safe-area-inset-top);
+  top: var(--app-bar-height, env(safe-area-inset-top));
   z-index: 1;
   background: var(--surface-ground);
-  box-shadow: 0 calc(-1 * env(safe-area-inset-top)) 0 var(--surface-ground);
 }
 
 /* What takes focus on Today comes to rest clear of the stuck totals. */
 html:has(.m2-stick) {
-  scroll-padding-top: calc(var(--stick-height, 150px) + 12px + env(safe-area-inset-top));
+  scroll-padding-top: calc(
+    var(--app-bar-height, env(safe-area-inset-top)) + var(--stick-height, 150px) + 12px
+  );
 }
 .totals {
   display: grid;
@@ -4589,6 +4590,15 @@ html:has(.eod__actions) {
   font-size: 17px;
   font-weight: 500;
   color: var(--text-primary);
+}
+.grocery__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+.grocery__head .section-label {
+  margin-bottom: 0;
 }
 .grocery__basis {
   font-family: var(--font-mono);

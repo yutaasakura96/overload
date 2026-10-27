@@ -4245,3 +4245,22 @@ invented plan days and weigh-ins. No migration: the check is read from `plan_day
   back when a later check differs.
 
 **Changed:** `00`, `03` §8.3, `06`, `07` §5, `09` F13, `10` §6, `11` §2.
+
+### 2026-10-27 — Usability check: three bugs fixed ahead of #53
+
+From the owner's usability check (B1, B3, B4), fixed before the polish issue because each gave a
+wrong result today.
+
+- **Every app bar sticks** (B1), as `10` §7.3 decided on 2026-10-16 (Q9). `AppBar` has no `sticky`
+  option any more; it publishes its height as `--app-bar-height`, which the blocks that stick under
+  it (Today's totals, Prep's cook-day heads) sit at. The data-state slot, where pending and refused
+  sets show (`03` §8.1), stays in view.
+- **The grocery list names its weight per section** (B3): `RAW WEIGHT` over the cook days, `AS
+  WEIGHED AT THE MEAL` over the week. A food stored cooked is listed at its cooked weight, which
+  `RAW WEIGHT` mislabelled. Raw weight was not an option: with no batch there is none for it.
+- **Foods with no shelf life, or stored cooked, leave the cook days** (B4), in the API's prep plan
+  and not only on screen. They were rows in grams with a "cooked" tick, though they are bought and
+  weighed at their meals and the grocery list and Today count them in pieces. Prep now shows only
+  what is cooked, in raw grams, as the grocery list's cook-day section does.
+
+**Changed:** `06`, `10` §5.

@@ -16,18 +16,30 @@ export function AppBar({
   subline,
   slot,
   back,
-  sticky = false,
 }: {
   title: string;
   subline?: string;
   slot: ReactNode;
   back?: { label: string; onClick: () => void };
-  /** Stays at the top while the screen scrolls under it: screen 1 only (docs/10 §7.3). */
-  sticky?: boolean;
 }) {
-  const classes = ['app-bar', back !== undefined && 'app-bar--back', sticky && 'app-bar--sticky'];
+  // Every bar stays at the top while the screen scrolls under it (docs/10 §7.3). Blocks that stick
+  // beneath it (`.m2-stick`) sit at its height.
+  const bar = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const element = bar.current;
+    if (element === null) return undefined;
+    const observer = new ResizeObserver(() =>
+      document.documentElement.style.setProperty('--app-bar-height', `${element.offsetHeight}px`),
+    );
+    observer.observe(element);
+    return () => {
+      observer.disconnect();
+      document.documentElement.style.removeProperty('--app-bar-height');
+    };
+  }, []);
+  const classes = ['app-bar', back !== undefined && 'app-bar--back'];
   return (
-    <header className={classes.filter(Boolean).join(' ')}>
+    <header ref={bar} className={classes.filter(Boolean).join(' ')}>
       <div className="app-bar__lead">
         {back !== undefined && (
           <button type="button" className="app-bar__back" onClick={back.onClick}>

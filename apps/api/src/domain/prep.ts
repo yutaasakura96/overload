@@ -249,11 +249,6 @@ export function prepPlan(input: {
           ? null
           : sum.pieces + item.pieceCount;
       loose.set(food.id, sum);
-      const key = `first:${food.id}`;
-      shares.set(key, [
-        ...(shares.get(key) ?? []),
-        { ...itemWeights(item, food, item.yieldRatio), date: item.date },
-      ]);
       continue;
     }
     // A day no batch keeps for (a plan made before the food's shelf life was set) is cooked for by

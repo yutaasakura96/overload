@@ -561,7 +561,6 @@ function WorkoutBar({ workout }: { workout: WorkoutRecord }) {
   const elapsed = (now - new Date(workout.row.startedAt).getTime()) / 1000;
   return (
     <AppBar
-      sticky
       title={workout.row.name}
       subline={`${duration(elapsed)} elapsed`}
       slot={<DataState at={syncedAt} />}

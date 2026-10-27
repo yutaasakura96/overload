@@ -88,7 +88,6 @@ export function YourDay({ me, navigate }: { me: Me; navigate: Navigate }) {
     <main>
       <AppBar
         title="Your day"
-        sticky
         subline={complete && set.length > 0 ? 'MEAL TIMES AND COUNT' : 'STEP 4 OF 4'}
         slot={<DataState at={routines.dataUpdatedAt} />}
         back={{ label: 'Back', onClick: back }}

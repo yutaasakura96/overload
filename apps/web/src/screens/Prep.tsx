@@ -178,7 +178,11 @@ export function Prep({ me, navigate }: { me: Me; navigate: Navigate }) {
               <h2 id="no-cooks" className="empty-state__title">
                 Nothing to cook this week
               </h2>
-              <p className="empty-state__body">The week’s plan has no foods in it yet.</p>
+              <p className="empty-state__body">
+                {plan.grocery.length === 0
+                  ? 'The week’s plan has no foods in it yet.'
+                  : 'None of the week’s foods is batch-cooked. Each is weighed at its meal; the grocery list has them.'}
+              </p>
             </section>
           )}
 
@@ -279,7 +283,7 @@ export function Prep({ me, navigate }: { me: Me; navigate: Navigate }) {
             <span>
               <span className="link-row__name">Grocery list</span>
               <span className="link-row__meta">
-                {plan.grocery.length} {plan.grocery.length === 1 ? 'item' : 'items'}, raw weight
+                {plan.grocery.length} {plan.grocery.length === 1 ? 'item' : 'items'}
                 {twoCooks ? ', both cook days summed' : ''}
               </span>
             </span>
@@ -349,8 +353,8 @@ export function Grocery({ me, navigate }: { me: Me; navigate: Navigate }) {
   };
 
   const sections = [
-    { key: 'cook_days', label: 'For the cook days' },
-    { key: 'week', label: 'For the week' },
+    { key: 'cook_days', label: 'For the cook days', basis: 'RAW WEIGHT' },
+    { key: 'week', label: 'For the week', basis: 'AS WEIGHED AT THE MEAL' },
   ] as const;
 
   return (
@@ -381,7 +385,6 @@ export function Grocery({ me, navigate }: { me: Me; navigate: Navigate }) {
             <span>
               <b>{left}</b> of {items.length} left to buy
             </span>
-            <span className="grocery__basis">RAW WEIGHT</span>
           </p>
           {sections.map((section) => {
             const listed = items.filter((item) => item.section === section.key);
@@ -392,9 +395,12 @@ export function Grocery({ me, navigate }: { me: Me; navigate: Navigate }) {
                 className="today__section"
                 aria-labelledby={`grocery-${section.key}`}
               >
-                <h2 id={`grocery-${section.key}`} className="section-label">
-                  {section.label}
-                </h2>
+                <div className="grocery__head">
+                  <h2 id={`grocery-${section.key}`} className="section-label">
+                    {section.label}
+                  </h2>
+                  <span className="grocery__basis">{section.basis}</span>
+                </div>
                 <ul className="grocery">{listed.map(row)}</ul>
               </section>
             );
