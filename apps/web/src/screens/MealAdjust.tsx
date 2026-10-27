@@ -34,12 +34,10 @@ const GRAM_STEP = 5;
 
 type Values = { energyKcal: number; proteinG: number; carbG: number; fatG: number; fiberG: number };
 
-/** One food as eaten: the planned item it began as, and what it is now. */
+/** One food as eaten: the item it began as, and what it is now. */
 type Row = {
   key: string;
-  /** The planned item this row stands for, if it began as one. */
-  plannedId: string | undefined;
-  /** The item id sent: the planned item's while its food is the planned one, else a new one. */
+  /** The item id sent: a planned or original item's while selected, else a new one. */
   id: string;
   foodId: string | null;
   name: string;
@@ -48,7 +46,9 @@ type Row = {
   pieceWeight: number | null;
   grams: number;
   per100g: Values;
-  /** The food the row began with, so swapping back sends the planned item again. */
+  /** The id the row began with: the planned item's, or the eaten item's stored one. */
+  originalId: string;
+  /** The food the row began with, so swapping back sends that item again, not a new one. */
   original: {
     foodId: string | null;
     name: string;
@@ -60,7 +60,6 @@ type Row = {
 
 function rowsOf(meal: PlanMeal): Row[] {
   return eatenItems(meal).map(({ item, grams }) => {
-    const planned = item.plannedGrams === null ? undefined : item.id;
     const pieceWeight =
       item.pieceCount !== null && item.pieceCount > 0 && item.plannedGrams !== null
         ? item.plannedGrams / item.pieceCount
@@ -72,7 +71,14 @@ function rowsOf(meal: PlanMeal): Row[] {
       pieceWeight,
       per100g: item.per100g,
     };
-    return { key: item.id, plannedId: planned, id: item.id, grams, ...food, original: food };
+    return {
+      key: item.id,
+      id: item.id,
+      originalId: item.id,
+      grams,
+      ...food,
+      original: food,
+    };
   });
 }
 
@@ -185,8 +191,8 @@ function AdjustForm({
     setRows((current) =>
       current.map((each) => {
         if (each.key !== row.key) return each;
-        if (each.plannedId !== undefined && food.id === each.original.foodId) {
-          return { ...each, ...each.original, id: each.plannedId };
+        if (food.id === each.original.foodId) {
+          return { ...each, ...each.original, id: each.originalId };
         }
         const planned = meal.items.find(
           (item) =>
@@ -206,7 +212,7 @@ function AdjustForm({
                 : (planned.plannedGrams ?? 0) / planned.pieceCount,
             per100g: planned.per100g,
           };
-          return { ...each, ...original, original, plannedId: planned.id, id: planned.id };
+          return { ...each, ...original, id: planned.id };
         }
         const pieceWeight = food.pieceWeightG;
         const grams =
@@ -236,7 +242,9 @@ function AdjustForm({
       const row = rows.find((each) => each.id === item.id);
       items.push({ id: item.id, actualGrams: row === undefined ? 0 : hundredths(row.grams) });
     }
-    for (const row of rows.filter((each) => each.id !== each.plannedId)) {
+    for (const row of rows.filter(
+      (each) => !meal.items.some((item) => item.plannedGrams !== null && item.id === each.id),
+    )) {
       items.push(
         row.foodId === null
           ? { id: row.id, name: row.name, actualGrams: hundredths(row.grams), per100g: row.per100g }
