@@ -309,7 +309,7 @@ export function Today({ me, navigate }: { me: Me; navigate: Navigate }) {
       )}
       {plan.day !== undefined && (
         <>
-          <DayTotals day={plan.day} />
+          <DayTotals day={plan.day} currentProteinG={plan.targets?.proteinG} />
           <Shortfalls day={plan.day} navigate={navigate} />
           {left !== undefined && (
             <EndOfDayCards

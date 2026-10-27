@@ -514,9 +514,9 @@ grams filled in (Q12). Untick undoes it.
 
 `FOOD` over `GROCERY FOR THE WEEK OF 19 OCT`. A count line, `13 of 13 left to buy` (the figure
 17px mono) with `RAW WEIGHT` on the right. Two sections, `FOR THE COOK DAYS` and `FOR THE WEEK`. Each
-item is one 60px button row: the 44 × 44 check cell, the food 15px over its note 10px mono (`1,400 +
-1,850 for two cooks`, `for the first cook`, `for the week`), and the quantity 17px mono/500, in `g`
-or `pieces`. A ticked row is `text/quaternary` and struck through. `Clear the ticks` appears once one
+item is one 60px button row: the food 15px over its note 10px mono (`1,400 +
+1,850 for two cooks`, `for the first cook`, `for the week`), the quantity 17px mono/500, in `g`
+or `pieces`, and the 44 × 44 check cell on the right, where Prep's is. A ticked row is `text/quaternary` and struck through. `Clear the ticks` appears once one
 is ticked. One list for the week (Q11); the ticks are kept on the phone only. Footnote: `Ticks stay
 on this phone` / `13 items`.
 

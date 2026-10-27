@@ -23,7 +23,7 @@ const per100g = (energyKcal: number, proteinG: number, carbG: number, fatG: numb
 
 const FOODS = [
   { name: 'Chicken breast, skinless', state: 'cooked', ...per100g(140, 31.1, 0, 2) },
-  { name: 'White rice', state: 'cooked', ...per100g(156, 2.5, 37.1, 0.3) },
+  { name: 'White rice, cooked', state: 'cooked', ...per100g(156, 2.5, 37.1, 0.3) },
   { name: 'Rolled oats', state: 'raw', ...per100g(350, 13.7, 69.1, 5.7) },
   { name: 'Broccoli', state: 'raw', ...per100g(37, 5.4, 6.6, 0.6) },
   { name: 'Greek yogurt, plain, 0% fat', state: 'raw', ...per100g(59, 10.3, 3.6, 0.4) },
@@ -444,4 +444,60 @@ test('keeps the end-of-day choice open when device storage refuses it', async ({
   await expect(page.locator('.eod-card')).toHaveCount(1);
   await page.reload();
   await expect(page.locator('.eod-card')).toHaveCount(1);
+});
+
+test('reads cleanly: one cooked tag, one protein target, tap targets of 44 px, matching labels', async ({
+  page,
+}) => {
+  const today = todayInZone();
+  await page.clock.install({ time: new Date(`${today}T22:30:00+09:00`) });
+  await page.goto('/');
+  const timeline = page.getByRole('region', { name: 'The day', exact: true });
+  await expect(timeline.locator('.meal__name').first()).toBeVisible();
+
+  // A food whose name already says it is cooked is not tagged cooked a second time.
+  await expect(timeline).not.toContainText(/cooked,? cooked/i);
+  await expect(timeline.locator('.meal__qual', { hasText: 'cooked' }).first()).toBeVisible();
+
+  // The protein meter shows the target in force, the figure Your plan gives.
+  const plan = await page
+    .getByRole('link', { name: /protein/ })
+    .first()
+    .textContent();
+  const target = /(\d+) g protein/.exec(plan ?? '')?.[1];
+  await expect(
+    page.locator('.macro').filter({ hasText: 'Protein' }).locator('.macro__of'),
+  ).toHaveText(`/ ${target}`);
+
+  // A collapsed meal's header, and an evidence tag, are 44 px targets (docs/05 §3.2).
+  const closed = timeline.locator('.meal:not(.meal--open) .meal__toggle').first();
+  expect((await closed.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+  const tags = page.locator('.evidence-hit');
+  if ((await tags.count()) > 0) {
+    expect((await tags.first().boundingBox())?.height).toBeGreaterThanOrEqual(44);
+  }
+
+  // The end-of-day check names each meal's confirm as Today does.
+  await page.getByRole('button', { name: /5 meals not confirmed yet/ }).click();
+  await expect(page.getByRole('button', { name: 'Eaten as planned Breakfast' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Confirm all as planned' })).toBeVisible();
+});
+
+test('Replace says when more foods exist than it lists', async ({ page }) => {
+  for (const name of ['Banana', 'Tofu', 'Almonds', 'Whey protein']) {
+    await ok(
+      page.request.post('/api/foods', {
+        headers,
+        data: { id: randomUUID(), source: 'manual', name, state: 'raw', ...per100g(100, 5, 10, 2) },
+      }),
+    );
+  }
+  await page.clock.install({ time: new Date(`${todayInZone()}T22:30:00+09:00`) });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Replaced Breakfast' }).click();
+  await expect(page.getByRole('heading', { name: 'Replace Breakfast' })).toBeVisible();
+  await expect(page.getByText('8 of 10 foods shown. Search to find the rest.')).toBeVisible();
+  await page.getByRole('searchbox', { name: 'Search your foods' }).fill('whey');
+  await expect(page.getByText(/foods shown/)).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /^Whey protein/ })).toBeVisible();
 });

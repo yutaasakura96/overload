@@ -100,8 +100,12 @@ function AboutForm({
   const form = useFocusRefused(problem);
   const birthId = useId();
   const sexName = useId();
+  // A refused field is edited to fix it: its message goes at once, not at the next save. The
+  // problem itself stays, so the form is not sent back to focus the next refused field.
+  const [edited, setEdited] = useState<ReadonlySet<string>>(new Set());
   const refused = (path: string) =>
-    problem?.kind === 'refused' ? problem.fields.get(path) : undefined;
+    problem?.kind === 'refused' && !edited.has(path) ? problem.fields.get(path) : undefined;
+  const edit = (path: string) => setEdited((current) => new Set(current).add(path));
 
   const save = async () => {
     const typedWeight = parseFigure(weight);
@@ -133,11 +137,13 @@ function AboutForm({
         : []),
     ]);
     if (onDevice !== undefined || weightKg === undefined || typedHeight === null || sex === null) {
+      setEdited(new Set());
       setProblem(onDevice);
       return;
     }
     setBusy(true);
     setProblem(undefined);
+    setEdited(new Set());
     let savedDetails = false;
     try {
       const saved = await confirmedAccountData(() =>
@@ -201,7 +207,10 @@ function AboutForm({
               : `From your weigh-in of ${dayLabel(`${latest.date}T12:00:00Z`, 'UTC')}`
           }
           value={weight}
-          onChange={setWeight}
+          onChange={(next) => {
+            edit('weightKg');
+            setWeight(next);
+          }}
           decimal
           unit={unit}
           placeholder="0.0"
@@ -211,7 +220,10 @@ function AboutForm({
           <NumberField
             label="Height"
             value={height}
-            onChange={setHeight}
+            onChange={(next) => {
+              edit('heightCm');
+              setHeight(next);
+            }}
             decimal
             unit="cm"
             placeholder="0"
@@ -229,7 +241,10 @@ function AboutForm({
               autoComplete="bday"
               aria-invalid={refused('birthDate') === undefined ? undefined : true}
               aria-describedby={refused('birthDate') === undefined ? undefined : `${birthId}-error`}
-              onChange={(event) => setBirthDate(event.target.value)}
+              onChange={(event) => {
+                edit('birthDate');
+                setBirthDate(event.target.value);
+              }}
             />
             {refused('birthDate') !== undefined && (
               <FieldError id={`${birthId}-error`} message={refused('birthDate') ?? ''} />
@@ -250,7 +265,10 @@ function AboutForm({
                 value={each}
                 checked={sex === each}
                 aria-describedby={refused('sex') === undefined ? undefined : `${sexName}-error`}
-                onChange={() => setSex(each)}
+                onChange={() => {
+                  edit('sex');
+                  setSex(each);
+                }}
               />
               {each === 'male' ? 'Male' : 'Female'}
             </label>

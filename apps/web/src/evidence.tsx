@@ -213,11 +213,13 @@ export function EvidenceTag({ evidence }: { evidence: Evidence }) {
       <button
         ref={tag}
         type="button"
-        className={`evidence evidence--${evidence.strength}`}
+        className="evidence-hit"
         aria-haspopup="dialog"
         onClick={() => dialog.current?.showModal()}
       >
-        <TagFace evidence={evidence} />
+        <span className={`evidence evidence--${evidence.strength}`}>
+          <TagFace evidence={evidence} />
+        </span>
         <span className="visually-hidden">: open the sources</span>
       </button>
       {/* A tap on the scrim, outside the sheet, closes it. The keyboard has Escape and Close. */}

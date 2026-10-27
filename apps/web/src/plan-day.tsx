@@ -43,7 +43,14 @@ function Meter({ label, value, target }: { label: string; value: number; target:
 }
 
 /** The day's planned calories against the target, what is eaten so far, and the four macros. */
-export function DayTotals({ day }: { day: PlanDay }) {
+export function DayTotals({
+  day,
+  currentProteinG,
+}: {
+  day: PlanDay;
+  /** The protein target in force now: the day keeps the figure from when it was made. */
+  currentProteinG?: number;
+}) {
   const { planned, targets, confirmed } = day;
   const off = ((planned.energyKcal - targets.energyKcal) / targets.energyKcal) * 100;
   const offShown = Math.round(off * 10) / 10;
@@ -85,7 +92,11 @@ export function DayTotals({ day }: { day: PlanDay }) {
           protein
         </div>
         <div className="macros">
-          <Meter label="Protein" value={planned.proteinG} target={targets.proteinG} />
+          <Meter
+            label="Protein"
+            value={planned.proteinG}
+            target={currentProteinG ?? targets.proteinG}
+          />
           <Meter label="Carbs" value={planned.carbG} target={targets.carbG} />
           <Meter label="Fat" value={planned.fatG} target={targets.fatG} />
           <Meter label="Fiber" value={planned.fiberG} target={null} />
@@ -165,6 +176,15 @@ function Amount({ eaten }: { eaten: Eaten }) {
   );
 }
 
+/** A food named for how it is cooked ("White rice, cooked", "Sweet potato, steamed"). */
+const NAMES_ITS_COOKING = /\b(cooked|steamed|boiled|baked|roasted|grilled|fried)\b/i;
+
+/** The state tag after a food's name; left off the words when the name already says it. */
+const cookedQualifier = (item: { name: string; approximate: boolean }) => {
+  if (!NAMES_ITS_COOKING.test(item.name)) return `cooked${item.approximate ? ', approx.' : ''}`;
+  return item.approximate ? 'approx.' : undefined;
+};
+
 export function Foods({ meal, dim }: { meal: PlanMeal; dim: boolean }) {
   const eaten = eatenItems(meal);
   if (eaten.length === 0) return <p className="meal__none">Nothing planned for this meal.</p>;
@@ -174,8 +194,8 @@ export function Foods({ meal, dim }: { meal: PlanMeal; dim: boolean }) {
         <li key={each.item.id} className="meal__food">
           <span className="meal__name">
             {each.item.name}{' '}
-            {each.item.cooked && (
-              <span className="meal__qual"> cooked{each.item.approximate ? ', approx.' : ''}</span>
+            {each.item.cooked && cookedQualifier(each.item) !== undefined && (
+              <span className="meal__qual"> {cookedQualifier(each.item)}</span>
             )}
             {each.item.noCookedMatch && <span className="meal__qual"> raw, no cooked match</span>}
           </span>

@@ -481,7 +481,12 @@ function WeighInRow({
   const [busy, setBusy] = useState(false);
   const date = dayLabel(weighIn.measuredAt, timeZone);
   const time = clockLabel(weighIn.measuredAt, timeZone);
-  const note = day === undefined ? ' · stored, not in trend' : day.morning ? '' : ' · not morning';
+  const note =
+    day === undefined
+      ? ' · not in the trend, another reading counts for that day'
+      : day.morning
+        ? ''
+        : ' · not morning';
 
   const remove = async () => {
     setBusy(true);

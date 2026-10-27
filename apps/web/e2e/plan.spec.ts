@@ -192,6 +192,18 @@ test('sets up a phase and a day, and Today shows the day’s plan', async ({ pag
   await expect(page).toHaveURL(/\/workout/);
 });
 
+test('About you clears a refused field’s message once it is edited', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Add your details' }).click();
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(page.getByText('A weight between 20 and 300 kg.')).toBeVisible();
+  await expect(page.getByText('A height between 100 and 250 cm.')).toBeVisible();
+
+  await page.getByRole('textbox', { name: /^Weight/ }).fill('82.5');
+  await expect(page.getByText('A weight between 20 and 300 kg.')).toHaveCount(0);
+  await expect(page.getByText('A height between 100 and 250 cm.')).toBeVisible();
+});
+
 test('About you reports saved details separately when its weigh-in fails', async ({ page }) => {
   await page.route('**/api/weigh-ins', async (route) => {
     if (route.request().method() !== 'POST') return route.continue();

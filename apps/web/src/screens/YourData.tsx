@@ -76,7 +76,8 @@ function ExportBlock({ timeZone, userId }: { timeZone: string; userId: string })
       </h2>
       <p className="form__lede">
         Everything you have logged, in one JSON file: your profile, exercises and their settings,
-        routines, every workout with its sets, weigh-ins, and your foods with their rotation groups.
+        routines, every workout with its sets, weigh-ins, your foods with their rotation groups, and
+        your goal phases, day routines and planned days.
       </p>
       {failed && (
         <Notice tone="flag" word="Not exported">
