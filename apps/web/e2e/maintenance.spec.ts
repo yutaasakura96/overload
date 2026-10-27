@@ -155,7 +155,7 @@ test('shows collecting and weigh-in states with no weigh-ins', async ({ page }) 
   completeDays(range(8, 0));
   await openWeight(page);
   await expect(page.getByText('No weigh-ins yet')).toBeVisible();
-  await expect(card(page)).toContainText('5 complete days to go');
+  await expect(card(page)).toContainText(/5\s*complete days to go/);
 
   completeDays(range(13, 9));
   await page.reload();
@@ -172,6 +172,13 @@ test('refreshes the maintenance check when the local date changes', async ({ pag
   await expect.poll(() => requests).toBe(1);
   await page.clock.fastForward('02:00');
   await expect.poll(() => requests).toBe(2);
+});
+
+test('shows a notice when the maintenance check cannot load', async ({ page }) => {
+  await page.route('**/api/maintenance-check', (route) => route.abort());
+  await openWeight(page);
+  await expect(card(page)).toContainText('Not updated');
+  await expect(card(page)).toContainText('Couldn’t reach Overload. Try again when you have signal.');
 });
 
 test('with too few weigh-ins, asks for one and opens Type a weight', async ({ page }) => {

@@ -606,8 +606,11 @@ and the rest of the week are planned again; `Now 2,350 provisional → New 2,250
   morning weight before 10:00. A typed weigh-in's `Delete` acts at once and the screen says
   `Weigh-in deleted.`; without a profile the section asks for one first. The chart is hidden from
   screen readers and read out as one sentence instead; the list carries every value.
-- **As built in M2 slice 7** (`#82`, `06` 2026-10-27): the card between `Type a weight` and Recent
-  weigh-ins, in its four states, figures in the profile's unit. With no complete day in the last 14
+- **As built in M2 slice 7** (`#82`, `06` 2026-10-27): the card below the weight section, in its
+  four states, figures in the profile's unit. It remains visible with no weigh-ins, showing either
+  complete days to go or `Weigh in to see this`, and is absent without a profile. Its 14-day window
+  advances at local midnight. If the check fails without cached data, it shows `Not updated` and a
+  connection notice. With no complete day in the last 14
   it reads `Confirm your meals to see this` and that it needs days with every planned meal
   confirmed. The sheet says `less 450 kcal for your cut of 0.5% a week`, `plus … for your bulk`, or
   `to hold your weight`, and `Now 2,350 provisional` (`yours` for a figure set by hand). Without an
