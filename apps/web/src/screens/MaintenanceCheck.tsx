@@ -63,11 +63,12 @@ export function MaintenanceCard({
   const heading = useId();
   if (check === undefined && !query.isError) return null;
 
-  const ref = check === undefined
-    ? null
-    : check.status === 'collecting'
-      ? `${check.completeDaysTotal} of ${NEEDED} complete days`
-      : `Last 14 days · ${check.completeDaysInWindow ?? 0} complete`;
+  const ref =
+    check === undefined
+      ? null
+      : check.status === 'collecting'
+        ? `${check.completeDaysTotal} of ${NEEDED} complete days`
+        : `Last 14 days · ${check.completeDaysInWindow ?? 0} complete`;
 
   return (
     <section className="card card--active maint" aria-labelledby={heading}>

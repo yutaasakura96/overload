@@ -178,7 +178,9 @@ test('shows a notice when the maintenance check cannot load', async ({ page }) =
   await page.route('**/api/maintenance-check', (route) => route.abort());
   await openWeight(page);
   await expect(card(page)).toContainText('Not updated');
-  await expect(card(page)).toContainText('Couldn’t reach Overload. Try again when you have signal.');
+  await expect(card(page)).toContainText(
+    'Couldn’t reach Overload. Try again when you have signal.',
+  );
 });
 
 test('with too few weigh-ins, asks for one and opens Type a weight', async ({ page }) => {
