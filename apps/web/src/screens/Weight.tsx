@@ -145,6 +145,17 @@ export function Weight({ me, navigate }: { me: Me; navigate: Navigate }) {
         />
       )}
 
+      {profile != null && (
+        <div className="today__section">
+          <MaintenanceCard
+            unit={profile.weightUnit}
+            timeZone={profile.timezone}
+            phase={phase}
+            onType={typeOne}
+          />
+        </div>
+      )}
+
       <AccountFooter email={me.user.email} admin={me.isAdmin} navigate={navigate} />
     </main>
   );
@@ -279,10 +290,6 @@ function WeightBody({
         <button type="button" className="button button--secondary" onClick={onType}>
           Type a weight
         </button>
-      </div>
-
-      <div className="today__section">
-        <MaintenanceCard unit={unit} phase={phase} onType={onType} />
       </div>
 
       <section className="today__section" aria-labelledby="recent-weigh-ins">

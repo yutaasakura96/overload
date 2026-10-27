@@ -2,12 +2,15 @@ import type { GoalPhase, MaintenanceCheck, WeightUnit } from '@overload/api-cont
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useId, useRef, useState } from 'react';
 import { api, unwrap } from '../api';
-import { CheckIcon, InfoIcon } from '../components';
+import { CheckIcon, InfoIcon, Notice } from '../components';
+import { zonedInstant } from '../dates';
 import { shortDate } from '../plan';
 import {
+  addLocalDays,
   currentTargetsQuery,
   forAccount,
   maintenanceCheckQuery,
+  planToday,
   queryClient,
   regeneratePlan,
   useAccount,
@@ -38,21 +41,31 @@ const BASIS_WORD = {
 
 export function MaintenanceCard({
   unit,
+  timeZone,
   phase,
   onType,
 }: {
   unit: WeightUnit;
+  timeZone: string;
   phase: GoalPhase | undefined;
   onType: () => void;
 }) {
   const confirmed = useAccount().status === 'confirmed';
-  const query = useQuery({ ...maintenanceCheckQuery, enabled: confirmed });
+  const [now, setNow] = useState(() => Date.now());
+  const date = planToday(timeZone, now);
+  useEffect(() => {
+    const next = zonedInstant(addLocalDays(date, 1), '00:00', timeZone).getTime();
+    const timer = setTimeout(() => setNow(Date.now()), Math.max(1, next - Date.now() + 1));
+    return () => clearTimeout(timer);
+  }, [date, timeZone]);
+  const query = useQuery({ ...maintenanceCheckQuery(date), enabled: confirmed });
   const check = query.data;
   const heading = useId();
-  if (check === undefined) return null;
+  if (check === undefined && !query.isError) return null;
 
-  const ref =
-    check.status === 'collecting'
+  const ref = check === undefined
+    ? null
+    : check.status === 'collecting'
       ? `${check.completeDaysTotal} of ${NEEDED} complete days`
       : `Last 14 days · ${check.completeDaysInWindow ?? 0} complete`;
 
@@ -62,9 +75,15 @@ export function MaintenanceCard({
         <h2 id={heading} className="maint__title">
           Maintenance check
         </h2>
-        <span className="maint__ref">{ref}</span>
+        {check !== undefined && <span className="maint__ref">{ref}</span>}
       </div>
-      <CardBody check={check} unit={unit} phase={phase} onType={onType} />
+      {check === undefined ? (
+        <Notice tone="flag" word="Not updated">
+          Couldn’t reach Overload. Try again when you have signal.
+        </Notice>
+      ) : (
+        <CardBody check={check} unit={unit} phase={phase} onType={onType} />
+      )}
     </section>
   );
 }

@@ -145,6 +145,35 @@ test('under 14 complete days, says how many remain', async ({ page }) => {
   await expect(card(page).getByRole('button')).toHaveCount(0);
 });
 
+test('shows collecting and weigh-in states with no weigh-ins', async ({ page }) => {
+  const weighIns: { weighIns: { id: string }[] } = await (
+    await page.request.get('/api/weigh-ins')
+  ).json();
+  for (const { id } of weighIns.weighIns) {
+    await ok(page.request.delete(`/api/weigh-ins/${id}`, { headers }));
+  }
+  completeDays(range(8, 0));
+  await openWeight(page);
+  await expect(page.getByText('No weigh-ins yet')).toBeVisible();
+  await expect(card(page)).toContainText('5 complete days to go');
+
+  completeDays(range(13, 9));
+  await page.reload();
+  await expect(card(page).getByText('Weigh in to see this')).toBeVisible();
+});
+
+test('refreshes the maintenance check when the local date changes', async ({ page }) => {
+  await page.clock.install({ time: new Date(`${todayInZone()}T23:59:00+09:00`) });
+  let requests = 0;
+  page.on('request', (request) => {
+    if (request.url().endsWith('/api/maintenance-check')) requests += 1;
+  });
+  await openWeight(page);
+  await expect.poll(() => requests).toBe(1);
+  await page.clock.fastForward('02:00');
+  await expect.poll(() => requests).toBe(2);
+});
+
 test('with too few weigh-ins, asks for one and opens Type a weight', async ({ page }) => {
   completeDays(range(13, 0));
   await weighIn(page, 9, 82.6);
