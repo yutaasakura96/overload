@@ -250,6 +250,10 @@ button {
   padding-bottom: 14px;
   background: var(--surface-ground);
 }
+/* What takes focus comes to rest clear of the stuck bar. */
+html {
+  scroll-padding-top: var(--app-bar-height, env(safe-area-inset-top));
+}
 
 /* 4.3 Section label */
 .section-label {
@@ -1063,9 +1067,9 @@ button {
   padding: 2px var(--gutter) 14px;
 }
 
-/* What takes focus on screen 1 comes to rest clear of the stuck app bar and the rest bar. */
+/* What takes focus on screen 1 comes to rest clear of the rest bar too. */
 html:has(.workout) {
-  scroll-padding: calc(70px + env(safe-area-inset-top)) 0 calc(108px + env(safe-area-inset-bottom));
+  scroll-padding-bottom: calc(108px + env(safe-area-inset-bottom));
 }
 
 /* Screen 1, the live workout (docs/10 §1). The document scrolls; the app bar sticks and the rest

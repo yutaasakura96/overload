@@ -174,3 +174,22 @@ test('a refused sign-in shows the gate’s reason', async ({ context, page }) =>
   await page.goto('/sign-in?error=not_invited');
   await expect(page.getByRole('alert')).toContainText('This Google account hasn’t been invited.');
 });
+
+test('a row brought into view up a long list comes to rest below the stuck app bar', async ({
+  page,
+}) => {
+  await page.goto('/exercises');
+  await expect(page.getByRole('listitem')).toHaveCount(185);
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+
+  const row = page.locator('.library__row').nth(100);
+  await expect
+    .poll(() =>
+      row.evaluate((element) => {
+        element.scrollIntoView({ block: 'start' });
+        const bar = document.querySelector('header.app-bar')?.getBoundingClientRect().bottom ?? 0;
+        return element.getBoundingClientRect().top - bar;
+      }),
+    )
+    .toBeGreaterThanOrEqual(-1);
+});
