@@ -4265,4 +4265,4 @@ wrong result today.
   counted in pieces (eggs boiled in a batch) is in whole pieces on Prep and in the grocery list's
   cook-day section, as Today counts it.
 
-**Changed:** `06`, `07` §4, `10` §5.
+**Changed:** `03` §8.2, `06`, `07` §4, `10` §5, `11` §2.
