@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { WEB_ORIGIN } from '../playwright.config';
-import { deviceStore } from './device-store';
+import { cacheKey, deviceStore, putDeviceValue, savedCache } from './device-store';
 import { apiFixture } from './fixture';
 
 type Cookies = Parameters<BrowserContext['addCookies']>[0];
@@ -195,6 +195,60 @@ test('records a batch, reads the prep plan’s second cook day and the grocery l
 // A page the service worker controls fetches through it, where a route sees nothing.
 test.describe('with no service worker', () => {
   test.use({ serviceWorkers: 'block' });
+
+  test('drops a prep plan saved in the shape from before pieces, offline', async ({ page }) => {
+    await page.goto('/food');
+    await expect(page.locator('.food-lede')).toBeVisible();
+    await expect.poll(() => savedCache(page, userId)).toContain('"prep"');
+    // The copy an earlier release saved: a food with no shelf life on the cook day, no `pieces`.
+    type Saved = {
+      clientState: {
+        queries: { queryKey: unknown[]; queryHash: string; state: { data: unknown } }[];
+      };
+    };
+    const saved: Saved = JSON.parse(await savedCache(page, userId));
+    for (const query of saved.clientState.queries) {
+      if (query.queryKey[1] !== 'prep') continue;
+      const weekStart = query.queryKey.at(-1);
+      query.queryKey = ['plan', 'prep', weekStart];
+      query.queryHash = JSON.stringify(query.queryKey);
+      query.state.data = {
+        weekStart,
+        missing: [],
+        generatedAt: new Date().toISOString(),
+        cookDays: [
+          {
+            date: '2099-01-01',
+            which: 'first',
+            covers: ['2099-01-02'],
+            because: null,
+            cooks: [
+              {
+                foodId: randomUUID(),
+                name: 'Banana',
+                keepsDays: null,
+                rawGrams: 2400,
+                cookedGrams: null,
+                approximate: false,
+                dates: ['2099-01-02'],
+              },
+            ],
+          },
+        ],
+        foods: [],
+        uncovered: [],
+        grocery: [],
+      };
+    }
+    await page.route(
+      (url) => url.pathname === '/api/prep-plan',
+      (route) => route.abort('internetdisconnected'),
+    );
+    await putDeviceValue(page, cacheKey(userId), JSON.stringify(saved));
+    await page.reload();
+    await expect(page.getByText('Couldn’t reach Overload.', { exact: false })).toBeVisible();
+    await expect(page.getByText('Banana')).toHaveCount(0);
+  });
 
   test('counts a batch-cooked food counted in pieces in pieces on Prep and Grocery', async ({
     page,

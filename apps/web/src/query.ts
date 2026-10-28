@@ -575,10 +575,13 @@ export const batchesQuery = queryOptions({
     (await confirmedAccountData(() => api.GET('/api/batches', { signal }))).items,
 });
 
-/** A week's prep plan and grocery list, derived from its plan days (S17). */
+/**
+ * A week's prep plan and grocery list, derived from its plan days (S17). The key carries the
+ * response's shape, so a copy saved in an earlier shape is never restored into this one.
+ */
 export const prepPlanQuery = (weekStart: string) =>
   queryOptions({
-    queryKey: ['plan', 'prep', weekStart],
+    queryKey: ['plan', 'prep', 'pieces', weekStart],
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
     queryFn: async ({ signal }) =>
