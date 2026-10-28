@@ -254,6 +254,9 @@ test.describe('on a device set to dark', () => {
 
     await page.goto('/');
     const theme = page.getByRole('group', { name: 'Theme' });
+    // The choice sits on the page's gutter, as the line under it does.
+    const lede = page.getByText('System follows this device’s light or dark setting.');
+    expect((await theme.boundingBox())?.x).toBe((await lede.boundingBox())?.x);
     await expect(theme.getByRole('radio', { name: 'System' })).toBeChecked();
     expect(await atBody()).toBe('dark');
 

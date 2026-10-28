@@ -175,7 +175,7 @@ test('marks a second reading of the day as stored, and draws the trend from the 
   await expect(page.locator('.whead__label')).toHaveText('Trend');
   await expect(page.getByText('Trend', { exact: true }).last()).toBeVisible();
   await expect(recent(page).getByRole('listitem').filter({ hasText: '19:30' })).toContainText(
-    'stored, not in trend',
+    'not in the trend, another reading counts for that day',
   );
 });
 

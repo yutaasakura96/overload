@@ -2281,6 +2281,10 @@ main:focus {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   margin: 14px var(--gutter) 0;
 }
+/* Inside a form, which already holds the gutter (the Theme choice). */
+.form > .segments--three {
+  margin: 0;
+}
 .segments--sections {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   margin: 14px var(--gutter) 0;
@@ -2666,9 +2670,11 @@ button.hsets__row:active {
   left: 0;
   background: var(--done);
 }
-.meter__indirect,
-.legend__swatch.legend__swatch--half {
+.meter__indirect {
   background: repeating-linear-gradient(135deg, var(--done) 0 2px, transparent 2px 5px);
+}
+.legend__swatch.legend__swatch--half {
+  background: repeating-linear-gradient(135deg, var(--text-tertiary) 0 2px, transparent 2px 5px);
 }
 .muscles__row--low .meter__direct {
   background: var(--flag);
@@ -2704,7 +2710,8 @@ button.hsets__row:active {
 .legend__swatch {
   width: 14px;
   height: 6px;
-  background: var(--done);
+  /* Neutral: the bars take their colour from the muscle's status, so the key names the shape. */
+  background: var(--text-tertiary);
 }
 .legend__swatch--band {
   height: 10px;
@@ -2723,10 +2730,24 @@ button.hsets__row:active {
   font-size: 9px;
   color: var(--flag);
 }
-button.evidence::after {
-  content: '';
-  position: absolute;
-  inset: -16px -6px;
+.evidence-hit {
+  /* The tap target is 44px tall (docs/05 §3.2); the tag inside keeps its own size. */
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target-min);
+  margin: -12px -6px;
+  padding: 0 6px;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+}
+.evidence-hit:focus-visible {
+  outline: none;
+}
+.evidence-hit:focus-visible .evidence {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 .evidence__divider {
   width: 1px;
@@ -2810,6 +2831,10 @@ button.evidence::after {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-tertiary);
+}
+.sheet__close:focus-visible {
+  /* Flush with the sheet's edge, which clips (it scrolls): the ring goes inside. */
+  outline-offset: -2px;
 }
 .sheet__claim {
   margin: 0;
@@ -3802,7 +3827,9 @@ html:has(.m2-stick) {
 }
 .meal__toggle {
   min-height: 0;
-  padding: 0;
+  /* A 44px target (docs/05 §3.2) round the title, whose own size does not change. */
+  padding: 13px 0;
+  margin: -13px 0;
   border: 0;
   background: none;
   font: inherit;
@@ -4580,7 +4607,7 @@ html:has(.eod__actions) {
 }
 .grocery__row {
   display: grid;
-  grid-template-columns: 44px 1fr auto;
+  grid-template-columns: 1fr auto 44px;
   align-items: center;
   gap: 12px;
   width: 100%;
@@ -4700,7 +4727,7 @@ html:has(.eod__actions) {
 }
 /* A long food name wraps inside its column instead of pushing the figures off the row. */
 .cook__row > div,
-.grocery__row > span:nth-child(2),
+.grocery__row > span:nth-child(1),
 .batch-list__row > div {
   min-width: 0;
   overflow-wrap: anywhere;

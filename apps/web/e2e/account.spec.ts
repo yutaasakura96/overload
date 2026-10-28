@@ -32,6 +32,7 @@ test('a member exports their data as one file', async ({ context, page }, testIn
     await page.goto('/');
     await page.getByRole('link', { name: 'Your data' }).click();
     await expect(page.getByRole('heading', { name: 'Your data', level: 1 })).toBeVisible();
+    await expect(page.getByText(/your goal phases, day routines and planned days/)).toBeVisible();
 
     const download = page.waitForEvent('download');
     await page.getByRole('button', { name: 'Export your data' }).click();

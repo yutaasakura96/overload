@@ -167,6 +167,8 @@ export function Today({ me, navigate }: { me: Me; navigate: Navigate }) {
   const refusedHeading = useRef<HTMLHeadingElement>(null);
 
   const plan = usePlan(me, confirmed);
+  const proteinTargetG =
+    plan.day === undefined ? undefined : (plan.targets?.proteinG ?? plan.day.targets.proteinG);
   const note = useEntryNote();
   const online = useOnline();
   const left = useLeftIncomplete(userId);
@@ -307,10 +309,10 @@ export function Today({ me, navigate }: { me: Me; navigate: Navigate }) {
           when you have signal.
         </Notice>
       )}
-      {plan.day !== undefined && (
+      {plan.day !== undefined && proteinTargetG !== undefined && (
         <>
-          <DayTotals day={plan.day} />
-          <Shortfalls day={plan.day} navigate={navigate} />
+          <DayTotals day={plan.day} proteinTargetG={proteinTargetG} />
+          <Shortfalls day={plan.day} proteinTargetG={proteinTargetG} navigate={navigate} />
           {left !== undefined && (
             <EndOfDayCards
               today={plan.day}

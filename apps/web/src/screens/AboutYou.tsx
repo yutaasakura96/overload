@@ -33,6 +33,23 @@ import { fromKg, toKg } from '../units';
 const HEIGHT_CM = { min: 100, max: 250 };
 const WEIGHT_KG = { min: 20, max: 300 };
 
+const weightKgOf = (value: string, unit: 'kg' | 'lb') => {
+  const figure = parseFigure(value);
+  if (figure === null || !Number.isFinite(figure)) return undefined;
+  const kg = toKg(figure, unit);
+  return kg >= WEIGHT_KG.min && kg <= WEIGHT_KG.max ? kg : undefined;
+};
+
+const heightCmOf = (value: string) => {
+  const figure = parseFigure(value);
+  return figure !== null &&
+    Number.isFinite(figure) &&
+    figure >= HEIGHT_CM.min &&
+    figure <= HEIGHT_CM.max
+    ? figure
+    : undefined;
+};
+
 export function AboutYou({ me, navigate }: { me: Me; navigate: Navigate }) {
   const confirmed = useAccount().status === 'confirmed';
   const profile = me.profile;
@@ -100,16 +117,28 @@ function AboutForm({
   const form = useFocusRefused(problem);
   const birthId = useId();
   const sexName = useId();
+  const [edited, setEdited] = useState<ReadonlySet<string>>(new Set());
   const refused = (path: string) =>
-    problem?.kind === 'refused' ? problem.fields.get(path) : undefined;
+    problem?.kind === 'refused' && !edited.has(path) ? problem.fields.get(path) : undefined;
+  const edit = (path: string, valid: boolean) =>
+    setEdited((current) => {
+      const next = new Set(current);
+      if (valid) next.add(path);
+      else next.delete(path);
+      return next;
+    });
+  const visibleProblem =
+    problem?.kind === 'refused' &&
+    problem.fields.size > 0 &&
+    [...problem.fields.keys()].every((path) => edited.has(path))
+      ? undefined
+      : problem;
 
   const save = async () => {
-    const typedWeight = parseFigure(weight);
-    const typedHeight = parseFigure(height);
-    const weightKg =
-      typedWeight === null || !Number.isFinite(typedWeight) ? undefined : toKg(typedWeight, unit);
+    const weightKg = weightKgOf(weight, unit);
+    const typedHeight = heightCmOf(height);
     const onDevice = refusedOnDevice([
-      ...(weightKg === undefined || weightKg < WEIGHT_KG.min || weightKg > WEIGHT_KG.max
+      ...(weightKg === undefined
         ? ([
             [
               'weightKg',
@@ -119,10 +148,7 @@ function AboutForm({
             ],
           ] as [string, string][])
         : []),
-      ...(typedHeight === null ||
-      !Number.isFinite(typedHeight) ||
-      typedHeight < HEIGHT_CM.min ||
-      typedHeight > HEIGHT_CM.max
+      ...(typedHeight === undefined
         ? ([['heightCm', 'A height between 100 and 250 cm.']] as [string, string][])
         : []),
       ...(birthDate === ''
@@ -132,12 +158,19 @@ function AboutForm({
         ? ([['sex', 'Choose one. It is used only by the formula.']] as [string, string][])
         : []),
     ]);
-    if (onDevice !== undefined || weightKg === undefined || typedHeight === null || sex === null) {
+    if (
+      onDevice !== undefined ||
+      weightKg === undefined ||
+      typedHeight === undefined ||
+      sex === null
+    ) {
+      setEdited(new Set());
       setProblem(onDevice);
       return;
     }
     setBusy(true);
     setProblem(undefined);
+    setEdited(new Set());
     let savedDetails = false;
     try {
       const saved = await confirmedAccountData(() =>
@@ -183,7 +216,7 @@ function AboutForm({
 
   return (
     <>
-      <SaveNotice problem={problem} what="details" />
+      <SaveNotice problem={visibleProblem} what="details" />
       <form
         ref={form}
         className="form"
@@ -201,7 +234,10 @@ function AboutForm({
               : `From your weigh-in of ${dayLabel(`${latest.date}T12:00:00Z`, 'UTC')}`
           }
           value={weight}
-          onChange={setWeight}
+          onChange={(next) => {
+            edit('weightKg', weightKgOf(next, unit) !== undefined);
+            setWeight(next);
+          }}
           decimal
           unit={unit}
           placeholder="0.0"
@@ -211,7 +247,10 @@ function AboutForm({
           <NumberField
             label="Height"
             value={height}
-            onChange={setHeight}
+            onChange={(next) => {
+              edit('heightCm', heightCmOf(next) !== undefined);
+              setHeight(next);
+            }}
             decimal
             unit="cm"
             placeholder="0"
@@ -229,7 +268,10 @@ function AboutForm({
               autoComplete="bday"
               aria-invalid={refused('birthDate') === undefined ? undefined : true}
               aria-describedby={refused('birthDate') === undefined ? undefined : `${birthId}-error`}
-              onChange={(event) => setBirthDate(event.target.value)}
+              onChange={(event) => {
+                edit('birthDate', event.target.value !== '');
+                setBirthDate(event.target.value);
+              }}
             />
             {refused('birthDate') !== undefined && (
               <FieldError id={`${birthId}-error`} message={refused('birthDate') ?? ''} />
@@ -250,7 +292,10 @@ function AboutForm({
                 value={each}
                 checked={sex === each}
                 aria-describedby={refused('sex') === undefined ? undefined : `${sexName}-error`}
-                onChange={() => setSex(each)}
+                onChange={() => {
+                  edit('sex', true);
+                  setSex(each);
+                }}
               />
               {each === 'male' ? 'Male' : 'Female'}
             </label>

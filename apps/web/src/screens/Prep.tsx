@@ -328,9 +328,6 @@ export function Grocery({ me, navigate }: { me: Me; navigate: Navigate }) {
           aria-pressed={done}
           onClick={() => ticks.toggle(item.foodId)}
         >
-          <span className={done ? 'check-cell check-cell--done' : 'check-cell'}>
-            <CheckIcon size={15} color={done ? 'var(--done)' : 'var(--line-control)'} />
-          </span>
           <span>
             <span className="grocery__name">{item.name}</span>
             <span className="grocery__note">{note(item)}</span>
@@ -342,6 +339,9 @@ export function Grocery({ me, navigate }: { me: Me; navigate: Navigate }) {
             {item.quantity !== null && (
               <span className="grocery__unit">{item.unit === 'pieces' ? ' pieces' : ' g'}</span>
             )}
+          </span>
+          <span className={done ? 'check-cell check-cell--done' : 'check-cell'}>
+            <CheckIcon size={15} color={done ? 'var(--done)' : 'var(--line-control)'} />
           </span>
         </button>
       </li>

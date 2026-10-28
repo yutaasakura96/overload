@@ -43,7 +43,7 @@ function Meter({ label, value, target }: { label: string; value: number; target:
 }
 
 /** The day's planned calories against the target, what is eaten so far, and the four macros. */
-export function DayTotals({ day }: { day: PlanDay }) {
+export function DayTotals({ day, proteinTargetG }: { day: PlanDay; proteinTargetG: number }) {
   const { planned, targets, confirmed } = day;
   const off = ((planned.energyKcal - targets.energyKcal) / targets.energyKcal) * 100;
   const offShown = Math.round(off * 10) / 10;
@@ -85,7 +85,7 @@ export function DayTotals({ day }: { day: PlanDay }) {
           protein
         </div>
         <div className="macros">
-          <Meter label="Protein" value={planned.proteinG} target={targets.proteinG} />
+          <Meter label="Protein" value={planned.proteinG} target={proteinTargetG} />
           <Meter label="Carbs" value={planned.carbG} target={targets.carbG} />
           <Meter label="Fat" value={planned.fatG} target={targets.fatG} />
           <Meter label="Fiber" value={planned.fiberG} target={null} />
@@ -96,16 +96,24 @@ export function DayTotals({ day }: { day: PlanDay }) {
 }
 
 /** What the plan could not reach, said under the totals and never padded (docs/02, Edge cases). */
-export function Shortfalls({ day, navigate }: { day: PlanDay; navigate: Navigate }) {
+export function Shortfalls({
+  day,
+  proteinTargetG,
+  navigate,
+}: {
+  day: PlanDay;
+  proteinTargetG: number;
+  navigate: Navigate;
+}) {
   const addFood = () => navigate('/food/new', { returns: true });
-  return day.shortfalls.map((shortfall: PlanShortfall) => {
-    if (shortfall.target === 'protein') {
-      return (
-        <Notice key="protein" tone="flag" word={`Protein ${shortfall.missingG} g short`}>
+  const missingProteinG = proteinTargetG - day.planned.proteinG;
+  return (
+    <>
+      {missingProteinG > 5 && (
+        <Notice tone="flag" word={`Protein ${Math.round(missingProteinG)} g short`}>
           <span className="notice__line">
-            Your foods can’t reach {whole(day.targets.proteinG)} g today without going over
-            calories, so the plan stops at {whole(day.planned.proteinG)} g. Nothing else was padded
-            to hide it.
+            The plan stops at {whole(day.planned.proteinG)} g, below today’s target of{' '}
+            {whole(proteinTargetG)} g. Nothing else was padded to hide it.
           </span>
           <button
             type="button"
@@ -115,27 +123,29 @@ export function Shortfalls({ day, navigate }: { day: PlanDay; navigate: Navigate
             Add a protein source
           </button>
         </Notice>
-      );
-    }
-    return (
-      <Notice key="energy" tone="flag" word={`Calories ${whole(shortfall.missingKcal)} short`}>
-        <span className="notice__line">
-          {shortfall.cause === 'portion_cap'
-            ? 'A portion would have to grow beyond its sensible cap to close the gap. The plan leaves the gap visible instead.'
-            : 'Your foods can’t fill the day without padding one past what it is for. The plan leaves the gap visible instead.'}
-        </span>
-        {shortfall.suggestion === 'add_food' && (
-          <button
-            type="button"
-            className="button button--secondary notice__action"
-            onClick={addFood}
-          >
-            Add a food
-          </button>
-        )}
-      </Notice>
-    );
-  });
+      )}
+      {day.shortfalls
+        .filter((shortfall: PlanShortfall) => shortfall.target === 'energy')
+        .map((shortfall) => (
+          <Notice key="energy" tone="flag" word={`Calories ${whole(shortfall.missingKcal)} short`}>
+            <span className="notice__line">
+              {shortfall.cause === 'portion_cap'
+                ? 'A portion would have to grow beyond its sensible cap to close the gap. The plan leaves the gap visible instead.'
+                : 'Your foods can’t fill the day without padding one past what it is for. The plan leaves the gap visible instead.'}
+            </span>
+            {shortfall.suggestion === 'add_food' && (
+              <button
+                type="button"
+                className="button button--secondary notice__action"
+                onClick={addFood}
+              >
+                Add a food
+              </button>
+            )}
+          </Notice>
+        ))}
+    </>
+  );
 }
 
 /** `120 g`, `3 pieces` for a unit food, or the calories of a food typed by hand. */
@@ -165,6 +175,15 @@ function Amount({ eaten }: { eaten: Eaten }) {
   );
 }
 
+/** A food named for how it is cooked ("White rice, cooked", "Sweet potato, steamed"). */
+const NAMES_ITS_COOKING = /\b(cooked|steamed|boiled|baked|roasted|grilled|fried)\b/i;
+
+/** The state tag after a food's name; left off the words when the name already says it. */
+const cookedQualifier = (item: { name: string; approximate: boolean }) => {
+  if (!NAMES_ITS_COOKING.test(item.name)) return `cooked${item.approximate ? ', approx.' : ''}`;
+  return item.approximate ? 'approx.' : undefined;
+};
+
 export function Foods({ meal, dim }: { meal: PlanMeal; dim: boolean }) {
   const eaten = eatenItems(meal);
   if (eaten.length === 0) return <p className="meal__none">Nothing planned for this meal.</p>;
@@ -174,8 +193,8 @@ export function Foods({ meal, dim }: { meal: PlanMeal; dim: boolean }) {
         <li key={each.item.id} className="meal__food">
           <span className="meal__name">
             {each.item.name}{' '}
-            {each.item.cooked && (
-              <span className="meal__qual"> cooked{each.item.approximate ? ', approx.' : ''}</span>
+            {each.item.cooked && cookedQualifier(each.item) !== undefined && (
+              <span className="meal__qual"> {cookedQualifier(each.item)}</span>
             )}
             {each.item.noCookedMatch && <span className="meal__qual"> raw, no cooked match</span>}
           </span>

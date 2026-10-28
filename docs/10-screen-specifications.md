@@ -301,7 +301,7 @@ day stands, a meal lists its foods as rows, and every action is a word.
 | --- | --- |
 | App bar | `TODAY` over `FRI 16 OCT · TRAINING DAY` (or `REST DAY`); right: the data-state slot. Sticks (§7.3) |
 | Tabs | Five: `Today`, `Food`, `Progress`, `Routines`, `Exercises` (Q1 of the M2 review). `Food` is new |
-| Day totals | `2,331` 26px mono/500 + `of 2,350 kcal planned` 13px; right: `−0.8%` in a 1px `line/done` box (`flag` beyond ±5%). Under it `Eaten so far: 521 kcal, 41 g protein`. Then four macro meters: label (`Protein`, `Carbs`, `Fat`, `Fiber`), `183 / 181` 13px mono, the 3px meter, and a word: `on target` (within 2 g), `24 g over` or `12 g to go`, uncoloured. Sticks under the app bar (§7.3) |
+| Day totals | `2,331` 26px mono/500 + `of 2,350 kcal planned` 13px; right: `−0.8%` in a 1px `line/done` box (`flag` beyond ±5%). Under it `Eaten so far: 521 kcal, 41 g protein`. Then four macro meters: label (`Protein`, `Carbs`, `Fat`, `Fiber`), `183 / 181` 13px mono, the 3px meter, and a word: `on target` (within 2 g), `24 g over` or `12 g to go`, uncoloured. Protein uses the current target, including after a weigh-in changes it without remaking the plan day. Sticks under the app bar (§7.3) |
 | End-of-day card | From 60 minutes before bedtime, or the next morning for yesterday (`09` F11): `2` 26px mono in `flag`, `2 meals not confirmed yet` (or `Yesterday: 2 meals not confirmed`) and a line of context, on `surface/flag` with `line/flag`. Opens screen 4. Shown only while a meal is unconfirmed and the date was not left incomplete |
 | The day | `THE DAY` label, then the timeline (`05` §4.11, its time at 12px mono/500): each meal, and on a training day the workout at its training time |
 | Other workouts | `OR START ANOTHER WORKOUT` (rest day: `REST DAY. START A WORKOUT ANYWAY`): §8.2's start rows for the other routines |
@@ -311,7 +311,7 @@ day stands, a meal lists its foods as rows, and every action is a word.
 
 | Entry | Drawn as |
 | --- | --- |
-| A planned meal | A button card, `line/hairline`: the meal's name 15px, `467 kcal · 29 g protein` 12px mono `text/tertiary` on the right; the foods as rows, name 12px `text/tertiary` with `cooked` (and `approx.` without a batch), or `raw, no cooked match`, in `text/quaternary`, grams 12px mono. Tapping it opens it (Q6). A meal with more carbs for training carries the evidence tag `MORE CARBS · MODERATE` on its own row under the card, so the tag is never inside the card's button |
+| A planned meal | A button card, `line/hairline`: the meal's name 15px, `467 kcal · 29 g protein` 12px mono `text/tertiary` on the right; the foods as rows, name 12px `text/tertiary` with `cooked` when the name does not already say it (and `approx.` without a batch), or `raw, no cooked match`, in `text/quaternary`, grams 12px mono. Tapping it opens it (Q6). A meal with more carbs for training carries the evidence tag `MORE CARBS · MODERATE` on its own row under the card, so the tag is never inside the card's button |
 | The next meal due | Open, as `05` §4.5's active card: name 15px, then the macro line and the tag, then the foods at 13px with grams 13px mono/500 `text/primary`, then the actions |
 | A confirmed meal | One row: name 15px `text/secondary` and, in `done` with the check, `Eaten as planned`, `Eaten, adjusted`, `Replaced` or `Skipped`. Opened, it says `Confirmed. Changing it replaces this, never adds to it.` over `Adjust` / `Replaced` / `Undo` |
 | The workout | A 9px `accent` square on the rail; a card with a 2px `accent` left edge: `WORKOUT` 10px `0.12em` `accent`, the routine's name 15px, `5 exercises · 17 sets · last done Mon 12 Oct`, and a 44px primary `Start` (Q5) |
@@ -350,8 +350,10 @@ the meal and still lets the day be complete.
 - **While the plan is made:** skeleton blocks in `line/hairline` for the totals and four entries, and
   `Making today's plan from your foods…`. The skeleton pulses only without reduced motion.
 - **Shortfall** (PRD edge case): a `notice--flag` under the totals, `PROTEIN 22 G SHORT`, a sentence
-  saying the foods cannot reach the target without going over calories and that nothing else was
-  padded, and a secondary `Add a protein source`. The meter says `22 g to go`.
+  naming the planned protein, today's target and that nothing else was padded, and a secondary
+  `Add a protein source`. Its presence and missing grams use the current
+  protein target minus the plan's protein, shown only when the gap exceeds the planner's 5 g
+  tolerance. The meter uses that same target.
 - **Calorie gap after a capped portion** (PRD edge case): a `notice--flag` under the totals says
   calories remain short because a portion reached its sensible maximum; the plan leaves the gap
   visible. The sample portions, meal cards, day total and end-of-day preview use the same capped
@@ -406,8 +408,9 @@ the meal and still lets the day be complete.
     place, the before → after box, `Save as eaten, adjusted` and `Cancel`. Swapping back to the
     starting food within one Adjust restores the row as opened, including through a planned food
     (`07` §4).
-  - Replaced: the two segments as radios; the list searched by name, eight rows at a time, each
-    `ADD 100 G` again adding 100 g; `Eaten instead` with `Remove`; by hand, a name and calories are
+  - Replaced: the two segments as radios; the list searched by name, up to eight rows shown, with
+    the shown and total counts and a prompt to search when more foods match. Each `ADD 100 G` adds
+    100 g again; `Eaten instead` has `Remove`; by hand, a name and calories are
     required, the macros default to 0, and a refused field takes focus. A food typed by hand reads as
     its calories on the meal, not its weight.
   - Offline, every action is disabled. An unconfirmed meal waits as planned; an already confirmed
@@ -430,9 +433,9 @@ end-of-day card on Today (§3).
 | App bar | Back chevron, `END OF DAY` over `FRI 16 OCT · 22:05` (or `· YESTERDAY`); right: the data-state slot |
 | Headline | `2` 38px mono/500/`-0.02em`/0.9 in `flag` + `meals are not confirmed` 15px |
 | Consequence | `notice--flag` with the info icon: `If you leave them, the day is incomplete (the word in flag): it stays out of the maintenance check, and the unconfirmed meals count nothing as eaten.` |
-| Not confirmed | `NOT CONFIRMED` label, then a card per meal (`line/border`, 12px padding): time 12px mono, name 15px, kcal 12px mono on the right; the foods as rows at 12px; four secondaries, `As planned` (with the check), `Adjust`, `Replaced`, `Skipped` |
+| Not confirmed | `NOT CONFIRMED` label, then a card per meal (`line/border`, 12px padding): time 12px mono, name 15px, kcal 12px mono on the right; the foods as rows at 12px; four secondaries, `Eaten as planned` (with the check), `Adjust`, `Replaced`, `Skipped` |
 | If you confirm them all | `line/hairline` box: `2,331 / 2,350` `kcal eaten` and `183 / 181` `g protein` at 19px mono over 11px labels; a hairline; `Complete days this phase` with `30 → 31` |
-| Actions | Pinned to the foot over a `line/hairline` top edge on `surface/ground` (§7.3): `Confirm all as planned`, 60px primary with a 20px check; `Leave day incomplete`, 46px tertiary |
+| Actions | Pinned to the foot over a `line/hairline` top edge on `surface/ground` (§7.3): `Confirm all as planned` with multiple meals left, or `Confirm [meal name] as planned` with one, 60px primary with a 20px check; `Leave day incomplete`, 46px tertiary |
 
 ### States and rules
 
@@ -444,7 +447,7 @@ end-of-day card on Today (§3).
   confirmed`, the day counted towards the maintenance check, and `Back to Today`.
 - **Zero unconfirmed meals** is never reached from a card (decided 2026-09-22, `09` F11).
 - **As built in M2 slice 5** (`#80`, `06` 2026-10-26), at `/plan/check/{date}`: the subline is
-  `MON 26 OCT · 21:36` for today and `SUN 25 OCT · YESTERDAY` for yesterday. `As planned` and
+  `MON 26 OCT · 21:36` for today and `SUN 25 OCT · YESTERDAY` for yesterday. `Eaten as planned` and
   `Skipped` confirm in place and focus the headline; `Adjust` and `Replaced` open their screens and
   come back here. `Complete days this phase` is shown when the day belongs to the open phase, from
   the phase's plan days. A day past its 7 days is read-only: its meals without actions and no foot.
@@ -514,9 +517,9 @@ grams filled in (Q12). Untick undoes it.
 
 `FOOD` over `GROCERY FOR THE WEEK OF 19 OCT`. A count line, `13 of 13 left to buy` (the figure
 17px mono) with `RAW WEIGHT` on the right. Two sections, `FOR THE COOK DAYS` and `FOR THE WEEK`. Each
-item is one 60px button row: the 44 × 44 check cell, the food 15px over its note 10px mono (`1,400 +
-1,850 for two cooks`, `for the first cook`, `for the week`), and the quantity 17px mono/500, in `g`
-or `pieces`. A ticked row is `text/quaternary` and struck through. `Clear the ticks` appears once one
+item is one 60px button row: the food 15px over its note 10px mono (`1,400 +
+1,850 for two cooks`, `for the first cook`, `for the week`), the quantity 17px mono/500, in `g`
+or `pieces`, and the 44 × 44 check cell on the right, where Prep's is. A ticked row is `text/quaternary` and struck through. `Clear the ticks` appears once one
 is ticked. One list for the week (Q11); the ticks are kept on the phone only. Footnote: `Ticks stay
 on this phone` / `13 items`.
 
@@ -554,7 +557,7 @@ at 0 is refused under the cooked field; cooked above raw is accepted (`09` F12).
 | Legend | `Trend`; `Morning weigh-in`; when a ring is in view, `Not a morning weigh-in` |
 | Weigh-in actions | Two side by side: secondary `Type a weight` (§8.6) and tertiary `Scale: set up` or `Scale: arrived 07:01` (§8.6) |
 | Maintenance check | See below |
-| Recent weigh-ins | The newest six: date, time 10px mono (`· not morning` when so), kg 15px mono, and `Scale` or, for a typed one, a tertiary `Delete` |
+| Recent weigh-ins | The newest six: date, time 10px mono (`· not morning` for a day's fallback reading; `· not in the trend, another reading counts for that day` when another reading represents the day), kg 15px mono, and `Scale` or, for a typed one, a tertiary `Delete` |
 | Phase | A link row, `Cut since 4 Sep · week 7` over `Target: lose 0.5% a week, about 0.4 kg`, which opens the goal phase. A normal row, not pinned (§7.3) |
 | Footnote | `The trend smooths each day's weight` / `10% a day` |
 
@@ -994,8 +997,9 @@ of each top-level screen, before `Invites` for the admin. The footer's links kee
 data-state slot. In order:
 
 - **Export:** one sentence, `Everything you have logged, in one JSON file: your profile, exercises
-  and their settings, routines, every workout with its sets, and weigh-ins.`, then a secondary
-  `Export your data`. While it reads it says `Exporting… 2 of 5`, one step per section; when the file is handed to the browser,
+  and their settings, routines, every workout with its sets, weigh-ins, your foods with their
+  rotation groups, and your goal phases, day routines and planned days.`, then a secondary
+  `Export your data`. While it reads it says `Exporting… 2 of 10`, one step per section; when the file is handed to the browser,
   `Saved overload-export-2026-10-15.json.` under it, dated in the profile's time zone. A failure
   is a flag notice, `Not exported`, `Couldn’t reach Overload. Try again when you have signal.`, and
   the button stays for the retry (`09` F7).
@@ -1148,7 +1152,8 @@ changed count adds `Yours: 4 meals. The recommendation was 5.` in `flag`. `Use t
 - About you's weight is the latest weigh-in, noted `From your weigh-in of …`; a changed weight is
   saved as a new weigh-in. If the details save but the weigh-in fails, the notice says which saved
   and asks the member to retry the weigh-in. Saving makes the week's plan again and returns to
-  Today.
+  Today. After a refused save, each field's error clears when its value becomes valid; the
+  `Fix the marked fields` notice clears when no field error remains.
 - Goal phase's fields start from the open phase of the same type, or the defaults, noted `Default`,
   `Yours`, `Provisional` or `Measured`. For a new phase the defaults are the fields' placeholders,
   not filled values, so the calories keep following the rate until one is typed. An open phase

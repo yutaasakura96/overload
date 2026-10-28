@@ -158,9 +158,10 @@ function ReplaceForm({
   const locked = dayLocked(date, today);
 
   const words = search.trim().toLowerCase();
-  const matches = (foods.data ?? [])
-    .filter((food) => food.archivedAt === null && food.name.toLowerCase().includes(words))
-    .slice(0, SHOWN);
+  const listed = (foods.data ?? []).filter(
+    (food) => food.archivedAt === null && food.name.toLowerCase().includes(words),
+  );
+  const matches = listed.slice(0, SHOWN);
 
   const pick = (food: Food) => {
     setRefused(new Map());
@@ -287,6 +288,11 @@ function ReplaceForm({
             ))}
             {foods.data !== undefined && matches.length === 0 && (
               <li className="pick__none">No food on your list matches.</li>
+            )}
+            {listed.length > matches.length && (
+              <li className="pick__none">
+                {matches.length} of {listed.length} foods shown. Search to find the rest.
+              </li>
             )}
           </ul>
           {picked.length > 0 && (

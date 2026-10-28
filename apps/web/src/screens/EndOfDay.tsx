@@ -257,7 +257,9 @@ export function EndOfDay({ me, date, navigate }: { me: Me; date: string; navigat
               }
             >
               <CheckIcon size={20} color="currentColor" />
-              Confirm all as planned
+              {left.length === 1
+                ? `Confirm ${mealName(left[0]!)} as planned`
+                : 'Confirm all as planned'}
             </button>
             <button
               type="button"
@@ -310,7 +312,7 @@ function EndOfDayMeal({
             onClick={() => actions.onConfirm('as_planned')}
           >
             <CheckIcon size={14} color="currentColor" />
-            As planned
+            Eaten as planned
             {said}
           </button>
           <button

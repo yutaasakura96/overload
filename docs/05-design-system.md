@@ -486,9 +486,9 @@ equal columns of links, 14px under the tabs, the current one marked as an active
 | Planned (3) | `line/hairline` | none | `line/field` 1px ring, 7px | Title in `text/secondary` + kcal/protein; foods as one mono string |
 | Unconfirmed (4) | `line/border` | none | none — listed, not on a rail | Time + title + kcal; foods as one mono string; three actions |
 
-Action row is constant: `EATEN AS PLANNED` / `AS PLANNED` (flex-grow, 44px), `ADJUST` (62 × 44),
+Action row is constant: `EATEN AS PLANNED` (flex-grow, 44px), `ADJUST` (62 × 44),
 `REPL` (78 × 44, with a 13px swap icon). On screen 3 the first is primary; on screen 4 all three are
-secondary because the screen's own primary is `CONFIRM ALL AS PLANNED`.
+secondary because the screen's own primary confirms the remaining meals (`10` §4).
 
 ### 4.10 Macro meter
 Stacked: a label row (9px `text/quaternary` head, 11px mono value in `text/secondary`), a 3px track in
@@ -714,7 +714,8 @@ icon is added.
   screen reader.
 - **Scale and legend.** Under the list: `0`, `10` and `20` at 9px mono `text/quaternary`, centred
   on their places on the meter (0 at its start); then three 10px `text/quaternary` items, 16px
-  apart, each after a 14 × 6px swatch: whole sets, half sets, and the band at 10px tall.
+  apart, each after a neutral `text/tertiary` 14 × 6px swatch: solid for whole sets, striped for
+  half sets, and the band at 10px tall. The meter colour follows the row's status.
 
 ## 5. Charts
 
