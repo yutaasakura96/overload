@@ -215,6 +215,11 @@ test('About you keeps refusals until each field is valid', async ({ page }) => {
 async function proteinPlanAfterWeighIn(page: Page, proteinGPerKg: number, nextWeightKg: number) {
   const headers = { Origin: WEB_ORIGIN };
   const today = todayInZone().date;
+  // The week Today reads. Leaving a day of it unmade makes Today regenerate the plan on load,
+  // which would bring today up to the new target and take the shortfall away.
+  const weekEnd = new Date(Date.parse(`${today}T00:00:00Z`) + 6 * DAY_MS)
+    .toISOString()
+    .slice(0, 10);
   expect(
     (
       await page.request.patch('/api/me/profile', {
@@ -273,7 +278,7 @@ async function proteinPlanAfterWeighIn(page: Page, proteinGPerKg: number, nextWe
     (
       await page.request.post('/api/plan-days/generate', {
         headers,
-        data: { from: today, to: today },
+        data: { from: today, to: weekEnd },
       })
     ).ok(),
   ).toBe(true);
