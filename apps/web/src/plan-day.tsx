@@ -43,14 +43,7 @@ function Meter({ label, value, target }: { label: string; value: number; target:
 }
 
 /** The day's planned calories against the target, what is eaten so far, and the four macros. */
-export function DayTotals({
-  day,
-  currentProteinG,
-}: {
-  day: PlanDay;
-  /** The protein target in force now: the day keeps the figure from when it was made. */
-  currentProteinG?: number;
-}) {
+export function DayTotals({ day, proteinTargetG }: { day: PlanDay; proteinTargetG: number }) {
   const { planned, targets, confirmed } = day;
   const off = ((planned.energyKcal - targets.energyKcal) / targets.energyKcal) * 100;
   const offShown = Math.round(off * 10) / 10;
@@ -92,11 +85,7 @@ export function DayTotals({
           protein
         </div>
         <div className="macros">
-          <Meter
-            label="Protein"
-            value={planned.proteinG}
-            target={currentProteinG ?? targets.proteinG}
-          />
+          <Meter label="Protein" value={planned.proteinG} target={proteinTargetG} />
           <Meter label="Carbs" value={planned.carbG} target={targets.carbG} />
           <Meter label="Fat" value={planned.fatG} target={targets.fatG} />
           <Meter label="Fiber" value={planned.fiberG} target={null} />
@@ -107,16 +96,25 @@ export function DayTotals({
 }
 
 /** What the plan could not reach, said under the totals and never padded (docs/02, Edge cases). */
-export function Shortfalls({ day, navigate }: { day: PlanDay; navigate: Navigate }) {
+export function Shortfalls({
+  day,
+  proteinTargetG,
+  navigate,
+}: {
+  day: PlanDay;
+  proteinTargetG: number;
+  navigate: Navigate;
+}) {
   const addFood = () => navigate('/food/new', { returns: true });
   return day.shortfalls.map((shortfall: PlanShortfall) => {
     if (shortfall.target === 'protein') {
+      const missingG = Math.round(proteinTargetG - day.planned.proteinG);
+      if (missingG <= 0) return null;
       return (
-        <Notice key="protein" tone="flag" word={`Protein ${shortfall.missingG} g short`}>
+        <Notice key="protein" tone="flag" word={`Protein ${missingG} g short`}>
           <span className="notice__line">
-            Your foods can’t reach {whole(day.targets.proteinG)} g today without going over
-            calories, so the plan stops at {whole(day.planned.proteinG)} g. Nothing else was padded
-            to hide it.
+            The plan stops at {whole(day.planned.proteinG)} g, below today’s target of{' '}
+            {whole(proteinTargetG)} g. Nothing else was padded to hide it.
           </span>
           <button
             type="button"

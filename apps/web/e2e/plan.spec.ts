@@ -192,16 +192,122 @@ test('sets up a phase and a day, and Today shows the day’s plan', async ({ pag
   await expect(page).toHaveURL(/\/workout/);
 });
 
-test('About you clears a refused field’s message once it is edited', async ({ page }) => {
+test('About you keeps refusals until each field is valid', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Add your details' }).click();
   await page.getByRole('button', { name: 'Save' }).click();
   await expect(page.getByText('A weight between 20 and 300 kg.')).toBeVisible();
   await expect(page.getByText('A height between 100 and 250 cm.')).toBeVisible();
 
+  await page.getByRole('textbox', { name: /^Weight/ }).fill('5');
+  await expect(page.getByText('A weight between 20 and 300 kg.')).toBeVisible();
   await page.getByRole('textbox', { name: /^Weight/ }).fill('82.5');
   await expect(page.getByText('A weight between 20 and 300 kg.')).toHaveCount(0);
+  await page.getByRole('textbox', { name: /^Height/ }).fill('5');
   await expect(page.getByText('A height between 100 and 250 cm.')).toBeVisible();
+  await page.getByRole('textbox', { name: /^Height/ }).fill('176');
+  await page.getByLabel('Birth date').fill('1994-05-01');
+  await page.getByRole('radio', { name: 'Male', exact: true }).check();
+  await expect(page.getByText('Fix the marked fields.')).toHaveCount(0);
+  await expect(page.getByText('Refused', { exact: true })).toHaveCount(0);
+});
+
+test('Today uses the current protein target after a newer weigh-in', async ({ page }) => {
+  const headers = { Origin: WEB_ORIGIN };
+  const today = todayInZone().date;
+  expect(
+    (
+      await page.request.patch('/api/me/profile', {
+        headers,
+        data: { heightCm: 176, sex: 'male', birthDate: '1994-05-01', trainingWeekdays: [] },
+      })
+    ).ok(),
+  ).toBe(true);
+  const weighIn = (weightKg: number) =>
+    page.request.post('/api/weigh-ins', {
+      headers,
+      data: {
+        id: randomUUID(),
+        measuredAt: new Date(Date.now() - (weightKg === 80 ? DAY_MS : 0)).toISOString(),
+        weightKg,
+      },
+    });
+  expect((await weighIn(80)).ok()).toBe(true);
+  expect(
+    (
+      await page.request.post('/api/goal-phases', {
+        headers,
+        data: {
+          id: randomUUID(),
+          type: 'cut',
+          startedOn: today,
+          targetRatePctPerWeek: 0.5,
+          proteinGPerKg: 4,
+          fatPctCalories: 25,
+          calorieTargetKcal: 1800,
+          calorieBasis: 'manual',
+        },
+      })
+    ).ok(),
+  ).toBe(true);
+  expect(
+    (
+      await page.request.put('/api/day-routines/rest', {
+        headers,
+        data: {
+          wakeTime: '07:00',
+          workStart: null,
+          workEnd: null,
+          trainingTime: null,
+          bedTime: '23:00',
+          slots: [
+            { time: '08:00', label: 'Breakfast' },
+            { time: '12:00', label: 'Lunch' },
+            { time: '19:00', label: 'Dinner' },
+          ],
+        },
+      })
+    ).ok(),
+  ).toBe(true);
+  expect(
+    (
+      await page.request.post('/api/plan-days/generate', {
+        headers,
+        data: { from: today, to: today },
+      })
+    ).ok(),
+  ).toBe(true);
+  const readPlan = async () => {
+    const read: {
+      days: {
+        id: string;
+        targets: { proteinG: number };
+        planned: { proteinG: number };
+        shortfalls: { target: string }[];
+      }[];
+    } = await (await page.request.get(`/api/plan-days?from=${today}&to=${today}`)).json();
+    const day = read.days[0];
+    if (day === undefined) throw new Error('no plan');
+    return day;
+  };
+  const original = await readPlan();
+  expect(original.shortfalls.some((shortfall) => shortfall.target === 'protein')).toBe(true);
+
+  expect((await weighIn(90)).ok()).toBe(true);
+  const current: { proteinG: number } = await (
+    await page.request.get('/api/targets/current')
+  ).json();
+  expect(current.proteinG).not.toBe(original.targets.proteinG);
+  expect((await readPlan()).id).toBe(original.id);
+
+  await page.goto('/');
+  const target = Math.round(current.proteinG);
+  const missing = Math.round(current.proteinG - original.planned.proteinG);
+  await expect(
+    page.locator('.macro').filter({ hasText: 'Protein' }).locator('.macro__of'),
+  ).toHaveText(`/ ${target}`);
+  await expect(page.getByText(`Protein ${missing} g short`)).toBeVisible();
+  await expect(page.getByText(new RegExp(`today’s target of ${target} g`))).toBeVisible();
 });
 
 test('About you reports saved details separately when its weigh-in fails', async ({ page }) => {
