@@ -226,6 +226,40 @@ describe('the prep plan and grocery list (S17)', () => {
     ]);
   });
 
+  it('cooks a batch-cooked food counted in pieces in whole pieces, and lists it in pieces', () => {
+    const egg = food('egg', { name: 'Egg', keepsDays: 4, pieceWeightG: 55 });
+    const plan = prepPlan({
+      weekStart: WEEK,
+      cookDays: cookDaysOf(WEEK, [4]),
+      foods: [chicken, egg],
+      items: [
+        ...daily('chicken', 300, { yieldRatio: 0.75 }),
+        ...daily('egg', 110, { cooked: false, pieceCount: 2 }),
+      ],
+      listed: [...listed, { id: 'egg', name: 'Egg', keepsDays: 4 }],
+    });
+    const eggs = plan.cookDays.map((day) => day.cooks.find((cook) => cook.foodId === 'egg'));
+    expect(eggs).toEqual([
+      expect.objectContaining({ pieces: 6, rawGrams: 330, dates: week.slice(0, 3) }),
+      expect.objectContaining({ pieces: 8, rawGrams: 440, dates: week.slice(3) }),
+    ]);
+    expect(
+      plan.cookDays.map((day) => day.cooks.find((cook) => cook.foodId === 'chicken')?.pieces),
+    ).toEqual([null, null]);
+    expect(plan.grocery).toEqual([
+      expect.objectContaining({ foodId: 'chicken', section: 'cook_days', unit: 'g' }),
+      {
+        foodId: 'egg',
+        name: 'Egg',
+        section: 'cook_days',
+        unit: 'pieces',
+        quantity: 14,
+        cooks: [6, 8],
+        approximate: false,
+      },
+    ]);
+  });
+
   it('keeps a one-day food’s cook days to the days it serves, beside a food for the whole week', () => {
     const rice = food('rice', { name: 'White rice', keepsDays: 1 });
     const oats = food('oats', { name: 'Rolled oats' });

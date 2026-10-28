@@ -4261,6 +4261,8 @@ wrong result today.
 - **Foods with no shelf life, or stored cooked, leave the cook days** (B4), in the API's prep plan
   and not only on screen. They were rows in grams with a "cooked" tick, though they are bought and
   weighed at their meals and the grocery list and Today count them in pieces. Prep now shows only
-  what is cooked, in raw grams, as the grocery list's cook-day section does.
+  what is cooked, in raw grams, as the grocery list's cook-day section does. A batch-cooked food
+  counted in pieces (eggs boiled in a batch) is in whole pieces on Prep and in the grocery list's
+  cook-day section, as Today counts it.
 
-**Changed:** `06`, `10` §5.
+**Changed:** `06`, `07` §4, `10` §5.

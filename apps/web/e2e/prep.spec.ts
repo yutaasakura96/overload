@@ -192,6 +192,86 @@ test('records a batch, reads the prep plan’s second cook day and the grocery l
   );
 });
 
+// A page the service worker controls fetches through it, where a route sees nothing.
+test.describe('with no service worker', () => {
+  test.use({ serviceWorkers: 'block' });
+
+  test('counts a batch-cooked food counted in pieces in pieces on Prep and Grocery', async ({
+    page,
+  }) => {
+    // The API's prep plan for eggs boiled in batches (apps/api/test/prep.test.ts works the figures),
+    // answered for this account.
+    const egg = randomUUID();
+    const cook = (
+      which: 'first' | 'second',
+      date: string,
+      pieces: number,
+      rawGrams: number,
+      dates: string[],
+    ) => ({
+      date,
+      which,
+      covers: dates,
+      because: null,
+      cooks: [
+        {
+          foodId: egg,
+          name: 'Egg',
+          keepsDays: 4,
+          rawGrams,
+          pieces,
+          cookedGrams: null,
+          approximate: false,
+          dates,
+        },
+      ],
+    });
+    await page.route(
+      (url) => url.pathname === '/api/prep-plan',
+      async (route) => {
+        const response = await route.fetch();
+        const { weekStart }: { weekStart: string } = await response.json();
+        await route.fulfill({
+          response,
+          json: {
+            weekStart,
+            missing: [],
+            generatedAt: new Date().toISOString(),
+            cookDays: [
+              cook('first', '2099-01-01', 6, 330, ['2099-01-02']),
+              cook('second', '2099-01-04', 8, 440, ['2099-01-05']),
+            ],
+            foods: [{ foodId: egg, name: 'Egg', keepsDays: 4, batch: null, weighDue: true }],
+            uncovered: [],
+            grocery: [
+              {
+                foodId: egg,
+                name: 'Egg',
+                section: 'cook_days',
+                unit: 'pieces',
+                quantity: 14,
+                cooks: [6, 8],
+                approximate: false,
+              },
+            ],
+          },
+        });
+      },
+    );
+
+    await page.goto('/food');
+    const eggs = page.locator('.cook__row', { hasText: 'Egg' }).locator('.cook__raw');
+    await expect(eggs).toHaveCount(2);
+    await expect(eggs.first()).toHaveText('Raw 6 pc pieces');
+    await expect(eggs.last()).toHaveText('Raw 8 pc pieces');
+
+    await page.goto('/food/grocery');
+    const row = page.getByRole('button', { name: /Egg/ });
+    await expect(row).toContainText('6 + 8 for two cooks');
+    await expect(row.locator('.grocery__qty')).toHaveText('14 pieces');
+  });
+});
+
 test('refuses a batch for a cooked-state food in the form', async ({ page }) => {
   await page.goto('/food/batches/new');
   await page.getByLabel('Food').selectOption({ label: 'Cooked rice' });

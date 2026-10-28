@@ -57,12 +57,6 @@ type Cook = PrepPlan['cookDays'][number]['cooks'][number];
  * a week old or missing, and what a missing one means for this cook's figures.
  */
 export function yieldNote(food: Food | undefined, cook: Cook, today: string) {
-  if (cook.keepsDays === null) {
-    return {
-      text: cook.cookedGrams === null ? 'For the week, weighed raw at meals.' : 'For the week.',
-      flag: false,
-    };
-  }
   const keeps = `Keeps ${cook.keepsDays} days.`;
   const batch = food?.batch ?? null;
   if (batch === null) {

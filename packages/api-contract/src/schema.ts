@@ -5678,7 +5678,7 @@ export interface components {
         /** @enum {string} */
         unit: 'g' | 'pieces';
         quantity: number | null;
-        /** @description Each cook’s raw grams, summed into `quantity`. */
+        /** @description Each cook’s quantity in `unit`, summed into `quantity`. */
         cooks: (number | null)[];
         approximate: boolean;
       }[];
@@ -5690,9 +5690,11 @@ export interface components {
        */
       foodId: string;
       name: string;
-      keepsDays: number | null;
-      /** @description Raw grams to cook, to 5 g. Null for a food stored cooked with no batch weighed to convert by. */
+      keepsDays: number;
+      /** @description Raw grams to cook, to 5 g. Null with no batch weighed and no calories to convert by. */
       rawGrams: number | null;
+      /** @description Whole pieces to cook, for a food counted in pieces, as Today counts them. */
+      pieces: number | null;
       /** @description The cooked grams the plan asks for. Null for a food planned raw with no batch. */
       cookedGrams: number | null;
       /** @description No batch weighed: raw grams worked out from the food table’s cooked values. */

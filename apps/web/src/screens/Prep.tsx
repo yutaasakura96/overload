@@ -134,7 +134,6 @@ export function Prep({ me, navigate }: { me: Me; navigate: Navigate }) {
       return;
     }
     ticks.add(key);
-    if (cook.keepsDays === null) return;
     // Ticking a cook opens Record a batch with its raw grams filled in (Q12).
     const query = new URLSearchParams({
       food: cook.foodId,
@@ -212,9 +211,11 @@ export function Prep({ me, navigate }: { me: Me; navigate: Navigate }) {
                   const done = ticks.ticks.has(key);
                   const yieldLine = yieldNote(foodOf.get(cook.foodId), cook, today);
                   const raw =
-                    cook.rawGrams === null
-                      ? '—'
-                      : `${cook.approximate ? '≈ ' : ''}${grams(cook.rawGrams)}`;
+                    cook.pieces !== null
+                      ? String(cook.pieces)
+                      : cook.rawGrams === null
+                        ? '—'
+                        : `${cook.approximate ? '≈ ' : ''}${grams(cook.rawGrams)}`;
                   return (
                     <li key={key} className={done ? 'cook__row cook__row--done' : 'cook__row'}>
                       <div>
@@ -229,7 +230,17 @@ export function Prep({ me, navigate }: { me: Me; navigate: Navigate }) {
                       <span className="cook__raw">
                         <span className="visually-hidden">Raw </span>
                         {raw}
-                        {cook.rawGrams !== null && <span className="cook__unit"> g</span>}
+                        {cook.pieces !== null ? (
+                          <>
+                            <span className="cook__unit" aria-hidden="true">
+                              {' '}
+                              pc
+                            </span>
+                            <span className="visually-hidden"> pieces</span>
+                          </>
+                        ) : (
+                          cook.rawGrams !== null && <span className="cook__unit"> g</span>
+                        )}
                       </span>
                       <span className="cook__cooked">
                         <span className="visually-hidden">Cooked </span>
@@ -305,6 +316,9 @@ export function Prep({ me, navigate }: { me: Me; navigate: Navigate }) {
   );
 }
 
+const amount = (item: PrepPlan['grocery'][number], value: number) =>
+  item.unit === 'pieces' ? String(value) : grams(value);
+
 export function Grocery({ me, navigate }: { me: Me; navigate: Navigate }) {
   const { weekStart, prep, generating, incomplete } = usePrepWeek(me);
   const ticks = useTicks({ userId: me.user.id, weekStart, list: 'grocery' });
@@ -316,7 +330,7 @@ export function Grocery({ me, navigate }: { me: Me; navigate: Navigate }) {
   const note = (item: PrepPlan['grocery'][number]) => {
     if (item.section === 'week') return 'for the week';
     if (item.cooks.length > 1)
-      return `${item.cooks.map((each) => (each === null ? '—' : grams(each))).join(' + ')} for two cooks`;
+      return `${item.cooks.map((each) => (each === null ? '—' : amount(item, each))).join(' + ')} for two cooks`;
     if (cookDays.length < 2) return 'for the cook day';
     const which = cookDays.find((day) => day.cooks.some((cook) => cook.foodId === item.foodId));
     return which?.which === 'second' ? 'for the second cook' : 'for the first cook';
@@ -339,7 +353,7 @@ export function Grocery({ me, navigate }: { me: Me; navigate: Navigate }) {
           <span className="grocery__qty">
             {item.quantity === null
               ? '—'
-              : `${item.approximate ? '≈ ' : ''}${item.unit === 'pieces' ? item.quantity : grams(item.quantity)}`}
+              : `${item.approximate ? '≈ ' : ''}${amount(item, item.quantity)}`}
             {item.quantity !== null && (
               <span className="grocery__unit">{item.unit === 'pieces' ? ' pieces' : ' g'}</span>
             )}

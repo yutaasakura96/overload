@@ -482,9 +482,9 @@ because the data says it differently:
   cook this week`. `Not batch-cooked` shows only when a batch-cooked food
   cannot be covered on some days, one line each: `White rice won’t keep until the next cook; Sunday
   uses other foods.`
-- `Covers` lists the days the cook day's batch-cooked foods serve, so a food with no shelf life on
-  the first cook day does not widen it and the two cook days never overlap; only a cook day with
-  no batch-cooked food lists its other foods' days. A row's `For` lists the days that cook serves
+- `Covers` lists the days the cook day's batches keep for, so the two cook days never overlap. A
+  food counted in pieces is cooked in whole pieces, as Today counts them (`6 pc`), and its grocery
+  line too. A row's `For` lists the days that cook serves
   (`Covers Monday, Tuesday and Wednesday.`, `For Mon 19, Tue 20 and Wed 21`), not a range, since a
   short-keeping batch can skip days.
 - `Record a batch` refuses a food stored cooked under `Food`: `Batches need a food with raw
@@ -503,7 +503,7 @@ because the data says it differently:
 | App bar | `FOOD` over `PREP FOR THE WEEK OF 19 OCT`; right: the data-state slot |
 | Lede | 13px: raw grams to cook, from next week's plan and the batch each item used; shop and cook by the raw figure |
 | A cook day | One section per cook day (Q10). Its head sticks under the app bar while its rows pass (§7.3): `Sunday 18 Oct` 15px over `FIRST COOK DAY` (or `SECOND COOK DAY`) 10px `accent`, and the column heads `RAW · COOKED`. Then one 11px line on what it covers, `Covers Monday, Tuesday and Wednesday.`, and on the second day why it exists: `Chicken keeps 4 days; cook again for the rest of the week.` |
-| Cook row | Grid `1fr 70px 56px 44px`: the food 15px over the yield note 11px and `For Mon 19, Tue 20 and Wed 21` 10px mono; raw 17px mono/500 with `g`; cooked 13px mono `text/quaternary` (`≈ 644` without a batch); the 44 × 44 check cell |
+| Cook row | Grid `1fr 70px 56px 44px`: the food 15px over the yield note 11px and `For Mon 19, Tue 20 and Wed 21` 10px mono; raw 17px mono/500 with `g` (`pc` for a food counted in pieces); cooked 13px mono `text/quaternary` (`≈ 644` without a batch); the 44 × 44 check cell |
 | Not batch-cooked | A section saying which foods are cooked on the day by the meal's grams, and which days use another food from the group because a batch would not keep (`White rice won’t keep until the next cook; Sunday uses other foods.`) |
 | Grocery link | Link row `Grocery list` over `13 items, both cook days summed` |
 | Footnote | `Next week's plan, made Fri 16 Oct` / `7 days · 2 cook days` (`05` §4.15, as a normal block) |

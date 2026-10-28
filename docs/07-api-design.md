@@ -915,12 +915,10 @@ GET /api/plan-days?from=2026-11-11&to=2026-11-11  →  200
 **The prep plan, as built 2026-10-26** (`#81`, `06`). `weekStart` must be a Monday, else 422
 `validation_failed`. Derived on every read from the week's plan days, the food list and each food's
 newest batch (`03` §8.2, cook days). `covers` is the plan days a cook day's batches keep for: the
-days `cookFor` assigns to that cook day, sorted. A cook day with no batch-cooked cook (every cook's
-`keepsDays` is null: no shelf life set, or stored cooked) skips `cookFor`, and its `covers` is the
-union of its cooks' `dates`. Each cook's `dates` are the plan days planned onto it, which include
-fallback days its batch does not keep for (a plan made before the food's shelf life was set, a food
-whose `keepsDays` was shortened after planning, or a week whose cook days changed), so a cook's
-`dates` can run longer than its day's `covers`. Neither is a range:
+days `cookFor` assigns to that cook day, sorted. Each cook's `dates` are the plan days planned
+onto it, which include fallback days its batch does not keep for (a plan made before the food's
+shelf life was set, a food whose `keepsDays` was shortened after planning, or a week whose cook
+days changed), so a cook's `dates` can run longer than its day's `covers`. Neither is a range:
 
 ```json
 GET /api/prep-plan?weekStart=2026-10-19  →  200
@@ -929,7 +927,7 @@ GET /api/prep-plan?weekStart=2026-10-19  →  200
     { "date": "2026-10-18", "which": "first", "covers": ["2026-10-19", "2026-10-20", "2026-10-21"],
       "because": null,
       "cooks": [ { "foodId": "0192f001-…", "name": "Chicken breast, skinless", "keepsDays": 4,
-                   "rawGrams": 1400, "cookedGrams": 1050, "approximate": false,
+                   "rawGrams": 1400, "pieces": null, "cookedGrams": 1050, "approximate": false,
                    "dates": ["2026-10-19", "2026-10-20", "2026-10-21"] } ] },
     { "date": "2026-10-22", "which": "second",
       "covers": ["2026-10-22", "2026-10-23", "2026-10-24", "2026-10-25"],
@@ -949,13 +947,14 @@ GET /api/prep-plan?weekStart=2026-10-19  →  200
 
 - A cook's `rawGrams` sums each saved item's cooked grams over the `yieldRatio` it was planned with,
   so a newer or deleted batch changes nothing saved, then rounds to 5 g. With no yield, it is
-  worked out from the food table's cooked values and `approximate`; a food stored cooked has none
-  (`null`), and one planned raw has no `cookedGrams`.
+  worked out from the food table's cooked values and `approximate`; a food with no calories has
+  none (`null`), and one planned raw has no `cookedGrams`. A food counted in pieces also has
+  `pieces`, the whole pieces its plan days count, as Today does; its `cook_days` grocery line is in
+  `pieces` too, and each of its `cooks` a count.
 - `weighDue` is "Weigh this week's batch" (`09` F12): no batch, or the newest cooked more than 7
   days ago, by the profile's time zone.
-- A food with no `keepsDays`, or one stored cooked, is never split: one cook on the first cook day
-  for the whole week, with `keepsDays: null`, and one `week` grocery line, in pieces when it is
-  counted in them.
+- A food with no `keepsDays`, or one stored cooked, is not cooked (`06`, 2026-10-27): no cook on
+  any cook day, and one `week` grocery line, in pieces when it is counted in them.
 - A food keeping fewer days than the week is two cooks, Sunday and Thursday, even when the Sunday
   batch serves only Monday; the days neither keeps for are its `uncovered` dates.
 

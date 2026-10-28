@@ -1548,10 +1548,13 @@ const PrepCook = z
   .object({
     foodId: Uuid,
     name: z.string(),
-    keepsDays: z.int().nullable(),
+    keepsDays: z.int(),
     rawGrams: z.number().nullable().openapi({
       description:
-        'Raw grams to cook, to 5 g. Null for a food stored cooked with no batch weighed to convert by.',
+        'Raw grams to cook, to 5 g. Null with no batch weighed and no calories to convert by.',
+    }),
+    pieces: z.number().nullable().openapi({
+      description: 'Whole pieces to cook, for a food counted in pieces, as Today counts them.',
     }),
     cookedGrams: z.number().nullable().openapi({
       description: 'The cooked grams the plan asks for. Null for a food planned raw with no batch.',
@@ -1624,7 +1627,7 @@ export const PrepPlan = z
           quantity: z.number().nullable(),
           cooks: z
             .array(z.number().nullable())
-            .openapi({ description: 'Each cook’s raw grams, summed into `quantity`.' }),
+            .openapi({ description: 'Each cook’s quantity in `unit`, summed into `quantity`.' }),
           approximate: z.boolean(),
         }),
       )
