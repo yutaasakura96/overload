@@ -319,6 +319,12 @@ test('Today shows a new protein shortfall after a higher weigh-in', async ({ pag
   ).toHaveText(`/ ${target}`);
   await expect(page.getByText(`Protein ${missing} g short`)).toBeVisible();
   await expect(page.getByText(new RegExp(`today’s target of ${target} g`))).toBeVisible();
+  if (process.env.NO_MISTAKES_EVIDENCE_DIR) {
+    await page.screenshot({
+      path: `${process.env.NO_MISTAKES_EVIDENCE_DIR}/protein-higher-${test.info().project.name}.png`,
+      fullPage: true,
+    });
+  }
 });
 
 test('Today hides an old protein shortfall after a lower weigh-in', async ({ page }) => {
@@ -330,6 +336,12 @@ test('Today hides an old protein shortfall after a lower weigh-in', async ({ pag
     page.locator('.macro').filter({ hasText: 'Protein' }).locator('.macro__of'),
   ).toHaveText(`/ ${Math.round(current.proteinG)}`);
   await expect(page.getByText(/^Protein \d+ g short$/)).toHaveCount(0);
+  if (process.env.NO_MISTAKES_EVIDENCE_DIR) {
+    await page.screenshot({
+      path: `${process.env.NO_MISTAKES_EVIDENCE_DIR}/protein-lower-${test.info().project.name}.png`,
+      fullPage: true,
+    });
+  }
 });
 
 test('About you reports saved details separately when its weigh-in fails', async ({ page }) => {
