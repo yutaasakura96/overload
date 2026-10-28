@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { expect, test, type BrowserContext } from '@playwright/test';
+import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { WEB_ORIGIN } from '../playwright.config';
 import { apiFixture } from './fixture';
 
@@ -212,7 +212,7 @@ test('About you keeps refusals until each field is valid', async ({ page }) => {
   await expect(page.getByText('Refused', { exact: true })).toHaveCount(0);
 });
 
-test('Today uses the current protein target after a newer weigh-in', async ({ page }) => {
+async function proteinPlanAfterWeighIn(page: Page, proteinGPerKg: number, nextWeightKg: number) {
   const headers = { Origin: WEB_ORIGIN };
   const today = todayInZone().date;
   expect(
@@ -228,7 +228,7 @@ test('Today uses the current protein target after a newer weigh-in', async ({ pa
       headers,
       data: {
         id: randomUUID(),
-        measuredAt: new Date(Date.now() - (weightKg === 80 ? DAY_MS : 0)).toISOString(),
+        measuredAt: new Date(Date.now() - (weightKg === 80 ? 14 * DAY_MS : 0)).toISOString(),
         weightKg,
       },
     });
@@ -242,7 +242,7 @@ test('Today uses the current protein target after a newer weigh-in', async ({ pa
           type: 'cut',
           startedOn: today,
           targetRatePctPerWeek: 0.5,
-          proteinGPerKg: 4,
+          proteinGPerKg,
           fatPctCalories: 25,
           calorieTargetKcal: 1800,
           calorieBasis: 'manual',
@@ -291,23 +291,39 @@ test('Today uses the current protein target after a newer weigh-in', async ({ pa
     return day;
   };
   const original = await readPlan();
-  expect(original.shortfalls.some((shortfall) => shortfall.target === 'protein')).toBe(true);
 
-  expect((await weighIn(90)).ok()).toBe(true);
+  expect((await weighIn(nextWeightKg)).ok()).toBe(true);
   const current: { proteinG: number } = await (
     await page.request.get('/api/targets/current')
   ).json();
   expect(current.proteinG).not.toBe(original.targets.proteinG);
   expect((await readPlan()).id).toBe(original.id);
+  return { original, current };
+}
 
+test('Today shows a new protein shortfall after a higher weigh-in', async ({ page }) => {
+  const { original, current } = await proteinPlanAfterWeighIn(page, 1, 110);
+  expect(original.shortfalls.some((shortfall) => shortfall.target === 'protein')).toBe(false);
+  const missing = Math.round(current.proteinG - original.planned.proteinG);
+  expect(missing).toBeGreaterThan(5);
   await page.goto('/');
   const target = Math.round(current.proteinG);
-  const missing = Math.round(current.proteinG - original.planned.proteinG);
   await expect(
     page.locator('.macro').filter({ hasText: 'Protein' }).locator('.macro__of'),
   ).toHaveText(`/ ${target}`);
   await expect(page.getByText(`Protein ${missing} g short`)).toBeVisible();
   await expect(page.getByText(new RegExp(`today’s target of ${target} g`))).toBeVisible();
+});
+
+test('Today hides an old protein shortfall after a lower weigh-in', async ({ page }) => {
+  const { original, current } = await proteinPlanAfterWeighIn(page, 4, 20);
+  expect(original.shortfalls.some((shortfall) => shortfall.target === 'protein')).toBe(true);
+  expect(current.proteinG - original.planned.proteinG).toBeLessThanOrEqual(5);
+  await page.goto('/');
+  await expect(
+    page.locator('.macro').filter({ hasText: 'Protein' }).locator('.macro__of'),
+  ).toHaveText(`/ ${Math.round(current.proteinG)}`);
+  await expect(page.getByText(/^Protein \d+ g short$/)).toHaveCount(0);
 });
 
 test('About you reports saved details separately when its weigh-in fails', async ({ page }) => {

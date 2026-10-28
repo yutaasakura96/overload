@@ -106,12 +106,11 @@ export function Shortfalls({
   navigate: Navigate;
 }) {
   const addFood = () => navigate('/food/new', { returns: true });
-  return day.shortfalls.map((shortfall: PlanShortfall) => {
-    if (shortfall.target === 'protein') {
-      const missingG = Math.round(proteinTargetG - day.planned.proteinG);
-      if (missingG <= 0) return null;
-      return (
-        <Notice key="protein" tone="flag" word={`Protein ${missingG} g short`}>
+  const missingProteinG = proteinTargetG - day.planned.proteinG;
+  return (
+    <>
+      {missingProteinG > 5 && (
+        <Notice tone="flag" word={`Protein ${Math.round(missingProteinG)} g short`}>
           <span className="notice__line">
             The plan stops at {whole(day.planned.proteinG)} g, below today’s target of{' '}
             {whole(proteinTargetG)} g. Nothing else was padded to hide it.
@@ -124,27 +123,29 @@ export function Shortfalls({
             Add a protein source
           </button>
         </Notice>
-      );
-    }
-    return (
-      <Notice key="energy" tone="flag" word={`Calories ${whole(shortfall.missingKcal)} short`}>
-        <span className="notice__line">
-          {shortfall.cause === 'portion_cap'
-            ? 'A portion would have to grow beyond its sensible cap to close the gap. The plan leaves the gap visible instead.'
-            : 'Your foods can’t fill the day without padding one past what it is for. The plan leaves the gap visible instead.'}
-        </span>
-        {shortfall.suggestion === 'add_food' && (
-          <button
-            type="button"
-            className="button button--secondary notice__action"
-            onClick={addFood}
-          >
-            Add a food
-          </button>
-        )}
-      </Notice>
-    );
-  });
+      )}
+      {day.shortfalls
+        .filter((shortfall: PlanShortfall) => shortfall.target === 'energy')
+        .map((shortfall) => (
+          <Notice key="energy" tone="flag" word={`Calories ${whole(shortfall.missingKcal)} short`}>
+            <span className="notice__line">
+              {shortfall.cause === 'portion_cap'
+                ? 'A portion would have to grow beyond its sensible cap to close the gap. The plan leaves the gap visible instead.'
+                : 'Your foods can’t fill the day without padding one past what it is for. The plan leaves the gap visible instead.'}
+            </span>
+            {shortfall.suggestion === 'add_food' && (
+              <button
+                type="button"
+                className="button button--secondary notice__action"
+                onClick={addFood}
+              >
+                Add a food
+              </button>
+            )}
+          </Notice>
+        ))}
+    </>
+  );
 }
 
 /** `120 g`, `3 pieces` for a unit food, or the calories of a food typed by hand. */
