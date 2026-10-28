@@ -215,6 +215,7 @@ test('About you keeps refusals until each field is valid', async ({ page }) => {
 async function proteinPlanAfterWeighIn(page: Page, proteinGPerKg: number, nextWeightKg: number) {
   const headers = { Origin: WEB_ORIGIN };
   const today = todayInZone().date;
+  await page.clock.install({ time: new Date(`${today}T12:00:00+09:00`) });
   // The week Today reads. Leaving a day of it unmade makes Today regenerate the plan on load,
   // which would bring today up to the new target and take the shortfall away.
   const weekEnd = new Date(Date.parse(`${today}T00:00:00Z`) + 6 * DAY_MS)
