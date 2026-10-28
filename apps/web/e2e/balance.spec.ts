@@ -127,6 +127,13 @@ test('balance reads each group against the range, with indirect work at half', a
   await expect(row(page, 'Quads')).toHaveAccessibleName('Quads, 1 sets a week, Low');
   await expect(row(page, 'Glutes')).toHaveAccessibleName('Glutes, 0.5 sets a week, Low');
   await expect(row(page, 'Back')).toHaveAccessibleName('Back, 0 sets a week, Not trained');
+  const directKey = page.locator('.legend__swatch').first();
+  const directBar = row(page, 'Quads').locator('.meter__direct');
+  const [keyColour, barColour] = await Promise.all([
+    directKey.evaluate((node) => getComputedStyle(node).backgroundColor),
+    directBar.evaluate((node) => getComputedStyle(node).backgroundColor),
+  ]);
+  expect(keyColour).not.toBe(barColour);
 
   // A row opens on where its sets came from.
   await row(page, 'Triceps').click();
@@ -143,6 +150,7 @@ test('balance reads each group against the range, with indirect work at half', a
 
   // The evidence tag opens its sources, and gives focus back when the sheet closes.
   const tag = page.getByRole('button', { name: /open the sources/ });
+  expect((await tag.boundingBox())?.height).toBeGreaterThanOrEqual(44);
   await tag.click();
   const sheet = page.getByRole('dialog', { name: 'Evidence' });
   await expect(sheet).toBeVisible();

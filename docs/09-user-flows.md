@@ -328,14 +328,14 @@ first one missing as its empty state, in this order:
 
 1. Today shows the plan day's meals in time order, with targets, planned and confirmed totals.
 2. For each meal, one of:
-   - **As planned** — one tap.
+   - Mark eaten as planned — one tap (`10` §3 for the label).
    - **Adjust** — change grams or pieces, or swap in a food from the list.
    - **Replaced** — foods from the list, or by hand; in M3 also a photo or text estimate (F15).
    - **Skipped.**
    Confirming again later that day replaces the earlier confirmation (PRD edge case).
 3. **End-of-day check** — a card at the top of Today from **60 minutes before the day routine's
-   bedtime** opens screen 4 (`10` §4) for that day: confirm each meal, **Confirm all as planned**, or
-   **Leave day incomplete**.
+   bedtime** opens screen 4 (`10` §4) for that day: confirm each meal, confirm the remaining meals
+   as planned, or **Leave day incomplete**.
 4. **Missed check** — the next morning's first open shows a "Yesterday: 2 meals unconfirmed" card,
    which opens screen 4 for yesterday.
 

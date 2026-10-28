@@ -140,6 +140,9 @@ test('records a batch, reads the prep plan’s second cook day and the grocery l
     raws.reduce((sum, raw) => sum + raw, 0).toLocaleString('en-US'),
   );
   await expect(page.getByRole('button', { name: /Rolled oats/ })).toContainText('for the week');
+  const tick = chicken.locator('.check-cell');
+  const name = chicken.locator('.grocery__name');
+  expect((await tick.boundingBox())!.x).toBeGreaterThan((await name.boundingBox())!.x);
 
   // A tick stays on this phone, across a reload.
   await chicken.click();
