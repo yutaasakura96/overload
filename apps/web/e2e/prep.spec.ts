@@ -192,6 +192,17 @@ test('records a batch, reads the prep plan’s second cook day and the grocery l
   );
 });
 
+/** A cook row as an API from before 2026-10-27 answered it, with no `pieces`. */
+const oldCook = (foodId: string, name: string, keepsDays: number | null, rawGrams: number) => ({
+  foodId,
+  name,
+  keepsDays,
+  rawGrams,
+  cookedGrams: null,
+  approximate: false,
+  dates: ['2099-01-02'],
+});
+
 // A page the service worker controls fetches through it, where a route sees nothing.
 test.describe('with no service worker', () => {
   test.use({ serviceWorkers: 'block' });
@@ -247,6 +258,47 @@ test.describe('with no service worker', () => {
     await putDeviceValue(page, cacheKey(userId), JSON.stringify(saved));
     await page.reload();
     await expect(page.getByText('Couldn’t reach Overload.', { exact: false })).toBeVisible();
+    await expect(page.getByText('Banana')).toHaveCount(0);
+  });
+
+  test('reads a prep plan from an API without pieces, which put foods with no shelf life on the cook day', async ({
+    page,
+  }) => {
+    await page.route(
+      (url) => url.pathname === '/api/prep-plan',
+      async (route) => {
+        const response = await route.fetch();
+        const { weekStart }: { weekStart: string } = await response.json();
+        await route.fulfill({
+          response,
+          json: {
+            weekStart,
+            missing: [],
+            generatedAt: new Date().toISOString(),
+            cookDays: [
+              {
+                date: '2099-01-01',
+                which: 'first',
+                covers: ['2099-01-02'],
+                because: null,
+                cooks: [
+                  oldCook(randomUUID(), 'Banana', null, 2400),
+                  oldCook(randomUUID(), 'Chicken breast', 4, 1400),
+                ],
+              },
+            ],
+            foods: [],
+            uncovered: [],
+            grocery: [],
+          },
+        });
+      },
+    );
+
+    await page.goto('/food');
+    const rows = page.locator('.cook__row');
+    await expect(rows).toHaveCount(1);
+    await expect(rows.locator('.cook__raw')).toHaveText('Raw 1,400 g');
     await expect(page.getByText('Banana')).toHaveCount(0);
   });
 

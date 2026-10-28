@@ -14,6 +14,7 @@ import { dayLabel } from '../dates';
 import { useEntryNote, type Navigate } from '../navigation';
 import { shortDate } from '../plan';
 import {
+  cookDaysOf,
   grams,
   longDay,
   prepWeek,
@@ -124,7 +125,7 @@ export function Prep({ me, navigate }: { me: Me; navigate: Navigate }) {
   const ticks = useTicks({ userId: me.user.id, weekStart, list: 'prep' });
   const note = useEntryNote();
   const plan = prep.data;
-  const cookDays = (plan?.cookDays ?? []).filter((day) => day.cooks.length > 0);
+  const cookDays = plan === undefined ? [] : cookDaysOf(plan);
   const foodOf = new Map((plan?.foods ?? []).map((food) => [food.foodId, food]));
   const twoCooks = cookDays.length === 2;
 
@@ -325,7 +326,7 @@ export function Grocery({ me, navigate }: { me: Me; navigate: Navigate }) {
   const plan = prep.data;
   const items = plan?.grocery ?? [];
   const left = items.filter((item) => !ticks.ticks.has(item.foodId)).length;
-  const cookDays = (plan?.cookDays ?? []).filter((day) => day.cooks.length > 0);
+  const cookDays = plan === undefined ? [] : cookDaysOf(plan);
 
   const note = (item: PrepPlan['grocery'][number]) => {
     if (item.section === 'week') return 'for the week';

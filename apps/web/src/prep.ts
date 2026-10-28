@@ -45,12 +45,29 @@ export function prepWeek(today: string, thisWeek: PrepPlan | undefined) {
   const sunday = new Date(`${today}T00:00:00Z`).getUTCDay() === 0;
   const next = addLocalDays(current, 7);
   if (sunday) return { current: next, next };
-  const ahead = thisWeek?.cookDays.some((day) => day.cooks.length > 0 && day.date >= today);
+  const ahead =
+    thisWeek === undefined ? undefined : cookDaysOf(thisWeek).some((day) => day.date >= today);
   return { current: ahead === false ? next : current, next };
 }
 
 type Food = PrepPlan['foods'][number];
 type Cook = PrepPlan['cookDays'][number]['cooks'][number];
+
+/**
+ * The week's cook days with something to cook. An API from before 2026-10-27 answers without
+ * `pieces` and puts foods with no shelf life on the first cook day (`keepsDays: null`); the web
+ * app can go live first (docs/12 §3), so those rows are dropped and a missing count is none.
+ */
+export function cookDaysOf(plan: PrepPlan) {
+  return plan.cookDays
+    .map((day) => ({
+      ...day,
+      cooks: day.cooks
+        .filter((cook) => (cook.keepsDays as number | null) !== null)
+        .map((cook): Cook => ({ ...cook, pieces: cook.pieces ?? null })),
+    }))
+    .filter((day) => day.cooks.length > 0);
+}
 
 /**
  * The yield note under a cook (docs/10 §5): the batch it converts by, `flag` when the batch is over
