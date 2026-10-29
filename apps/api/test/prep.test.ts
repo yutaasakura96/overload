@@ -200,7 +200,7 @@ describe('the prep plan and grocery list (S17)', () => {
     expect(plan.grocery[0]?.cooks).toEqual([2800]);
   });
 
-  it('cooks foods without keeps_days once on Sunday and lists them for the week', () => {
+  it('keeps foods without keeps_days off the cook days and lists them for the week', () => {
     const oats = food('oats', { name: 'Rolled oats' });
     const egg = food('egg', { name: 'Egg', pieceWeightG: 55 });
     const plan = prepPlan({
@@ -216,18 +216,47 @@ describe('the prep plan and grocery list (S17)', () => {
     });
     expect(plan.cookDays.flatMap((day) => day.cooks.map((cook) => cook.foodId))).toEqual([
       'chicken',
-      'egg',
-      'oats',
       'chicken',
     ]);
     expect(plan.cookDays[0]?.date).toBe('2026-10-18');
-    expect(plan.cookDays[0]?.cooks.find((cook) => cook.foodId === 'oats')).toEqual(
-      expect.objectContaining({ keepsDays: null, rawGrams: 560, dates: week }),
-    );
     expect(plan.cookDays.map((day) => day.covers)).toEqual([week.slice(0, 3), week.slice(3)]);
     expect(plan.grocery.filter((item) => item.section === 'week')).toEqual([
       expect.objectContaining({ foodId: 'egg', unit: 'pieces', quantity: 14, cooks: [] }),
       expect.objectContaining({ foodId: 'oats', unit: 'g', quantity: 560, cooks: [] }),
+    ]);
+  });
+
+  it('cooks a batch-cooked food counted in pieces in whole pieces, and lists it in pieces', () => {
+    const egg = food('egg', { name: 'Egg', keepsDays: 4, pieceWeightG: 55 });
+    const plan = prepPlan({
+      weekStart: WEEK,
+      cookDays: cookDaysOf(WEEK, [4]),
+      foods: [chicken, egg],
+      items: [
+        ...daily('chicken', 300, { yieldRatio: 0.75 }),
+        ...daily('egg', 110, { cooked: false, pieceCount: 2 }),
+      ],
+      listed: [...listed, { id: 'egg', name: 'Egg', keepsDays: 4 }],
+    });
+    const eggs = plan.cookDays.map((day) => day.cooks.find((cook) => cook.foodId === 'egg'));
+    expect(eggs).toEqual([
+      expect.objectContaining({ pieces: 6, rawGrams: 330, dates: week.slice(0, 3) }),
+      expect.objectContaining({ pieces: 8, rawGrams: 440, dates: week.slice(3) }),
+    ]);
+    expect(
+      plan.cookDays.map((day) => day.cooks.find((cook) => cook.foodId === 'chicken')?.pieces),
+    ).toEqual([null, null]);
+    expect(plan.grocery).toEqual([
+      expect.objectContaining({ foodId: 'chicken', section: 'cook_days', unit: 'g' }),
+      {
+        foodId: 'egg',
+        name: 'Egg',
+        section: 'cook_days',
+        unit: 'pieces',
+        quantity: 14,
+        cooks: [6, 8],
+        approximate: false,
+      },
     ]);
   });
 

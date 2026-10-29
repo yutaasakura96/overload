@@ -68,7 +68,6 @@ export function GoalPhaseScreen({ me, navigate }: { me: Me; navigate: Navigate }
     <main>
       <AppBar
         title="Goal phase"
-        sticky
         subline={open === undefined ? 'STEP 3 OF 4' : phaseLine(open, today).toUpperCase()}
         slot={<DataState at={phases.dataUpdatedAt} />}
         back={{ label: 'Back', onClick: back }}

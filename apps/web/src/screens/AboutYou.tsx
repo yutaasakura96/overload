@@ -68,7 +68,6 @@ export function AboutYou({ me, navigate }: { me: Me; navigate: Navigate }) {
     <main>
       <AppBar
         title="About you"
-        sticky
         subline={complete && latest !== undefined ? undefined : 'STEP 1 OF 4'}
         slot={<DataState at={weighIns.dataUpdatedAt} />}
         back={{ label: 'Back', onClick: back }}

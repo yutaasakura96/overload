@@ -14,6 +14,7 @@ import { dayLabel } from '../dates';
 import { useEntryNote, type Navigate } from '../navigation';
 import { shortDate } from '../plan';
 import {
+  cookDaysOf,
   grams,
   longDay,
   prepWeek,
@@ -124,7 +125,7 @@ export function Prep({ me, navigate }: { me: Me; navigate: Navigate }) {
   const ticks = useTicks({ userId: me.user.id, weekStart, list: 'prep' });
   const note = useEntryNote();
   const plan = prep.data;
-  const cookDays = (plan?.cookDays ?? []).filter((day) => day.cooks.length > 0);
+  const cookDays = plan === undefined ? [] : cookDaysOf(plan);
   const foodOf = new Map((plan?.foods ?? []).map((food) => [food.foodId, food]));
   const twoCooks = cookDays.length === 2;
 
@@ -134,7 +135,6 @@ export function Prep({ me, navigate }: { me: Me; navigate: Navigate }) {
       return;
     }
     ticks.add(key);
-    if (cook.keepsDays === null) return;
     // Ticking a cook opens Record a batch with its raw grams filled in (Q12).
     const query = new URLSearchParams({
       food: cook.foodId,
@@ -178,7 +178,11 @@ export function Prep({ me, navigate }: { me: Me; navigate: Navigate }) {
               <h2 id="no-cooks" className="empty-state__title">
                 Nothing to cook this week
               </h2>
-              <p className="empty-state__body">The week’s plan has no foods in it yet.</p>
+              <p className="empty-state__body">
+                {plan.grocery.length === 0
+                  ? 'The week’s plan has no foods in it yet.'
+                  : 'None of the week’s foods is batch-cooked. Each is weighed at its meal; the grocery list has them.'}
+              </p>
             </section>
           )}
 
@@ -208,9 +212,11 @@ export function Prep({ me, navigate }: { me: Me; navigate: Navigate }) {
                   const done = ticks.ticks.has(key);
                   const yieldLine = yieldNote(foodOf.get(cook.foodId), cook, today);
                   const raw =
-                    cook.rawGrams === null
-                      ? '—'
-                      : `${cook.approximate ? '≈ ' : ''}${grams(cook.rawGrams)}`;
+                    cook.pieces !== null
+                      ? String(cook.pieces)
+                      : cook.rawGrams === null
+                        ? '—'
+                        : `${cook.approximate ? '≈ ' : ''}${grams(cook.rawGrams)}`;
                   return (
                     <li key={key} className={done ? 'cook__row cook__row--done' : 'cook__row'}>
                       <div>
@@ -225,7 +231,17 @@ export function Prep({ me, navigate }: { me: Me; navigate: Navigate }) {
                       <span className="cook__raw">
                         <span className="visually-hidden">Raw </span>
                         {raw}
-                        {cook.rawGrams !== null && <span className="cook__unit"> g</span>}
+                        {cook.pieces !== null ? (
+                          <>
+                            <span className="cook__unit" aria-hidden="true">
+                              {' '}
+                              pc
+                            </span>
+                            <span className="visually-hidden"> pieces</span>
+                          </>
+                        ) : (
+                          cook.rawGrams !== null && <span className="cook__unit"> g</span>
+                        )}
                       </span>
                       <span className="cook__cooked">
                         <span className="visually-hidden">Cooked </span>
@@ -279,7 +295,7 @@ export function Prep({ me, navigate }: { me: Me; navigate: Navigate }) {
             <span>
               <span className="link-row__name">Grocery list</span>
               <span className="link-row__meta">
-                {plan.grocery.length} {plan.grocery.length === 1 ? 'item' : 'items'}, raw weight
+                {plan.grocery.length} {plan.grocery.length === 1 ? 'item' : 'items'}
                 {twoCooks ? ', both cook days summed' : ''}
               </span>
             </span>
@@ -301,18 +317,21 @@ export function Prep({ me, navigate }: { me: Me; navigate: Navigate }) {
   );
 }
 
+const amount = (item: PrepPlan['grocery'][number], value: number) =>
+  item.unit === 'pieces' ? String(value) : grams(value);
+
 export function Grocery({ me, navigate }: { me: Me; navigate: Navigate }) {
   const { weekStart, prep, generating, incomplete } = usePrepWeek(me);
   const ticks = useTicks({ userId: me.user.id, weekStart, list: 'grocery' });
   const plan = prep.data;
   const items = plan?.grocery ?? [];
   const left = items.filter((item) => !ticks.ticks.has(item.foodId)).length;
-  const cookDays = (plan?.cookDays ?? []).filter((day) => day.cooks.length > 0);
+  const cookDays = plan === undefined ? [] : cookDaysOf(plan);
 
   const note = (item: PrepPlan['grocery'][number]) => {
     if (item.section === 'week') return 'for the week';
     if (item.cooks.length > 1)
-      return `${item.cooks.map((each) => (each === null ? '—' : grams(each))).join(' + ')} for two cooks`;
+      return `${item.cooks.map((each) => (each === null ? '—' : amount(item, each))).join(' + ')} for two cooks`;
     if (cookDays.length < 2) return 'for the cook day';
     const which = cookDays.find((day) => day.cooks.some((cook) => cook.foodId === item.foodId));
     return which?.which === 'second' ? 'for the second cook' : 'for the first cook';
@@ -335,7 +354,7 @@ export function Grocery({ me, navigate }: { me: Me; navigate: Navigate }) {
           <span className="grocery__qty">
             {item.quantity === null
               ? '—'
-              : `${item.approximate ? '≈ ' : ''}${item.unit === 'pieces' ? item.quantity : grams(item.quantity)}`}
+              : `${item.approximate ? '≈ ' : ''}${amount(item, item.quantity)}`}
             {item.quantity !== null && (
               <span className="grocery__unit">{item.unit === 'pieces' ? ' pieces' : ' g'}</span>
             )}
@@ -349,8 +368,8 @@ export function Grocery({ me, navigate }: { me: Me; navigate: Navigate }) {
   };
 
   const sections = [
-    { key: 'cook_days', label: 'For the cook days' },
-    { key: 'week', label: 'For the week' },
+    { key: 'cook_days', label: 'For the cook days', basis: 'RAW WEIGHT' },
+    { key: 'week', label: 'For the week', basis: 'AS WEIGHED AT THE MEAL' },
   ] as const;
 
   return (
@@ -381,7 +400,6 @@ export function Grocery({ me, navigate }: { me: Me; navigate: Navigate }) {
             <span>
               <b>{left}</b> of {items.length} left to buy
             </span>
-            <span className="grocery__basis">RAW WEIGHT</span>
           </p>
           {sections.map((section) => {
             const listed = items.filter((item) => item.section === section.key);
@@ -392,9 +410,12 @@ export function Grocery({ me, navigate }: { me: Me; navigate: Navigate }) {
                 className="today__section"
                 aria-labelledby={`grocery-${section.key}`}
               >
-                <h2 id={`grocery-${section.key}`} className="section-label">
-                  {section.label}
-                </h2>
+                <div className="grocery__head">
+                  <h2 id={`grocery-${section.key}`} className="section-label">
+                    {section.label}
+                  </h2>
+                  <span className="grocery__basis">{section.basis}</span>
+                </div>
                 <ul className="grocery">{listed.map(row)}</ul>
               </section>
             );

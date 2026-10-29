@@ -174,3 +174,36 @@ test('a refused sign-in shows the gate’s reason', async ({ context, page }) =>
   await page.goto('/sign-in?error=not_invited');
   await expect(page.getByRole('alert')).toContainText('This Google account hasn’t been invited.');
 });
+
+test('a row brought into view up a long list comes to rest below the stuck app bar', async ({
+  page,
+}) => {
+  await page.goto('/exercises');
+  await expect(page.getByRole('listitem')).toHaveCount(185);
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+
+  const row = page.locator('.library__row').nth(100);
+  await expect
+    .poll(() =>
+      row.evaluate((element) => {
+        element.scrollIntoView({ block: 'start' });
+        const bar = document.querySelector('header.app-bar')?.getBoundingClientRect().bottom ?? 0;
+        return element.getBoundingClientRect().top - bar;
+      }),
+    )
+    .toBeGreaterThanOrEqual(-1);
+});
+
+test('the app bar stays visible while scrolling every tab screen', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 360 });
+  for (const path of ['/', '/food', '/progress', '/routines', '/exercises']) {
+    await page.goto(path);
+    const bar = page.locator('header.app-bar');
+    await expect(bar).toBeVisible();
+    await expect
+      .poll(() => bar.evaluate((element) => getComputedStyle(element).position))
+      .toBe('sticky');
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    await expect.poll(() => bar.evaluate((element) => element.getBoundingClientRect().top)).toBe(0);
+  }
+});

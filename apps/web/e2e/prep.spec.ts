@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { WEB_ORIGIN } from '../playwright.config';
-import { deviceStore } from './device-store';
+import { cacheKey, deviceStore, putDeviceValue, savedCache } from './device-store';
 import { apiFixture } from './fixture';
 
 type Cookies = Parameters<BrowserContext['addCookies']>[0];
@@ -136,6 +136,12 @@ test('records a batch, reads the prep plan’s second cook day and the grocery l
 
   await page.getByRole('link', { name: 'Prep' }).click();
   await expect(page.getByRole('heading', { name: /First cook day/ })).toBeVisible();
+  // The app bar, with the data-state slot, stays while the screen scrolls under it (docs/10 §7.3).
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  await expect
+    .poll(() => page.locator('header.app-bar').evaluate((bar) => bar.getBoundingClientRect().top))
+    .toBe(0);
+  await page.evaluate(() => window.scrollTo(0, 0));
   await expect(page.getByRole('heading', { name: /Second cook day/ })).toBeVisible();
   await expect(
     page.getByText('Chicken breast, skinless keeps 4 days; cook again for the rest of the week.', {
@@ -145,7 +151,8 @@ test('records a batch, reads the prep plan’s second cook day and the grocery l
   const cooks = page.locator('.cook__row', { hasText: 'Chicken breast, skinless' });
   await expect(cooks).toHaveCount(2);
   await expect(cooks.first()).toContainText('Yield 75% from your batch of');
-  await expect(page.locator('.cook__row', { hasText: 'Rolled oats' })).toHaveCount(1);
+  // A food with no shelf life is bought and weighed at its meals: not a row to cook, with no tick.
+  await expect(page.locator('.cook__row', { hasText: 'Rolled oats' })).toHaveCount(0);
   const raws = (await cooks.locator('.cook__raw').allInnerTexts()).map((text) =>
     Number(text.replace(/[^0-9]/g, '')),
   );
@@ -163,6 +170,9 @@ test('records a batch, reads the prep plan’s second cook day and the grocery l
   const tick = chicken.locator('.check-cell');
   const name = chicken.locator('.grocery__name');
   expect((await tick.boundingBox())!.x).toBeGreaterThan((await name.boundingBox())!.x);
+  // Each section names the weight its figures are in: raw to cook, as weighed at the meal otherwise.
+  await expect(page.getByText('RAW WEIGHT', { exact: true })).toHaveCount(1);
+  await expect(page.getByText('AS WEIGHED AT THE MEAL', { exact: true })).toHaveCount(1);
 
   // A tick stays on this phone, across a reload.
   await chicken.click();
@@ -180,6 +190,218 @@ test('records a batch, reads the prep plan’s second cook day and the grocery l
     'aria-pressed',
     'true',
   );
+});
+
+test('real prep API supplies piece-counted batch food to Prep and Grocery', async ({ page }) => {
+  await send(page, 'POST', '/api/foods', {
+    id: randomUUID(),
+    source: 'manual',
+    name: 'Egg, M',
+    state: 'raw',
+    keepsDays: 4,
+    pieceWeightG: 55,
+    ...per100g(142, 12.2, 0.4, 10.2),
+  });
+  await prepareWeek(page);
+  await page.goto('/food');
+  const eggs = page.locator('.cook__row', { hasText: 'Egg, M' });
+  await expect(eggs).toHaveCount(2);
+  const counts = (await eggs.locator('.cook__raw').allInnerTexts()).map((label) => {
+    expect(label).toContain('pc');
+    return Number(label.replace(/[^0-9]/g, ''));
+  });
+  await page.goto('/food/grocery');
+  const grocery = page.getByRole('button', { name: /Egg, M/ });
+  await expect(grocery).toContainText(`${counts.join(' + ')} for two cooks`);
+  await expect(grocery.locator('.grocery__qty')).toHaveText(
+    `${counts.reduce((sum, count) => sum + count, 0)} pieces`,
+  );
+});
+
+/** A cook row as an API from before 2026-10-27 answered it, with no `pieces`. */
+const oldCook = (foodId: string, name: string, keepsDays: number | null, rawGrams: number) => ({
+  foodId,
+  name,
+  keepsDays,
+  rawGrams,
+  cookedGrams: null,
+  approximate: false,
+  dates: ['2099-01-02'],
+});
+
+// A page the service worker controls fetches through it, where a route sees nothing.
+test.describe('with no service worker', () => {
+  test.use({ serviceWorkers: 'block' });
+
+  test('drops a prep plan saved in the shape from before pieces, offline', async ({ page }) => {
+    await page.goto('/food');
+    await expect(page.locator('.food-lede')).toBeVisible();
+    await expect.poll(() => savedCache(page, userId)).toContain('"prep"');
+    // The copy an earlier release saved: a food with no shelf life on the cook day, no `pieces`.
+    type Saved = {
+      clientState: {
+        queries: { queryKey: unknown[]; queryHash: string; state: { data: unknown } }[];
+      };
+    };
+    const saved: Saved = JSON.parse(await savedCache(page, userId));
+    for (const query of saved.clientState.queries) {
+      if (query.queryKey[1] !== 'prep') continue;
+      const weekStart = query.queryKey.at(-1);
+      query.queryKey = ['plan', 'prep', weekStart];
+      query.queryHash = JSON.stringify(query.queryKey);
+      query.state.data = {
+        weekStart,
+        missing: [],
+        generatedAt: new Date().toISOString(),
+        cookDays: [
+          {
+            date: '2099-01-01',
+            which: 'first',
+            covers: ['2099-01-02'],
+            because: null,
+            cooks: [
+              {
+                foodId: randomUUID(),
+                name: 'Banana',
+                keepsDays: null,
+                rawGrams: 2400,
+                cookedGrams: null,
+                approximate: false,
+                dates: ['2099-01-02'],
+              },
+            ],
+          },
+        ],
+        foods: [],
+        uncovered: [],
+        grocery: [],
+      };
+    }
+    await page.route(
+      (url) => url.pathname === '/api/prep-plan',
+      (route) => route.abort('internetdisconnected'),
+    );
+    await putDeviceValue(page, cacheKey(userId), JSON.stringify(saved));
+    await page.reload();
+    await expect(page.getByText('Couldn’t reach Overload.', { exact: false })).toBeVisible();
+    await expect(page.getByText('Banana')).toHaveCount(0);
+  });
+
+  test('reads a prep plan from an API without pieces, which put foods with no shelf life on the cook day', async ({
+    page,
+  }) => {
+    await page.route(
+      (url) => url.pathname === '/api/prep-plan',
+      async (route) => {
+        const response = await route.fetch();
+        const { weekStart }: { weekStart: string } = await response.json();
+        await route.fulfill({
+          response,
+          json: {
+            weekStart,
+            missing: [],
+            generatedAt: new Date().toISOString(),
+            cookDays: [
+              {
+                date: '2099-01-01',
+                which: 'first',
+                covers: ['2099-01-02'],
+                because: null,
+                cooks: [
+                  oldCook(randomUUID(), 'Banana', null, 2400),
+                  oldCook(randomUUID(), 'Chicken breast', 4, 1400),
+                ],
+              },
+            ],
+            foods: [],
+            uncovered: [],
+            grocery: [],
+          },
+        });
+      },
+    );
+
+    await page.goto('/food');
+    const rows = page.locator('.cook__row');
+    await expect(rows).toHaveCount(1);
+    await expect(rows.locator('.cook__raw')).toHaveText('Raw 1,400 g');
+    await expect(page.getByText('Banana')).toHaveCount(0);
+  });
+
+  test('counts a batch-cooked food counted in pieces in pieces on Prep and Grocery', async ({
+    page,
+  }) => {
+    // The API's prep plan for eggs boiled in batches (apps/api/test/prep.test.ts works the figures),
+    // answered for this account.
+    const egg = randomUUID();
+    const cook = (
+      which: 'first' | 'second',
+      date: string,
+      pieces: number,
+      rawGrams: number,
+      dates: string[],
+    ) => ({
+      date,
+      which,
+      covers: dates,
+      because: null,
+      cooks: [
+        {
+          foodId: egg,
+          name: 'Egg',
+          keepsDays: 4,
+          rawGrams,
+          pieces,
+          cookedGrams: null,
+          approximate: false,
+          dates,
+        },
+      ],
+    });
+    await page.route(
+      (url) => url.pathname === '/api/prep-plan',
+      async (route) => {
+        const response = await route.fetch();
+        const { weekStart }: { weekStart: string } = await response.json();
+        await route.fulfill({
+          response,
+          json: {
+            weekStart,
+            missing: [],
+            generatedAt: new Date().toISOString(),
+            cookDays: [
+              cook('first', '2099-01-01', 6, 330, ['2099-01-02']),
+              cook('second', '2099-01-04', 8, 440, ['2099-01-05']),
+            ],
+            foods: [{ foodId: egg, name: 'Egg', keepsDays: 4, batch: null, weighDue: true }],
+            uncovered: [],
+            grocery: [
+              {
+                foodId: egg,
+                name: 'Egg',
+                section: 'cook_days',
+                unit: 'pieces',
+                quantity: 14,
+                cooks: [6, 8],
+                approximate: false,
+              },
+            ],
+          },
+        });
+      },
+    );
+
+    await page.goto('/food');
+    const eggs = page.locator('.cook__row', { hasText: 'Egg' }).locator('.cook__raw');
+    await expect(eggs).toHaveCount(2);
+    await expect(eggs.first()).toHaveText('Raw 6 pc pieces');
+    await expect(eggs.last()).toHaveText('Raw 8 pc pieces');
+
+    await page.goto('/food/grocery');
+    const row = page.getByRole('button', { name: /Egg/ });
+    await expect(row).toContainText('6 + 8 for two cooks');
+    await expect(row.locator('.grocery__qty')).toHaveText('14 pieces');
+  });
 });
 
 test('refuses a batch for a cooked-state food in the form', async ({ page }) => {

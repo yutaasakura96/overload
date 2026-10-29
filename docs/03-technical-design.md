@@ -353,9 +353,10 @@ fewer days than the week is two cooks, Sunday and Thursday, each with the days i
 raw grams; days neither keeps for are named as won't-keep days. It turns the cooked grams back into
 raw by the yield each item was planned with (`plan_meal_item.yield_ratio`, kept when its batch is
 deleted), to 5 g; with no yield, by the ratio of the food's raw calories to the cooked values it
-was planned at, marked approximate. A food with no `keeps_days`, or one stored cooked, is one
-Sunday cook for the week and a `week` grocery line. Batches are for raw foods only: a food stored
-cooked keeps its own values.
+was planned at, marked approximate. A food with no `keeps_days`, or one stored cooked, is not
+cooked: no cook on either day, only a `week` grocery line (`06`, 2026-10-27). A batch-cooked food
+counted in pieces is cooked in whole pieces. Batches are for raw foods only: a food stored cooked
+keeps its own values.
 
 ### 8.3 Weight trend and expenditure (S11, S18a, S21, S23), method `weight_trend_balance_v1`
 

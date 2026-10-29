@@ -4133,8 +4133,8 @@ the approved M2 prototype (screens 11 to 14). Checked at 390px on invented foods
 - **A day is served by the first cook while its batch keeps, else by the second.** The prep plan
   sums each cook's days' cooked grams and turns them into raw by the yield each item was planned
   with, to 5 g. Each cook and cook day lists the days it actually serves rather than a range, which
-  would claim days a short-keeping batch does not reach. A food with no `keeps_days`, or one stored
-  cooked, is one Sunday cook for the week and a `week` grocery line, as `#81` asks.
+  would claim days a short-keeping batch does not reach. The treatment of foods with no
+  `keeps_days`, or stored cooked, was revised on 2026-10-27 (below).
   *Rejected (Q8):* counting down each batch's portions.
 - **The yield.** Plans made after a batch is recorded take its yield: a raw batch-cooked food's
   cooked values are its raw values over the yield, and the item names the batch and stores the
@@ -4245,3 +4245,24 @@ invented plan days and weigh-ins. No migration: the check is read from `plan_day
   back when a later check differs.
 
 **Changed:** `00`, `03` §8.3, `06`, `07` §5, `09` F13, `10` §6, `11` §2.
+
+### 2026-10-27 — Usability check: three bugs fixed ahead of #53
+
+From the owner's usability check (B1, B3, B4), fixed before the polish issue because each gave a
+wrong result today.
+
+- **Every app bar sticks** (B1), as `10` §7.3 decided on 2026-10-16 (Q9). `AppBar` has no `sticky`
+  option any more; it publishes its height as `--app-bar-height`, which the blocks that stick under
+  it (Today's totals, Prep's cook-day heads) sit at. The data-state slot, where pending and refused
+  sets show (`03` §8.1), stays in view.
+- **The grocery list names its weight per section** (B3): `RAW WEIGHT` over the cook days, `AS
+  WEIGHED AT THE MEAL` over the week. A food stored cooked is listed at its cooked weight, which
+  `RAW WEIGHT` mislabelled. Raw weight was not an option: with no batch there is none for it.
+- **Foods with no shelf life, or stored cooked, leave the cook days** (B4), in the API's prep plan
+  and not only on screen. They were rows in grams with a "cooked" tick, though they are bought and
+  weighed at their meals and the grocery list and Today count them in pieces. Prep now shows only
+  what is cooked, in raw grams, as the grocery list's cook-day section does. A batch-cooked food
+  counted in pieces (eggs boiled in a batch) is in whole pieces on Prep and in the grocery list's
+  cook-day section, as Today counts it.
+
+**Changed:** `03` §8.2, `06`, `07` §4, `10` §5, `11` §2.

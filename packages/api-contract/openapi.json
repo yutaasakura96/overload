@@ -4921,7 +4921,7 @@
                       "null"
                     ]
                   },
-                  "description": "Each cook’s raw grams, summed into `quantity`."
+                  "description": "Each cook’s quantity in `unit`, summed into `quantity`."
                 },
                 "approximate": {
                   "type": "boolean"
@@ -4963,17 +4963,21 @@
             "type": "string"
           },
           "keepsDays": {
-            "type": [
-              "integer",
-              "null"
-            ]
+            "type": "integer"
           },
           "rawGrams": {
             "type": [
               "number",
               "null"
             ],
-            "description": "Raw grams to cook, to 5 g. Null for a food stored cooked with no batch weighed to convert by."
+            "description": "Raw grams to cook, to 5 g. Null with no batch weighed and no calories to convert by."
+          },
+          "pieces": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Whole pieces to cook, for a food counted in pieces, as Today counts them."
           },
           "cookedGrams": {
             "type": [
@@ -5001,6 +5005,7 @@
           "name",
           "keepsDays",
           "rawGrams",
+          "pieces",
           "cookedGrams",
           "approximate",
           "dates"
