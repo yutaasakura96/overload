@@ -147,12 +147,13 @@ test.beforeEach(async ({ context, page }) => {
       data: { from: today, to: addDays(today, 6) },
     }),
   );
+  await page.clock.install({ time: new Date(`${today}T12:00:00+09:00`) });
 });
 
 test('confirms meals from Today, then the rest from the end-of-day check', async ({ page }) => {
   const today = todayInZone();
   // Half past ten at night: an hour before bed has begun, so the evening card shows.
-  await page.clock.install({ time: new Date(`${today}T22:30:00+09:00`) });
+  await page.clock.setFixedTime(new Date(`${today}T22:30:00+09:00`));
   await page.goto('/');
   const timeline = page.getByRole('region', { name: 'The day', exact: true });
 
@@ -234,7 +235,7 @@ test('names the remaining meal and preserves earlier choices', async ({ page }) 
     );
   }
 
-  await page.clock.install({ time: new Date(`${today}T22:30:00+09:00`) });
+  await page.clock.setFixedTime(new Date(`${today}T22:30:00+09:00`));
   await page.goto('/');
   await page.getByRole('button', { name: /1 meal not confirmed yet/ }).click();
   await expect(page.getByRole('button', { name: 'Confirm Dinner as planned' })).toBeVisible();
@@ -257,7 +258,7 @@ test('names the remaining meal and preserves earlier choices', async ({ page }) 
 
 test('leaves a day incomplete once, and the card does not ask again', async ({ page }) => {
   const today = todayInZone();
-  await page.clock.install({ time: new Date(`${today}T22:30:00+09:00`) });
+  await page.clock.setFixedTime(new Date(`${today}T22:30:00+09:00`));
   await page.goto('/');
   await page.getByRole('button', { name: /5 meals not confirmed yet/ }).click();
   await page.getByRole('button', { name: 'Leave day incomplete' }).click();
@@ -461,7 +462,7 @@ test('shows zero eaten before adjusting a skipped meal', async ({ page }) => {
 
 test('keeps the end-of-day choice open when device storage refuses it', async ({ page }) => {
   const today = todayInZone();
-  await page.clock.install({ time: new Date(`${today}T22:30:00+09:00`) });
+  await page.clock.setFixedTime(new Date(`${today}T22:30:00+09:00`));
   await page.goto('/');
   await page.getByRole('button', { name: /5 meals not confirmed yet/ }).click();
   await page.evaluate(() => {
@@ -487,7 +488,7 @@ test('reads cleanly: one cooked tag, one protein target, tap targets of 44 px, m
   page,
 }) => {
   const today = todayInZone();
-  await page.clock.install({ time: new Date(`${today}T22:30:00+09:00`) });
+  await page.clock.setFixedTime(new Date(`${today}T22:30:00+09:00`));
   await page.goto('/');
   const timeline = page.getByRole('region', { name: 'The day', exact: true });
   await expect(timeline.locator('.meal__name').first()).toBeVisible();
@@ -529,7 +530,7 @@ test('Replace says when more foods exist than it lists', async ({ page }) => {
       }),
     );
   }
-  await page.clock.install({ time: new Date(`${todayInZone()}T22:30:00+09:00`) });
+  await page.clock.setFixedTime(new Date(`${todayInZone()}T22:30:00+09:00`));
   await page.goto('/');
   await page.getByRole('button', { name: 'Replaced Breakfast' }).click();
   await expect(page.getByRole('heading', { name: 'Replace Breakfast' })).toBeVisible();
