@@ -40,6 +40,19 @@ async function send(page: Page, method: 'POST' | 'PATCH' | 'PUT', path: string, 
   expect(res.ok(), `${method} ${path}`).toBe(true);
 }
 
+async function prepareWeek(page: Page) {
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tokyo' }).format(new Date());
+  const day = new Date(`${today}T00:00:00Z`);
+  const nextMonday = new Date(day.getTime() + ((8 - day.getUTCDay()) % 7 || 7) * 86_400_000)
+    .toISOString()
+    .slice(0, 10);
+  const sunday = new Date(Date.parse(`${nextMonday}T00:00:00Z`) + 6 * 86_400_000)
+    .toISOString()
+    .slice(0, 10);
+  await send(page, 'POST', '/api/plan-days/generate', { from: nextMonday, to: sunday });
+  await page.clock.install({ time: new Date(`${nextMonday}T12:00:00+09:00`) });
+}
+
 test.beforeAll(() => {
   const created: { userId: string } = JSON.parse(apiFixture('user', EMAIL));
   ({ userId } = created);
@@ -53,7 +66,10 @@ test.beforeEach(async ({ context, page }) => {
   const cookies: Cookies = JSON.parse(apiFixture('cookies', userId, 'localhost'));
   await context.addCookies(cookies);
   const foods: { items: unknown[] } = await (await page.request.get('/api/foods')).json();
-  if (foods.items.length > 0) return;
+  if (foods.items.length > 0) {
+    await prepareWeek(page);
+    return;
+  }
   await send(page, 'PATCH', '/api/me/profile', {
     timezone: 'Asia/Tokyo',
     heightCm: 176,
@@ -92,6 +108,7 @@ test.beforeEach(async ({ context, page }) => {
       { time: '21:30', label: 'Dinner' },
     ],
   });
+  await prepareWeek(page);
 });
 
 test('records a batch, reads the prep plan’s second cook day and the grocery list', async ({
@@ -104,6 +121,9 @@ test('records a batch, reads the prep plan’s second cook day and the grocery l
   await page.getByRole('button', { name: 'Record a batch' }).click();
   await expect(page.getByRole('heading', { name: 'Record a batch' })).toBeVisible();
   await expect(page.getByLabel('Food')).toHaveValue(/.+/);
+  await page
+    .getByRole('textbox', { name: 'Cooked on' })
+    .fill(new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tokyo' }).format(new Date()));
   await page.getByRole('textbox', { name: /Raw weight/ }).fill('1400');
   await page.getByRole('textbox', { name: /Cooked weight/ }).fill('1050');
   await expect(page.getByText('100 g cooked counts as 133 g raw.', { exact: false })).toBeVisible();

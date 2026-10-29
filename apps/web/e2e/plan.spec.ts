@@ -215,6 +215,12 @@ test('About you keeps refusals until each field is valid', async ({ page }) => {
 async function proteinPlanAfterWeighIn(page: Page, proteinGPerKg: number, nextWeightKg: number) {
   const headers = { Origin: WEB_ORIGIN };
   const today = todayInZone().date;
+  await page.clock.install({ time: new Date(`${today}T12:00:00+09:00`) });
+  // The week Today reads. Leaving a day of it unmade makes Today regenerate the plan on load,
+  // which would bring today up to the new target and take the shortfall away.
+  const weekEnd = new Date(Date.parse(`${today}T00:00:00Z`) + 6 * DAY_MS)
+    .toISOString()
+    .slice(0, 10);
   expect(
     (
       await page.request.patch('/api/me/profile', {
@@ -273,7 +279,7 @@ async function proteinPlanAfterWeighIn(page: Page, proteinGPerKg: number, nextWe
     (
       await page.request.post('/api/plan-days/generate', {
         headers,
-        data: { from: today, to: today },
+        data: { from: today, to: weekEnd },
       })
     ).ok(),
   ).toBe(true);
@@ -313,6 +319,12 @@ test('Today shows a new protein shortfall after a higher weigh-in', async ({ pag
   ).toHaveText(`/ ${target}`);
   await expect(page.getByText(`Protein ${missing} g short`)).toBeVisible();
   await expect(page.getByText(new RegExp(`today’s target of ${target} g`))).toBeVisible();
+  if (process.env.NO_MISTAKES_EVIDENCE_DIR) {
+    await page.screenshot({
+      path: `${process.env.NO_MISTAKES_EVIDENCE_DIR}/protein-higher-${test.info().project.name}.png`,
+      fullPage: true,
+    });
+  }
 });
 
 test('Today hides an old protein shortfall after a lower weigh-in', async ({ page }) => {
@@ -324,6 +336,12 @@ test('Today hides an old protein shortfall after a lower weigh-in', async ({ pag
     page.locator('.macro').filter({ hasText: 'Protein' }).locator('.macro__of'),
   ).toHaveText(`/ ${Math.round(current.proteinG)}`);
   await expect(page.getByText(/^Protein \d+ g short$/)).toHaveCount(0);
+  if (process.env.NO_MISTAKES_EVIDENCE_DIR) {
+    await page.screenshot({
+      path: `${process.env.NO_MISTAKES_EVIDENCE_DIR}/protein-lower-${test.info().project.name}.png`,
+      fullPage: true,
+    });
+  }
 });
 
 test('About you reports saved details separately when its weigh-in fails', async ({ page }) => {
