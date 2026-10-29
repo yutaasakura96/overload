@@ -213,7 +213,7 @@ test('real prep API supplies piece-counted batch food to Prep and Grocery', asyn
   await page.goto('/food/grocery');
   const grocery = page.getByRole('button', { name: /Egg, M/ });
   await expect(grocery).toContainText(`${counts.join(' + ')} for two cooks`);
-  await expect(grocery.locator('.grocery__qty')).toHaveText(`${counts[0]! + counts[1]!} pieces`);
+  await expect(grocery.locator('.grocery__qty')).toHaveText(`${counts[0] + counts[1]} pieces`);
 });
 
 /** A cook row as an API from before 2026-10-27 answered it, with no `pieces`. */
