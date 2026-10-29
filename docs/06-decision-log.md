@@ -4133,8 +4133,8 @@ the approved M2 prototype (screens 11 to 14). Checked at 390px on invented foods
 - **A day is served by the first cook while its batch keeps, else by the second.** The prep plan
   sums each cook's days' cooked grams and turns them into raw by the yield each item was planned
   with, to 5 g. Each cook and cook day lists the days it actually serves rather than a range, which
-  would claim days a short-keeping batch does not reach. A food with no `keeps_days`, or one stored
-  cooked, is one Sunday cook for the week and a `week` grocery line, as `#81` asks.
+  would claim days a short-keeping batch does not reach. The treatment of foods with no
+  `keeps_days`, or stored cooked, was revised on 2026-10-27 (below).
   *Rejected (Q8):* counting down each batch's portions.
 - **The yield.** Plans made after a batch is recorded take its yield: a raw batch-cooked food's
   cooked values are its raw values over the yield, and the item names the batch and stores the

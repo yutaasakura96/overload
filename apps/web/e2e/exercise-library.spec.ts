@@ -193,3 +193,17 @@ test('a row brought into view up a long list comes to rest below the stuck app b
     )
     .toBeGreaterThanOrEqual(-1);
 });
+
+test('the app bar stays visible while scrolling every tab screen', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 360 });
+  for (const path of ['/', '/food', '/progress', '/routines', '/exercises']) {
+    await page.goto(path);
+    const bar = page.locator('header.app-bar');
+    await expect(bar).toBeVisible();
+    await expect
+      .poll(() => bar.evaluate((element) => getComputedStyle(element).position))
+      .toBe('sticky');
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    await expect.poll(() => bar.evaluate((element) => element.getBoundingClientRect().top)).toBe(0);
+  }
+});

@@ -493,7 +493,7 @@ because the data says it differently:
 - `Record a batch` has no `FROM THE PLAN` note over the raw weight: at 390px it pushed the two
   weights out of line, and the app bar already says `FROM THE PREP PLAN`. `Cooked on` goes up to
   today. The batches list has no delete; the API has one (`07` §4).
-- Empty states: `No plan to prep from yet` (setup not done), `Nothing to cook this week` (the week's plan has no foods), `Nothing
+- Empty states: `No plan to prep from yet` (setup not done), `Nothing to cook this week` (the week's plan has no foods to cook), `Nothing
   to buy`, and on Batches `No batch-cooked foods`.
 
 ### Prep (S17, Q8)

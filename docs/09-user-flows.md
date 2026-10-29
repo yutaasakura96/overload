@@ -381,7 +381,8 @@ incomplete until it is confirmed or locks.
    item was planned with (S17). It lists Sunday's cook before the week and Thursday's second cook
    when a food keeps for fewer than seven days, each with the days it serves; planned servings fall
    only on days covered by each food's `keeps_days` (`02` S16–S17), and the other days get a
-   won't-keep notice. A food with no `keeps_days` is one Sunday cook for the week.
+   won't-keep notice. A food with no `keeps_days`, or one stored cooked, stays off the cook days
+   and appears on the grocery list for the week (`03` §8.2).
 2. **Grocery list** → the same, summed per food to buy.
 3. After cooking → **Record batch**: food, raw weight, cooked weight, date → save. Future plan items
    use the new yield; past ones keep their snapshot.

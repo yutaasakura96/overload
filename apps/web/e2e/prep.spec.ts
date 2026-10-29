@@ -192,6 +192,30 @@ test('records a batch, reads the prep plan’s second cook day and the grocery l
   );
 });
 
+test('real prep API supplies piece-counted batch food to Prep and Grocery', async ({ page }) => {
+  await send(page, 'POST', '/api/foods', {
+    id: randomUUID(),
+    source: 'manual',
+    name: 'Egg, M',
+    state: 'raw',
+    keepsDays: 4,
+    pieceWeightG: 55,
+    ...per100g(142, 12.2, 0.4, 10.2),
+  });
+  await prepareWeek(page);
+  await page.goto('/food');
+  const eggs = page.locator('.cook__row', { hasText: 'Egg, M' });
+  await expect(eggs).toHaveCount(2);
+  const counts = (await eggs.locator('.cook__raw').allInnerTexts()).map((label) => {
+    expect(label).toContain('pc');
+    return Number(label.replace(/[^0-9]/g, ''));
+  });
+  await page.goto('/food/grocery');
+  const grocery = page.getByRole('button', { name: /Egg, M/ });
+  await expect(grocery).toContainText(`${counts.join(' + ')} for two cooks`);
+  await expect(grocery.locator('.grocery__qty')).toHaveText(`${counts[0]! + counts[1]!} pieces`);
+});
+
 /** A cook row as an API from before 2026-10-27 answered it, with no `pieces`. */
 const oldCook = (foodId: string, name: string, keepsDays: number | null, rawGrams: number) => ({
   foodId,
